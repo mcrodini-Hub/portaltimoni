@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.1.0-alpha.6 — Cabeçalho da planilha fixado na linha 3 (com fallback)
+
+Confirmado com o usuário: nas planilhas reais dos fornecedores, o cabeçalho
+(`ITEM | VENDA | COMPRA | DESCRICAO | ... | ESTOQUE | UNIDADE`) está sempre na
+linha 3. `findHeaderRow()` em `content/sheets-content.js` agora tenta a linha 3
+(índice 2) primeiro; se as três colunas forem identificadas ali, usa direto —
+sem precisar varrer as primeiras 30 linhas. Se a linha 3 não bater (planilha
+fora do padrão), continua caindo para a varredura completa como antes, então
+nenhum caso que já funcionava deixa de funcionar.
+
+Também esclarecido (sem mudança de código): durante a leitura profunda de
+etiquetas no Trello (quando a frente do cartão não mostra o texto da
+etiqueta, só a barra colorida), a extensão abre e fecha cada cartão da lista
+rapidamente para ler o nome de verdade no painel de detalhes — isso inclui
+cartões com outras etiquetas (ex.: "Araras"), que são abertos, verificados e
+descartados. É esperado ver cartões abrindo e fechando rapidamente durante
+"Trello aberto — lendo fornecedores...". Para evitar esse "piscar" de
+cartões, dá para configurar o board para sempre mostrar o texto das
+etiquetas na frente do cartão (no board do Trello, com o quadro em foco,
+tecla **L** alterna "mostrar nomes nas etiquetas") — com o texto visível na
+frente, a leitura rápida encontra "Rio Claro" direto, sem precisar abrir
+cartão nenhum.
+
 ## 1.1.0-alpha.5 — "Abrir Trello" reaproveitava aba de cartão específico
 
 - **Corrigido**: ao clicar em "Abrir Trello" estando numa página de cartão

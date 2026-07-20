@@ -84,10 +84,16 @@
   }
 
   // Planilhas reais costumam ter várias linhas de "ruído" antes do cabeçalho de verdade
-  // (fornecedor, transportadora, avisos, funcionário...). Em vez de assumir que a primeira
-  // linha não vazia é o cabeçalho, procura a primeira linha (dentre as primeiras 30) em que
-  // dá para identificar as três colunas — essa é tratada como o cabeçalho real.
+  // (fornecedor, transportadora, avisos, funcionário...). Nas planilhas do fornecedor
+  // testadas, o cabeçalho fica sempre na linha 3 (índice 2) — tenta essa linha primeiro
+  // (rápido e evita falso-positivo em linhas de ruído que por acaso batam com alguma
+  // palavra-chave fraca) e só cai para varrer as primeiras 30 linhas se a linha 3 não bater.
   function findHeaderRow(rows) {
+    const preferredIdx = 2; // linha 3 (1-indexado)
+    if (rows[preferredIdx]) {
+      const columns = detectColumns(rows[preferredIdx]);
+      if (columns) return { headerIdx: preferredIdx, columns };
+    }
     const limit = Math.min(rows.length, 30);
     for (let i = 0; i < limit; i++) {
       const columns = detectColumns(rows[i]);

@@ -15,6 +15,14 @@
   function waitFor(conditionFn, { timeout = 8000, interval = 300 } = {}) {
     return new Promise((resolve) => {
       const start = Date.now();
+      let observer = null;
+      let poll = null;
+
+      function cleanup() {
+        if (observer) observer.disconnect();
+        if (poll) clearInterval(poll);
+      }
+
       const tryNow = () => {
         const value = conditionFn();
         if (value) {
@@ -27,24 +35,19 @@
 
       if (tryNow()) return;
 
-      const observer = new MutationObserver(() => {
+      observer = new MutationObserver(() => {
         if (tryNow()) return;
         if (Date.now() - start > timeout) cleanup();
       });
       observer.observe(document.body, { childList: true, subtree: true });
 
-      const poll = setInterval(() => {
+      poll = setInterval(() => {
         if (tryNow()) return;
         if (Date.now() - start > timeout) {
           cleanup();
           resolve(null);
         }
       }, interval);
-
-      function cleanup() {
-        observer.disconnect();
-        clearInterval(poll);
-      }
     });
   }
 

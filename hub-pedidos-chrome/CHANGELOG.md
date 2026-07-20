@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.1.0-alpha.4 — Agrupamento de linhas da planilha mais robusto
+
+O fix da alpha.3 corrigiu qual linha é tratada como cabeçalho, mas o erro
+"não foi possível identificar as colunas" continuou — o problema real é
+anterior: a forma como as células da planilha eram agrupadas em linhas
+(`readGridRows()` em `content/sheets-content.js`) dependia de `aria-rowindex`,
+que a planilha real do usuário aparentemente não expõe do jeito esperado,
+fragmentando ou misturando o conteúdo das linhas.
+
+- **Corrigido**: `readGridRows()` agora agrupa células pelo próprio elemento
+  ancestral `role="row"` (identidade do nó, testado e confirmado em Chromium
+  real), e só cai para agrupar por posição vertical (arredondada, tolerando
+  sub-pixel) se nenhuma célula tiver um ancestral `role="row"`.
+- **Adicionado**: quando a extração falha por não identificar as colunas, o
+  diagnóstico agora mostra quantas linhas foram lidas, se caiu no modo de
+  leitura alternativo (tabela HTML) e uma prévia do conteúdo das primeiras
+  linhas — assim, se ainda falhar, dá para corrigir direto a partir do
+  diagnóstico copiado, sem precisar de mais uma rodada de prints.
+
 ## 1.1.0-alpha.3 — Extração da planilha corrigida + link direto + print do Bessani
 
 Segunda rodada de correções após teste real com a planilha do fornecedor

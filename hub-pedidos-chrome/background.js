@@ -155,7 +155,12 @@ async function handleExtractItems() {
 
   if (!result || result.error) {
     const msg = (result && result.error) || 'Não foi possível extrair os itens da planilha.';
-    await logError(msg);
+    const extraDiag = (result && result.diagnostics) || {};
+    await HubState.setState({
+      currentState: STATES.ERRO,
+      lastError: msg,
+      diagnostics: Object.assign({ activeTabUrl: activeTab.url }, extraDiag)
+    });
     return { error: msg };
   }
 

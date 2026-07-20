@@ -208,6 +208,12 @@ function renderDiagnostics(state) {
     `Itens extraídos: ${d.itemsExtracted ?? state.extractedItems.length}`,
     `Último erro: ${state.lastError || '--'}`
   ];
+  if (d.rowsRead !== undefined) {
+    lines.push(`Linhas lidas na planilha: ${d.rowsRead}`);
+    lines.push(`Usou leitura alternativa (tabela HTML): ${d.usedFallbackTable ? 'sim' : 'não'}`);
+    lines.push('Prévia das primeiras linhas lidas:');
+    lines.push(d.rowsPreview || '--');
+  }
   ui.diagText.textContent = lines.join('\n');
 }
 

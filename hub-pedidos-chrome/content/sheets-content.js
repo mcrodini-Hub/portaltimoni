@@ -40,21 +40,31 @@
     });
   }
 
-  // Agrupa as células visíveis por linha, usando aria-rowindex quando disponível.
+  // Agrupa as células visíveis por linha. Estratégia principal: agrupar pelo próprio elemento
+  // ancestral com role="row" (identidade do nó, não um número de atributo que pode não
+  // existir ou não bater com o que é mostrado). Se não achar um ancestral role="row" para
+  // NENHUMA célula, cai para agrupar por posição vertical arredondada (tolera diferenças de
+  // sub-pixel entre células da mesma linha).
   function readGridRows() {
     const cells = document.querySelectorAll('[role="gridcell"]');
     if (!cells || cells.length === 0) return null;
 
+    const hasRowAncestor = Array.from(cells).some((c) => c.closest('[role="row"]'));
+
     const rowsMap = new Map();
+    const order = [];
     cells.forEach((cell) => {
-      const rowIndex = cell.getAttribute('aria-rowindex') || cell.closest('[role="row"]')?.getAttribute('aria-rowindex');
-      const key = rowIndex !== null && rowIndex !== undefined ? Number(rowIndex) : cell.getBoundingClientRect().top;
-      if (!rowsMap.has(key)) rowsMap.set(key, []);
-      rowsMap.get(key).push((cell.textContent || '').trim());
+      const rowEl = hasRowAncestor ? cell.closest('[role="row"]') : null;
+      const key = rowEl || Math.round(cell.getBoundingClientRect().top / 4) * 4;
+      if (!rowsMap.has(key)) {
+        rowsMap.set(key, { texts: [], top: cell.getBoundingClientRect().top });
+        order.push(key);
+      }
+      rowsMap.get(key).texts.push((cell.textContent || '').trim());
     });
 
-    const orderedKeys = Array.from(rowsMap.keys()).sort((a, b) => a - b);
-    return orderedKeys.map((k) => rowsMap.get(k));
+    order.sort((a, b) => rowsMap.get(a).top - rowsMap.get(b).top);
+    return order.map((k) => rowsMap.get(k).texts);
   }
 
   // Alternativa: tabela HTML simples (algumas visualizações do Sheets renderizam <tr>/<td>).
@@ -64,6 +74,13 @@
     return Array.from(trs).map((tr) =>
       Array.from(tr.querySelectorAll('td, th, [role="gridcell"]')).map((c) => (c.textContent || '').trim())
     );
+  }
+
+  // Resumo curto das primeiras linhas lidas, usado só para diagnóstico quando a extração
+  // falha — ajuda a entender rápido se a leitura do DOM está errada (linhas fragmentadas
+  // demais, célula por célula) sem precisar inspecionar a planilha ao vivo.
+  function summarizeRowsForDiagnostics(rows) {
+    return rows.slice(0, 6).map((row) => `[${row.length} cél.] ${row.slice(0, 6).join(' | ')}`).join('\n');
   }
 
   // Planilhas reais costumam ter várias linhas de "ruído" antes do cabeçalho de verdade
@@ -85,8 +102,10 @@
     }
 
     let rows = await waitFor(readGridRows, { timeout: 6000 });
+    let usedFallbackTable = false;
     if (!rows || rows.length === 0) {
       rows = readTableRows();
+      usedFallbackTable = true;
     }
 
     if (!rows || rows.length < 2) {
@@ -95,7 +114,14 @@
 
     const found = findHeaderRow(rows);
     if (!found) {
-      return { error: 'Não foi possível identificar automaticamente as colunas de código, descrição e quantidade em nenhuma das primeiras linhas. Confira o cabeçalho da planilha.' };
+      return {
+        error: 'Não foi possível identificar automaticamente as colunas de código, descrição e quantidade em nenhuma das primeiras linhas. Confira o cabeçalho da planilha.',
+        diagnostics: {
+          rowsRead: rows.length,
+          usedFallbackTable,
+          rowsPreview: summarizeRowsForDiagnostics(rows)
+        }
+      };
     }
     const { headerIdx, columns } = found;
 

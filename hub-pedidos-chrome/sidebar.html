@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal Timoni — Hub de Pedidos</title>
+  <link rel="stylesheet" href="sidebar.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-logo">H</span>
+      <span class="brand-title">Hub de Pedidos <span class="brand-dim">· Portal Timoni</span></span>
+    </div>
+    <div class="topbar-actions">
+      <button id="btn-pin" class="icon-btn" title="Fixar painel" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l1.5 5.5L19 9l-4.5 3 1 6-3.5-3-3.5 3 1-6L5 9l5.5-1.5z"/></svg>
+      </button>
+      <button id="btn-close" class="icon-btn" title="Fechar painel">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main class="content">
+    <div class="intro-row">
+      <div>
+        <h1>Hub de Pedidos</h1>
+        <p class="subtitle">Abra cada etapa somente quando precisar.</p>
+      </div>
+      <label class="pin-checkbox">
+        <input type="checkbox" id="chk-fixar">
+        <span>Fixar</span>
+      </label>
+    </div>
+
+    <div id="error-banner" class="error-banner" hidden></div>
+
+    <div class="state-badge" id="state-badge">Aguardando início</div>
+
+    <!-- ETAPA 1 -->
+    <section class="step">
+      <p class="step-label">1. Relação de pedidos</p>
+      <div class="step-card">
+        <p class="step-status" id="trello-status">Trello: não conectado</p>
+        <button id="btn-abrir-trello" class="btn btn-primary">Abrir Trello</button>
+      </div>
+    </section>
+
+    <!-- ETAPA 2 -->
+    <section class="step">
+      <p class="step-label">2. Escolher fornecedor</p>
+      <div class="step-card">
+        <div id="fornecedores-placeholder" class="placeholder-text">Abra o Trello para listar os fornecedores.</div>
+        <div id="fornecedores-wrap" hidden>
+          <div class="row-between">
+            <span id="fornecedores-count" class="count-text">Fornecedores encontrados: 0</span>
+            <button id="btn-atualizar-fornecedores" class="btn-link">Atualizar fornecedores</button>
+          </div>
+          <ul id="fornecedores-lista" class="supplier-list"></ul>
+        </div>
+        <button id="btn-abrir-drive" class="btn btn-primary" disabled>Abrir Google Drive</button>
+        <p class="hint-text">No Drive, abra manualmente a planilha do fornecedor.</p>
+      </div>
+    </section>
+
+    <!-- ETAPA 3 -->
+    <section class="step">
+      <p class="step-label">3. Planilha aberta</p>
+      <div class="step-card">
+        <button id="btn-extrair-itens" class="btn btn-primary" disabled>Extrair itens da planilha</button>
+        <div id="itens-wrap" hidden>
+          <p class="count-text" id="itens-total">Total de itens: 0</p>
+          <ul id="itens-lista" class="item-list"></ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ETAPA 4 -->
+    <section class="step">
+      <p class="step-label">4. Bessani</p>
+      <div class="step-card">
+        <input type="text" id="input-bessani" class="text-input" placeholder="Cole aqui o link do Bessani">
+        <button id="btn-abrir-bessani" class="btn btn-primary" disabled>Abrir Bessani</button>
+      </div>
+    </section>
+
+    <!-- ETAPA 5 -->
+    <section class="step">
+      <p class="step-label">5. Atualização final</p>
+      <div class="step-card">
+        <div id="resumo-wrap" class="summary-box" hidden>
+          <p><strong>Fornecedor:</strong> <span id="resumo-fornecedor">--</span></p>
+          <p><strong>Itens a enviar:</strong> <span id="resumo-itens">0</span></p>
+        </div>
+        <button id="btn-atualizar-trello" class="btn btn-primary" disabled>Atualizar Trello</button>
+        <div id="confirm-wrap" class="confirm-box" hidden>
+          <p>Confirma atualizar os cartões do Trello com os itens extraídos?</p>
+          <div class="confirm-actions">
+            <button id="btn-confirmar-update" class="btn btn-primary">Confirmar</button>
+            <button id="btn-cancelar-update" class="btn btn-secondary">Cancelar</button>
+          </div>
+        </div>
+        <ul id="resultados-lista" class="result-list"></ul>
+      </div>
+    </section>
+
+    <div class="footer-actions">
+      <button id="btn-reiniciar" class="btn btn-secondary">Reiniciar fluxo</button>
+    </div>
+
+    <!-- DIAGNÓSTICO -->
+    <section class="step">
+      <button id="btn-toggle-diag" class="btn-link diag-toggle">Mostrar diagnóstico</button>
+      <div id="diag-wrap" class="step-card diag-box" hidden>
+        <pre id="diag-text"></pre>
+        <button id="btn-copiar-diag" class="btn btn-secondary">Copiar diagnóstico</button>
+      </div>
+    </section>
+  </main>
+
+  <script src="lib/state.js"></script>
+  <script src="lib/messages.js"></script>
+  <script src="sidebar.js"></script>
+</body>
+</html>

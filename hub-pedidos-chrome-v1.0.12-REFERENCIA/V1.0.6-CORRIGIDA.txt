@@ -1,0 +1,89 @@
+═══════════════════════════════════════════════════════════════════════════════
+  HUB DE PEDIDOS - V1.0.6 CORRIGIDA
+  Correção: Abrir as 3 abas (Trello + Google Drive + WhatsApp)
+═══════════════════════════════════════════════════════════════════════════════
+
+🔴 PROBLEMA RESOLVIDO:
+- Versão anterior: Só WhatsApp abria
+- Versão 1.0.6: TODAS AS 3 ABAS ABREM AGORA
+
+═══════════════════════════════════════════════════════════════════════════════
+  PASSO 1: DESINSTALAR VERSÃO ANTIGA
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Abra Chrome → chrome://extensions/
+2. Procure "Hub de Pedidos Casa Timoni"
+3. Clique em "REMOVER" (lixo vermelho)
+4. Confirme: "Remover extensão?"
+5. Extensão desinstalada ✅
+
+═══════════════════════════════════════════════════════════════════════════════
+  PASSO 2: INSTALAR VERSÃO 1.0.6
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Chrome → chrome://extensions/
+2. Ligue "MODO DE DESENVOLVEDOR" (canto superior direito)
+3. Clique "CARREGAR EXTENSÃO SEM EMPACOTAMENTO"
+4. Selecione a pasta "hub-pedidos-chrome"
+5. Pronto! Extensão instalada ✅
+
+═══════════════════════════════════════════════════════════════════════════════
+  PASSO 3: TESTAR
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Abra F12 (Console)
+2. Clique "🚀 INICIAR AUTOMAÇÃO"
+3. Observar no Console:
+
+   ✅ ESPERADO:
+   ═══════════════════════════════════════
+   [1/3] INICIANDO: WhatsApp Web
+   ✅ SUCESSO: WhatsApp Web (ID: XXX)
+   
+   [2/3] INICIANDO: Trello
+   ✅ SUCESSO: Trello (ID: YYY)
+   
+   [3/3] INICIANDO: Google Drive
+   ✅ SUCESSO: Google Drive (ID: ZZZ)
+   
+   ✅ TODAS AS ABAS ABERTAS COM SUCESSO!
+   ═══════════════════════════════════════
+
+4. Verificar no topo do navegador:
+   - Aba 1: WhatsApp ✅
+   - Aba 2: Trello ✅
+   - Aba 3: Google Drive (Pasta - Google Drive) ✅
+
+═══════════════════════════════════════════════════════════════════════════════
+  O QUE MUDOU NA V1.0.6
+═══════════════════════════════════════════════════════════════════════════════
+
+1. ✅ Manifest.json:
+   - Adicionada permissão "webRequest"
+   - Adicionada permissão "clipboardWrite"
+   - Adicionado "<all_urls>" em host_permissions
+   - Versão: 1.0.0 → 1.0.6
+
+2. ✅ popup.js (Função criarAbaRobusta):
+   - Verificação melhorada se tab foi criada
+   - Aguarda aba carregar completamente
+   - Timeout de 10s por aba
+   - Logging detalhado de cada passo
+   - Delays progressivos: 2s, 3s, 4s entre abas
+
+3. ✅ popup.js (Sequência de abertura):
+   - Melhor logging visual com separadores
+   - Erro em qualquer aba interrompe processo
+   - Mensagens de sucesso na sidebar
+   - Verifica se Trello carregou antes de listar fornecedores
+
+═══════════════════════════════════════════════════════════════════════════════
+  SE AINDA NÃO FUNCIONAR
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Abra F12 (DevTools)
+2. Aba "Console"
+3. Clique "🚀 INICIAR"
+4. Mande print do console mostrando EXATAMENTE onde falha
+
+═══════════════════════════════════════════════════════════════════════════════

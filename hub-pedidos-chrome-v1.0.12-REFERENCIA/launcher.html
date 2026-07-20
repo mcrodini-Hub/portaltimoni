@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hub de Pedidos - Launcher</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+      max-width: 600px;
+      width: 100%;
+      padding: 40px;
+    }
+    
+    .header {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    
+    .header h1 {
+      font-size: 28px;
+      color: #667eea;
+      margin-bottom: 10px;
+    }
+    
+    .header p {
+      color: #666;
+      font-size: 14px;
+    }
+    
+    .icon {
+      font-size: 48px;
+      margin-bottom: 10px;
+    }
+    
+    .section {
+      margin-bottom: 25px;
+    }
+    
+    .section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #333;
+      margin-bottom: 15px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .step {
+      background: #f9f9f9;
+      padding: 15px;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      border-left: 4px solid #667eea;
+    }
+    
+    .step-number {
+      display: inline-block;
+      background: #667eea;
+      color: white;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      text-align: center;
+      line-height: 24px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-right: 10px;
+    }
+    
+    .step p {
+      color: #555;
+      font-size: 13px;
+      margin-bottom: 8px;
+    }
+    
+    .btn-group {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    
+    .btn {
+      flex: 1;
+      min-width: 150px;
+      padding: 12px 20px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      text-align: center;
+      text-decoration: none;
+      display: inline-block;
+    }
+    
+    .btn-primary {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+    }
+    
+    .btn-secondary {
+      background: #f0f0f0;
+      color: #333;
+    }
+    
+    .btn-secondary:hover {
+      background: #e0e0e0;
+    }
+    
+    .links {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 12px;
+    }
+    
+    .link-btn {
+      background: #f5f5f5;
+      padding: 12px;
+      border-radius: 8px;
+      border: 1px solid #e0e0e0;
+      color: #667eea;
+      text-decoration: none;
+      font-size: 13px;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .link-btn:hover {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+    
+    .link-btn span {
+      font-size: 16px;
+    }
+    
+    .divider {
+      height: 1px;
+      background: #e0e0e0;
+      margin: 25px 0;
+    }
+    
+    .info-box {
+      background: #e7f0ff;
+      border: 1px solid #bfd7ff;
+      border-left: 4px solid #667eea;
+      padding: 15px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: #333;
+      line-height: 1.6;
+    }
+    
+    .info-box strong {
+      color: #667eea;
+    }
+    
+    .checklist {
+      font-size: 13px;
+      color: #555;
+      margin-top: 10px;
+    }
+    
+    .checklist li {
+      list-style: none;
+      margin-bottom: 8px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .checklist li:before {
+      content: "✓";
+      color: #28a745;
+      font-weight: bold;
+      width: 16px;
+    }
+    
+    @media (max-width: 600px) {
+      .container {
+        padding: 25px;
+      }
+      
+      .header h1 {
+        font-size: 22px;
+      }
+      
+      .btn-group {
+        flex-direction: column;
+      }
+      
+      .btn {
+        min-width: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <div class="icon">🚀</div>
+      <h1>Hub de Pedidos</h1>
+      <p>Casa Timoni - Automação de Compras</p>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">⚡ Começar</div>
+      <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+        Escolha como usar a automação:
+      </p>
+      
+      <div class="btn-group">
+        <button class="btn btn-primary" onclick="abrirInterface()">
+          🖱️ Interface Completa
+        </button>
+        <button class="btn btn-secondary" onclick="abrirGuia()">
+          📖 Ver Guia
+        </button>
+      </div>
+    </div>
+    
+    <div class="divider"></div>
+    
+    <div class="section">
+      <div class="section-title">🔗 Links Principais</div>
+      <div class="links">
+        <a href="https://trello.com/b/UfPrTr1H/compras" target="_blank" class="link-btn">
+          <span>📋 Trello - Board Compras</span>
+          <span>→</span>
+        </a>
+        <a href="https://drive.google.com/drive/u/0/folders/1P7Nb1FwfSQ6e7TA9Wkgizyy53tGGQajk" target="_blank" class="link-btn">
+          <span>📊 Google Drive - Planilhas</span>
+          <span>→</span>
+        </a>
+        <a href="https://web.whatsapp.com/" target="_blank" class="link-btn">
+          <span>💬 WhatsApp Web</span>
+          <span>→</span>
+        </a>
+      </div>
+    </div>
+    
+    <div class="divider"></div>
+    
+    <div class="section">
+      <div class="section-title">✅ Pré-requisitos</div>
+      <ul class="checklist">
+        <li>Logado no Trello</li>
+        <li>Logado no Google Drive</li>
+        <li>WhatsApp Web ativo (escanear QR code se necessário)</li>
+        <li>Planilhas dos fornecedores no Drive</li>
+        <li>Etiqueta "fornecedores" no WhatsApp Business</li>
+      </ul>
+    </div>
+    
+    <div class="divider"></div>
+    
+    <div class="section">
+      <div class="section-title">📝 Como Usar</div>
+      <div class="step">
+        <div><span class="step-number">1</span><strong>Preparar</strong></div>
+        <p>Abra as 3 abas: Trello, Drive, WhatsApp Web</p>
+      </div>
+      
+      <div class="step">
+        <div><span class="step-number">2</span><strong>Listar</strong></div>
+        <p>Clique em "Interface Completa" para ver fornecedores</p>
+      </div>
+      
+      <div class="step">
+        <div><span class="step-number">3</span><strong>Loop Por Fornecedor</strong></div>
+        <p>Para cada um: extrai dados → Bessani → atualiza Trello → WhatsApp</p>
+      </div>
+      
+      <div class="step">
+        <div><span class="step-number">4</span><strong>Repetir</strong></div>
+        <p>Continue até zerar a lista de fornecedores</p>
+      </div>
+    </div>
+    
+    <div class="info-box">
+      <strong>💡 Dica:</strong> Esta versão roda direto no navegador sem instalação. 
+      Se precisar usar extensão no Chrome, instale a pasta completa via chrome://extensions/
+    </div>
+  </div>
+  
+  <script>
+    function abrirInterface() {
+      // Abrir em nova janela/aba
+      const url = chrome?.runtime?.getURL?.('popup.html') || 
+                  `data:text/html,${encodeURIComponent(document.documentElement.innerHTML)}`;
+      window.open(url, 'hub-interface', 'width=800,height=900');
+    }
+    
+    function abrirGuia() {
+      alert(`
+📖 GUIA RÁPIDO
+
+1️⃣ LISTAR FORNECEDORES
+   • Clique em "Interface Completa"
+   • Extensão lista todos do Trello
+
+2️⃣ PARA CADA FORNECEDOR:
+   
+   A) Extração Drive
+      → Busca planilha automaticamente
+      → Extrai: Código, Descrição, Quantidade
+   
+   B) Print Bessani
+      → Cole o print (Ctrl+V)
+      → Preencha: Número, Data Pedido, Data Entrega
+   
+   C) Atualizar Trello
+      → Card atualizado automaticamente
+      → Adiciona descrição, datas, anexo
+   
+   D) WhatsApp
+      → Edite a mensagem se quiser
+      → Abra WhatsApp, selecione fornecedor
+      → Envie e aguarde resposta
+
+3️⃣ PRÓXIMO FORNECEDOR
+   → Clique em "Próximo Fornecedor"
+   → Loop repete automaticamente
+
+4️⃣ FINALIZAR
+   → Quando acabar a lista, processo encerra
+
+─────────────────────────────
+🔑 Atalhos
+├─ Ctrl+V = Colar imagem do Bessani
+├─ Tab = Navegar campos
+└─ Enter = Confirmar
+
+─────────────────────────────
+⚠️ Importante
+├─ Não feche as abas (Trello, Drive, WhatsApp)
+├─ Aguarde cada etapa completar
+├─ Confirme dados no Bessani antes de continuar
+└─ Verifique resposta no WhatsApp antes de próximo
+
+Sucesso! 🚀
+      `);
+    }
+    
+    // Abrir abas automaticamente (opcional)
+    // window.addEventListener('load', () => {
+    //   const urls = [
+    //     'https://trello.com/b/UfPrTr1H/compras',
+    //     'https://drive.google.com/drive/u/0/folders/1P7Nb1FwfSQ6e7TA9Wkgizyy53tGGQajk',
+    //     'https://web.whatsapp.com/'
+    //   ];
+    //   urls.forEach((url, idx) => {
+    //     setTimeout(() => window.open(url, '_blank'), idx * 500);
+    //   });
+    // });
+  </script>
+</body>
+</html>

@@ -1,0 +1,50 @@
+{
+  "manifest_version": 3,
+  "name": "Hub de Pedidos Casa Timoni",
+  "version": "1.0.12",
+  "description": "Automação de fluxo de compras: Trello → Drive → Bessani → Trello → WhatsApp",
+  "permissions": [
+    "tabs",
+    "scripting",
+    "activeTab",
+    "clipboardRead",
+    "clipboardWrite",
+    "storage",
+    "sidePanel",
+    "webNavigation",
+    "webRequest"
+  ],
+  "host_permissions": [
+    "<all_urls>",
+    "https://trello.com/*",
+    "https://drive.google.com/*",
+    "https://docs.google.com/*",
+    "https://web.whatsapp.com/*"
+  ],
+  "action": {
+    "default_popup": "popup.html"
+  },
+  "side_panel": {
+    "default_path": "sidebar.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://trello.com/*"],
+      "js": ["content-trello.js"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": ["https://drive.google.com/*", "https://docs.google.com/spreadsheets/*"],
+      "js": ["content-drive.js"],
+      "run_at": "document_end"
+    },
+    {
+      "matches": ["https://web.whatsapp.com/*"],
+      "js": ["content-whatsapp.js"],
+      "run_at": "document_end"
+    }
+  ]
+}

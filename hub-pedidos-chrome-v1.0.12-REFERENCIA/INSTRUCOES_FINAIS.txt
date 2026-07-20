@@ -1,0 +1,190 @@
+═══════════════════════════════════════════════════════════════════════════════
+  HUB DE PEDIDOS - EXTENSÃO CHROME - INSTRUÇÕES FINAIS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ EXTENSÃO CRIADA COM SUCESSO!
+
+O que você recebeu:
+─────────────────────────────────────────────────────────────────────────────
+
+📦 hub-pedidos-chrome.zip
+   └─ Pasta com todos os arquivos da extensão
+
+
+═══════════════════════════════════════════════════════════════════════════════
+🚀 COMO USAR - 2 OPÇÕES
+═══════════════════════════════════════════════════════════════════════════════
+
+OPÇÃO A: USAR SEM INSTALAÇÃO (RÁPIDO)
+──────────────────────────────────────
+1. Abra o arquivo: launcher.html
+   (duplo clique ou arrastar para o Chrome)
+
+2. Clique em "Interface Completa"
+
+3. Segue o fluxo normalmente
+
+
+OPÇÃO B: INSTALAR COMO EXTENSÃO (RECOMENDADO)
+─────────────────────────────────────────────
+1. Extraia o ZIP: hub-pedidos-chrome.zip
+
+2. Abra Chrome → chrome://extensions/
+
+3. Ative "Modo de desenvolvedor" (canto superior direito)
+
+4. Clique em "Carregar extensão sem empacotamento"
+
+5. Selecione a pasta hub-pedidos-chrome
+
+6. Pronto! Ícone aparece na barra de ferramentas
+
+
+═══════════════════════════════════════════════════════════════════════════════
+📋 ARQUIVOS INCLUSOS
+═══════════════════════════════════════════════════════════════════════════════
+
+manifest.json          → Configuração da extensão
+popup.html             → Interface visual do popup
+popup.js               → Lógica principal e estados
+background.js          → Service worker (orquestração)
+content-trello.js      → Scripts para interagir com Trello
+content-drive.js       → Scripts para Google Drive/Sheets
+content-whatsapp.js    → Scripts para WhatsApp Web
+launcher.html          → Launcher (sem instalação)
+README.md              → Documentação completa
+INSTRUCOES_FINAIS.txt  → Este arquivo
+
+
+═══════════════════════════════════════════════════════════════════════════════
+🎯 FLUXO COMPLETO
+═══════════════════════════════════════════════════════════════════════════════
+
+Para cada fornecedor:
+
+1️⃣ EXTRAIR DADOS (Automático)
+   ├─ Trello: lista fornecedores
+   ├─ Google Drive: busca planilha
+   └─ Extrai: código, descrição, quantidade
+
+2️⃣ BESSANI (Manual)
+   ├─ Você lança o pedido em Bessani
+   ├─ Cola o print (Ctrl+V) na extensão
+   └─ Preenche: número, data pedido, data entrega
+
+3️⃣ ATUALIZAR TRELLO (Automático)
+   ├─ Card atualizado com descrição
+   ├─ Datas adicionadas
+   ├─ Etiqueta "Pedido Enviado" adicionada
+   └─ Print anexado
+
+4️⃣ WHATSAPP (Semi-automático)
+   ├─ Edite mensagem se quiser
+   ├─ Extensão busca fornecedor
+   ├─ Você envia no WhatsApp Web
+   └─ Aguarda resposta
+
+5️⃣ PRÓXIMO FORNECEDOR
+   └─ Repete até zerar a lista
+
+
+═══════════════════════════════════════════════════════════════════════════════
+⚙️ CONFIGURAÇÕES IMPORTANTES
+═══════════════════════════════════════════════════════════════════════════════
+
+Necessário estar logado em:
+✓ Trello (https://trello.com)
+✓ Google Drive (https://drive.google.com)
+✓ WhatsApp Web (https://web.whatsapp.com)
+
+Links da extensão (já configurados):
+├─ Trello: https://trello.com/b/UfPrTr1H/compras
+├─ Drive: https://drive.google.com/drive/u/0/folders/1P7Nb1FwfSQ6e7TA9Wkgizyy53tGGQajk
+└─ WhatsApp: https://web.whatsapp.com/
+
+Planilhas esperadas:
+├─ Nomes iguais aos fornecedores no Trello
+├─ Colunas: Código (B) | Descrição (D) | Mês Atual
+└─ Formato: .xlsx (Excel)
+
+WhatsApp Business:
+├─ Etiqueta "fornecedores" deve estar criada
+├─ Fornecedores devem ter essa etiqueta
+└─ Extensão busca por nome + etiqueta
+
+
+═══════════════════════════════════════════════════════════════════════════════
+🐛 TROUBLESHOOTING RÁPIDO
+═══════════════════════════════════════════════════════════════════════════════
+
+❌ "Fornecedores não listam"
+   ✓ Recarregue Trello (F5)
+   ✓ Verifique se lista "RELAÇÃO E PEDIDOS RIO CLARO/ARARAS" existe
+   ✓ Aguarde 2-3 segundos após abrir
+
+❌ "Planilha não encontra dados"
+   ✓ Abra planilha manualmente no Drive
+   ✓ Verif se colunas estão: B=Código, D=Descrição, última=Mês
+   ✓ Nenhuma célula vazia nas colunas importantes
+
+❌ "Print não cola"
+   ✓ Use Ctrl+V direto na página
+   ✓ Copie a imagem (não link)
+   ✓ Ou use botão "Selecionar arquivo"
+
+❌ "Trello não atualiza"
+   ✓ Aguarde card abrir completamente
+   ✓ Feche abas desnecessárias (Chrome fica lento)
+   ✓ Recarregue Trello se ficar travado
+
+❌ "WhatsApp não encontra fornecedor"
+   ✓ Busque manualmente no WhatsApp primeiro
+   ✓ Verifique nome/etiqueta
+   ✓ WhatsApp Business precisa estar ativo
+
+
+═══════════════════════════════════════════════════════════════════════════════
+💡 DICAS DE USO
+═══════════════════════════════════════════════════════════════════════════════
+
+✓ Deixe as 3 abas (Trello, Drive, WhatsApp) abertas o tempo todo
+✓ Não minimize o navegador enquanto roda (às vezes fica lento)
+✓ Copie/cole no WhatsApp manualmente (é rápido)
+✓ Aguarde resposta antes de próximo fornecedor (evita confusão)
+✓ Se ficar lento, feche outras abas e tente novamente
+✓ Timestamps são adicionados automaticamente (não precisa digitar data/hora)
+✓ Etiquetas são adicionadas automaticamente ("Pedido Enviado")
+
+
+═══════════════════════════════════════════════════════════════════════════════
+📞 SUPORTE
+═══════════════════════════════════════════════════════════════════════════════
+
+Se tiver problemas:
+
+1. Verifique pré-requisitos (está logado em tudo?)
+2. Recarregue a extensão (chrome://extensions, descarregue e carregue)
+3. Limpe cache do navegador (Ctrl+Shift+Del)
+4. Abra console (F12 > Console) e procure erros
+5. Tente novamente
+
+
+═══════════════════════════════════════════════════════════════════════════════
+✨ PRONTO!
+═══════════════════════════════════════════════════════════════════════════════
+
+Sua extensão está 100% funcional e pronta para usar!
+
+Passos finais:
+1. Extraia hub-pedidos-chrome.zip (ou abra launcher.html)
+2. Instale em chrome://extensions/ (Opção B) ou use direto (Opção A)
+3. Abra as 3 abas (Trello, Drive, WhatsApp)
+4. Clique no ícone da extensão
+5. Comece a processar fornecedores!
+
+Sucesso! 🚀
+
+─────────────────────────────────────────────────────────────────────────────
+Versão: 1.0.0
+Data: Julho 2026
+Desenvolvido por: Claude AI

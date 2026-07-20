@@ -1,0 +1,100 @@
+═══════════════════════════════════════════════════════════════════════════════
+  HUB DE PEDIDOS - V1.0.8 SIDEBAR OTIMIZADA
+  Interface Principal: Sidebar (menos pesado, mais limpo)
+═══════════════════════════════════════════════════════════════════════════════
+
+🎯 MUDANÇAS PRINCIPAIS:
+
+1. ✅ INTERFACE PRINCIPAL = SIDEBAR
+   ❌ Antes: Popup pequeno + Sidebar auxiliar = confusão
+   ✅ Agora: Sidebar grande com botão "INICIAR" em destaque
+
+2. ✅ BOTÃO "🚀 INICIAR AUTOMAÇÃO" NA SIDEBAR
+   - Fica visível e destacado no topo
+   - Um clique e tudo começa
+   - Menos cliques necessários
+
+3. ✅ FILTRO AUTOMÁTICO POR "RIO CLARO"
+   - Lista apenas fornecedores com etiqueta/nome "Rio Claro"
+   - Ignora fornecedores de outras regiões
+   - Mais direto, sem distrações
+
+4. ✅ MENOS PESADO
+   - Interface simplificada
+   - Popup só mostra quando necessário
+   - Sidebar fica aberta como painel permanente
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📋 FLUXO NOVO (SEM MUDANÇAS DE USUÁRIO):
+
+1. Clica na extensão
+2. Sidebar abre grande (interface principal)
+3. Lê: "Bem-vindo ao Hub de Pedidos"
+4. Clica em "🚀 INICIAR AUTOMAÇÃO" (botão grande roxo)
+5. Sistema:
+   - Abre as 3 abas (WhatsApp, Trello, Google Drive)
+   - Lista fornecedores "Rio Claro" automaticamente
+   - Mostra progresso na sidebar
+6. ⏸️ PAUSA: para cada etapa (Bessani, Trello, WhatsApp)
+7. Você confirma/preenche dados
+8. Loop até zerar lista
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🚀 COMO INSTALAR:
+
+1. chrome://extensions/ → Remover versão 1.0.7
+2. Extrair novo ZIP (hub-pedidos-chrome)
+3. Instalar sem empacotamento (como antes)
+4. Pronto! V1.0.8 instalada
+
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ TESTE RÁPIDO:
+
+1. Clique extensão (canto superior direito)
+2. Sidebar aparece grande (não popup pequeno!)
+3. Botão roxo "🚀 INICIAR AUTOMAÇÃO" visível no topo
+4. Clique no botão
+5. As 3 abas abrem automaticamente
+6. Sidebar mostra: "0 / X fornecedores" (apenas Rio Claro)
+7. Vai pedir confirmação para começar
+
+═══════════════════════════════════════════════════════════════════════════════
+
+📊 MUDANÇAS DE CÓDIGO:
+
+1. sidebar.html:
+   - Adicionado botão "🚀 INICIAR AUTOMAÇÃO" no topo
+   - Estilos CSS para destaque visual
+   - Elemento #btn-iniciar-sidebar
+
+2. sidebar.js:
+   - Listener para clique do botão
+   - Envia mensagem ao popup.js
+   - Inicia automação via sidebar
+
+3. popup.js:
+   - Listener para receber comando da sidebar
+   - chrome.runtime.onMessage para 'iniciar-automacao-sidebar'
+   - Simula clique no botão de iniciar
+
+4. content-trello.js:
+   - Filtro por etiqueta "Rio Claro"
+   - Extrai tags dos cards automaticamente
+   - Retorna apenas fornecedores Rio Claro
+
+5. manifest.json:
+   - Versão: 1.0.7 → 1.0.8
+
+═══════════════════════════════════════════════════════════════════════════════
+
+🎯 PRÓXIMAS MELHORIAS POSSÍVEIS:
+
+- Exportar relatório de pedidos processados
+- Notificações quando fornecedor responde
+- Histórico de pedidos no sidebar
+- Configurações de filtro (customizar regiões)
+
+═══════════════════════════════════════════════════════════════════════════════

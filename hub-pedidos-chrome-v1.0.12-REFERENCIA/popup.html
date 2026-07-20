@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hub de Pedidos</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      width: 500px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+      color: #333;
+      min-height: 100vh;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 20px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .header h1 {
+      font-size: 18px;
+      margin-bottom: 5px;
+    }
+    
+    .header p {
+      font-size: 12px;
+      opacity: 0.9;
+    }
+    
+    .container {
+      padding: 20px;
+    }
+    
+    .section {
+      background: white;
+      border-radius: 8px;
+      padding: 15px;
+      margin-bottom: 15px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    
+    .section-title {
+      font-weight: 600;
+      color: #667eea;
+      margin-bottom: 10px;
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .icon {
+      font-size: 16px;
+    }
+    
+    .status-box {
+      background: #f0f4ff;
+      border-left: 5px solid #667eea;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      box-shadow: 0 2px 4px rgba(102, 126, 234, 0.1);
+    }
+    
+    .status-box.active {
+      background: #d4edda;
+      border-left-color: #28a745;
+      box-shadow: 0 2px 4px rgba(40, 167, 69, 0.1);
+    }
+    
+    .status-box.error {
+      background: #f8d7da;
+      border-left-color: #dc3545;
+      box-shadow: 0 2px 4px rgba(220, 53, 69, 0.1);
+    }
+    
+    .status-box.warning {
+      background: #fff3cd;
+      border-left-color: #ffc107;
+      box-shadow: 0 2px 4px rgba(255, 193, 7, 0.1);
+    }
+    
+    .btn {
+      display: inline-block;
+      padding: 12px 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 600;
+      transition: all 0.3s ease;
+      margin-right: 8px;
+      margin-bottom: 8px;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .btn:hover {
+      background: linear-gradient(135deg, #5568d3 0%, #6a3f8f 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.6);
+    }
+    
+    .btn:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+      transform: none;
+    }
+    
+    .btn-secondary {
+      background: #6c757d;
+    }
+    
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+    
+    .btn-success {
+      background: #28a745;
+    }
+    
+    .btn-success:hover {
+      background: #218838;
+    }
+    
+    .btn-danger {
+      background: #dc3545;
+    }
+    
+    .btn-danger:hover {
+      background: #c82333;
+    }
+    
+    .btn-warning {
+      background: #ffc107;
+      color: #333;
+    }
+    
+    .btn-warning:hover {
+      background: #e0a800;
+    }
+    
+    .fornecedor-list {
+      max-height: 300px;
+      overflow-y: auto;
+      border: 1px solid #e0e0e0;
+      border-radius: 6px;
+    }
+    
+    .fornecedor-item {
+      padding: 12px;
+      border-bottom: 1px solid #e0e0e0;
+      cursor: pointer;
+      transition: background 0.2s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+    
+    .fornecedor-item:hover {
+      background: #f9f9f9;
+    }
+    
+    .fornecedor-item.active {
+      background: #e7f0ff;
+      border-left: 4px solid #667eea;
+    }
+    
+    .fornecedor-item.completed {
+      opacity: 0.6;
+      background: #f0f0f0;
+    }
+    
+    .fornecedor-status {
+      font-size: 11px;
+      color: #666;
+      margin-top: 4px;
+    }
+    
+    .form-group {
+      margin-bottom: 12px;
+    }
+    
+    .form-group label {
+      display: block;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #555;
+    }
+    
+    .form-group input,
+    .form-group textarea {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-family: inherit;
+      font-size: 13px;
+      transition: border 0.2s;
+    }
+    
+    .form-group input:focus,
+    .form-group textarea:focus {
+      outline: none;
+      border-color: #667eea;
+      box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+    }
+    
+    .form-group textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+    
+    .divider {
+      height: 1px;
+      background: #e0e0e0;
+      margin: 15px 0;
+    }
+    
+    .loading {
+      display: inline-block;
+      width: 14px;
+      height: 14px;
+      border: 2px solid #f3f3f3;
+      border-top: 2px solid #667eea;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      vertical-align: middle;
+      margin-right: 6px;
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    
+    .grid.full {
+      grid-template-columns: 1fr;
+    }
+    
+    .data-display {
+      background: #f9f9f9;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 12px;
+      margin-bottom: 10px;
+      border-left: 3px solid #667eea;
+    }
+    
+    .data-display strong {
+      color: #333;
+    }
+    
+    .preview-image {
+      max-width: 100%;
+      max-height: 200px;
+      border-radius: 4px;
+      margin: 10px 0;
+      border: 1px solid #ddd;
+    }
+    
+    .spinner {
+      text-align: center;
+      padding: 20px;
+    }
+    
+    .success-message {
+      background: #d4edda;
+      border: 1px solid #c3e6cb;
+      color: #155724;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      font-size: 13px;
+    }
+    
+    .error-message {
+      background: #f8d7da;
+      border: 1px solid #f5c6cb;
+      color: #721c24;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 15px;
+      font-size: 13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🚀 Hub de Pedidos</h1>
+    <p>Casa Timoni - Automação de Compras</p>
+  </div>
+  
+  <div class="container">
+    <!-- ETAPA 1: INICIALIZAÇÃO -->
+    <div id="etapa-init" class="section">
+      <div class="section-title">
+        <span class="icon">⚙️</span>
+        Bem-vindo ao Hub de Pedidos!
+      </div>
+      
+      <div class="status-box" style="margin-bottom: 15px;">
+        <strong>✅ Preparação:</strong><br>
+        Quando você clicar, abriremos 3 abas:<br>
+        • 💬 WhatsApp Web<br>
+        • 📋 Trello (Compras)<br>
+        • 📊 Google Drive (Planilhas)
+      </div>
+      
+      <div style="background: #f0f4ff; padding: 12px; border-radius: 6px; margin-bottom: 15px; font-size: 12px; color: #555; border-left: 3px solid #667eea;">
+        <strong>📌 Certifique-se:</strong><br>
+        ✓ Está logado em Trello<br>
+        ✓ Está logado em Google Drive<br>
+        ✓ WhatsApp Web está conectado
+      </div>
+      
+      <p style="font-size: 13px; margin-bottom: 15px; color: #666;">
+        Clique abaixo para começar o fluxo de automação de compras.
+      </p>
+      
+      <button class="btn" id="btn-init" style="width: 100%; padding: 14px; font-size: 14px;">
+        🚀 Iniciar Automação
+      </button>
+      
+      <div id="init-status" style="display: none; margin-top: 10px;"></div>
+    </div>
+    
+    <!-- ETAPA 2: LISTA DE FORNECEDORES -->
+    <div id="etapa-lista" class="section" style="display: none;">
+      <div class="section-title">
+        <span class="icon">📋</span>
+        Fornecedores Pendentes
+      </div>
+      
+      <div class="status-box" style="margin-bottom: 12px;">
+        <strong>✅ Abas abertas!</strong><br>
+        Você tem <span id="count-fornecedores">0</span> fornecedores para processar.
+      </div>
+      
+      <div style="font-size: 12px; color: #666; margin-bottom: 12px;">
+        <strong>⚙️ O que vai acontecer:</strong><br>
+        1. Extrair dados do Google Drive<br>
+        2. Receber print do Bessani<br>
+        3. Atualizar card no Trello<br>
+        4. Enviar mensagem no WhatsApp<br>
+        Repetir para cada fornecedor
+      </div>
+      
+      <div id="fornecedor-lista" class="fornecedor-list" style="margin-bottom: 12px;"></div>
+      
+      <div style="margin-top: 12px;">
+        <button class="btn btn-success" id="btn-confirma-lista" style="width: 100%;">
+          ▶️ Começar Processamento
+        </button>
+        <button class="btn btn-secondary" id="btn-reset" style="width: 100%; margin-top: 8px;">
+          🔄 Voltar
+        </button>
+      </div>
+    </div>
+    
+    <!-- ETAPA 3: EXTRAÇÃO GOOGLE DRIVE -->
+    <div id="etapa-drive" class="section" style="display: none;">
+      <div class="section-title">
+        <span class="icon">📊</span>
+        Extraindo Planilha
+      </div>
+      <div id="drive-status" class="status-box">
+        <span class="loading"></span>
+        Buscando dados de <strong id="fornecedor-atual">--</strong>
+      </div>
+      <div id="drive-resultado" style="display: none;">
+        <div class="data-display">
+          <strong>Código:</strong> <span id="data-codigo">--</span><br>
+          <strong>Descrição:</strong> <span id="data-descricao">--</span><br>
+          <strong>Quantidade:</strong> <span id="data-quantidade">--</span>
+        </div>
+        <p style="font-size: 12px; color: #666; margin-bottom: 12px;">
+          ✅ Dados extraídos. Próxima etapa: Bessani
+        </p>
+      </div>
+    </div>
+    
+    <!-- ETAPA 4: PRINT BESSANI -->
+    <div id="etapa-bessani" class="section" style="display: none;">
+      <div class="section-title">
+        <span class="icon">🖼️</span>
+        Print do Bessani
+      </div>
+      <div class="status-box warning" style="margin-bottom: 12px;">
+        📌 <strong>Instruções:</strong><br>
+        1. Copie a imagem do print (Ctrl+C)<br>
+        2. Clique aqui nesta janela<br>
+        3. Cole com Ctrl+V<br>
+        OU selecione arquivo abaixo
+      </div>
+      
+      <div class="form-group">
+        <label>Selecionar arquivo de imagem</label>
+        <input type="file" id="upload-print" accept="image/*">
+      </div>
+      
+      <div id="preview-print" style="display: none;">
+        <img id="preview-img" class="preview-image" src="" alt="Preview">
+      </div>
+      
+      <div style="margin-bottom: 12px;">
+        <div class="form-group full">
+          <label>Número do Pedido</label>
+          <input type="text" id="input-num-pedido" placeholder="Ex: 6075">
+        </div>
+        <div class="grid">
+          <div class="form-group">
+            <label>Data Pedido</label>
+            <input type="date" id="input-data-pedido">
+          </div>
+          <div class="form-group">
+            <label>Data Entrega</label>
+            <input type="date" id="input-data-entrega">
+          </div>
+        </div>
+      </div>
+      
+      <button class="btn btn-success" id="btn-confirma-bessani">Confirmar Dados</button>
+      <button class="btn btn-secondary" id="btn-volta-drive">Voltar</button>
+    </div>
+    
+    <!-- ETAPA 5: ATUALIZAR TRELLO -->
+    <div id="etapa-trello" class="section" style="display: none;">
+      <div class="section-title">
+        <span class="icon">🔄</span>
+        Atualizando Trello
+      </div>
+      <div id="trello-status" class="status-box">
+        <span class="loading"></span>
+        Atualizando card...
+      </div>
+      <div id="trello-resultado" style="display: none; margin-top: 12px;">
+        <div class="success-message">
+          ✅ Card atualizado com sucesso!
+        </div>
+      </div>
+    </div>
+    
+    <!-- ETAPA 6: WHATSAPP -->
+    <div id="etapa-whatsapp" class="section" style="display: none;">
+      <div class="section-title">
+        <span class="icon">💬</span>
+        WhatsApp
+      </div>
+      
+      <div class="form-group full">
+        <label>Mensagem (edite conforme necessário)</label>
+        <textarea id="textarea-whatsapp">Segue pedido de compra. Aguardo retorno com a previsão de entrega. Obrigada, Ciça</textarea>
+      </div>
+      
+      <div class="status-box warning">
+        ⏳ Aguardando você enviar a mensagem via WhatsApp Web.
+      </div>
+      
+      <div style="margin-top: 12px; font-size: 12px; color: #666;">
+        <p><strong>Instruções:</strong></p>
+        <ol style="margin-left: 20px;">
+          <li>Clique em "Abrir WhatsApp"</li>
+          <li>Selecione o fornecedor pela etiqueta "fornecedores"</li>
+          <li>Cole a mensagem acima</li>
+          <li>Envie e aguarde resposta</li>
+          <li>Clique em "Próximo Fornecedor" aqui</li>
+        </ol>
+      </div>
+      
+      <div style="margin-top: 12px;">
+        <button class="btn" id="btn-abrir-whatsapp">📲 Abrir WhatsApp</button>
+      </div>
+      
+      <div style="margin-top: 12px;">
+        <button class="btn btn-success" id="btn-proximo-fornecedor">Próximo Fornecedor</button>
+        <button class="btn btn-secondary" id="btn-volta-trello">Voltar</button>
+      </div>
+    </div>
+    
+    <!-- ETAPA 7: FINALIZAÇÃO -->
+    <div id="etapa-final" class="section" style="display: none;">
+      <div class="section-title">
+        <span class="icon">🎉</span>
+        Processo Finalizado
+      </div>
+      <div class="success-message">
+        ✅ Todos os fornecedores foram processados!
+      </div>
+      <p style="font-size: 13px; margin-bottom: 12px; color: #666;">
+        Fluxo de compras concluído com sucesso. Todos os pedidos foram:
+      </p>
+      <ul style="font-size: 13px; margin-left: 20px; color: #666;">
+        <li>✓ Dados extraídos</li>
+        <li>✓ Pedidos lançados no Bessani</li>
+        <li>✓ Cards Trello atualizados</li>
+        <li>✓ Fornecedores notificados via WhatsApp</li>
+      </ul>
+      <div style="margin-top: 12px;">
+        <button class="btn" id="btn-nova-rodada">Começar Nova Rodada</button>
+      </div>
+    </div>
+    
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html>

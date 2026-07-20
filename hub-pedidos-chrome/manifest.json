@@ -4,7 +4,6 @@
   "version": "1.1.0",
   "version_name": "1.1.0-alpha.1",
   "description": "Fluxo assistido de compras: Trello -> Google Drive -> Planilha -> Bessani -> Trello, com abertura de abas somente sob demanda.",
-  "default_locale": "pt_BR",
   "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",

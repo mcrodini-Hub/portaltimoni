@@ -41,8 +41,10 @@ depois de carregar a extensão via `chrome://extensions/`.
 - [ ] Clicar abre só o Drive (aba reaproveitada se já existir).
 
 ### Teste 5 — Planilha
-- [ ] Clicar em "Extrair itens" sem Sheets aberto como aba ativa mostra erro claro.
+- [ ] Clicar em "Extrair itens" sem Sheets aberto como aba ativa e sem link colado mostra erro claro.
+- [ ] Colando o link da planilha, "Extrair itens" abre/reaproveita a aba sozinha.
 - [ ] Com a planilha aberta e ativa, extrai todos os itens (não só o primeiro).
+- [ ] Cabeçalho é encontrado mesmo com linhas de "ruído" acima dele (fornecedor, transportadora, avisos).
 - [ ] Nenhum `fetch()` é disparado (checar aba Rede do DevTools).
 - [ ] A planilha não é editada (nenhuma célula muda).
 - [ ] Se as colunas não forem identificadas, mostra erro claro e mantém o estado anterior.
@@ -51,6 +53,9 @@ depois de carregar a extensão via `chrome://extensions/`.
 - [ ] Link pode ser colado e salvo mesmo sem clicar em "Abrir".
 - [ ] Só abre ao clicar em "Abrir Bessani".
 - [ ] Nunca abre sozinho.
+- [ ] Print colado (Ctrl+V) ou enviado por upload aparece como miniatura na sidebar.
+- [ ] "Remover print" limpa a miniatura e volta a mostrar a área de colar.
+- [ ] Print NÃO é anexado ao card do Trello nem enviado a lugar nenhum.
 
 ### Teste 7 — Atualização do Trello
 - [ ] Mostra resumo do fornecedor + itens antes de atualizar.

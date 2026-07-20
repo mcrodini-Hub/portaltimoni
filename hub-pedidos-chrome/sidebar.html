@@ -71,6 +71,8 @@
     <section class="step">
       <p class="step-label">3. Planilha aberta</p>
       <div class="step-card">
+        <input type="text" id="input-sheet-url" class="text-input" placeholder="Cole aqui o link da planilha (opcional)">
+        <p class="hint-text" style="margin-top: -6px; margin-bottom: 10px;">Se preencher, a aba abre sozinha ao clicar em extrair. Se deixar em branco, usa a aba do Sheets que já estiver ativa.</p>
         <button id="btn-extrair-itens" class="btn btn-primary" disabled>Extrair itens da planilha</button>
         <div id="itens-wrap" hidden>
           <p class="count-text" id="itens-total">Total de itens: 0</p>
@@ -85,6 +87,16 @@
       <div class="step-card">
         <input type="text" id="input-bessani" class="text-input" placeholder="Cole aqui o link do Bessani">
         <button id="btn-abrir-bessani" class="btn btn-primary" disabled>Abrir Bessani</button>
+
+        <div class="divider-line"></div>
+        <p class="hint-text" id="print-hint">Cole aqui um print de tela (Ctrl+V) para guardar como referência — não é enviado a lugar nenhum.</p>
+        <div id="print-dropzone" class="print-dropzone" tabindex="0">Clique aqui e cole o print (Ctrl+V), ou:
+          <input type="file" id="input-print-upload" accept="image/*">
+        </div>
+        <div id="print-preview-wrap" hidden>
+          <img id="print-preview-img" class="preview-image" src="" alt="Print do Bessani">
+          <button id="btn-remover-print" class="btn-link">Remover print</button>
+        </div>
       </div>
     </section>
 

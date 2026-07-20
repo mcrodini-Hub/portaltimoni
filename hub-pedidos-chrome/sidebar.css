@@ -279,6 +279,50 @@ h1 { font-size: 18px; margin: 0 0 4px; }
 
 .text-input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(44,75,224,0.12); }
 
+.divider-line {
+  height: 1px;
+  background: var(--border);
+  margin: 14px 0 10px;
+}
+
+.print-dropzone {
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+  padding: 14px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--ink-soft);
+  background: #fafafa;
+  cursor: pointer;
+  position: relative;
+}
+
+.print-dropzone:focus-visible {
+  outline: none;
+  border-color: var(--blue);
+  box-shadow: 0 0 0 3px rgba(44,75,224,0.12);
+}
+
+.print-dropzone input[type="file"] {
+  display: block;
+  margin: 8px auto 0;
+  font-size: 11px;
+  max-width: 220px;
+}
+
+#print-preview-wrap {
+  margin-top: 10px;
+  text-align: center;
+}
+
+.preview-image {
+  max-width: 100%;
+  max-height: 220px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  margin-bottom: 6px;
+}
+
 .summary-box {
   background: #f5f6fa;
   border-radius: 10px;

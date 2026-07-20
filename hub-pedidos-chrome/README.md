@@ -24,12 +24,15 @@ Bessani (opcional) → atualizar Trello**.
    (sem duplicidade, em ordem alfabética).
 2. **2. Escolher fornecedor** — clique em um fornecedor da lista. O botão
    **Abrir Google Drive** só é liberado depois da seleção.
-3. **3. Planilha aberta** — no Drive, abra manualmente a planilha do fornecedor.
-   Com a planilha do Google Sheets como aba ativa, clique em **Extrair itens da
-   planilha**. Os itens (código | descrição | quantidade) aparecem na sidebar.
+3. **3. Planilha aberta** — no Drive, abra manualmente a planilha do fornecedor
+   (ou cole o link dela no campo da Etapa 3, e a extensão abre/reaproveita a
+   aba sozinha). Clique em **Extrair itens da planilha**. Os itens
+   (código | descrição | quantidade) aparecem na sidebar.
 4. **4. Bessani** — cole o link do pedido no Bessani e clique em **Abrir Bessani**
    quando quiser (a ação é sempre manual, o link fica salvo mesmo se você não
-   abrir agora).
+   abrir agora). Também dá para colar (Ctrl+V) ou fazer upload de um print do
+   Bessani só como referência visual guardada na sidebar — não é enviado nem
+   anexado a lugar nenhum.
 5. **5. Atualização final** — revise o resumo do fornecedor e a quantidade de
    itens, clique em **Atualizar Trello**, confirme, e acompanhe o resultado por
    cartão (atualizado / ignorado / não encontrado / erro).

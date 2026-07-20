@@ -91,6 +91,9 @@ async function handleSelectSupplier(payload) {
     selectedSupplier: supplier,
     extractedItems: [],
     driveOpened: false,
+    sheetUrl: '',
+    bessaniUrl: '',
+    bessaniPrint: null,
     trelloUpdateResults: [],
     lastError: null
   });
@@ -109,10 +112,36 @@ async function handleOpenDrive() {
   return { tabId: tab.id };
 }
 
+function spreadsheetTabPattern(url) {
+  const parsed = new URL(url);
+  const match = parsed.pathname.match(/\/spreadsheets\/d\/([^/]+)/);
+  return match ? `https://docs.google.com/spreadsheets/d/${match[1]}/*` : `${parsed.origin}${parsed.pathname}*`;
+}
+
 async function handleExtractItems() {
-  const activeTab = await getActiveTab();
+  const state = await HubState.getState();
+  let activeTab = await getActiveTab();
+
+  // Se o usuário colou o link da planilha, abre/reaproveita essa aba específica em vez de
+  // depender de já estar com ela ativa manualmente.
+  if (state.sheetUrl) {
+    let pattern;
+    try {
+      pattern = spreadsheetTabPattern(state.sheetUrl);
+    } catch (e) {
+      return { error: 'Link da planilha inválido.' };
+    }
+    try {
+      const tab = await HubTabs.openOrActivateTab(pattern, state.sheetUrl);
+      await HubTabs.waitForTabComplete(tab.id);
+      activeTab = tab;
+    } catch (e) {
+      return { error: `Não foi possível abrir a planilha: ${e.message}` };
+    }
+  }
+
   if (!activeTab || !/^https:\/\/docs\.google\.com\/spreadsheets\//.test(activeTab.url || '')) {
-    const msg = 'Abra a planilha do fornecedor no Google Sheets e deixe-a na aba ativa antes de extrair.';
+    const msg = 'Cole o link da planilha acima, ou abra-a manualmente no Google Sheets e deixe-a na aba ativa antes de extrair.';
     return { error: msg };
   }
 
@@ -151,6 +180,19 @@ async function handleSaveBessaniUrl(payload) {
   if (!url) return { error: 'Link inválido.' };
   await HubState.setState({ bessaniUrl: url });
   return { bessaniUrl: url };
+}
+
+async function handleSaveBessaniPrint(payload) {
+  const dataUrl = payload && payload.dataUrl;
+  // dataUrl === null é usado para remover o print salvo.
+  await HubState.setState({ bessaniPrint: dataUrl || null });
+  return { ok: true };
+}
+
+async function handleSaveSheetUrl(payload) {
+  const url = (payload && payload.url) || '';
+  await HubState.setState({ sheetUrl: url });
+  return { sheetUrl: url };
 }
 
 async function handleOpenBessani() {
@@ -242,6 +284,8 @@ const HANDLERS = {
   [TYPES.OPEN_DRIVE]: handleOpenDrive,
   [TYPES.EXTRACT_ITEMS]: handleExtractItems,
   [TYPES.SAVE_BESSANI_URL]: handleSaveBessaniUrl,
+  [TYPES.SAVE_BESSANI_PRINT]: handleSaveBessaniPrint,
+  [TYPES.SAVE_SHEET_URL]: handleSaveSheetUrl,
   [TYPES.OPEN_BESSANI]: handleOpenBessani,
   [TYPES.UPDATE_TRELLO]: handleUpdateTrello,
   [TYPES.RESET_WORKFLOW]: handleResetWorkflow,

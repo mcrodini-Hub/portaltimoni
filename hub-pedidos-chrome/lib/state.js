@@ -28,7 +28,9 @@
       selectedSupplier: null,
       suppliers: [],
       extractedItems: [],
+      sheetUrl: '',
       bessaniUrl: '',
+      bessaniPrint: null,
       lastError: null,
       diagnostics: {
         activeTabUrl: null,

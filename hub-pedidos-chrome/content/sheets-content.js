@@ -66,8 +66,17 @@
     );
   }
 
-  function firstNonEmptyRowIndex(rows) {
-    return rows.findIndex((row) => row.some((cell) => cell && cell.trim().length > 0));
+  // Planilhas reais costumam ter várias linhas de "ruído" antes do cabeçalho de verdade
+  // (fornecedor, transportadora, avisos, funcionário...). Em vez de assumir que a primeira
+  // linha não vazia é o cabeçalho, procura a primeira linha (dentre as primeiras 30) em que
+  // dá para identificar as três colunas — essa é tratada como o cabeçalho real.
+  function findHeaderRow(rows) {
+    const limit = Math.min(rows.length, 30);
+    for (let i = 0; i < limit; i++) {
+      const columns = detectColumns(rows[i]);
+      if (columns) return { headerIdx: i, columns };
+    }
+    return null;
   }
 
   async function extrairItens() {
@@ -84,16 +93,11 @@
       return { error: 'Não foi possível ler dados visíveis na planilha. Verifique se ela carregou e role a tela se necessário.' };
     }
 
-    const headerIdx = firstNonEmptyRowIndex(rows);
-    if (headerIdx === -1) {
-      return { error: 'Planilha parece vazia — nenhuma linha com dados foi encontrada.' };
+    const found = findHeaderRow(rows);
+    if (!found) {
+      return { error: 'Não foi possível identificar automaticamente as colunas de código, descrição e quantidade em nenhuma das primeiras linhas. Confira o cabeçalho da planilha.' };
     }
-    const header = rows[headerIdx];
-
-    const columns = detectColumns(header);
-    if (!columns) {
-      return { error: 'Não foi possível identificar automaticamente as colunas de código, descrição e quantidade. Confira o cabeçalho da planilha.' };
-    }
+    const { headerIdx, columns } = found;
 
     const items = [];
     for (let i = headerIdx + 1; i < rows.length; i++) {

@@ -46,6 +46,7 @@ const ui = {
   btnAtualizarFornecedores: el('btn-atualizar-fornecedores'),
   btnAbrirDrive: el('btn-abrir-drive'),
 
+  inputSheetUrl: el('input-sheet-url'),
   btnExtrairItens: el('btn-extrair-itens'),
   itensWrap: el('itens-wrap'),
   itensTotal: el('itens-total'),
@@ -53,6 +54,11 @@ const ui = {
 
   inputBessani: el('input-bessani'),
   btnAbrirBessani: el('btn-abrir-bessani'),
+  printDropzone: el('print-dropzone'),
+  inputPrintUpload: el('input-print-upload'),
+  printPreviewWrap: el('print-preview-wrap'),
+  printPreviewImg: el('print-preview-img'),
+  btnRemoverPrint: el('btn-remover-print'),
 
   resumoWrap: el('resumo-wrap'),
   resumoFornecedor: el('resumo-fornecedor'),
@@ -73,6 +79,7 @@ const ui = {
 
 let confirmOpen = false;
 let bessaniInputFocused = false;
+let sheetUrlInputFocused = false;
 
 function normalize(str) {
   return (str || '').toString().trim().toLowerCase();
@@ -133,7 +140,10 @@ function render(state) {
   ui.btnAbrirDrive.disabled = !state.selectedSupplier;
 
   // Etapa 3
-  ui.btnExtrairItens.disabled = !state.driveOpened;
+  if (!sheetUrlInputFocused) {
+    ui.inputSheetUrl.value = state.sheetUrl || '';
+  }
+  ui.btnExtrairItens.disabled = !state.driveOpened && !state.sheetUrl;
   const hasItems = state.extractedItems && state.extractedItems.length > 0;
   ui.itensWrap.hidden = !hasItems;
   if (hasItems) {
@@ -151,6 +161,13 @@ function render(state) {
     ui.inputBessani.value = state.bessaniUrl || '';
   }
   ui.btnAbrirBessani.disabled = !state.bessaniUrl;
+
+  const hasPrint = !!state.bessaniPrint;
+  ui.printDropzone.hidden = hasPrint;
+  ui.printPreviewWrap.hidden = !hasPrint;
+  if (hasPrint) {
+    ui.printPreviewImg.src = state.bessaniPrint;
+  }
 
   // Etapa 5
   const canUpdate = !!state.selectedSupplier && hasItems;
@@ -227,6 +244,43 @@ ui.inputBessani.addEventListener('blur', () => {
   bessaniInputFocused = false;
   const url = ui.inputBessani.value.trim();
   send(TYPES.SAVE_BESSANI_URL, { url }, 'sidebar').then(refresh);
+});
+
+ui.inputSheetUrl.addEventListener('focus', () => { sheetUrlInputFocused = true; });
+ui.inputSheetUrl.addEventListener('blur', () => {
+  sheetUrlInputFocused = false;
+  const url = ui.inputSheetUrl.value.trim();
+  send(TYPES.SAVE_SHEET_URL, { url }, 'sidebar').then(refresh);
+});
+
+function saveBessaniPrintFromBlob(blob) {
+  const reader = new FileReader();
+  reader.onload = () => {
+    send(TYPES.SAVE_BESSANI_PRINT, { dataUrl: reader.result }, 'sidebar').then(refresh);
+  };
+  reader.readAsDataURL(blob);
+}
+
+ui.printDropzone.addEventListener('paste', (e) => {
+  const items = e.clipboardData && e.clipboardData.items;
+  if (!items) return;
+  for (const item of items) {
+    if (item.type && item.type.indexOf('image') !== -1) {
+      e.preventDefault();
+      const blob = item.getAsFile();
+      if (blob) saveBessaniPrintFromBlob(blob);
+      return;
+    }
+  }
+});
+
+ui.inputPrintUpload.addEventListener('change', (e) => {
+  const file = e.target.files && e.target.files[0];
+  if (file) saveBessaniPrintFromBlob(file);
+});
+
+ui.btnRemoverPrint.addEventListener('click', () => {
+  send(TYPES.SAVE_BESSANI_PRINT, { dataUrl: null }, 'sidebar').then(refresh);
 });
 
 ui.btnAtualizarTrello.addEventListener('click', () => {

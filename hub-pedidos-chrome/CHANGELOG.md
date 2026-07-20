@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.1.0-alpha.3 — Extração da planilha corrigida + link direto + print do Bessani
+
+Segunda rodada de correções após teste real com a planilha do fornecedor
+BAXMANN:
+
+- **Corrigido**: extração de itens pegava a linha errada como cabeçalho da
+  planilha (assumia que era a primeira linha não vazia — nesse caso, "Forn.:
+  1918 H LOUIS BAXMANN..."). Agora `content/sheets-content.js` procura, entre
+  as primeiras 30 linhas, a primeira em que dá para identificar as três
+  colunas de verdade, e usa essa como cabeçalho.
+- **Corrigido**: detecção de coluna de código priorizava a palavra "item"
+  (que nesse layout é só o número sequencial da linha) sobre "compra" (a
+  coluna com o código de verdade, ex.: 312). `lib/validators.js` agora tenta
+  primeiro palavras fortes (código, cod., sku, compra, referência) e só cai
+  para "item" como último recurso, além de garantir que código/descrição/
+  quantidade nunca apontem para a mesma coluna.
+- **Adicionado** (sugestão do usuário): campo "Cole aqui o link da planilha"
+  na Etapa 3. Se preenchido, a extensão abre/reaproveita essa aba sozinha ao
+  clicar em "Extrair itens" — não depende mais de deixar manualmente a aba do
+  Sheets ativa. Continua funcionando sem o link (usa a aba ativa, como antes)
+  se o campo ficar em branco.
+- **Adicionado**: campo para colar (Ctrl+V) ou fazer upload de um print do
+  Bessani na Etapa 4, guardado só como referência visual na própria sidebar
+  (miniatura + botão "Remover print") — não é enviado nem anexado a lugar
+  nenhum, conforme confirmado com o usuário.
+- `sheetUrl` e `bessaniPrint` (novos campos de estado) são limpos ao trocar
+  de fornecedor, assim como já acontecia com os itens extraídos.
+
 ## 1.1.0-alpha.2 — Correções pós-teste manual no Chrome
 
 Correções feitas após o primeiro teste real no Chrome, reportado pelo usuário

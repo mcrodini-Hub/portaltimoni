@@ -100,28 +100,108 @@
   }
 
   function getCardLabels(card) {
+    // O Trello renderiza as etiquetas na frente do cartão de formas diferentes conforme a
+    // configuração do board: às vezes como barras coloridas SEM texto visível (só cor), às
+    // vezes com o nome escrito. Por isso lemos texto de várias fontes possíveis (aria-label,
+    // title/tooltip, texto visível) e usamos um seletor amplo.
     const labelEls = card.querySelectorAll(
-      '[data-testid="card-label"], [data-testid="cardBadge"], [class*="label" i], .Badge'
+      '[data-testid="card-label"], [data-testid="cardBadge"], [data-testid*="label" i], ' +
+      '[data-testid*="badge" i], [class*="label" i], [class*="badge" i], .Badge, [title], [aria-label]'
     );
     const labels = [];
     labelEls.forEach((el) => {
-      const text = (el.getAttribute('aria-label') || el.textContent || '').trim();
+      const text = (
+        el.getAttribute('aria-label') ||
+        el.getAttribute('title') ||
+        el.textContent ||
+        ''
+      ).trim();
       if (!text) return;
       labels.push({ text, isGreen: colorLooksGreen(el), el });
     });
     return labels;
   }
 
+  function labelTextMatches(text) {
+    const normalized = normalizeText(text);
+    return normalized === TARGET_LABEL_TEXT || normalized.includes(TARGET_LABEL_TEXT);
+  }
+
   function isRioClaroCard(card) {
     const labels = getCardLabels(card);
     return labels.some((label) => {
-      const normalized = normalizeText(label.text);
-      const textMatches = normalized === TARGET_LABEL_TEXT || normalized.includes(TARGET_LABEL_TEXT);
       // Se a cor não puder ser determinada pelo DOM, aceita pelo texto (limitação conhecida:
       // ver TESTES.md / limitações). Se a cor for determinável, ela precisa ser verde.
       const colorOk = label.isGreen === null ? true : label.isGreen === true;
-      return textMatches && colorOk;
+      return labelTextMatches(label.text) && colorOk;
     });
+  }
+
+  // ---------------------------------------------------------------------
+  // Verificação profunda (fallback): abre cada cartão e lê a seção de
+  // etiquetas no painel de detalhes, onde o Trello sempre mostra o nome por
+  // extenso. Só é usada quando a leitura rápida na frente do cartão não
+  // encontra nenhum cartão Rio Claro (evita depender só da barra colorida
+  // compacta, que pode não trazer texto legível pelo scraping).
+  function findExactTextLeaf(root, normalizedTarget) {
+    const all = root.querySelectorAll('*');
+    for (const el of all) {
+      if (el.children.length > 0) continue;
+      if (normalizeText(el.textContent) === normalizedTarget) return el;
+    }
+    return null;
+  }
+
+  function colorLooksGreenNear(el) {
+    let node = el;
+    for (let i = 0; i < 3 && node; i++) {
+      const result = colorLooksGreen(node);
+      if (result !== null) return result;
+      node = node.parentElement;
+    }
+    return null;
+  }
+
+  async function cardHasRioClaroDeep(card) {
+    const panel = await openCard(card);
+    if (!panel) {
+      closeCard();
+      return false;
+    }
+    await new Promise((r) => setTimeout(r, 200));
+    const leaf = findExactTextLeaf(document.body, TARGET_LABEL_TEXT);
+    const isGreen = leaf ? colorLooksGreenNear(leaf) : null;
+    const found = !!leaf && (isGreen === null || isGreen === true);
+    closeCard();
+    await new Promise((r) => setTimeout(r, 250));
+    return found;
+  }
+
+  async function filterRioClaroDeep(cards, maxCards = 40) {
+    const matched = [];
+    const limited = cards.slice(0, maxCards);
+    for (const card of limited) {
+      try {
+        if (await cardHasRioClaroDeep(card)) matched.push(card);
+      } catch (e) {
+        // Ignora esse cartão e segue para o próximo — um cartão com erro não deve travar
+        // a listagem inteira.
+      }
+    }
+    return matched;
+  }
+
+  // Usada tanto na Etapa 2 (listar) quanto na Etapa 7 (atualizar), para que as duas etapas
+  // enxerguem exatamente o mesmo conjunto de cartões Rio Claro.
+  async function getRioClaroCards(listEl) {
+    const cards = getCardsFromList(listEl);
+    let rioClaroCards = cards.filter(isRioClaroCard);
+    let usedDeepScan = false;
+    if (rioClaroCards.length === 0 && cards.length > 0) {
+      usedDeepScan = true;
+      rioClaroCards = await filterRioClaroDeep(cards);
+    }
+    return { cards, rioClaroCards, usedDeepScan };
   }
 
   // ---------------------------------------------------------------------
@@ -133,12 +213,12 @@
       return { error: 'Lista "RELAÇÃO DE PEDIDOS" não encontrada no Trello. Verifique se o board carregou totalmente.' };
     }
 
-    const cards = await waitFor(() => {
+    await waitFor(() => {
       const found = getCardsFromList(listEl);
       return found.length > 0 ? found : null;
-    }, { timeout: 5000 }) || getCardsFromList(listEl);
+    }, { timeout: 5000 });
 
-    const rioClaroCards = cards.filter(isRioClaroCard);
+    const { cards, rioClaroCards, usedDeepScan } = await getRioClaroCards(listEl);
 
     const seen = new Set();
     const suppliers = [];
@@ -157,7 +237,8 @@
       suppliers,
       diagnostics: {
         cardsRead: cards.length,
-        rioClaroCards: rioClaroCards.length
+        rioClaroCards: rioClaroCards.length,
+        usedDeepScan
       }
     };
   }
@@ -219,9 +300,9 @@
       return { error: 'Lista "RELAÇÃO DE PEDIDOS" não encontrada no Trello.' };
     }
 
-    const cards = getCardsFromList(listEl).filter(isRioClaroCard);
+    const { rioClaroCards } = await getRioClaroCards(listEl);
     const targetKey = normalizeText(supplierName);
-    const matches = cards.filter((card) => normalizeText(getCardName(card)) === targetKey);
+    const matches = rioClaroCards.filter((card) => normalizeText(getCardName(card)) === targetKey);
 
     if (matches.length === 0) {
       return { results: [{ card: supplierName, status: 'não encontrado' }] };

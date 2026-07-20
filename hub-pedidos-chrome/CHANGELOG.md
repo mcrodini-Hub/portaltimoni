@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.1.0-alpha.2 — Correções pós-teste manual no Chrome
+
+Correções feitas após o primeiro teste real no Chrome, reportado pelo usuário
+com prints do board de verdade:
+
+- **Corrigido**: `ReferenceError: Cannot access 'observer' before
+  initialization` em `waitFor()` (`content/trello-content.js` e
+  `content/sheets-content.js`) — acontecia sempre que o elemento procurado já
+  existia na primeira tentativa (ex.: Trello já carregado ao clicar em "Abrir
+  Trello"), quebrando a leitura do Trello. `observer`/`poll` agora são `let`
+  inicializados antes de `cleanup()` poder referenciá-los.
+- **Corrigido**: filtro "Rio Claro" retornando 0 fornecedores mesmo com
+  cartões visivelmente etiquetados em verde no board real. O board do
+  usuário mostra as etiquetas na frente do cartão só como barra colorida,
+  sem texto/aria-label/title legível por scraping. Adicionada uma
+  verificação de fallback: quando a leitura rápida não encontra nenhum
+  cartão Rio Claro, a extensão abre cada cartão da lista, lê o nome da
+  etiqueta no painel de detalhes (onde sempre aparece por extenso) e fecha
+  antes de seguir — usada tanto na listagem (Etapa 2) quanto na atualização
+  (Etapa 7), que tinha o mesmo problema.
+- Removido `"default_locale": "pt_BR"` do `manifest.json` — estava declarado
+  sem a pasta `_locales/` correspondente, o que fazia o Chrome recusar
+  carregar a extensão ("Default locale was specified, but _locales subtree
+  is missing").
+
 ## 1.1.0-alpha.1 — Reescrita incremental sobre a base v1.0.12
 
 Reescrita da extensão seguindo `ESPECIFICACAO_CLAUDE_CODE_HUB_PEDIDOS_V2.md`,

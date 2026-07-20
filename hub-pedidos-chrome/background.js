@@ -73,6 +73,7 @@ async function handleScanTrello() {
       activeTabUrl: tab.url,
       cardsRead: result.diagnostics ? result.diagnostics.cardsRead : 0,
       rioClaroCards: result.diagnostics ? result.diagnostics.rioClaroCards : 0,
+      usedDeepScan: result.diagnostics ? !!result.diagnostics.usedDeepScan : false,
       suppliersFound: suppliers.length,
       lastUpdatedAt: Date.now()
     }

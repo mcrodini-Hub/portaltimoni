@@ -185,6 +185,7 @@ function renderDiagnostics(state) {
     `URL da aba ativa (última conhecida): ${d.activeTabUrl || '--'}`,
     `Cartões lidos no Trello: ${d.cardsRead ?? '--'}`,
     `Cartões Rio Claro: ${d.rioClaroCards ?? '--'}`,
+    `Verificação lenta (abrindo cartões) usada: ${d.usedDeepScan ? 'sim' : 'não'}`,
     `Fornecedores encontrados: ${d.suppliersFound ?? state.suppliers.length}`,
     `Fornecedor selecionado: ${state.selectedSupplier ? state.selectedSupplier.nome : '--'}`,
     `Itens extraídos: ${d.itemsExtracted ?? state.extractedItems.length}`,

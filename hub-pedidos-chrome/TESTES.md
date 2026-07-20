@@ -83,6 +83,19 @@ depois de carregar a extensão via `chrome://extensions/`.
    obrigatória" em casos raros onde a cor não pôde ser lida. Isso é uma
    limitação da leitura de DOM, não uma escolha de negócio.
 
+2.1. **Etiquetas sem texto na frente do cartão.** Dependendo da configuração
+   do board, o Trello mostra as etiquetas na frente do cartão como barras
+   coloridas sem nenhum texto visível (nem em `aria-label`/`title`) — só a
+   cor. Nesse caso a leitura rápida não consegue nem ler o nome da etiqueta.
+   Quando isso acontece (zero cartões Rio Claro encontrados mesmo havendo
+   cartões na lista), a extensão automaticamente faz uma segunda passada
+   mais lenta: abre cada cartão, lê o nome da etiqueta no painel de
+   detalhes (onde o Trello sempre mostra o texto por extenso) e fecha o
+   cartão antes de seguir para o próximo. Isso é mais lento (abre/fecha um
+   cartão por vez) mas é a forma confiável de não depender do texto da
+   barra compacta. O diagnóstico mostra "Verificação lenta (abrindo
+   cartões) usada: sim/não" para indicar qual caminho foi usado.
+
 3. **Coluna de quantidade na planilha.** A detecção tenta achar uma coluna
    com nome tipo "quantidade/qtd" no cabeçalho; se não encontrar, assume a
    última coluna não vazia (mês corrente), replicando a suposição da base

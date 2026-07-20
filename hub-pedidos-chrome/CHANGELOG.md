@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0-alpha.5 — "Abrir Trello" reaproveitava aba de cartão específico
+
+- **Corrigido**: ao clicar em "Abrir Trello" estando numa página de cartão
+  específico (`trello.com/c/...`), a extensão reaproveitava essa aba (o
+  padrão de busca era genérico, "qualquer página do trello.com"), em vez de
+  ir para o board de Compras — a lista "RELAÇÃO DE PEDIDOS" não é encontrada
+  numa página de cartão. `TRELLO_URL_PATTERN` em `background.js` agora é
+  restrito a `https://trello.com/b/UfPrTr1H/*`, então só reaproveita abas do
+  board correto; qualquer outra aba do Trello (cartão, outro board) resulta
+  em abrir uma aba nova apontando para o board de Compras.
+
 ## 1.1.0-alpha.4 — Agrupamento de linhas da planilha mais robusto
 
 O fix da alpha.3 corrigiu qual linha é tratada como cabeçalho, mas o erro

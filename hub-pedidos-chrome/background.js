@@ -4,7 +4,10 @@
 importScripts('lib/state.js', 'lib/tabs.js', 'lib/messages.js');
 
 const TRELLO_BOARD_URL = 'https://trello.com/b/UfPrTr1H/compras';
-const TRELLO_URL_PATTERN = 'https://trello.com/*';
+// Escopo restrito ao board de Compras — um padrão genérico "trello.com/*" reaproveitaria
+// qualquer aba do Trello, inclusive a página de um cartão específico (trello.com/c/...),
+// que não tem a lista renderizada da mesma forma.
+const TRELLO_URL_PATTERN = 'https://trello.com/b/UfPrTr1H/*';
 const DRIVE_FOLDER_URL = 'https://drive.google.com/drive/u/0/folders/1P7Nb1FwfSQ6e7TA9Wkgizyy53tGGQajk';
 const DRIVE_URL_PATTERN = 'https://drive.google.com/*';
 const SHEETS_URL_PATTERN = 'https://docs.google.com/spreadsheets/*';

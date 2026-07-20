@@ -38,7 +38,9 @@ com os sites reais.
   último erro) com botão **Copiar diagnóstico**.
 - Resultado por cartão na atualização do Trello: `atualizado / ignorado / não
   encontrado / erro`.
-- Ícones da extensão (16/32/48/128) — a base não tinha nenhum.
+- Ícones da extensão (16/32/48/128) usando o logo real da Casa Timoni
+  (recortado em círculo a partir da foto enviada pelo usuário), aplicado
+  também no cabeçalho da sidebar — a base não tinha nenhum ícone.
 
 ### Removido
 

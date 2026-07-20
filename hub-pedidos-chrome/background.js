@@ -4,10 +4,13 @@
 importScripts('lib/state.js', 'lib/tabs.js', 'lib/messages.js');
 
 const TRELLO_BOARD_URL = 'https://trello.com/b/UfPrTr1H/compras';
-// Escopo restrito ao board de Compras — um padrão genérico "trello.com/*" reaproveitaria
-// qualquer aba do Trello, inclusive a página de um cartão específico (trello.com/c/...),
-// que não tem a lista renderizada da mesma forma.
-const TRELLO_URL_PATTERN = 'https://trello.com/b/UfPrTr1H/*';
+const TRELLO_BOARD_PATH_PREFIX = '/b/UfPrTr1H/';
+// Padrão amplo de propósito: encontrar QUALQUER aba do Trello já aberta (inclusive uma que
+// tenha navegado para um cartão específico, trello.com/c/..., o que acontece na MESMA aba
+// via SPA sempre que um cartão é aberto — pelo usuário ou pela varredura profunda de
+// etiquetas). ensureTrelloBoardTab() abaixo é quem garante que essa aba está no board certo
+// antes de ler/atualizar, navegando de volta quando necessário.
+const TRELLO_URL_PATTERN = 'https://trello.com/*';
 const DRIVE_FOLDER_URL = 'https://drive.google.com/drive/u/0/folders/1P7Nb1FwfSQ6e7TA9Wkgizyy53tGGQajk';
 const DRIVE_URL_PATTERN = 'https://drive.google.com/*';
 const SHEETS_URL_PATTERN = 'https://docs.google.com/spreadsheets/*';
@@ -27,6 +30,43 @@ async function findTrelloTab() {
   return HubTabs.findTab(TRELLO_URL_PATTERN);
 }
 
+// Garante uma aba do Trello pronta para ler/escrever no board de Compras: reaproveita
+// qualquer aba do Trello já aberta, e se ela estiver numa URL diferente do board (ex.: um
+// cartão específico, trello.com/c/...) navega essa MESMA aba de volta para o board antes de
+// continuar — em vez de falhar com "lista não encontrada" só porque a aba tinha "andado" para
+// outra página do Trello.
+async function ensureTrelloBoardTab() {
+  let tab = await findTrelloTab();
+  if (!tab) {
+    tab = await HubTabs.createTab(TRELLO_BOARD_URL);
+    await HubTabs.waitForTabComplete(tab.id);
+    return tab;
+  }
+
+  let path = '';
+  try {
+    path = new URL(tab.url || '').pathname;
+  } catch (e) {
+    path = '';
+  }
+
+  if (path.startsWith(TRELLO_BOARD_PATH_PREFIX)) {
+    return HubTabs.activateTab(tab);
+  }
+
+  const navigated = await new Promise((resolve, reject) => {
+    chrome.tabs.update(tab.id, { url: TRELLO_BOARD_URL, active: true }, (updated) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+      chrome.windows.update(updated.windowId, { focused: true }, () => resolve(updated));
+    });
+  });
+  await HubTabs.waitForTabComplete(navigated.id);
+  return navigated;
+}
+
 async function getActiveTab() {
   return new Promise((resolve) => {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -40,14 +80,13 @@ async function getActiveTab() {
 // ---------------------------------------------------------------------------
 
 async function handleOpenTrello() {
-  const tab = await HubTabs.openOrActivateTab(TRELLO_URL_PATTERN, TRELLO_BOARD_URL);
-  await HubTabs.waitForTabComplete(tab.id);
+  await ensureTrelloBoardTab();
   await HubState.setState({ currentState: STATES.TRELLO_ABERTO, lastError: null });
   return handleScanTrello();
 }
 
 async function handleScanTrello() {
-  const tab = await findTrelloTab();
+  const tab = await ensureTrelloBoardTab();
   if (!tab) {
     const msg = 'Abra o Trello antes de ler os fornecedores.';
     await logError(msg);
@@ -227,7 +266,7 @@ async function handleUpdateTrello() {
     return { error: 'Não há itens extraídos para atualizar no Trello.' };
   }
 
-  const tab = await findTrelloTab();
+  const tab = await ensureTrelloBoardTab();
   if (!tab) {
     const msg = 'Abra o Trello antes de atualizar os cartões.';
     await logError(msg);

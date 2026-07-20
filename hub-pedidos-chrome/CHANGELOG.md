@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.0-alpha.7 — Mesma aba do Trello "navegava" para fora do board
+
+A alpha.5 restringiu o reaproveitamento de aba a `trello.com/b/UfPrTr1H/*`
+para não pegar a aba errada, mas isso quebrou o caso mais comum: o Trello
+troca a URL da MESMA aba para `trello.com/c/.../cartao` sempre que um cartão
+é aberto (por SPA, sem trocar de aba) — o que acontece o tempo todo, inclusive
+quando o próprio usuário abre um cartão para conferir algo. Com a URL fora do
+padrão restrito, a extensão parava de "achar" essa aba e caía direto em
+"Lista 'RELAÇÃO DE PEDIDOS' não encontrada".
+
+- **Corrigido**: `background.js` agora procura qualquer aba do Trello aberta
+  (`ensureTrelloBoardTab()`) e, se ela estiver em outra página (ex.: um
+  cartão), navega essa MESMA aba de volta para o board de Compras antes de
+  ler/atualizar — em vez de exigir que a aba já estivesse exatamente na URL
+  do board. Usado por "Abrir Trello", "Atualizar fornecedores" e "Atualizar
+  Trello".
+
 ## 1.1.0-alpha.6 — Cabeçalho da planilha fixado na linha 3 (com fallback)
 
 Confirmado com o usuário: nas planilhas reais dos fornecedores, o cabeçalho

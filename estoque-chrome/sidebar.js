@@ -345,7 +345,7 @@
     acoes.className = 'need-actions';
     let botoes = '';
     if (novo) {
-      botoes += `<button class="btn btn-primary btn-small" data-action="recebido" data-id="${n.id}">Anotado, aguarde retorno</button>`;
+      botoes += `<button class="btn btn-primary btn-small" data-action="recebido" data-id="${n.id}">Aguardando retorno</button>`;
     }
     botoes += `<button class="btn btn-${novo ? 'secondary' : 'primary'} btn-small" data-action="ja-tem-pedido" data-id="${n.id}">Já tem pedido</button>`;
     botoes += `<button class="btn btn-secondary btn-small" data-action="observacao-abrir" data-id="${n.id}">Outra resposta</button>`;

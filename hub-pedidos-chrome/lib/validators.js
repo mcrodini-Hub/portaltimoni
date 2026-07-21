@@ -78,9 +78,21 @@
     const idxCodigo = findIndexTiered(normalized, KEYWORDS.codigo, used);
     if (idxCodigo !== -1) used.add(idxCodigo);
 
-    // Quantidade normalmente é a última coluna preenchida (mês corrente); tenta por
-    // palavra-chave primeiro e cai para a última coluna não vazia como alternativa.
+    // Quantidade: tenta por palavra-chave primeiro. Nas planilhas reais, porém, não existe
+    // uma coluna "quantidade" — existe uma coluna por mês (ex.: nov25, dez25, mar26, jul26) e
+    // o pedido do mês corrente é digitado na coluna mais à direita entre essas. Por isso, se
+    // a palavra-chave não bater, procura colunas nesse formato (3 letras + 2 dígitos) e usa a
+    // mais à direita; só na ausência total disso cai para a última coluna não vazia.
+    const MONTH_COLUMN_RE = /^[a-z]{3}\.?\/?\d{2}$/;
     let idxQuantidade = findIndexTiered(normalized, KEYWORDS.quantidade, used);
+    if (idxQuantidade === -1) {
+      for (let i = normalized.length - 1; i >= 0; i--) {
+        if (!used.has(i) && MONTH_COLUMN_RE.test(normalized[i])) {
+          idxQuantidade = i;
+          break;
+        }
+      }
+    }
     if (idxQuantidade === -1) {
       for (let i = normalized.length - 1; i >= 0; i--) {
         if (normalized[i] && !used.has(i)) {

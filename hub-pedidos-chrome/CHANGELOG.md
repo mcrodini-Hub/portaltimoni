@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.1.0-alpha.8 — Diagnóstico real da planilha + coluna de mês + tentativa de evitar abrir cartão
+
+Com o Trello já funcionando (9 fornecedores encontrados, conectado), o teste
+real na planilha BAXMANN mostrou a causa raiz da extração falhar: nenhuma
+célula com `role="gridcell"` aparece no HTML da planilha — o Google Sheets
+desenha a grade em modo visual (canvas) por padrão, sem texto real no HTML,
+e isso não tem contorno via DOM puro (a especificação proíbe OCR/captura de
+tela). O fallback de `<tr>/<td>` "achava" só lixo de outras partes da
+página (aviso de cotações, nomes das abas da planilha).
+
+- **Corrigido/esclarecido**: quando nenhuma célula de grade é encontrada, a
+  extensão não tenta mais o fallback de tabela (que só trazia lixo) — em vez
+  disso, retorna um erro específico e acionável: ative uma vez, no Google
+  Sheets, "Ferramentas > Acessibilidade > Ativar suporte a leitor de tela";
+  isso faz o Sheets desenhar a grade como texto real no HTML, que é o que a
+  extensão lê.
+- **Adicionado**: detecção da coluna de quantidade agora reconhece colunas
+  de mês (`nov25`, `dez25`, `mar26`, `jul26`, formato "3 letras + 2
+  dígitos") e usa a mais à direita — que é como a planilha real do
+  fornecedor guarda a quantidade do pedido do mês corrente (não existe uma
+  coluna chamada "quantidade"). Só cai para "última coluna não vazia" se
+  nenhuma coluna de mês for encontrada.
+- **Tentativa**: antes de abrir cartão por cartão pra achar a etiqueta "Rio
+  Claro" (quando a frente do cartão não mostra texto), a extensão agora
+  tenta primeiro o atalho nativo do Trello (tecla "L" com o board em foco,
+  que mostra o nome de todas as etiquetas direto na frente dos cartões). Se
+  o Trello aceitar esse evento simulado, elimina a necessidade de abrir
+  cada cartão; se não aceitar, nada muda e segue como antes.
+
 ## 1.1.0-alpha.7 — Mesma aba do Trello "navegava" para fora do board
 
 A alpha.5 restringiu o reaproveitamento de aba a `trello.com/b/UfPrTr1H/*`

@@ -197,6 +197,18 @@
     const cards = getCardsFromList(listEl);
     let rioClaroCards = cards.filter(isRioClaroCard);
     let usedDeepScan = false;
+
+    if (rioClaroCards.length === 0 && cards.length > 0) {
+      // Antes de abrir cartão por cartão, tenta o atalho nativo do Trello que mostra o nome
+      // das etiquetas na frente de todos os cartões (tecla "L" com o board em foco). Se o
+      // Trello aceitar o evento sintético, os cartões passam a ter texto legível e a
+      // verificação lenta deixa de ser necessária; se não aceitar (alguns apps ignoram
+      // eventos de teclado não confiáveis), simplesmente não muda nada e segue pro fallback.
+      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'l', code: 'KeyL', keyCode: 76, which: 76, bubbles: true }));
+      await new Promise((r) => setTimeout(r, 300));
+      rioClaroCards = cards.filter(isRioClaroCard);
+    }
+
     if (rioClaroCards.length === 0 && cards.length > 0) {
       usedDeepScan = true;
       rioClaroCards = await filterRioClaroDeep(cards);

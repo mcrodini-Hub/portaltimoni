@@ -110,6 +110,18 @@
     let rows = await waitFor(readGridRows, { timeout: 6000 });
     let usedFallbackTable = false;
     if (!rows || rows.length === 0) {
+      // Se não apareceu NENHUMA célula com role="gridcell" mesmo depois de esperar, a
+      // planilha provavelmente está renderizando a grade só em canvas (modo visual padrão do
+      // Google Sheets), sem texto acessível no HTML — nesse caso o fallback de <tr>/<td>
+      // pega lixo de outras partes da página (abas da planilha, avisos, etc.), então nem
+      // tenta: já orienta a ativar o modo de leitor de tela, que faz o Sheets desenhar a
+      // grade como elementos de texto reais no HTML.
+      if (document.querySelectorAll('[role="gridcell"]').length === 0) {
+        return {
+          error: 'Não foi possível ler o conteúdo da planilha porque ela está sendo desenhada em modo visual (sem texto no HTML da página) — a extensão nunca usa captura de tela/OCR, só lê texto real. No Google Sheets, ative uma vez em "Ferramentas > Acessibilidade > Ativar suporte a leitor de tela", espere a planilha recarregar e tente extrair de novo.',
+          diagnostics: { rowsRead: 0, usedFallbackTable: false, rowsPreview: '' }
+        };
+      }
       rows = readTableRows();
       usedFallbackTable = true;
     }

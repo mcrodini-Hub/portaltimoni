@@ -53,8 +53,6 @@ function doGet(e) {
         return json({ ok: true, necessidade: responder(p.id, 'observacao', {
           observacao: p.texto
         }) });
-      case 'cliente':
-        return json({ ok: true, necessidade: definirCliente(p.id, p.valor) });
       default:
         return json({ ok: false, erro: 'Ação desconhecida: ' + action });
     }
@@ -220,25 +218,6 @@ function responder(id, status, extra) {
       for (var k = 0; k < necessidades.length; k++) {
         if (necessidades[k].id === id) return necessidades[k];
       }
-    }
-  }
-  throw new Error('Necessidade ' + id + ' não encontrada.');
-}
-
-// Marca/desmarca "cliente aguardando" numa necessidade (usado tanto pelo balcão quanto pelo
-// estoque, para promover ou tirar prioridade de um item já na fila).
-function definirCliente(id, valor) {
-  id = String(id || '').trim();
-  if (!id) throw new Error('ID da necessidade não informado.');
-  var querCliente = parseBool(valor);
-
-  var sheet = aba(ABA_NECESSIDADES);
-  var valores = sheet.getDataRange().getValues();
-  for (var i = 1; i < valores.length; i++) {
-    if (String(valores[i][0] || '').trim() === id) {
-      var linhaSheet = i + 1;
-      sheet.getRange(linhaSheet, coluna('clienteAguardando')).setValue(querCliente);
-      return registroDaLinha(sheet, linhaSheet);
     }
   }
   throw new Error('Necessidade ' + id + ' não encontrada.');

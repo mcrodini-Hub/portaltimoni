@@ -411,14 +411,6 @@
       ? `Solicitado ${formatRelative(n.criadoEm)} · ${formatDateTime(n.criadoEm)}`
       : `Anotado ${formatRelative(n.respondidoEm)} · aguardando seu retorno`;
 
-    // Atalho para o estoque promover/tirar prioridade de cliente aguardando.
-    const clienteToggle = document.createElement('button');
-    clienteToggle.className = 'btn-link cliente-toggle';
-    clienteToggle.dataset.action = 'toggle-cliente';
-    clienteToggle.dataset.id = n.id;
-    clienteToggle.dataset.valor = n.clienteAguardando ? '0' : '1';
-    clienteToggle.textContent = n.clienteAguardando ? 'Remover prioridade de cliente' : 'Marcar cliente aguardando';
-
     const acoes = document.createElement('div');
     acoes.className = 'need-actions';
     let botoes = '';
@@ -454,7 +446,7 @@
       </div>
     `;
 
-    li.append(l1, meta, clienteToggle, acoes, form, obsForm);
+    li.append(l1, meta, acoes, form, obsForm);
     return li;
   }
 
@@ -500,21 +492,6 @@
     }
     if (action === 'observacao-cancelar') {
       document.getElementById(`obs-form-${id}`).hidden = true;
-      return;
-    }
-
-    if (action === 'toggle-cliente') {
-      const valor = btn.dataset.valor === '1';
-      btn.disabled = true;
-      try {
-        await EstoqueStore.definirClienteAguardando(id, valor);
-        showError(null);
-        showToast(valor ? 'Prioridade de cliente marcada.' : 'Prioridade de cliente removida.');
-        await renderFilaEstoque();
-      } catch (e) {
-        showError(e.message);
-        btn.disabled = false;
-      }
       return;
     }
 

@@ -231,20 +231,6 @@
     return alvo;
   }
 
-  async function definirClienteAguardando(id, valor) {
-    const querCliente = !!valor;
-    if (await isRemote()) {
-      const data = await apiGet({ action: 'cliente', id, valor: querCliente ? '1' : '0' });
-      return data.necessidade;
-    }
-    const necessidades = await get(KEYS.NECESSIDADES, []);
-    const alvo = necessidades.find((n) => n.id === id);
-    if (!alvo) throw new Error('Necessidade não encontrada.');
-    alvo.clienteAguardando = querCliente;
-    await set(KEYS.NECESSIDADES, necessidades);
-    return alvo;
-  }
-
   async function responderObservacao(id, { observacao }) {
     const texto = (observacao || '').trim();
     if (!texto) throw new Error('Escreva a resposta ao balcão.');
@@ -278,7 +264,6 @@
     criarNecessidade,
     responderRecebido,
     responderPedidoExistente,
-    responderObservacao,
-    definirClienteAguardando
+    responderObservacao
   };
 })(self);

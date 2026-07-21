@@ -311,9 +311,6 @@ h1 { font-size: 18px; margin: 0 0 4px; }
   margin-bottom: 12px;
 }
 
-.cliente-toggle { margin-top: 2px; }
-.item-meta-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-
 .chip-cliente {
   display: inline-block;
   font-size: 11px;

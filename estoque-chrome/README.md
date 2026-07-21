@@ -20,8 +20,8 @@ módulos:
 
 Outros recursos para agilizar o dia a dia:
 
-- **Prioridade nos dois lados**: além do balcão, o Lucas pode marcar/tirar "cliente
-  aguardando" de qualquer item direto na fila.
+- **Prioridade visível para o estoque**: quem marca "cliente aguardando" é o balcão; o Lucas
+  vê a etiqueta na fila (não precisa marcar), para priorizar o retorno.
 - **Situação do produto no balcão**: ao selecionar um produto, o balcão já vê se ele tem
   solicitação/pedido/previsão em aberto — evita pedir duplicado e responde na hora "tem
   pedido?".

@@ -317,6 +317,69 @@
   // ---------------------------------------------------------------------
   // Visão Estoque (Lucas) — Módulo 2
   // ---------------------------------------------------------------------
+
+  // Monta um item acionável da fila do estoque. `novo` = ainda não visto (mostra o botão
+  // "Anotado"); quando já foi anotado, o item continua pendente do retorno final do Lucas
+  // (só "Já tem pedido" / "Outra resposta" para fechar o ciclo com o balcão).
+  function buildNeedItem(n, { novo }) {
+    const li = document.createElement('li');
+
+    const l1 = document.createElement('div');
+    const cod = document.createElement('span');
+    cod.className = 'item-codigo';
+    cod.style.fontWeight = '700';
+    cod.textContent = n.codigo;
+    const desc = document.createElement('span');
+    desc.style.color = 'var(--ink-soft)';
+    desc.textContent = ` ${n.descricao}`;
+    l1.append(cod, desc);
+
+    const meta = document.createElement('p');
+    meta.className = 'hint-text';
+    meta.style.margin = '4px 0 0';
+    meta.textContent = novo
+      ? `Solicitado em ${formatDateTime(n.criadoEm)}`
+      : `Anotado em ${formatDateTime(n.respondidoEm)} · aguardando seu retorno`;
+
+    const acoes = document.createElement('div');
+    acoes.className = 'need-actions';
+    let botoes = '';
+    if (novo) {
+      botoes += `<button class="btn btn-primary btn-small" data-action="recebido" data-id="${n.id}">Anotado, aguarde retorno</button>`;
+    }
+    botoes += `<button class="btn btn-${novo ? 'secondary' : 'primary'} btn-small" data-action="ja-tem-pedido" data-id="${n.id}">Já tem pedido</button>`;
+    botoes += `<button class="btn btn-secondary btn-small" data-action="observacao-abrir" data-id="${n.id}">Outra resposta</button>`;
+    acoes.innerHTML = botoes;
+
+    const form = document.createElement('div');
+    form.className = 'pedido-form';
+    form.id = `form-${n.id}`;
+    form.hidden = true;
+    form.innerHTML = `
+      <input type="text" class="text-input" placeholder="Nº do pedido" id="input-numero-${n.id}">
+      <input type="date" class="text-input" id="input-previsao-${n.id}">
+      <div class="pedido-form-actions">
+        <button class="btn btn-primary btn-small" data-action="confirmar-pedido" data-id="${n.id}">Responder ao balcão</button>
+        <button class="btn btn-secondary btn-small" data-action="cancelar-pedido" data-id="${n.id}">Cancelar</button>
+      </div>
+    `;
+
+    const obsForm = document.createElement('div');
+    obsForm.className = 'pedido-form';
+    obsForm.id = `obs-form-${n.id}`;
+    obsForm.hidden = true;
+    obsForm.innerHTML = `
+      <input type="text" class="text-input" placeholder="Ex.: tem no depósito, pode buscar / não vamos repor por ora" id="input-obs-${n.id}">
+      <div class="pedido-form-actions">
+        <button class="btn btn-primary btn-small" data-action="observacao-enviar" data-id="${n.id}">Enviar ao balcão</button>
+        <button class="btn btn-secondary btn-small" data-action="observacao-cancelar" data-id="${n.id}">Cancelar</button>
+      </div>
+    `;
+
+    li.append(l1, meta, acoes, form, obsForm);
+    return li;
+  }
+
   async function renderFilaEstoque() {
     let necessidades;
     try {
@@ -326,81 +389,19 @@
       return;
     }
     const pendentes = ordenarPorCriadoDesc(necessidades.filter((n) => n.status === STATUS.PENDENTE));
-    const emCompra = ordenarPorCriadoDesc(necessidades.filter((n) => n.status === STATUS.EM_COMPRA));
+    const anotados = ordenarPorCriadoDesc(necessidades.filter((n) => n.status === STATUS.EM_COMPRA));
 
     el.pendentesCount.textContent = String(pendentes.length);
     el.listaPendentes.innerHTML = '';
     el.pendentesVazio.hidden = pendentes.length > 0;
-
-    pendentes.forEach((n) => {
-      const li = document.createElement('li');
-      const cod = document.createElement('span');
-      cod.className = 'item-codigo';
-      cod.textContent = n.codigo;
-      const desc = document.createElement('span');
-      desc.className = 'item-desc';
-      desc.textContent = n.descricao;
-      const meta = document.createElement('p');
-      meta.className = 'hint-text';
-      meta.style.margin = '4px 0 0';
-      meta.textContent = `Solicitado em ${formatDateTime(n.criadoEm)}`;
-
-      const acoes = document.createElement('div');
-      acoes.className = 'need-actions';
-      acoes.innerHTML = `
-        <button class="btn btn-primary btn-small" data-action="recebido" data-id="${n.id}">Anotado, aguarde retorno</button>
-        <button class="btn btn-secondary btn-small" data-action="ja-tem-pedido" data-id="${n.id}">Já tem pedido</button>
-        <button class="btn btn-secondary btn-small" data-action="observacao-abrir" data-id="${n.id}">Outra resposta</button>
-      `;
-
-      const form = document.createElement('div');
-      form.className = 'pedido-form';
-      form.id = `form-${n.id}`;
-      form.hidden = true;
-      form.innerHTML = `
-        <input type="text" class="text-input" placeholder="Nº do pedido" id="input-numero-${n.id}">
-        <input type="date" class="text-input" id="input-previsao-${n.id}">
-        <div class="pedido-form-actions">
-          <button class="btn btn-primary btn-small" data-action="confirmar-pedido" data-id="${n.id}">Responder ao balcão</button>
-          <button class="btn btn-secondary btn-small" data-action="cancelar-pedido" data-id="${n.id}">Cancelar</button>
-        </div>
-      `;
-
-      const obsForm = document.createElement('div');
-      obsForm.className = 'pedido-form';
-      obsForm.id = `obs-form-${n.id}`;
-      obsForm.hidden = true;
-      obsForm.innerHTML = `
-        <input type="text" class="text-input" placeholder="Ex.: tem no depósito, pode buscar / não vamos repor por ora" id="input-obs-${n.id}">
-        <div class="pedido-form-actions">
-          <button class="btn btn-primary btn-small" data-action="observacao-enviar" data-id="${n.id}">Enviar ao balcão</button>
-          <button class="btn btn-secondary btn-small" data-action="observacao-cancelar" data-id="${n.id}">Cancelar</button>
-        </div>
-      `;
-
-      const l1 = document.createElement('div');
-      l1.append(cod, desc);
-      li.append(l1, meta, acoes, form, obsForm);
-      el.listaPendentes.appendChild(li);
-    });
+    pendentes.forEach((n) => el.listaPendentes.appendChild(buildNeedItem(n, { novo: true })));
 
     el.listaCompra.innerHTML = '';
-    el.compraVazio.hidden = emCompra.length > 0;
-    emCompra.forEach((n) => {
-      const li = document.createElement('li');
-      li.className = `status-${n.status}`;
-      const cod = document.createElement('span');
-      cod.className = 'item-codigo';
-      cod.textContent = n.codigo;
-      const desc = document.createElement('span');
-      desc.className = 'item-desc';
-      desc.textContent = n.descricao;
-      li.append(cod, desc);
-      el.listaCompra.appendChild(li);
-    });
+    el.compraVazio.hidden = anotados.length > 0;
+    anotados.forEach((n) => el.listaCompra.appendChild(buildNeedItem(n, { novo: false })));
   }
 
-  el.listaPendentes.addEventListener('click', async (ev) => {
+  async function onNeedListClick(ev) {
     const btn = ev.target.closest('button[data-action]');
     if (!btn) return;
     const { action, id } = btn.dataset;
@@ -464,7 +465,12 @@
         btn.disabled = false;
       }
     }
-  });
+  }
+
+  // Os itens acionáveis existem nas duas seções (novos pendentes e anotados aguardando
+  // retorno), então o mesmo handler escuta as duas listas.
+  el.listaPendentes.addEventListener('click', onNeedListClick);
+  el.listaCompra.addEventListener('click', onNeedListClick);
 
   // ---------------------------------------------------------------------
   initRole();

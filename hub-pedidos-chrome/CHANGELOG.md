@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.1.0-alpha.14 — Varredura no DOM para encontrar lista "PEDIDOS PENDENTES"
+
+O erro "Lista de pedidos não encontrada" persistia porque `findListElement()`
+só procurava por `[data-testid="list"]` e outros seletores muito específicos,
+que podem variar dependendo de qual parte do board está visível ou se um cartão
+está aberto. Quando o card está open (como na screenshot AZUL PACK 3658), o
+DOM reorganiza e os seletores antigos não batiam.
+
+- **Reescrito**: `findListElement()` agora tenta 6 seletores diferentes em
+  ordem de preferência, e para cada um, procura pelo header/título do elemento
+  (que sempre tem o nome da lista), em vez de verificar todo o textContent.
+  Isso é bem mais resiliente a mudanças de layout.
+- **Reescrito**: `getCardsFromList()` também tenta 5 seletores diferentes para
+  encontrar os cartões dentro da lista, com fallback se o primeiro não retornar
+  nada.
+
+Resultado: a busca pela lista agora funciona independentemente de qual cartão
+esteja aberto ou do layout exato do board.
+
 ## 1.1.0-alpha.13 — Procura especificamente por "PEDIDOS PENDENTES"
 
 Alpha.12 procurava só por "pedidos", que era genérico demais e podia ter

@@ -54,22 +54,58 @@
   }
 
   function findListElement() {
-    const candidates = document.querySelectorAll('[data-testid="list"], [role="listitem"], [role="region"]');
-    for (const el of candidates) {
-      const title = normalizeText(el.textContent.slice(0, 200));
-      if (LIST_NAME_TOKENS.every((tok) => title.includes(tok))) {
-        return el;
+    // Tenta múltiplos seletores em ordem de preferência
+    const selectorCandidates = [
+      '[data-testid="list"]',      // Seletor nativo do Trello
+      '[role="region"]',            // Elemento ARIA
+      '[class*="list"]',            // Classe genérica
+      '.js-list',                   // Classe JS legacy
+      '[data-list-id]',             // Atributo de lista
+      '.trello-list',               // Classe alternativa
+    ];
+
+    for (const selector of selectorCandidates) {
+      const candidates = document.querySelectorAll(selector);
+      for (const el of candidates) {
+        // Procura por qualquer elemento dentro que contenha o nome da lista
+        // Começa procurando nos filhos diretos (headers, títulos)
+        let textToCheck = el.textContent;
+
+        // Se o texto for muito grande, procura pelo header/título separadamente
+        const header = el.querySelector('[class*="title"], [class*="header"], h1, h2, h3, [data-testid="list-name"]');
+        if (header) {
+          textToCheck = header.textContent;
+        }
+
+        const normalized = normalizeText(textToCheck);
+        // Requer AMBOS "pedidos" e "pendentes"
+        if (LIST_NAME_TOKENS.every((tok) => normalized.includes(tok))) {
+          return el;
+        }
       }
     }
+
     return null;
   }
 
   function getCardsFromList(listEl) {
-    let cards = Array.from(listEl.querySelectorAll('[data-testid="trello-card"]'));
-    if (cards.length === 0) {
-      cards = Array.from(listEl.querySelectorAll('a[href*="/c/"]'));
+    // Tenta múltiplos seletores para encontrar cartões
+    const selectors = [
+      '[data-testid="trello-card"]',        // Seletor nativo
+      'a[href*="/c/"]',                      // Link para cartão
+      '[class*="card"]',                     // Classe genérica
+      '[data-testid*="card"]',               // Variações de data-testid
+      '[role="button"][href*="/c/"]',       // Botão ARIA com link
+    ];
+
+    for (const selector of selectors) {
+      const found = Array.from(listEl.querySelectorAll(selector));
+      if (found.length > 0) {
+        return found;
+      }
     }
-    return cards;
+
+    return [];
   }
 
   function getCardName(card) {

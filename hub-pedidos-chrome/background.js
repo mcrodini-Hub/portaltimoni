@@ -1,7 +1,7 @@
 // Service worker — orquestra abertura/reaproveitamento de abas, roteia mensagens entre a
 // sidebar e os content scripts, e é o único lugar que persiste o estado global.
 
-importScripts('lib/state.js', 'lib/tabs.js', 'lib/messages.js');
+importScripts('lib/state.js', 'lib/tabs.js', 'lib/messages.js', 'lib/validators.js');
 
 // O board é sempre aberto já com o filtro nativo do Trello para a etiqueta "Rio Claro"
 // aplicado via URL (?filter=label:Rio Claro) — o mesmo mecanismo que o próprio Trello usa
@@ -9,6 +9,9 @@ importScripts('lib/state.js', 'lib/tabs.js', 'lib/messages.js');
 // cor/texto de etiqueta cartão por cartão: com o filtro nativo aplicado, só precisamos ler
 // quais cartões o Trello está exibindo (ver isCardVisible em content/trello-content.js).
 const TRELLO_BOARD_URL = 'https://trello.com/b/UfPrTr1H/compras?filter=label:Rio%20Claro';
+// Segunda passada (só a etiqueta "Urgente"), usada para reordenar os fornecedores colocando
+// os urgentes primeiro — mesma técnica de filtro nativo, sem detectar cor/texto por cartão.
+const TRELLO_URGENT_URL = 'https://trello.com/b/UfPrTr1H/compras?filter=label:Urgente';
 // Padrão amplo de propósito: encontrar QUALQUER aba do Trello já aberta na janela em foco,
 // só para fechá-la antes de abrir uma nova no board (ver ensureTrelloBoardTab).
 const TRELLO_URL_PATTERN = 'https://trello.com/*';
@@ -59,19 +62,23 @@ function removeTab(tabId) {
 //      correções de código nunca chegariam a rodar ali até um reload de verdade.
 // Fechar e abrir uma aba nova elimina os dois problemas de uma vez: carregamento limpo,
 // sem cartão sobreposto, sempre com o código mais recente e com o filtro nativo aplicado.
-async function ensureTrelloBoardTab() {
+async function ensureTrelloTabAt(url) {
   const windowId = await getFocusedWindowId();
   const tab = await HubTabs.findTab(TRELLO_URL_PATTERN, windowId);
   if (tab) {
     await removeTab(tab.id);
   }
-  const fresh = await HubTabs.createTab(TRELLO_BOARD_URL, windowId);
+  const fresh = await HubTabs.createTab(url, windowId);
   await HubTabs.waitForTabComplete(fresh.id);
   // Espera a SPA do Trello renderizar (não é só carregar o HTML, mas executar React/JS,
   // aplicar o filtro e desenhar a grade de cartões) — essencial para o content script
   // conseguir achar a lista e os cartões já filtrados.
   await new Promise((r) => setTimeout(r, 1800));
   return fresh;
+}
+
+async function ensureTrelloBoardTab() {
+  return ensureTrelloTabAt(TRELLO_BOARD_URL);
 }
 
 async function getActiveTab() {
@@ -112,14 +119,46 @@ async function handleScanTrello() {
     return { error: msg };
   }
 
-  const suppliers = result.suppliers || [];
+  let suppliers = result.suppliers || [];
+
+  // Segunda passada: abre o board filtrado só por "Urgente" e usa o mesmo mecanismo de
+  // filtro nativo pra saber quais desses fornecedores também têm essa etiqueta — sem
+  // detectar cor/texto por cartão. Reordena colocando os urgentes primeiro. Se essa segunda
+  // passada falhar por qualquer motivo, não é crítico: segue só com a ordem alfabética.
+  let finalTab = tab;
+  try {
+    const urgentTab = await ensureTrelloTabAt(TRELLO_URGENT_URL);
+    const urgentResult = await HubTabs.sendWithInjection(
+      urgentTab.id,
+      ['lib/validators.js', 'content/trello-content.js'],
+      HubMessages.makeMessage(TYPES.SCAN_TRELLO, null, 'background')
+    );
+    const urgentNames = (urgentResult && urgentResult.suppliers) || [];
+    if (urgentNames.length > 0) {
+      const urgentSet = new Set(urgentNames.map((s) => HubValidators.normalizeText(s.nome)));
+      suppliers = suppliers
+        .map((s) => ({ ...s, urgente: urgentSet.has(HubValidators.normalizeText(s.nome)) }))
+        .sort((a, b) => {
+          if (a.urgente !== b.urgente) return a.urgente ? -1 : 1;
+          return a.nome.localeCompare(b.nome, 'pt-BR');
+        });
+    }
+  } catch (e) {
+    // Segue só com a ordem alfabética da primeira passada.
+  } finally {
+    // A segunda passada deixa a aba do Trello no filtro "Urgente" — volta pro filtro
+    // primário (Rio Claro) antes de terminar, pra aba visível bater com o que o usuário
+    // esperava ver depois de clicar "Abrir Trello".
+    finalTab = await ensureTrelloBoardTab();
+  }
+
   await HubState.setState({
     currentState: STATES.FORNECEDORES_CARREGADOS,
     suppliers,
     trelloScanned: true,
     lastError: null,
     diagnostics: {
-      activeTabUrl: tab.url,
+      activeTabUrl: (finalTab || tab).url,
       cardsRead: result.diagnostics ? result.diagnostics.cardsRead : 0,
       rioClaroCards: result.diagnostics ? result.diagnostics.rioClaroCards : 0,
       usedDeepScan: result.diagnostics ? !!result.diagnostics.usedDeepScan : false,

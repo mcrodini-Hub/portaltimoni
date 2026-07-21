@@ -318,7 +318,7 @@
   function formatDescricao(items) {
     const timestamp = new Date().toLocaleString('pt-BR');
     const linhas = items.map((it) => `${it.codigo} | ${it.descricao} | ${it.quantidade}`);
-    return `${linhas.join('\n')}\n[Atualizado em ${timestamp}]`;
+    return `Total: ${items.length} itens\n${linhas.join('\n')}\n[Atualizado em ${timestamp}]`;
   }
 
   async function openCard(card) {

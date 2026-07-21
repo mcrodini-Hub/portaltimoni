@@ -131,7 +131,8 @@ function render(state) {
         const li = document.createElement('li');
         const selected = state.selectedSupplier && normalize(state.selectedSupplier.nome) === normalize(f.nome);
         li.className = selected ? 'selected' : '';
-        li.innerHTML = `<span class="dot"></span><span>${escapeHtml(f.nome)}</span>`;
+        const urgenteTag = f.urgente ? ' <span class="tag-urgente">Urgente</span>' : '';
+        li.innerHTML = `<span class="dot"></span><span>${escapeHtml(f.nome)}</span>${urgenteTag}`;
         li.addEventListener('click', () => onSelectSupplier(f));
         ui.fornecedoresLista.appendChild(li);
       });

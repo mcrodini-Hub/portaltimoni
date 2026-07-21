@@ -1,5 +1,23 @@
 # Changelog
 
+## 1.1.0-alpha.17 — Fornecedores "Urgente" primeiro + total no início da descrição
+
+Baseado nos prompts de referência fornecidos pelo usuário para cada etapa do
+fluxo (fornecedores-pedido-enviar, itens-pedido-rioclaro, extract-supplier):
+
+- **Adicionado**: Etapa 2 agora faz uma segunda passada, abrindo o board com
+  o filtro nativo do Trello só para a etiqueta "Urgente"
+  (`?filter=label:Urgente`) e usa o mesmo mecanismo de leitura por
+  visibilidade (sem detectar cor/texto) para saber quais fornecedores também
+  têm essa etiqueta. A lista final fica com os urgentes primeiro (mantendo
+  ordem alfabética dentro de cada grupo), com uma etiqueta visual "Urgente"
+  ao lado do nome na sidebar. Se essa segunda passada falhar por qualquer
+  motivo, a listagem segue normalmente só com a ordem alfabética (não é
+  bloqueante).
+- **Adicionado**: a descrição gravada no cartão do Trello (Etapa 7) agora
+  começa com "Total: N itens" antes da lista de código/descrição/quantidade
+  — a sidebar já mostrava esse total, agora o cartão também.
+
 ## 1.1.0-alpha.16 — Usa o filtro nativo do Trello em vez de detectar cor/texto de etiqueta
 
 Mudança de abordagem, validada manualmente pelo usuário: em vez de tentar

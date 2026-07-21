@@ -245,6 +245,17 @@ h1 { font-size: 18px; margin: 0 0 4px; }
 
 .supplier-list li.selected .dot { border-color: var(--blue); background: var(--blue); }
 
+.tag-urgente {
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 600;
+  color: #b42318;
+  background: #fee4e2;
+  border-radius: 10px;
+  padding: 2px 8px;
+  flex: 0 0 auto;
+}
+
 .item-list {
   list-style: none;
   margin: 8px 0 0;

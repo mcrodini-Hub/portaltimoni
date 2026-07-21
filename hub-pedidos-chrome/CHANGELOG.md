@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.0-alpha.19 — Corrige ativação automática: faltava clicar em "OK" no diálogo
+
+Os prints do usuário mostraram exatamente por que a alpha.18 não resolveu:
+o item de menu "Ativar suporte a leitor de tela" não é um toggle direto —
+ele abre um diálogo modal "Configurações de acessibilidade" com um checkbox
+e um botão "OK". O código anterior só clicava no item do menu (abrindo o
+diálogo, às vezes até com o checkbox já marcado) mas nunca clicava em "OK",
+então a configuração nunca era salva — o diálogo ficava aberto até a
+extensão desistir e mostrar o erro.
+
+- **Corrigido**: `tryEnableScreenReaderSupport()` agora espera o diálogo
+  aparecer, garante que o checkbox "leitor de tela" está marcado (clica se
+  não estiver) e clica em "OK" para confirmar de fato.
+
 ## 1.1.0-alpha.18 — Tenta ativar "Suporte a leitor de tela" automaticamente
 
 Trello funcionando (21 cartões lidos, 15 Rio Claro, ordenação Urgente

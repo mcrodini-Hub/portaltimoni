@@ -20,10 +20,13 @@
   // Tenta ativar "Suporte a leitor de tela" pelo próprio menu do Google Sheets (Ferramentas >
   // Acessibilidade), só clicando interações reais de UI — nada de eval/API/fetch. É esse modo
   // que faz o Sheets desenhar a grade como elementos de texto reais no HTML (em vez de só
-  // canvas), que é o único jeito da extensão conseguir ler o conteúdo sem OCR. Só clica se
-  // encontrar o item do menu com aria-checked="false" (evita desativar por engano se já
-  // estiver ativo por outro motivo). Melhor esforço: qualquer falha só faz retornar false, sem
-  // travar a extração.
+  // canvas), que é o único jeito da extensão conseguir ler o conteúdo sem OCR.
+  //
+  // Importante (descoberto testando com o usuário): esse item de menu NÃO é um toggle direto —
+  // ele abre um diálogo modal "Configurações de acessibilidade" com um checkbox "Ativar a
+  // compatibilidade com o leitor de tela" e um botão "OK". A tentativa inicial só clicava no
+  // item do menu (abrindo o diálogo) mas nunca confirmava com "OK", então a configuração nunca
+  // era salva de fato. Agora: abre o diálogo, garante que o checkbox está marcado, e clica OK.
   async function tryEnableScreenReaderSupport() {
     try {
       const toolsMenu = clickByText(document, 'Ferramentas', '[role="menuitem"]');
@@ -37,21 +40,37 @@
       }
       await new Promise((r) => setTimeout(r, 400));
 
-      let target = null;
+      let opener = null;
       document.querySelectorAll('[role="menuitemcheckbox"], [role="menuitem"]').forEach((el) => {
-        if (target) return;
-        if (normalizeText(el.textContent || '').includes('leitor de tela')) target = el;
+        if (opener) return;
+        if (normalizeText(el.textContent || '').includes('leitor de tela')) opener = el;
       });
-      if (!target) {
+      if (!opener) {
         document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
         return false;
       }
-      if (target.getAttribute('aria-checked') === 'true') {
-        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-        return false; // já estava ativo — o motivo de não achar gridcell é outro
+      opener.click();
+
+      // Espera o diálogo "Configurações de acessibilidade" aparecer.
+      const dialog = await waitFor(() => document.querySelector('[role="dialog"]'), { timeout: 3000 });
+      if (!dialog) return false;
+
+      const checkbox = Array.from(
+        dialog.querySelectorAll('[role="checkbox"], input[type="checkbox"]')
+      ).find((el) => normalizeText(el.closest('label')?.textContent || el.parentElement?.textContent || '').includes('leitor de tela'));
+
+      const isChecked = (el) => el.getAttribute('aria-checked') === 'true' || el.checked === true;
+      if (checkbox && !isChecked(checkbox)) {
+        checkbox.click();
+        await new Promise((r) => setTimeout(r, 150));
       }
 
-      target.click();
+      const okBtn = Array.from(dialog.querySelectorAll('button')).find(
+        (b) => normalizeText(b.textContent || '') === 'ok'
+      );
+      if (!okBtn) return false;
+      okBtn.click();
+
       await new Promise((r) => setTimeout(r, 2000)); // Sheets redesenha a grade em modo acessível
       return true;
     } catch (e) {

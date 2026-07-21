@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.1.0-alpha.16 — Usa o filtro nativo do Trello em vez de detectar cor/texto de etiqueta
+
+Mudança de abordagem, validada manualmente pelo usuário: em vez de tentar
+adivinhar se um cartão tem a etiqueta verde "Rio Claro" (lendo cor/texto do
+DOM, com fallback de abrir cada cartão), a extensão agora abre o board
+DIRETO com o filtro nativo do Trello aplicado via URL
+(`?filter=label:Rio%20Claro` — o mesmo mecanismo que o Trello usa para link
+de board pré-filtrado). O Trello esconde os cartões que não batem com o
+filtro; a extensão só precisa ler quais cartões estão **visíveis** na lista
+"PEDIDOS PENDENTES" — muito mais simples e confiável que detecção de cor.
+
+- **Simplificado**: `background.js` — `ensureTrelloBoardTab()` agora sempre
+  fecha qualquer aba do Trello aberta e abre uma nova em
+  `TRELLO_BOARD_URL` (board + filtro), em vez de tentar reaproveitar/navegar
+  a mesma aba (que tinha se mostrado frágil em várias versões anteriores:
+  cartão sobreposto ao navegar, content script desatualizado ao reaproveitar
+  a aba). Carregamento limpo sempre, com filtro aplicado e código atualizado
+  garantidos.
+- **Adicionado**: `isCardVisible()` em `content/trello-content.js` — cartão
+  Rio Claro passa a ser, primeiro, "cartão visível na lista" (checando
+  `offsetParent`/dimensões). A detecção antiga por cor/texto e a varredura
+  profunda (abrir cada cartão) continuam no código como fallback, caso o
+  filtro nativo por algum motivo não tenha sido aplicado.
+- Removido código morto (`findTrelloTab`, `TRELLO_BOARD_PATH_PREFIX`) que
+  ficou sem uso depois dessa simplificação.
+
 ## 1.1.0-alpha.15 — Suspeita da causa real do erro persistente: content script desatualizado
 
 Depois de várias correções (alpha.12/13/14) mudarem a lógica de busca da lista

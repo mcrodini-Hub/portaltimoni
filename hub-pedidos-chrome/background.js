@@ -3,13 +3,14 @@
 
 importScripts('lib/state.js', 'lib/tabs.js', 'lib/messages.js');
 
-const TRELLO_BOARD_URL = 'https://trello.com/b/UfPrTr1H/compras';
-const TRELLO_BOARD_PATH_PREFIX = '/b/UfPrTr1H/';
-// Padrão amplo de propósito: encontrar QUALQUER aba do Trello já aberta (inclusive uma que
-// tenha navegado para um cartão específico, trello.com/c/..., o que acontece na MESMA aba
-// via SPA sempre que um cartão é aberto — pelo usuário ou pela varredura profunda de
-// etiquetas). ensureTrelloBoardTab() abaixo é quem garante que essa aba está no board certo
-// antes de ler/atualizar, navegando de volta quando necessário.
+// O board é sempre aberto já com o filtro nativo do Trello para a etiqueta "Rio Claro"
+// aplicado via URL (?filter=label:Rio Claro) — o mesmo mecanismo que o próprio Trello usa
+// para compartilhar um link de board pré-filtrado. Isso elimina a necessidade de detectar
+// cor/texto de etiqueta cartão por cartão: com o filtro nativo aplicado, só precisamos ler
+// quais cartões o Trello está exibindo (ver isCardVisible em content/trello-content.js).
+const TRELLO_BOARD_URL = 'https://trello.com/b/UfPrTr1H/compras?filter=label:Rio%20Claro';
+// Padrão amplo de propósito: encontrar QUALQUER aba do Trello já aberta na janela em foco,
+// só para fechá-la antes de abrir uma nova no board (ver ensureTrelloBoardTab).
 const TRELLO_URL_PATTERN = 'https://trello.com/*';
 const DRIVE_FOLDER_URL = 'https://drive.google.com/drive/u/0/folders/1P7Nb1FwfSQ6e7TA9Wkgizyy53tGGQajk';
 const DRIVE_URL_PATTERN = 'https://drive.google.com/*';
@@ -34,11 +35,6 @@ function getFocusedWindowId() {
   });
 }
 
-async function findTrelloTab() {
-  const windowId = await getFocusedWindowId();
-  return HubTabs.findTab(TRELLO_URL_PATTERN, windowId);
-}
-
 function removeTab(tabId) {
   return new Promise((resolve) => {
     chrome.tabs.remove(tabId, () => {
@@ -50,60 +46,31 @@ function removeTab(tabId) {
   });
 }
 
-// Garante uma aba do Trello pronta para ler/escrever no board de Compras. O único link de
-// Trello que a extensão usa é o board de Compras (TRELLO_BOARD_URL). A busca por aba
-// existente é restrita à janela em foco (senão uma aba esquecida em OUTRA janela podia ser
-// reaproveitada por engano).
-//
-// Ponto importante: quando um cartão está aberto, a URL da aba vira trello.com/c/... . Tentar
-// navegar essa MESMA aba de volta para o board com chrome.tabs.update NÃO é confiável — como
-// o cartão e o board pertencem ao mesmo board, o Trello trata a mudança como navegação
-// interna do SPA (History API), o evento de carregamento "complete" pode nunca disparar e o
-// cartão continua aberto por cima da lista, fazendo a leitura falhar sem nada mudar na tela.
-// Por isso, se a aba não estiver exatamente no board (path /b/UfPrTr1H/... e SEM cartão
-// aberto), ela é fechada e uma nova é aberta no board — um carregamento limpo, sem cartão
-// sobreposto, que não pode ser interceptado pelo SPA.
+// Garante uma aba do Trello pronta para ler/escrever no board de Compras, sempre na URL
+// exata TRELLO_BOARD_URL (board + filtro nativo "Rio Claro"). Fecha qualquer aba do Trello
+// já aberta (na janela em foco) e abre uma nova, em vez de tentar reaproveitar/navegar a
+// mesma aba — duas lições aprendidas em versões anteriores:
+//   1. Se um cartão está aberto, a URL da aba vira trello.com/c/... e o Trello trata mudanças
+//      de URL como navegação interna do SPA (History API); o carregamento "complete" pode não
+//      disparar e o cartão fica aberto por cima da lista, fazendo a leitura falhar sem nada
+//      mudar na tela.
+//   2. Reaproveitar uma aba já aberta corre o risco de rodar um content script ANTIGO: o
+//      Chrome não reinjeta script numa aba já aberta quando a extensão é atualizada, então
+//      correções de código nunca chegariam a rodar ali até um reload de verdade.
+// Fechar e abrir uma aba nova elimina os dois problemas de uma vez: carregamento limpo,
+// sem cartão sobreposto, sempre com o código mais recente e com o filtro nativo aplicado.
 async function ensureTrelloBoardTab() {
   const windowId = await getFocusedWindowId();
   const tab = await HubTabs.findTab(TRELLO_URL_PATTERN, windowId);
-
-  let path = '';
-  if (tab) {
-    try {
-      path = new URL(tab.url || '').pathname;
-    } catch (e) {
-      path = '';
-    }
-  }
-
-  const alreadyOnBoard = tab && path.startsWith(TRELLO_BOARD_PATH_PREFIX);
-  if (alreadyOnBoard) {
-    await HubTabs.activateTab(tab);
-    // Recarrega sempre (bypassCache), mesmo já estando no board: se a extensão foi
-    // atualizada/recarregada desde que essa aba carregou, o content script rodando nela é o
-    // ANTIGO (chrome não reinjeta script em aba já aberta ao atualizar a extensão) — qualquer
-    // correção de código nunca chegaria a rodar até essa aba ser recarregada de verdade. Um
-    // reload aqui é a única forma de garantir que o código mais recente sempre é usado.
-    await new Promise((resolve, reject) => {
-      chrome.tabs.reload(tab.id, { bypassCache: true }, () => {
-        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
-        else resolve();
-      });
-    });
-    await HubTabs.waitForTabComplete(tab.id);
-    await new Promise((r) => setTimeout(r, 1500)); // espera a SPA do Trello renderizar
-    return tab;
-  }
-
   if (tab) {
     await removeTab(tab.id);
   }
   const fresh = await HubTabs.createTab(TRELLO_BOARD_URL, windowId);
   await HubTabs.waitForTabComplete(fresh.id);
-  // Espera a SPA do Trello renderizar (não é só carregar o HTML, mas executar React/JS
-  // e desenhar a grade de cartões) — essencial para o content script conseguir achar a
-  // lista e os cartões.
-  await new Promise((r) => setTimeout(r, 1500));
+  // Espera a SPA do Trello renderizar (não é só carregar o HTML, mas executar React/JS,
+  // aplicar o filtro e desenhar a grade de cartões) — essencial para o content script
+  // conseguir achar a lista e os cartões já filtrados.
+  await new Promise((r) => setTimeout(r, 1800));
   return fresh;
 }
 

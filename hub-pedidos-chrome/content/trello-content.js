@@ -229,12 +229,31 @@
     return matched;
   }
 
+  // O background.js sempre abre o board com o filtro nativo do Trello aplicado via URL
+  // (?filter=label:Rio Claro) — o Trello esconde (não apenas destaca) os cartões que não
+  // batem com o filtro. Um cartão "visível" (ainda no fluxo normal do layout, não
+  // display:none/dimensão zero) é, portanto, um cartão Rio Claro — sem precisar detectar cor
+  // ou ler texto de etiqueta.
+  function isCardVisible(card) {
+    return !!(card.offsetParent || (card.getClientRects && card.getClientRects().length > 0));
+  }
+
   // Usada tanto na Etapa 2 (listar) quanto na Etapa 7 (atualizar), para que as duas etapas
   // enxerguem exatamente o mesmo conjunto de cartões Rio Claro.
   async function getRioClaroCards(listEl) {
     const cards = getCardsFromList(listEl);
-    let rioClaroCards = cards.filter(isRioClaroCard);
     let usedDeepScan = false;
+
+    // Preferência 1: filtro nativo do Trello (via URL) já escondeu os cartões que não têm a
+    // etiqueta — só ler quais estão visíveis.
+    let rioClaroCards = cards.filter(isCardVisible);
+
+    // Se "todos" ou "nenhum" cartão está visível, o filtro nativo provavelmente não foi
+    // aplicado (aba aberta sem o parâmetro, ou Trello mudou de comportamento) — cai para a
+    // detecção por cor/texto de etiqueta, como nas versões anteriores.
+    if (cards.length > 0 && (rioClaroCards.length === 0 || rioClaroCards.length === cards.length)) {
+      rioClaroCards = cards.filter(isRioClaroCard);
+    }
 
     if (rioClaroCards.length === 0 && cards.length > 0) {
       // Antes de abrir cartão por cartão, tenta o atalho nativo do Trello que mostra o nome

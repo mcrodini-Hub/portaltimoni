@@ -31,6 +31,7 @@
     produtoSelecionadoWrap: document.getElementById('produto-selecionado-wrap'),
     selCodigo: document.getElementById('sel-codigo'),
     selDescricao: document.getElementById('sel-descricao'),
+    chkCliente: document.getElementById('chk-cliente'),
     btnInformarNecessidade: document.getElementById('btn-informar-necessidade'),
     solicitacoesVazio: document.getElementById('solicitacoes-vazio'),
     listaSolicitacoes: document.getElementById('lista-solicitacoes'),
@@ -69,6 +70,21 @@
 
   function ordenarPorCriadoDesc(lista) {
     return lista.slice().sort((a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime());
+  }
+
+  // Fila do estoque: itens com cliente aguardando primeiro; depois por mais recente.
+  function ordenarFila(lista) {
+    return lista.slice().sort((a, b) => {
+      if (!!a.clienteAguardando !== !!b.clienteAguardando) return a.clienteAguardando ? -1 : 1;
+      return new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime();
+    });
+  }
+
+  function chipCliente() {
+    const span = document.createElement('span');
+    span.className = 'chip-cliente';
+    span.textContent = 'Cliente aguardando';
+    return span;
   }
 
   // ---------------------------------------------------------------------
@@ -258,10 +274,11 @@
     if (!produtoSelecionado) return;
     el.btnInformarNecessidade.disabled = true;
     try {
-      await EstoqueStore.criarNecessidade(produtoSelecionado);
+      await EstoqueStore.criarNecessidade(produtoSelecionado, { clienteAguardando: el.chkCliente.checked });
       showError(null);
       produtoSelecionado = null;
       el.produtoSelecionadoWrap.hidden = true;
+      el.chkCliente.checked = false;
       el.inputBusca.value = '';
       el.listaResultados.hidden = true;
       await renderSolicitacoes();
@@ -306,6 +323,7 @@
       desc.className = 'item-desc';
       desc.textContent = n.descricao;
       linha1.append(cod, desc);
+      if (n.clienteAguardando) linha1.append(chipCliente());
       const linha2 = document.createElement('div');
       linha2.className = 'status-line';
       linha2.textContent = statusLabel(n);
@@ -333,6 +351,7 @@
     desc.style.color = 'var(--ink-soft)';
     desc.textContent = ` ${n.descricao}`;
     l1.append(cod, desc);
+    if (n.clienteAguardando) l1.append(chipCliente());
 
     const meta = document.createElement('p');
     meta.className = 'hint-text';
@@ -388,8 +407,8 @@
       showError(e.message);
       return;
     }
-    const pendentes = ordenarPorCriadoDesc(necessidades.filter((n) => n.status === STATUS.PENDENTE));
-    const anotados = ordenarPorCriadoDesc(necessidades.filter((n) => n.status === STATUS.EM_COMPRA));
+    const pendentes = ordenarFila(necessidades.filter((n) => n.status === STATUS.PENDENTE));
+    const anotados = ordenarFila(necessidades.filter((n) => n.status === STATUS.EM_COMPRA));
 
     el.pendentesCount.textContent = String(pendentes.length);
     el.listaPendentes.innerHTML = '';

@@ -4,7 +4,8 @@ Extensão Chrome (Manifest V3) para a Casa Timoni Rio Claro. Primeira versão co
 módulos:
 
 - **Módulo 1 — Consulta de Produtos (Balcão)**: busca por código ou descrição, e permite
-  informar uma necessidade de compra para o produto selecionado. Sem valores, sem anexos.
+  informar uma necessidade de compra para o produto selecionado, marcando se **tem cliente
+  aguardando**. Sem valores, sem anexos.
 - **Módulo 2 — Central de Necessidades (Estoque/Lucas)**: recebe as solicitações do balcão
   ("Aguardando você") e responde de três formas:
   - **Recebido! Vou providenciar** — o item vai para a lista de necessidade de compra;
@@ -12,6 +13,10 @@ módulos:
     solicitou;
   - **Outra resposta** — texto livre (ex.: "tem no depósito, pode buscar" ou "não vamos
     repor por ora").
+
+  A fila do Lucas mostra primeiro os itens com **cliente aguardando** (etiqueta vermelha).
+  Se o mesmo produto for pedido de novo já marcando cliente aguardando, o item existente é
+  promovido em vez de duplicar.
 
 ## Dois modos de funcionamento
 
@@ -30,7 +35,7 @@ A extensão escolhe o modo sozinha conforme haja ou não uma planilha configurad
 1. **Crie a planilha** no Google Sheets com **duas abas**, com estes cabeçalhos na linha 1:
    - Aba **`Produtos`**: `codigo` | `descricao`
    - Aba **`Necessidades`**: `id` | `codigo` | `descricao` | `status` | `criadoEm` |
-     `respondidoEm` | `numeroPedido` | `previsaoEntrega` | `observacao`
+     `respondidoEm` | `numeroPedido` | `previsaoEntrega` | `observacao` | `clienteAguardando`
 2. **Preencha a aba `Produtos`** com o catálogo real (código e descrição). É essa aba que
    alimenta a busca do balcão. A aba `Necessidades` começa vazia (só o cabeçalho) — a
    extensão preenche sozinha.

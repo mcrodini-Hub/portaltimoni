@@ -16,14 +16,16 @@
  *      A: codigo | B: descricao
  *   Aba "Necessidades":
  *      A: id | B: codigo | C: descricao | D: status | E: criadoEm |
- *      F: respondidoEm | G: numeroPedido | H: previsaoEntrega | I: observacao
+ *      F: respondidoEm | G: numeroPedido | H: previsaoEntrega | I: observacao |
+ *      J: clienteAguardando
  *
  * status possíveis: "pendente", "em_compra", "pedido_existente", "observacao".
+ * clienteAguardando: "true"/"false" — marca itens com cliente esperando (prioridade).
  */
 
 var ABA_PRODUTOS = 'Produtos';
 var ABA_NECESSIDADES = 'Necessidades';
-var COLUNAS_NEC = ['id', 'codigo', 'descricao', 'status', 'criadoEm', 'respondidoEm', 'numeroPedido', 'previsaoEntrega', 'observacao'];
+var COLUNAS_NEC = ['id', 'codigo', 'descricao', 'status', 'criadoEm', 'respondidoEm', 'numeroPedido', 'previsaoEntrega', 'observacao', 'clienteAguardando'];
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
@@ -39,7 +41,7 @@ function doGet(e) {
       case 'necessidades':
         return json({ ok: true, necessidades: lerNecessidades() });
       case 'criar':
-        return json({ ok: true, necessidade: criar(p.codigo) });
+        return json({ ok: true, necessidade: criar(p.codigo, p.cliente) });
       case 'recebido':
         return json({ ok: true, necessidade: responder(p.id, 'em_compra', {}) });
       case 'pedido':
@@ -108,6 +110,7 @@ function lerNecessidades() {
     }
     reg.criadoEm = normalizarData(reg.criadoEm);
     reg.respondidoEm = normalizarData(reg.respondidoEm);
+    reg.clienteAguardando = parseBool(reg.clienteAguardando);
     out.push(reg);
   }
   return out;
@@ -120,9 +123,28 @@ function normalizarData(valor) {
   return String(valor);
 }
 
-function criar(codigo) {
+function parseBool(v) {
+  if (v === true) return true;
+  var s = String(v === null || v === undefined ? '' : v).trim().toLowerCase();
+  return s === '1' || s === 'true' || s === 'sim' || s === 'verdadeiro';
+}
+
+function registroDaLinha(sheet, linhaSheet) {
+  var linha = sheet.getRange(linhaSheet, 1, 1, COLUNAS_NEC.length).getValues()[0];
+  var reg = {};
+  for (var c = 0; c < COLUNAS_NEC.length; c++) {
+    reg[COLUNAS_NEC[c]] = linha[c] === '' || linha[c] === null ? null : linha[c];
+  }
+  reg.criadoEm = normalizarData(reg.criadoEm);
+  reg.respondidoEm = normalizarData(reg.respondidoEm);
+  reg.clienteAguardando = parseBool(reg.clienteAguardando);
+  return reg;
+}
+
+function criar(codigo, cliente) {
   codigo = String(codigo || '').trim();
   if (!codigo) throw new Error('Código do produto não informado.');
+  var querCliente = parseBool(cliente);
 
   var produto = null;
   var produtos = lerProdutos();
@@ -131,11 +153,21 @@ function criar(codigo) {
   }
   if (!produto) throw new Error('Produto ' + codigo + ' não encontrado no catálogo.');
 
+  var sheet = aba(ABA_NECESSIDADES);
+  var valores = sheet.getDataRange().getValues();
+  var cCodigo = coluna('codigo') - 1;
+  var cStatus = coluna('status') - 1;
+  var cCliente = coluna('clienteAguardando') - 1;
+
   // Evita solicitação duplicada: mesmo produto já pendente (sem resposta do estoque).
-  var necessidades = lerNecessidades();
-  for (var j = 0; j < necessidades.length; j++) {
-    if (necessidades[j].codigo === codigo && necessidades[j].status === 'pendente') {
-      return necessidades[j];
+  // Se a nova solicitação marca "cliente aguardando" e a existente não marcava, promove.
+  for (var j = 1; j < valores.length; j++) {
+    if (String(valores[j][cCodigo] || '').trim() === codigo && String(valores[j][cStatus] || '').trim() === 'pendente') {
+      var linhaExistente = j + 1;
+      if (querCliente && !parseBool(valores[j][cCliente])) {
+        sheet.getRange(linhaExistente, coluna('clienteAguardando')).setValue(true);
+      }
+      return registroDaLinha(sheet, linhaExistente);
     }
   }
 
@@ -147,10 +179,11 @@ function criar(codigo) {
     criadoEm: new Date().toISOString(),
     respondidoEm: null,
     numeroPedido: null,
-    previsaoEntrega: null
+    previsaoEntrega: null,
+    observacao: null,
+    clienteAguardando: querCliente
   };
 
-  var sheet = aba(ABA_NECESSIDADES);
   sheet.appendRow(COLUNAS_NEC.map(function (c) { return registro[c] === null ? '' : registro[c]; }));
   return registro;
 }

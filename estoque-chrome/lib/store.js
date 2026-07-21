@@ -161,18 +161,26 @@
     return `nec_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   }
 
-  async function criarNecessidade(produto) {
+  async function criarNecessidade(produto, opts) {
     if (!produto || !produto.codigo) throw new Error('Selecione um produto antes de informar a necessidade.');
+    const querCliente = !!(opts && opts.clienteAguardando);
 
     if (await isRemote()) {
-      const data = await apiGet({ action: 'criar', codigo: produto.codigo });
+      const data = await apiGet({ action: 'criar', codigo: produto.codigo, cliente: querCliente ? '1' : '0' });
       return data.necessidade;
     }
 
     // Modo local
     const necessidades = await get(KEYS.NECESSIDADES, []);
     const jaPendente = necessidades.find((n) => n.codigo === produto.codigo && n.status === STATUS.PENDENTE);
-    if (jaPendente) return jaPendente;
+    if (jaPendente) {
+      // Se a nova solicitação marca cliente aguardando e a existente não, promove.
+      if (querCliente && !jaPendente.clienteAguardando) {
+        jaPendente.clienteAguardando = true;
+        await set(KEYS.NECESSIDADES, necessidades);
+      }
+      return jaPendente;
+    }
     const nova = {
       id: generateId(),
       codigo: produto.codigo,
@@ -182,7 +190,8 @@
       respondidoEm: null,
       numeroPedido: null,
       previsaoEntrega: null,
-      observacao: null
+      observacao: null,
+      clienteAguardando: querCliente
     };
     necessidades.unshift(nova);
     await set(KEYS.NECESSIDADES, necessidades);

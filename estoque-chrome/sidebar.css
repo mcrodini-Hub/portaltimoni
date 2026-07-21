@@ -262,6 +262,7 @@ h1 { font-size: 18px; margin: 0 0 4px; }
 .result-list li.status-pendente .status-line { color: var(--amber); }
 .result-list li.status-em_compra .status-line { color: var(--green); }
 .result-list li.status-pedido_existente .status-line { color: var(--blue); }
+.result-list li.status-observacao .status-line { color: var(--ink); }
 
 .need-list li {
   border: 1px solid var(--border);

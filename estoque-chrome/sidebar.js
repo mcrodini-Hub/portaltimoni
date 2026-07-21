@@ -273,10 +273,13 @@
   });
 
   function statusLabel(n) {
-    if (n.status === STATUS.PENDENTE) return 'Aguardando resposta do estoque';
-    if (n.status === STATUS.EM_COMPRA) return 'Recebido — providenciando pedido de compra';
+    if (n.status === STATUS.PENDENTE) return 'Enviado ao estoque — aguardando retorno';
+    if (n.status === STATUS.EM_COMPRA) return 'Estoque vai providenciar a compra';
     if (n.status === STATUS.PEDIDO_EXISTENTE) {
-      return `O produto já consta no Pedido ${n.numeroPedido} — Previsão de entrega: ${formatDateOnly(n.previsaoEntrega)}`;
+      return `Já tem pedido nº ${n.numeroPedido} — previsão de entrega ~${formatDateOnly(n.previsaoEntrega)}`;
+    }
+    if (n.status === STATUS.OBSERVACAO) {
+      return `Estoque: ${n.observacao || ''}`;
     }
     return '';
   }
@@ -345,8 +348,9 @@
       const acoes = document.createElement('div');
       acoes.className = 'need-actions';
       acoes.innerHTML = `
-        <button class="btn btn-primary btn-small" data-action="recebido" data-id="${n.id}">Recebido, vamos providenciar!</button>
+        <button class="btn btn-primary btn-small" data-action="recebido" data-id="${n.id}">Recebido! Vou providenciar</button>
         <button class="btn btn-secondary btn-small" data-action="ja-tem-pedido" data-id="${n.id}">Já tem pedido</button>
+        <button class="btn btn-secondary btn-small" data-action="observacao-abrir" data-id="${n.id}">Outra resposta</button>
       `;
 
       const form = document.createElement('div');
@@ -357,14 +361,26 @@
         <input type="text" class="text-input" placeholder="Nº do pedido" id="input-numero-${n.id}">
         <input type="date" class="text-input" id="input-previsao-${n.id}">
         <div class="pedido-form-actions">
-          <button class="btn btn-primary btn-small" data-action="confirmar-pedido" data-id="${n.id}">Confirmar</button>
+          <button class="btn btn-primary btn-small" data-action="confirmar-pedido" data-id="${n.id}">Responder ao balcão</button>
           <button class="btn btn-secondary btn-small" data-action="cancelar-pedido" data-id="${n.id}">Cancelar</button>
+        </div>
+      `;
+
+      const obsForm = document.createElement('div');
+      obsForm.className = 'pedido-form';
+      obsForm.id = `obs-form-${n.id}`;
+      obsForm.hidden = true;
+      obsForm.innerHTML = `
+        <input type="text" class="text-input" placeholder="Ex.: tem no depósito, pode buscar / não vamos repor por ora" id="input-obs-${n.id}">
+        <div class="pedido-form-actions">
+          <button class="btn btn-primary btn-small" data-action="observacao-enviar" data-id="${n.id}">Enviar ao balcão</button>
+          <button class="btn btn-secondary btn-small" data-action="observacao-cancelar" data-id="${n.id}">Cancelar</button>
         </div>
       `;
 
       const l1 = document.createElement('div');
       l1.append(cod, desc);
-      li.append(l1, meta, acoes, form);
+      li.append(l1, meta, acoes, form, obsForm);
       el.listaPendentes.appendChild(li);
     });
 
@@ -391,10 +407,20 @@
 
     if (action === 'ja-tem-pedido') {
       document.getElementById(`form-${id}`).hidden = false;
+      document.getElementById(`obs-form-${id}`).hidden = true;
       return;
     }
     if (action === 'cancelar-pedido') {
       document.getElementById(`form-${id}`).hidden = true;
+      return;
+    }
+    if (action === 'observacao-abrir') {
+      document.getElementById(`obs-form-${id}`).hidden = false;
+      document.getElementById(`form-${id}`).hidden = true;
+      return;
+    }
+    if (action === 'observacao-cancelar') {
+      document.getElementById(`obs-form-${id}`).hidden = true;
       return;
     }
 
@@ -417,6 +443,20 @@
       btn.disabled = true;
       try {
         await EstoqueStore.responderPedidoExistente(id, { numeroPedido, previsaoEntrega });
+        showError(null);
+        await renderFilaEstoque();
+      } catch (e) {
+        showError(e.message);
+        btn.disabled = false;
+      }
+      return;
+    }
+
+    if (action === 'observacao-enviar') {
+      const observacao = document.getElementById(`input-obs-${id}`).value.trim();
+      btn.disabled = true;
+      try {
+        await EstoqueStore.responderObservacao(id, { observacao });
         showError(null);
         await renderFilaEstoque();
       } catch (e) {

@@ -6,9 +6,12 @@ módulos:
 - **Módulo 1 — Consulta de Produtos (Balcão)**: busca por código ou descrição, e permite
   informar uma necessidade de compra para o produto selecionado. Sem valores, sem anexos.
 - **Módulo 2 — Central de Necessidades (Estoque/Lucas)**: recebe as solicitações do balcão
-  e responde de duas formas — "Recebido, vamos providenciar o pedido de compra!" (o item
-  vai para a lista de necessidade de compra) ou "Já tem pedido" (informa nº do pedido e
-  previsão de entrega, que aparece de volta para quem solicitou).
+  ("Aguardando você") e responde de três formas:
+  - **Recebido! Vou providenciar** — o item vai para a lista de necessidade de compra;
+  - **Já tem pedido** — informa nº do pedido e previsão de entrega, que volta para quem
+    solicitou;
+  - **Outra resposta** — texto livre (ex.: "tem no depósito, pode buscar" ou "não vamos
+    repor por ora").
 
 ## Dois modos de funcionamento
 
@@ -27,7 +30,7 @@ A extensão escolhe o modo sozinha conforme haja ou não uma planilha configurad
 1. **Crie a planilha** no Google Sheets com **duas abas**, com estes cabeçalhos na linha 1:
    - Aba **`Produtos`**: `codigo` | `descricao`
    - Aba **`Necessidades`**: `id` | `codigo` | `descricao` | `status` | `criadoEm` |
-     `respondidoEm` | `numeroPedido` | `previsaoEntrega`
+     `respondidoEm` | `numeroPedido` | `previsaoEntrega` | `observacao`
 2. **Preencha a aba `Produtos`** com o catálogo real (código e descrição). É essa aba que
    alimenta a busca do balcão. A aba `Necessidades` começa vazia (só o cabeçalho) — a
    extensão preenche sozinha.

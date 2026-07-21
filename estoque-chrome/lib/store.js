@@ -23,7 +23,8 @@
   const STATUS = Object.freeze({
     PENDENTE: 'pendente',
     EM_COMPRA: 'em_compra',
-    PEDIDO_EXISTENTE: 'pedido_existente'
+    PEDIDO_EXISTENTE: 'pedido_existente',
+    OBSERVACAO: 'observacao'
   });
 
   // -------------------------------------------------------------------------
@@ -180,7 +181,8 @@
       criadoEm: new Date().toISOString(),
       respondidoEm: null,
       numeroPedido: null,
-      previsaoEntrega: null
+      previsaoEntrega: null,
+      observacao: null
     };
     necessidades.unshift(nova);
     await set(KEYS.NECESSIDADES, necessidades);
@@ -220,6 +222,23 @@
     return alvo;
   }
 
+  async function responderObservacao(id, { observacao }) {
+    const texto = (observacao || '').trim();
+    if (!texto) throw new Error('Escreva a resposta ao balcão.');
+    if (await isRemote()) {
+      const data = await apiGet({ action: 'observacao', id, texto });
+      return data.necessidade;
+    }
+    const necessidades = await get(KEYS.NECESSIDADES, []);
+    const alvo = necessidades.find((n) => n.id === id);
+    if (!alvo) throw new Error('Necessidade não encontrada.');
+    alvo.status = STATUS.OBSERVACAO;
+    alvo.respondidoEm = new Date().toISOString();
+    alvo.observacao = texto;
+    await set(KEYS.NECESSIDADES, necessidades);
+    return alvo;
+  }
+
   root.EstoqueStore = {
     KEYS,
     ROLES,
@@ -235,6 +254,7 @@
     getNecessidades,
     criarNecessidade,
     responderRecebido,
-    responderPedidoExistente
+    responderPedidoExistente,
+    responderObservacao
   };
 })(self);

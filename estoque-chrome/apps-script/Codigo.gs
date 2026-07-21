@@ -16,14 +16,14 @@
  *      A: codigo | B: descricao
  *   Aba "Necessidades":
  *      A: id | B: codigo | C: descricao | D: status | E: criadoEm |
- *      F: respondidoEm | G: numeroPedido | H: previsaoEntrega
+ *      F: respondidoEm | G: numeroPedido | H: previsaoEntrega | I: observacao
  *
- * status possíveis: "pendente", "em_compra", "pedido_existente".
+ * status possíveis: "pendente", "em_compra", "pedido_existente", "observacao".
  */
 
 var ABA_PRODUTOS = 'Produtos';
 var ABA_NECESSIDADES = 'Necessidades';
-var COLUNAS_NEC = ['id', 'codigo', 'descricao', 'status', 'criadoEm', 'respondidoEm', 'numeroPedido', 'previsaoEntrega'];
+var COLUNAS_NEC = ['id', 'codigo', 'descricao', 'status', 'criadoEm', 'respondidoEm', 'numeroPedido', 'previsaoEntrega', 'observacao'];
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
@@ -46,6 +46,10 @@ function doGet(e) {
         return json({ ok: true, necessidade: responder(p.id, 'pedido_existente', {
           numeroPedido: p.numeroPedido,
           previsaoEntrega: p.previsao
+        }) });
+      case 'observacao':
+        return json({ ok: true, necessidade: responder(p.id, 'observacao', {
+          observacao: p.texto
         }) });
       default:
         return json({ ok: false, erro: 'Ação desconhecida: ' + action });
@@ -159,6 +163,9 @@ function responder(id, status, extra) {
       throw new Error('Informe o número do pedido e a previsão de entrega.');
     }
   }
+  if (status === 'observacao' && !String(extra.observacao || '').trim()) {
+    throw new Error('Escreva a resposta ao balcão.');
+  }
 
   var sheet = aba(ABA_NECESSIDADES);
   var valores = sheet.getDataRange().getValues();
@@ -170,6 +177,9 @@ function responder(id, status, extra) {
       if (status === 'pedido_existente') {
         sheet.getRange(linhaSheet, coluna('numeroPedido')).setValue(extra.numeroPedido);
         sheet.getRange(linhaSheet, coluna('previsaoEntrega')).setValue(extra.previsaoEntrega);
+      }
+      if (status === 'observacao') {
+        sheet.getRange(linhaSheet, coluna('observacao')).setValue(String(extra.observacao).trim());
       }
       var necessidades = lerNecessidades();
       for (var k = 0; k < necessidades.length; k++) {

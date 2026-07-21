@@ -1,11 +1,12 @@
 // Content script do Trello — Etapas 2 e 7 da especificação.
-// Regras: só considera a lista "RELAÇÃO DE PEDIDOS" e, dentro dela, só cartões com etiqueta
-// verde "Rio Claro". Nunca mexe em cartões fora dessa lista/filtro.
+// Regras: só considera a lista "PEDIDOS PENDENTES" (ou similares) e, dentro dela, só
+// cartões com etiqueta verde "Rio Claro". Nunca mexe em cartões fora dessa lista/filtro.
 
 (function () {
   const { normalizeText } = self.HubValidators;
 
-  const LIST_NAME_TOKENS = ['relacao', 'pedidos']; // cobre "RELAÇÃO DE PEDIDOS" e variações reais
+  // Procura por "pedidos" (cobre "PEDIDOS PENDENTES", "RELAÇÃO DE PEDIDOS", etc.)
+  const LIST_NAME_TOKENS = ['pedidos'];
   const TARGET_LABEL_TEXT = 'rio claro';
   const GREEN_HEX = ['#61bd4f', '#4bce97', '#216e4e', '#7bc86c', '#94c748', '#2f8132', '#1f845a', '#0f5132', '#519839'];
 
@@ -222,7 +223,7 @@
   async function listarFornecedores() {
     const listEl = await waitFor(findListElement, { timeout: 8000 });
     if (!listEl) {
-      return { error: 'Lista "RELAÇÃO DE PEDIDOS" não encontrada no Trello. Verifique se o board carregou totalmente.' };
+      return { error: 'Lista de pedidos não encontrada no Trello. Verifique se o board carregou totalmente.' };
     }
 
     await waitFor(() => {
@@ -309,7 +310,7 @@
   async function atualizarFornecedor(supplierName, items) {
     const listEl = await waitFor(findListElement, { timeout: 8000 });
     if (!listEl) {
-      return { error: 'Lista "RELAÇÃO DE PEDIDOS" não encontrada no Trello.' };
+      return { error: 'Lista de pedidos não encontrada no Trello.' };
     }
 
     const { rioClaroCards } = await getRioClaroCards(listEl);

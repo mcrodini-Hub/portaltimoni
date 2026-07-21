@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.0-alpha.12 — Busca pela lista "PEDIDOS PENDENTES" em vez de "RELAÇÃO DE PEDIDOS"
+
+A especificação original e os testes de desenvolvimento assumiam uma lista
+chamada "RELAÇÃO DE PEDIDOS", mas o board real do Trello usa "PEDIDOS
+PENDENTES". A busca por tokens agora procura só "pedidos" (palavra-chave que
+aparece em ambas as variações), tornando a busca genérica o suficiente para
+cobrir diferentes nomes de lista desde que contenham essa palavra.
+
+- **Corrigido**: `LIST_NAME_TOKENS` em `content/trello-content.js` agora
+  procura só por `['pedidos']` em vez de `['relacao', 'pedidos']`, cobrindo
+  "PEDIDOS PENDENTES", "RELAÇÃO DE PEDIDOS" ou qualquer variação que tenha
+  "pedidos" no nome.
+- **Atualizado**: mensagens de erro agora dizem "Lista de pedidos não
+  encontrada" em vez de referenciar o nome específico (menos frágil).
+
 ## 1.1.0-alpha.11 — Aguarda SPA renderizar + retry em injeção de scripts
 
 A alpha.10 fechava a aba de cartão e abria nova no board, mas a leitura

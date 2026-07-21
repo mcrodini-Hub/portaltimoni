@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0-alpha.13 — Procura especificamente por "PEDIDOS PENDENTES"
+
+Alpha.12 procurava só por "pedidos", que era genérico demais e podia ter
+falsos positivos se houvesse outras listas com "pedidos" no nome. Agora
+procura pelos tokens "pedidos" AND "pendentes" juntos — acha especificamente
+"PEDIDOS PENDENTES" sem pegar listas erradas.
+
+- **Corrigido**: `LIST_NAME_TOKENS` agora é `['pedidos', 'pendentes']`,
+  garantindo que ambas as palavras apareçam no nome da lista.
+
 ## 1.1.0-alpha.12 — Busca pela lista "PEDIDOS PENDENTES" em vez de "RELAÇÃO DE PEDIDOS"
 
 A especificação original e os testes de desenvolvimento assumiam uma lista

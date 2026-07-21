@@ -5,8 +5,9 @@
 (function () {
   const { normalizeText } = self.HubValidators;
 
-  // Procura por "pedidos" (cobre "PEDIDOS PENDENTES", "RELAÇÃO DE PEDIDOS", etc.)
-  const LIST_NAME_TOKENS = ['pedidos'];
+  // Procura pelos tokens "pedidos" E "pendentes" — essa combinação acha especificamente
+  // "PEDIDOS PENDENTES" sem pegar outras listas que possam ter "pedidos" no nome.
+  const LIST_NAME_TOKENS = ['pedidos', 'pendentes'];
   const TARGET_LABEL_TEXT = 'rio claro';
   const GREEN_HEX = ['#61bd4f', '#4bce97', '#216e4e', '#7bc86c', '#94c748', '#2f8132', '#1f845a', '#0f5132', '#519839'];
 

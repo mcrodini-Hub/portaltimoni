@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.1.0-alpha.9 — Busca de aba do Trello restrita à janela em foco
+
+A alpha.7 corrigiu a aba do Trello "andar" para um cartão (trello.com/c/...)
+navegando ela de volta para o board, mas o erro "Lista não encontrada"
+voltou a acontecer mesmo assim, sem nenhuma mudança visível na aba que o
+usuário estava olhando — sinal de que a busca por aba do Trello
+(`chrome.tabs.query`) estava encontrando (e mexendo em) uma aba **de outra
+janela**, já que a busca não tinha nenhuma restrição de janela.
+
+- **Corrigido**: toda busca/abertura de aba (Trello, Drive, Sheets, Bessani)
+  agora é restrita à janela atualmente em foco
+  (`chrome.windows.getLastFocused`). Uma aba do Trello esquecida em outra
+  janela não é mais reaproveitada por engano.
+- O único link de Trello que a extensão usa continua sendo, e agora está
+  ainda mais explícito no código, só o board de Compras
+  (`https://trello.com/b/UfPrTr1H/compras`) — a busca por aba existente é
+  só uma otimização para não abrir aba nova à toa, nunca aponta para outro
+  board/URL.
+
 ## 1.1.0-alpha.8 — Diagnóstico real da planilha + coluna de mês + tentativa de evitar abrir cartão
 
 Com o Trello já funcionando (9 fornecedores encontrados, conectado), o teste

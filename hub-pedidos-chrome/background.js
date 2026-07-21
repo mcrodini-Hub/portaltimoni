@@ -26,19 +26,31 @@ async function logError(message) {
   await HubState.setState({ currentState: STATES.ERRO, lastError: message });
 }
 
-async function findTrelloTab() {
-  return HubTabs.findTab(TRELLO_URL_PATTERN);
+function getFocusedWindowId() {
+  return new Promise((resolve) => {
+    chrome.windows.getLastFocused({ windowTypes: ['normal'] }, (win) => {
+      resolve(win && !chrome.runtime.lastError ? win.id : undefined);
+    });
+  });
 }
 
-// Garante uma aba do Trello pronta para ler/escrever no board de Compras: reaproveita
-// qualquer aba do Trello já aberta, e se ela estiver numa URL diferente do board (ex.: um
-// cartão específico, trello.com/c/...) navega essa MESMA aba de volta para o board antes de
-// continuar — em vez de falhar com "lista não encontrada" só porque a aba tinha "andado" para
-// outra página do Trello.
+async function findTrelloTab() {
+  const windowId = await getFocusedWindowId();
+  return HubTabs.findTab(TRELLO_URL_PATTERN, windowId);
+}
+
+// Garante uma aba do Trello pronta para ler/escrever no board de Compras. O único link de
+// Trello que a extensão conhece é o board de Compras (TRELLO_BOARD_URL) — a busca só serve
+// para reaproveitar uma aba já aberta em vez de abrir outra sem necessidade; restrita à
+// janela em foco (senão uma aba do Trello esquecida em OUTRA janela podia ser reaproveitada
+// por engano, dando erro sem nenhuma mudança visível na tela que o usuário está olhando). Se
+// a aba encontrada estiver em outra URL do Trello (ex.: um cartão específico,
+// trello.com/c/...) navega essa MESMA aba de volta para o board antes de continuar.
 async function ensureTrelloBoardTab() {
-  let tab = await findTrelloTab();
+  const windowId = await getFocusedWindowId();
+  let tab = await HubTabs.findTab(TRELLO_URL_PATTERN, windowId);
   if (!tab) {
-    tab = await HubTabs.createTab(TRELLO_BOARD_URL);
+    tab = await HubTabs.createTab(TRELLO_BOARD_URL, windowId);
     await HubTabs.waitForTabComplete(tab.id);
     return tab;
   }

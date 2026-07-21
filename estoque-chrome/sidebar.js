@@ -274,7 +274,7 @@
 
   function statusLabel(n) {
     if (n.status === STATUS.PENDENTE) return 'Enviado ao estoque — aguardando retorno';
-    if (n.status === STATUS.EM_COMPRA) return 'Estoque vai providenciar a compra';
+    if (n.status === STATUS.EM_COMPRA) return 'Anotado pelo estoque — aguarde retorno';
     if (n.status === STATUS.PEDIDO_EXISTENTE) {
       return `Já tem pedido nº ${n.numeroPedido} — previsão de entrega ~${formatDateOnly(n.previsaoEntrega)}`;
     }
@@ -348,7 +348,7 @@
       const acoes = document.createElement('div');
       acoes.className = 'need-actions';
       acoes.innerHTML = `
-        <button class="btn btn-primary btn-small" data-action="recebido" data-id="${n.id}">Recebido! Vou providenciar</button>
+        <button class="btn btn-primary btn-small" data-action="recebido" data-id="${n.id}">Anotado, aguarde retorno</button>
         <button class="btn btn-secondary btn-small" data-action="ja-tem-pedido" data-id="${n.id}">Já tem pedido</button>
         <button class="btn btn-secondary btn-small" data-action="observacao-abrir" data-id="${n.id}">Outra resposta</button>
       `;

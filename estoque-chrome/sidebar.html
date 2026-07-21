@@ -15,10 +15,25 @@
     <div class="topbar-actions" id="role-pill-wrap" hidden>
       <span class="role-pill" id="role-pill">--</span>
       <button id="btn-trocar-perfil" class="btn-link" title="Trocar perfil deste computador">Trocar</button>
+      <button id="btn-config" class="icon-btn" title="Configurar planilha" aria-label="Configurar planilha">⚙</button>
     </div>
   </header>
 
   <main class="content">
+
+    <!-- CONFIGURAÇÃO DA PLANILHA (Web App) -->
+    <section id="tela-config" class="step" hidden>
+      <p class="step-label">Planilha compartilhada (Web App)</p>
+      <div class="step-card">
+        <p class="hint-text" style="margin-top:0;">Cole a URL do Web App do Apps Script (termina em <code>/exec</code>). Enquanto vazio, a extensão roda em <strong>modo local</strong> — os dados ficam só neste computador. Passo a passo em <code>apps-script/Codigo.gs</code> e no README.</p>
+        <input type="text" id="input-webapp-url" class="text-input" placeholder="https://script.google.com/macros/s/.../exec">
+        <div class="pedido-form-actions">
+          <button id="btn-salvar-config" class="btn btn-primary btn-small">Salvar e testar</button>
+          <button id="btn-fechar-config" class="btn btn-secondary btn-small">Fechar</button>
+        </div>
+        <p id="config-status" class="hint-text"></p>
+      </div>
+    </section>
 
     <!-- SELEÇÃO DE PAPEL (primeiro uso neste computador) -->
     <section id="tela-papel" class="step" hidden>
@@ -39,7 +54,9 @@
           <h1>Consulta de Produtos</h1>
           <p class="subtitle">Busque o produto e informe se estiver em falta.</p>
         </div>
+        <button class="btn-link js-atualizar" title="Atualizar dados da planilha">Atualizar</button>
       </div>
+      <p class="conn-status" id="conn-status-balcao"></p>
 
       <section class="step">
         <div class="step-card">
@@ -75,7 +92,9 @@
           <h1>Central de Necessidades</h1>
           <p class="subtitle">Casa Timoni Rio Claro</p>
         </div>
+        <button class="btn-link js-atualizar" title="Atualizar dados da planilha">Atualizar</button>
       </div>
+      <p class="conn-status" id="conn-status-estoque"></p>
 
       <section class="step">
         <div class="row-between">

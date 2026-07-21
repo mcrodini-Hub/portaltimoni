@@ -69,6 +69,38 @@ html, body {
   border-radius: 999px;
 }
 
+.icon-btn {
+  border: none;
+  background: transparent;
+  color: var(--ink-soft);
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.icon-btn:hover { background: rgba(0, 0, 0, 0.06); }
+
+.conn-status {
+  font-size: 11px;
+  margin: -4px 0 12px;
+  font-weight: 600;
+}
+
+.conn-status.remote { color: var(--green); }
+.conn-status.local { color: var(--amber); }
+.conn-status.erro { color: var(--red); }
+
+code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 11px;
+  background: #eef0f4;
+  padding: 1px 4px;
+  border-radius: 4px;
+}
+
 .content { padding: 16px; padding-bottom: 32px; }
 
 .intro-row {

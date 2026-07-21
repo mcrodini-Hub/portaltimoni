@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Portal Timoni - Estoque",
-  "version": "0.1.0",
-  "version_name": "0.1.0-mock",
+  "version": "0.2.0",
+  "version_name": "0.2.0-sheets",
   "description": "Central de necessidades de compra: balcão informa produto em falta, estoque responde com pedido em andamento ou recebido para compra.",
   "icons": {
     "16": "icons/icon16.png",
@@ -13,6 +13,10 @@
   "permissions": [
     "storage",
     "sidePanel"
+  ],
+  "host_permissions": [
+    "https://script.google.com/*",
+    "https://script.googleusercontent.com/*"
   ],
   "action": {
     "default_title": "Portal Timoni - Estoque",

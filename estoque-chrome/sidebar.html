@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Portal Timoni — Estoque</title>
+  <link rel="stylesheet" href="sidebar.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img class="brand-logo" src="icons/icon48.png" alt="Casa Timoni">
+      <span class="brand-title">Estoque <span class="brand-dim">· Portal Timoni</span></span>
+    </div>
+    <div class="topbar-actions" id="role-pill-wrap" hidden>
+      <span class="role-pill" id="role-pill">--</span>
+      <button id="btn-trocar-perfil" class="btn-link" title="Trocar perfil deste computador">Trocar</button>
+    </div>
+  </header>
+
+  <main class="content">
+
+    <!-- SELEÇÃO DE PAPEL (primeiro uso neste computador) -->
+    <section id="tela-papel" class="step" hidden>
+      <p class="step-label">Este computador é usado por qual equipe?</p>
+      <div class="step-card role-card">
+        <p class="hint-text" style="margin-top:0;">Cada computador fica configurado com um papel fixo. Dá para trocar depois em "Trocar", no topo.</p>
+        <button id="btn-papel-balcao" class="btn btn-primary">Balcão (vendedores)</button>
+        <button id="btn-papel-estoque" class="btn btn-secondary">Estoque (Lucas)</button>
+      </div>
+    </section>
+
+    <div id="error-banner" class="error-banner" hidden></div>
+
+    <!-- ===================== VISÃO BALCÃO ===================== -->
+    <section id="view-balcao" hidden>
+      <div class="intro-row">
+        <div>
+          <h1>Consulta de Produtos</h1>
+          <p class="subtitle">Busque o produto e informe se estiver em falta.</p>
+        </div>
+      </div>
+
+      <section class="step">
+        <div class="step-card">
+          <input type="text" id="input-busca" class="text-input" placeholder="Buscar por código ou descrição">
+          <ul id="lista-resultados" class="supplier-list" hidden></ul>
+          <p id="busca-vazio" class="placeholder-text" hidden>Nenhum produto encontrado.</p>
+        </div>
+      </section>
+
+      <section class="step" id="produto-selecionado-wrap" hidden>
+        <p class="step-label">Produto selecionado</p>
+        <div class="step-card">
+          <p class="summary-box">
+            <strong id="sel-codigo">--</strong> — <span id="sel-descricao">--</span>
+          </p>
+          <button id="btn-informar-necessidade" class="btn btn-primary">Informar necessidade de compra</button>
+        </div>
+      </section>
+
+      <section class="step">
+        <p class="step-label">Minhas solicitações</p>
+        <div class="step-card">
+          <p id="solicitacoes-vazio" class="placeholder-text">Nenhuma solicitação enviada ainda.</p>
+          <ul id="lista-solicitacoes" class="result-list"></ul>
+        </div>
+      </section>
+    </section>
+
+    <!-- ===================== VISÃO ESTOQUE (Lucas) ===================== -->
+    <section id="view-estoque" hidden>
+      <div class="intro-row">
+        <div>
+          <h1>Central de Necessidades</h1>
+          <p class="subtitle">Casa Timoni Rio Claro</p>
+        </div>
+      </div>
+
+      <section class="step">
+        <div class="row-between">
+          <p class="step-label" style="margin:0;">Pendentes</p>
+          <span class="count-text" id="pendentes-count">0</span>
+        </div>
+        <div class="step-card">
+          <p id="pendentes-vazio" class="placeholder-text">Nenhuma necessidade pendente.</p>
+          <ul id="lista-pendentes" class="need-list"></ul>
+        </div>
+      </section>
+
+      <section class="step">
+        <p class="step-label">Lista de necessidade de compra</p>
+        <div class="step-card">
+          <p id="compra-vazio" class="placeholder-text">Nenhum item aguardando pedido de compra.</p>
+          <ul id="lista-compra" class="result-list"></ul>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="lib/mock-produtos.js"></script>
+  <script src="lib/store.js"></script>
+  <script src="sidebar.js"></script>
+</body>
+</html>

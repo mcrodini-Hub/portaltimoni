@@ -274,7 +274,7 @@
 
   function statusLabel(n) {
     if (n.status === STATUS.PENDENTE) return 'Enviado ao estoque — aguardando retorno';
-    if (n.status === STATUS.EM_COMPRA) return 'Ok, aguarde retorno';
+    if (n.status === STATUS.EM_COMPRA) return 'Aguarde retorno';
     if (n.status === STATUS.PEDIDO_EXISTENTE) {
       return `Já tem pedido nº ${n.numeroPedido} — previsão de entrega ~${formatDateOnly(n.previsaoEntrega)}`;
     }

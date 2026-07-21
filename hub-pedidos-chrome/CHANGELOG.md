@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.1.0-alpha.11 — Aguarda SPA renderizar + retry em injeção de scripts
+
+A alpha.10 fechava a aba de cartão e abria nova no board, mas a leitura
+falhava com "listener indicated asynchronous response... message channel
+closed" — quando a extensão tentava ler o Trello logo após o tab carregar.
+O problema era race condition: `waitForTabComplete` só espera o HTML
+carregar, mas o Trello é uma SPA (React) que precisa de tempo para
+executar, renderizar a grid de cartões e deixar tudo pronto pro content
+script achar a lista.
+
+- **Adicionado**: após `waitForTabComplete` na abertura do board, espera
+  mais 1.5s para a SPA do Trello renderizar completamente. O HTML carrega
+  em 100-200ms, mas React leva mais tempo para desenhar.
+- **Adicionado**: retry com delay em `sendWithInjection` — se a primeira
+  injeção de script falhar (timing), tenta de novo após 500ms. Também
+  espera 200ms após a injeção bem-sucedida antes de enviar a mensagem,
+  garantindo que o content script processou a injeção e está pronto para
+  ouvir.
+
 ## 1.1.0-alpha.10 — Fecha aba de cartão e abre nova do board (sem navegação via SPA)
 
 A alpha.9 tentou restrição de janela + navegação da aba de volta ao board

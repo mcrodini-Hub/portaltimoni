@@ -86,6 +86,10 @@ async function ensureTrelloBoardTab() {
   }
   const fresh = await HubTabs.createTab(TRELLO_BOARD_URL, windowId);
   await HubTabs.waitForTabComplete(fresh.id);
+  // Espera a SPA do Trello renderizar (não é só carregar o HTML, mas executar React/JS
+  // e desenhar a grade de cartões) — essencial para o content script conseguir achar a
+  // lista e os cartões.
+  await new Promise((r) => setTimeout(r, 1500));
   return fresh;
 }
 

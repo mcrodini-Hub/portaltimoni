@@ -98,7 +98,8 @@
 
   // Garante que o content script esteja rodando na aba (útil quando a aba já estava aberta
   // antes da extensão carregar) e envia a mensagem, tentando reinjetar uma vez em caso de
-  // falha por ausência de listener.
+  // falha por ausência de listener. Se a injeção falhar, tenta de novo após um delay
+  // (pode haver race condition onde a aba está pronta mas o runtime ainda está inicializando).
   async function sendWithInjection(tabId, files, message) {
     const first = await sendMessageSafe(tabId, message);
     if (!first.__noReceiver) return first;
@@ -111,9 +112,23 @@
         });
       });
     } catch (e) {
-      return { error: `Não foi possível preparar a página: ${e.message}` };
+      // Se a injeção falhou, espera um pouco e tenta de novo (pode ser timing)
+      await new Promise((r) => setTimeout(r, 500));
+      try {
+        await new Promise((resolve, reject) => {
+          chrome.scripting.executeScript({ target: { tabId }, files }, () => {
+            if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+            else resolve();
+          });
+        });
+      } catch (e2) {
+        return { error: `Não foi possível preparar a página: ${e2.message}` };
+      }
     }
 
+    // Espera um pouco antes de enviar a mensagem para garantir que o content script
+    // processou a injeção e está pronto para ouvir
+    await new Promise((r) => setTimeout(r, 200));
     return sendMessageSafe(tabId, message);
   }
 

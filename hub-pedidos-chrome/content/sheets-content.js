@@ -3,7 +3,61 @@
 // nem escreve na planilha (nenhum evento de edição é disparado).
 
 (function () {
-  const { detectColumns } = self.HubValidators;
+  const { detectColumns, normalizeText } = self.HubValidators;
+
+  function clickByText(root, text, selector) {
+    const normalized = normalizeText(text);
+    const candidates = root.querySelectorAll(selector);
+    for (const el of candidates) {
+      if (normalizeText(el.textContent || '') === normalized) {
+        el.click();
+        return el;
+      }
+    }
+    return null;
+  }
+
+  // Tenta ativar "Suporte a leitor de tela" pelo próprio menu do Google Sheets (Ferramentas >
+  // Acessibilidade), só clicando interações reais de UI — nada de eval/API/fetch. É esse modo
+  // que faz o Sheets desenhar a grade como elementos de texto reais no HTML (em vez de só
+  // canvas), que é o único jeito da extensão conseguir ler o conteúdo sem OCR. Só clica se
+  // encontrar o item do menu com aria-checked="false" (evita desativar por engano se já
+  // estiver ativo por outro motivo). Melhor esforço: qualquer falha só faz retornar false, sem
+  // travar a extração.
+  async function tryEnableScreenReaderSupport() {
+    try {
+      const toolsMenu = clickByText(document, 'Ferramentas', '[role="menuitem"]');
+      if (!toolsMenu) return false;
+      await new Promise((r) => setTimeout(r, 400));
+
+      const accessMenu = clickByText(document, 'Acessibilidade', '[role="menuitem"]');
+      if (!accessMenu) {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        return false;
+      }
+      await new Promise((r) => setTimeout(r, 400));
+
+      let target = null;
+      document.querySelectorAll('[role="menuitemcheckbox"], [role="menuitem"]').forEach((el) => {
+        if (target) return;
+        if (normalizeText(el.textContent || '').includes('leitor de tela')) target = el;
+      });
+      if (!target) {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        return false;
+      }
+      if (target.getAttribute('aria-checked') === 'true') {
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        return false; // já estava ativo — o motivo de não achar gridcell é outro
+      }
+
+      target.click();
+      await new Promise((r) => setTimeout(r, 2000)); // Sheets redesenha a grade em modo acessível
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
 
   function waitFor(conditionFn, { timeout = 6000, interval = 250 } = {}) {
     return new Promise((resolve) => {
@@ -109,21 +163,35 @@
 
     let rows = await waitFor(readGridRows, { timeout: 6000 });
     let usedFallbackTable = false;
+    let triedAutoEnable = false;
     if (!rows || rows.length === 0) {
       // Se não apareceu NENHUMA célula com role="gridcell" mesmo depois de esperar, a
       // planilha provavelmente está renderizando a grade só em canvas (modo visual padrão do
-      // Google Sheets), sem texto acessível no HTML — nesse caso o fallback de <tr>/<td>
-      // pega lixo de outras partes da página (abas da planilha, avisos, etc.), então nem
-      // tenta: já orienta a ativar o modo de leitor de tela, que faz o Sheets desenhar a
-      // grade como elementos de texto reais no HTML.
+      // Google Sheets), sem texto acessível no HTML. Tenta ativar "Suporte a leitor de tela"
+      // pelo próprio menu (clique real de UI, não eval/API) e ler de novo antes de desistir.
       if (document.querySelectorAll('[role="gridcell"]').length === 0) {
-        return {
-          error: 'Não foi possível ler o conteúdo da planilha porque ela está sendo desenhada em modo visual (sem texto no HTML da página) — a extensão nunca usa captura de tela/OCR, só lê texto real. No Google Sheets, ative uma vez em "Ferramentas > Acessibilidade > Ativar suporte a leitor de tela", espere a planilha recarregar e tente extrair de novo.',
-          diagnostics: { rowsRead: 0, usedFallbackTable: false, rowsPreview: '' }
-        };
+        triedAutoEnable = await tryEnableScreenReaderSupport();
+        if (triedAutoEnable) {
+          rows = await waitFor(readGridRows, { timeout: 6000 });
+        }
       }
-      rows = readTableRows();
-      usedFallbackTable = true;
+
+      if (!rows || rows.length === 0) {
+        if (document.querySelectorAll('[role="gridcell"]').length === 0) {
+          // O fallback de <tr>/<td> pega lixo de outras partes da página (abas da planilha,
+          // avisos, etc.) quando não há grade acessível nenhuma — nem tenta; orienta o passo
+          // manual (a tentativa automática acima já pode ter funcionado silenciosamente numa
+          // próxima extração, já que o modo fica ativo na planilha depois de ligado uma vez).
+          return {
+            error: triedAutoEnable
+              ? 'A planilha ainda está sendo desenhada em modo visual (sem texto no HTML) mesmo após tentar ativar automaticamente o suporte a leitor de tela pelo menu. No Google Sheets, ative manualmente em "Ferramentas > Acessibilidade > Ativar suporte a leitor de tela", espere recarregar e tente de novo.'
+              : 'Não foi possível ler o conteúdo da planilha porque ela está sendo desenhada em modo visual (sem texto no HTML da página) — a extensão nunca usa captura de tela/OCR, só lê texto real. No Google Sheets, ative uma vez em "Ferramentas > Acessibilidade > Ativar suporte a leitor de tela", espere a planilha recarregar e tente extrair de novo.',
+            diagnostics: { rowsRead: 0, usedFallbackTable: false, rowsPreview: '', triedAutoEnable }
+          };
+        }
+        rows = readTableRows();
+        usedFallbackTable = true;
+      }
     }
 
     if (!rows || rows.length < 2) {

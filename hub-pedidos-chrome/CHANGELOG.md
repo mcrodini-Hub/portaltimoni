@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.1.0-alpha.18 — Tenta ativar "Suporte a leitor de tela" automaticamente
+
+Trello funcionando (21 cartões lidos, 15 Rio Claro, ordenação Urgente
+correta), mas a extração da planilha CIFA voltou a bater no modo visual
+(canvas) do Google Sheets — cada planilha nova de fornecedor tem esse modo
+desligado por padrão, então pedir pro usuário ativar manualmente toda vez
+que abre uma planilha diferente não escala.
+
+- **Adicionado**: antes de mostrar o erro pedindo ativação manual,
+  `content/sheets-content.js` agora tenta ativar "Suporte a leitor de tela"
+  sozinho, clicando no próprio menu do Google Sheets (Ferramentas >
+  Acessibilidade > Ativar suporte a leitor de tela) — só interação real de
+  UI, nada de eval/API/fetch. Só clica se o item do menu estiver
+  desmarcado (`aria-checked="false"`), pra nunca desativar por engano algo
+  que já estava ligado. Depois de clicar, espera a planilha redesenhar a
+  grade e tenta ler de novo antes de desistir.
+- Se a tentativa automática falhar (menu com textos diferentes do
+  esperado, ou não resolver o problema), a mensagem de erro final avisa que
+  já tentou automaticamente e orienta o passo manual como antes.
+
 ## 1.1.0-alpha.17 — Fornecedores "Urgente" primeiro + total no início da descrição
 
 Baseado nos prompts de referência fornecidos pelo usuário para cada etapa do

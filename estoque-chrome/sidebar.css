@@ -288,6 +288,27 @@ h1 { font-size: 18px; margin: 0 0 4px; }
 }
 .check-row input { width: 16px; height: 16px; accent-color: var(--blue); cursor: pointer; }
 
+.divider-config { height: 1px; background: var(--border); margin: 12px 0; }
+
+.stat-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+.stat {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.stat-num { font-size: 22px; font-weight: 800; color: var(--ink); line-height: 1; }
+.stat-lbl { font-size: 11px; color: var(--ink-soft); font-weight: 600; }
+.stat-alerta .stat-num { color: var(--red); }
+
 .existente-box {
   background: #eef2ff;
   border: 1px solid #cdd6ff;

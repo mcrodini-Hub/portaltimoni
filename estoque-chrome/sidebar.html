@@ -32,6 +32,9 @@
           <button id="btn-fechar-config" class="btn btn-secondary btn-small">Fechar</button>
         </div>
         <p id="config-status" class="hint-text"></p>
+        <div class="divider-config"></div>
+        <label class="check-row"><input type="checkbox" id="chk-notif"> Receber notificações neste computador</label>
+        <p class="hint-text" style="margin-top:0;">Avisa quando entra pedido do balcão ou o Lucas responde, mesmo com o painel fechado (enquanto o Chrome estiver aberto).</p>
       </div>
     </section>
 
@@ -42,6 +45,7 @@
         <p class="hint-text" style="margin-top:0;">Cada computador fica configurado com um papel fixo. Dá para trocar depois em "Trocar", no topo.</p>
         <button id="btn-papel-balcao" class="btn btn-primary">Balcão (vendedores)</button>
         <button id="btn-papel-estoque" class="btn btn-secondary">Estoque (Lucas)</button>
+        <button id="btn-papel-acompanhamento" class="btn btn-secondary">Acompanhamento (gestão)</button>
       </div>
     </section>
 
@@ -116,6 +120,49 @@
           <p class="hint-text" style="margin-top:0;">Itens que você anotou para levantar estoque e montar a relação de compra. Quando tiver o pedido, responda aqui para o balcão saber.</p>
           <p id="compra-vazio" class="placeholder-text">Nada anotado aguardando seu retorno.</p>
           <ul id="lista-compra" class="need-list"></ul>
+        </div>
+      </section>
+    </section>
+
+    <!-- ===================== VISÃO ACOMPANHAMENTO (gestão) ===================== -->
+    <section id="view-acompanhamento" hidden>
+      <div class="intro-row">
+        <div>
+          <h1>Acompanhamento</h1>
+          <p class="subtitle">Toda a troca entre balcão e estoque</p>
+        </div>
+        <button class="btn-link js-atualizar" title="Atualizar dados da planilha">Atualizar</button>
+      </div>
+      <p class="conn-status" id="conn-status-acomp"></p>
+
+      <div class="stat-row">
+        <div class="stat"><span class="stat-num" id="acomp-pendentes">0</span><span class="stat-lbl">Aguardando estoque</span></div>
+        <div class="stat"><span class="stat-num" id="acomp-anotados">0</span><span class="stat-lbl">Aguardando retorno</span></div>
+        <div class="stat"><span class="stat-num" id="acomp-respondidos">0</span><span class="stat-lbl">Respondidos</span></div>
+        <div class="stat stat-alerta"><span class="stat-num" id="acomp-clientes">0</span><span class="stat-lbl">Cliente aguardando</span></div>
+      </div>
+
+      <section class="step">
+        <p class="step-label">Aguardando o estoque</p>
+        <div class="step-card">
+          <p id="acomp-pendentes-vazio" class="placeholder-text">Nada aguardando o estoque.</p>
+          <ul id="acomp-lista-pendentes" class="result-list"></ul>
+        </div>
+      </section>
+
+      <section class="step">
+        <p class="step-label">Aguardando retorno do Lucas</p>
+        <div class="step-card">
+          <p id="acomp-anotados-vazio" class="placeholder-text">Nada aguardando retorno.</p>
+          <ul id="acomp-lista-anotados" class="result-list"></ul>
+        </div>
+      </section>
+
+      <section class="step">
+        <p class="step-label">Respondidos</p>
+        <div class="step-card">
+          <p id="acomp-respondidos-vazio" class="placeholder-text">Nenhuma resposta ainda.</p>
+          <ul id="acomp-lista-respondidos" class="result-list"></ul>
         </div>
       </section>
     </section>

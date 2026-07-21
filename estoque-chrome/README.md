@@ -6,6 +6,9 @@ módulos:
 - **Módulo 1 — Consulta de Produtos (Balcão)**: busca por código ou descrição, e permite
   informar uma necessidade de compra para o produto selecionado, marcando se **tem cliente
   aguardando**. Sem valores, sem anexos.
+- **Acompanhamento (gestão)**: um terceiro perfil, de leitura, que mostra a troca completa
+  entre balcão e estoque (aguardando estoque, aguardando retorno do Lucas, e respondidos),
+  com contadores no topo. Para quem fecha com o fornecedor e precisa acompanhar tudo.
 - **Módulo 2 — Central de Necessidades (Estoque/Lucas)**: recebe as solicitações do balcão
   ("Aguardando você") e responde de três formas:
   - **Recebido! Vou providenciar** — o item vai para a lista de necessidade de compra;
@@ -63,9 +66,17 @@ A extensão escolhe o modo sozinha conforme haja ou não uma planilha configurad
 
 ## Identificação de usuário
 
-Não há login. Cada computador é configurado uma única vez com um papel (Balcão ou
-Estoque) na primeira abertura da sidebar — fica salvo localmente e pode ser trocado a
+Não há login. Cada computador é configurado uma única vez com um papel (Balcão, Estoque ou
+Acompanhamento) na primeira abertura da sidebar — fica salvo localmente e pode ser trocado a
 qualquer momento pelo link "Trocar" no topo.
+
+## Notificações
+
+No painel ⚙ há a opção **"Receber notificações neste computador"**. Ligada, a extensão avisa
+(notificação do Chrome) quando entra um pedido do balcão ou quando o estoque responde —
+mesmo com o painel fechado, enquanto o Chrome estiver aberto. Útil para o perfil de
+Acompanhamento seguir a troca sem ficar de olho na tela. A verificação é periódica
+(~1 min), reaproveitando a mesma fila (planilha no modo compartilhado).
 
 ## Instalação da extensão
 

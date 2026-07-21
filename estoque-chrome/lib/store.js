@@ -15,10 +15,11 @@
     ROLE: 'estoqueRole',
     WEBAPP_URL: 'estoqueWebAppUrl',
     PRODUTOS_CACHE: 'estoqueProdutosCache',
-    NECESSIDADES: 'estoqueNecessidadesLocal'
+    NECESSIDADES: 'estoqueNecessidadesLocal',
+    NOTIFICACOES: 'estoqueNotificacoes'
   });
 
-  const ROLES = Object.freeze({ BALCAO: 'balcao', ESTOQUE: 'estoque' });
+  const ROLES = Object.freeze({ BALCAO: 'balcao', ESTOQUE: 'estoque', ACOMPANHAMENTO: 'acompanhamento' });
 
   const STATUS = Object.freeze({
     PENDENTE: 'pendente',
@@ -50,11 +51,14 @@
   async function getRole() { return get(KEYS.ROLE, null); }
 
   async function setRole(role) {
-    if (role !== ROLES.BALCAO && role !== ROLES.ESTOQUE) {
+    if (role !== ROLES.BALCAO && role !== ROLES.ESTOQUE && role !== ROLES.ACOMPANHAMENTO) {
       throw new Error(`Papel inválido: ${role}`);
     }
     return set(KEYS.ROLE, role);
   }
+
+  async function getNotificacoes() { return get(KEYS.NOTIFICACOES, false); }
+  async function setNotificacoes(ativo) { return set(KEYS.NOTIFICACOES, !!ativo); }
 
   async function getWebAppUrl() { return get(KEYS.WEBAPP_URL, ''); }
 
@@ -254,6 +258,8 @@
     STATUS,
     getRole,
     setRole,
+    getNotificacoes,
+    setNotificacoes,
     getWebAppUrl,
     setWebAppUrl,
     isRemote,

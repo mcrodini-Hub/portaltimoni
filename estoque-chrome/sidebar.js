@@ -10,6 +10,7 @@
     telaPapel: document.getElementById('tela-papel'),
     btnPapelBalcao: document.getElementById('btn-papel-balcao'),
     btnPapelEstoque: document.getElementById('btn-papel-estoque'),
+    btnPapelAcompanhamento: document.getElementById('btn-papel-acompanhamento'),
     rolePillWrap: document.getElementById('role-pill-wrap'),
     rolePill: document.getElementById('role-pill'),
     btnTrocarPerfil: document.getElementById('btn-trocar-perfil'),
@@ -22,8 +23,10 @@
     btnSalvarConfig: document.getElementById('btn-salvar-config'),
     btnFecharConfig: document.getElementById('btn-fechar-config'),
     configStatus: document.getElementById('config-status'),
+    chkNotif: document.getElementById('chk-notif'),
     connStatusBalcao: document.getElementById('conn-status-balcao'),
     connStatusEstoque: document.getElementById('conn-status-estoque'),
+    connStatusAcomp: document.getElementById('conn-status-acomp'),
 
     viewBalcao: document.getElementById('view-balcao'),
     inputBusca: document.getElementById('input-busca'),
@@ -43,7 +46,19 @@
     pendentesVazio: document.getElementById('pendentes-vazio'),
     listaPendentes: document.getElementById('lista-pendentes'),
     compraVazio: document.getElementById('compra-vazio'),
-    listaCompra: document.getElementById('lista-compra')
+    listaCompra: document.getElementById('lista-compra'),
+
+    viewAcompanhamento: document.getElementById('view-acompanhamento'),
+    acompPendentes: document.getElementById('acomp-pendentes'),
+    acompAnotados: document.getElementById('acomp-anotados'),
+    acompRespondidos: document.getElementById('acomp-respondidos'),
+    acompClientes: document.getElementById('acomp-clientes'),
+    acompListaPendentes: document.getElementById('acomp-lista-pendentes'),
+    acompPendentesVazio: document.getElementById('acomp-pendentes-vazio'),
+    acompListaAnotados: document.getElementById('acomp-lista-anotados'),
+    acompAnotadosVazio: document.getElementById('acomp-anotados-vazio'),
+    acompListaRespondidos: document.getElementById('acomp-lista-respondidos'),
+    acompRespondidosVazio: document.getElementById('acomp-respondidos-vazio')
   };
 
   let produtoSelecionado = null;
@@ -118,7 +133,7 @@
     const remoto = await EstoqueStore.isRemote();
     const texto = remoto ? 'Conectado à planilha compartilhada.' : 'Modo local — dados só neste computador (configure a planilha em ⚙).';
     const classe = remoto ? 'remote' : 'local';
-    [el.connStatusBalcao, el.connStatusEstoque].forEach((node) => {
+    [el.connStatusBalcao, el.connStatusEstoque, el.connStatusAcomp].forEach((node) => {
       node.textContent = texto;
       node.className = `conn-status ${classe}`;
     });
@@ -131,12 +146,25 @@
     el.telaConfig.hidden = !el.telaConfig.hidden;
     if (!el.telaConfig.hidden) {
       el.inputWebappUrl.value = await EstoqueStore.getWebAppUrl();
+      el.chkNotif.checked = await EstoqueStore.getNotificacoes();
       el.configStatus.textContent = '';
       el.configStatus.className = 'hint-text';
     }
   });
 
   el.btnFecharConfig.addEventListener('click', () => { el.telaConfig.hidden = true; });
+
+  // Liga/desliga notificações do Chrome. Ao ligar, pede ao background para capturar a linha
+  // de base atual (para não avisar retroativamente sobre itens que já existiam).
+  el.chkNotif.addEventListener('change', async () => {
+    await EstoqueStore.setNotificacoes(el.chkNotif.checked);
+    if (el.chkNotif.checked) {
+      chrome.runtime.sendMessage({ type: 'ESTOQUE_SNAPSHOT_RESET' }, () => void chrome.runtime.lastError);
+      showToast('Notificações ativadas neste computador.');
+    } else {
+      showToast('Notificações desativadas.');
+    }
+  });
 
   el.btnSalvarConfig.addEventListener('click', async () => {
     el.configStatus.className = 'hint-text';
@@ -179,13 +207,20 @@
     applyRole(role);
   }
 
+  const PILL_LABEL = {
+    [ROLES.BALCAO]: 'Balcão',
+    [ROLES.ESTOQUE]: 'Estoque (Lucas)',
+    [ROLES.ACOMPANHAMENTO]: 'Acompanhamento'
+  };
+
   async function applyRole(role) {
     roleAtual = role;
     el.telaPapel.hidden = true;
     el.rolePillWrap.hidden = false;
-    el.rolePill.textContent = role === ROLES.BALCAO ? 'Balcão' : 'Estoque (Lucas)';
+    el.rolePill.textContent = PILL_LABEL[role] || role;
     el.viewBalcao.hidden = role !== ROLES.BALCAO;
     el.viewEstoque.hidden = role !== ROLES.ESTOQUE;
+    el.viewAcompanhamento.hidden = role !== ROLES.ACOMPANHAMENTO;
     await atualizarStatusConexao();
     await recarregarVisaoAtual();
     iniciarPolling();
@@ -201,6 +236,11 @@
     applyRole(ROLES.ESTOQUE);
   });
 
+  el.btnPapelAcompanhamento.addEventListener('click', async () => {
+    await EstoqueStore.setRole(ROLES.ACOMPANHAMENTO);
+    applyRole(ROLES.ACOMPANHAMENTO);
+  });
+
   el.btnTrocarPerfil.addEventListener('click', () => {
     pararPolling();
     roleAtual = null;
@@ -208,6 +248,7 @@
     el.rolePillWrap.hidden = true;
     el.viewBalcao.hidden = true;
     el.viewEstoque.hidden = true;
+    el.viewAcompanhamento.hidden = true;
   });
 
   // ---------------------------------------------------------------------
@@ -216,6 +257,7 @@
   async function recarregarVisaoAtual() {
     if (roleAtual === ROLES.BALCAO) await renderSolicitacoes();
     else if (roleAtual === ROLES.ESTOQUE) await renderFilaEstoque();
+    else if (roleAtual === ROLES.ACOMPANHAMENTO) await renderAcompanhamento();
   }
 
   function iniciarPolling() {
@@ -469,6 +511,71 @@
     el.listaCompra.innerHTML = '';
     el.compraVazio.hidden = anotados.length > 0;
     anotados.forEach((n) => el.listaCompra.appendChild(buildNeedItem(n, { novo: false })));
+  }
+
+  // ---------------------------------------------------------------------
+  // Visão Acompanhamento (gestão) — leitura da troca completa
+  // ---------------------------------------------------------------------
+  function buildItemLeitura(n, { meta }) {
+    const li = document.createElement('li');
+    li.className = `status-${n.status}`;
+    const linha1 = document.createElement('div');
+    const cod = document.createElement('span');
+    cod.className = 'item-codigo';
+    cod.textContent = n.codigo;
+    const desc = document.createElement('span');
+    desc.className = 'item-desc';
+    desc.textContent = n.descricao;
+    linha1.append(cod, desc);
+    if (n.clienteAguardando) linha1.append(chipCliente());
+    const linha2 = document.createElement('div');
+    linha2.className = 'status-line';
+    linha2.textContent = statusLabel(n);
+    li.append(linha1, linha2);
+    if (meta) {
+      const m = document.createElement('p');
+      m.className = 'hint-text';
+      m.style.margin = '4px 0 0';
+      m.textContent = meta(n);
+      li.append(m);
+    }
+    return li;
+  }
+
+  function preencherLista(ul, vazioEl, lista, opts) {
+    ul.innerHTML = '';
+    vazioEl.hidden = lista.length > 0;
+    lista.forEach((n) => ul.appendChild(buildItemLeitura(n, opts || {})));
+  }
+
+  async function renderAcompanhamento() {
+    let necessidades;
+    try {
+      necessidades = await EstoqueStore.getNecessidades();
+    } catch (e) {
+      showError(e.message);
+      return;
+    }
+    const pendentes = ordenarFila(necessidades.filter((n) => n.status === STATUS.PENDENTE));
+    const anotados = ordenarFila(necessidades.filter((n) => n.status === STATUS.EM_COMPRA));
+    const respondidos = necessidades
+      .filter((n) => n.status === STATUS.PEDIDO_EXISTENTE || n.status === STATUS.OBSERVACAO)
+      .sort((a, b) => new Date(b.respondidoEm || b.criadoEm).getTime() - new Date(a.respondidoEm || a.criadoEm).getTime());
+
+    el.acompPendentes.textContent = String(pendentes.length);
+    el.acompAnotados.textContent = String(anotados.length);
+    el.acompRespondidos.textContent = String(respondidos.length);
+    el.acompClientes.textContent = String(necessidades.filter((n) => n.clienteAguardando && (n.status === STATUS.PENDENTE || n.status === STATUS.EM_COMPRA)).length);
+
+    preencherLista(el.acompListaPendentes, el.acompPendentesVazio, pendentes, {
+      meta: (n) => `Solicitado ${formatRelative(n.criadoEm)} · ${formatDateTime(n.criadoEm)}`
+    });
+    preencherLista(el.acompListaAnotados, el.acompAnotadosVazio, anotados, {
+      meta: (n) => `Anotado ${formatRelative(n.respondidoEm)}`
+    });
+    preencherLista(el.acompListaRespondidos, el.acompRespondidosVazio, respondidos, {
+      meta: (n) => `Respondido ${formatRelative(n.respondidoEm)} · ${formatDateTime(n.respondidoEm)}`
+    });
   }
 
   async function onNeedListClick(ev) {

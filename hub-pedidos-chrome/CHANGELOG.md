@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1.0-alpha.10 — Fecha aba de cartão e abre nova do board (sem navegação via SPA)
+
+A alpha.9 tentou restrição de janela + navegação da aba de volta ao board
+via `chrome.tabs.update`, mas o error "Lista não encontrada" continuava —
+a causa raiz é que Trello trata isso como navegação interna do SPA
+(History API, sem reload), então o evento de carregamento `complete` nunca
+dispara, o cartão fica aberto por cima da lista, e a leitura falha.
+
+- **Corrigido**: se a aba encontrada estiver em uma URL de cartão
+  (`trello.com/c/...`) em vez do board (`trello.com/b/UfPrTr1H/...`), a
+  extensão agora fecha essa aba e abre uma **nova** aba apontando para o
+  board — um carregamento limpo, sem SPA interceptando, que não pode ficar
+  preso num estado "cartão sobreposto".
+- A aba é fechada e reaberta só quando necessário (cartão aberto); se já
+  estiver no board, só é ativada, sem fechar/reabrir.
+
 ## 1.1.0-alpha.9 — Busca de aba do Trello restrita à janela em foco
 
 A alpha.7 corrigiu a aba do Trello "andar" para um cartão (trello.com/c/...)

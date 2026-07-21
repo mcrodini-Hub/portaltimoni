@@ -39,44 +39,54 @@ async function findTrelloTab() {
   return HubTabs.findTab(TRELLO_URL_PATTERN, windowId);
 }
 
+function removeTab(tabId) {
+  return new Promise((resolve) => {
+    chrome.tabs.remove(tabId, () => {
+      // Ignora erro (aba já pode ter sido fechada) — o objetivo é só garantir que ela não
+      // exista mais antes de abrir a nova.
+      void chrome.runtime.lastError;
+      resolve();
+    });
+  });
+}
+
 // Garante uma aba do Trello pronta para ler/escrever no board de Compras. O único link de
-// Trello que a extensão conhece é o board de Compras (TRELLO_BOARD_URL) — a busca só serve
-// para reaproveitar uma aba já aberta em vez de abrir outra sem necessidade; restrita à
-// janela em foco (senão uma aba do Trello esquecida em OUTRA janela podia ser reaproveitada
-// por engano, dando erro sem nenhuma mudança visível na tela que o usuário está olhando). Se
-// a aba encontrada estiver em outra URL do Trello (ex.: um cartão específico,
-// trello.com/c/...) navega essa MESMA aba de volta para o board antes de continuar.
+// Trello que a extensão usa é o board de Compras (TRELLO_BOARD_URL). A busca por aba
+// existente é restrita à janela em foco (senão uma aba esquecida em OUTRA janela podia ser
+// reaproveitada por engano).
+//
+// Ponto importante: quando um cartão está aberto, a URL da aba vira trello.com/c/... . Tentar
+// navegar essa MESMA aba de volta para o board com chrome.tabs.update NÃO é confiável — como
+// o cartão e o board pertencem ao mesmo board, o Trello trata a mudança como navegação
+// interna do SPA (History API), o evento de carregamento "complete" pode nunca disparar e o
+// cartão continua aberto por cima da lista, fazendo a leitura falhar sem nada mudar na tela.
+// Por isso, se a aba não estiver exatamente no board (path /b/UfPrTr1H/... e SEM cartão
+// aberto), ela é fechada e uma nova é aberta no board — um carregamento limpo, sem cartão
+// sobreposto, que não pode ser interceptado pelo SPA.
 async function ensureTrelloBoardTab() {
   const windowId = await getFocusedWindowId();
-  let tab = await HubTabs.findTab(TRELLO_URL_PATTERN, windowId);
-  if (!tab) {
-    tab = await HubTabs.createTab(TRELLO_BOARD_URL, windowId);
-    await HubTabs.waitForTabComplete(tab.id);
-    return tab;
-  }
+  const tab = await HubTabs.findTab(TRELLO_URL_PATTERN, windowId);
 
   let path = '';
-  try {
-    path = new URL(tab.url || '').pathname;
-  } catch (e) {
-    path = '';
+  if (tab) {
+    try {
+      path = new URL(tab.url || '').pathname;
+    } catch (e) {
+      path = '';
+    }
   }
 
-  if (path.startsWith(TRELLO_BOARD_PATH_PREFIX)) {
+  const alreadyOnBoard = tab && path.startsWith(TRELLO_BOARD_PATH_PREFIX);
+  if (alreadyOnBoard) {
     return HubTabs.activateTab(tab);
   }
 
-  const navigated = await new Promise((resolve, reject) => {
-    chrome.tabs.update(tab.id, { url: TRELLO_BOARD_URL, active: true }, (updated) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-        return;
-      }
-      chrome.windows.update(updated.windowId, { focused: true }, () => resolve(updated));
-    });
-  });
-  await HubTabs.waitForTabComplete(navigated.id);
-  return navigated;
+  if (tab) {
+    await removeTab(tab.id);
+  }
+  const fresh = await HubTabs.createTab(TRELLO_BOARD_URL, windowId);
+  await HubTabs.waitForTabComplete(fresh.id);
+  return fresh;
 }
 
 async function getActiveTab() {

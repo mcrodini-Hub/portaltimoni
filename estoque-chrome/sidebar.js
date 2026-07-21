@@ -15,6 +15,7 @@
     btnTrocarPerfil: document.getElementById('btn-trocar-perfil'),
     btnConfig: document.getElementById('btn-config'),
     errorBanner: document.getElementById('error-banner'),
+    toast: document.getElementById('toast'),
 
     telaConfig: document.getElementById('tela-config'),
     inputWebappUrl: document.getElementById('input-webapp-url'),
@@ -31,6 +32,7 @@
     produtoSelecionadoWrap: document.getElementById('produto-selecionado-wrap'),
     selCodigo: document.getElementById('sel-codigo'),
     selDescricao: document.getElementById('sel-descricao'),
+    selExistente: document.getElementById('sel-existente'),
     chkCliente: document.getElementById('chk-cliente'),
     btnInformarNecessidade: document.getElementById('btn-informar-necessidade'),
     solicitacoesVazio: document.getElementById('solicitacoes-vazio'),
@@ -51,6 +53,28 @@
   function showError(msg) {
     el.errorBanner.hidden = !msg;
     el.errorBanner.textContent = msg || '';
+  }
+
+  let toastTimer = null;
+  function showToast(msg) {
+    el.toast.textContent = msg;
+    el.toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { el.toast.hidden = true; }, 2500);
+  }
+
+  // Tempo relativo curto (ex.: "há 2 h", "há 3 dias") para o estoque priorizar o que espera há mais tempo.
+  function formatRelative(valor) {
+    const d = new Date(valor);
+    if (isNaN(d.getTime())) return '';
+    const seg = Math.max(0, (Date.now() - d.getTime()) / 1000);
+    if (seg < 90) return 'agora há pouco';
+    const min = Math.floor(seg / 60);
+    if (min < 60) return `há ${min} min`;
+    const h = Math.floor(min / 60);
+    if (h < 24) return `há ${h} h`;
+    const dias = Math.floor(h / 24);
+    return `há ${dias} dia${dias > 1 ? 's' : ''}`;
   }
 
   function formatDateTime(valor) {
@@ -262,22 +286,49 @@
     });
   }
 
-  function selecionarProduto(produto) {
+  async function selecionarProduto(produto) {
     produtoSelecionado = produto;
     el.selCodigo.textContent = produto.codigo;
     el.selDescricao.textContent = produto.descricao;
+    el.selExistente.hidden = true;
+    el.chkCliente.checked = false;
     el.produtoSelecionadoWrap.hidden = false;
     showError(null);
+
+    // Situação atual: se este produto já tem solicitação/pedido, mostra na hora — evita pedir
+    // duplicado e já responde "tem pedido? / previsão?" com os dados que a extensão tem.
+    try {
+      const necessidades = await EstoqueStore.getNecessidades();
+      const doProduto = necessidades
+        .filter((n) => n.codigo === produto.codigo)
+        .sort((a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime());
+      if (doProduto.length > 0) {
+        const atual = doProduto[0];
+        el.selExistente.innerHTML = '';
+        const rotulo = document.createElement('span');
+        rotulo.className = 'rotulo';
+        rotulo.textContent = 'Situação atual deste produto';
+        const linha = document.createElement('span');
+        linha.textContent = statusLabel(atual);
+        el.selExistente.append(rotulo, linha);
+        el.selExistente.hidden = false;
+      }
+    } catch (e) {
+      // Consulta de situação é um extra; se falhar, não bloqueia o pedido.
+    }
   }
 
   el.btnInformarNecessidade.addEventListener('click', async () => {
     if (!produtoSelecionado) return;
     el.btnInformarNecessidade.disabled = true;
     try {
-      await EstoqueStore.criarNecessidade(produtoSelecionado, { clienteAguardando: el.chkCliente.checked });
+      const comCliente = el.chkCliente.checked;
+      await EstoqueStore.criarNecessidade(produtoSelecionado, { clienteAguardando: comCliente });
       showError(null);
+      showToast(comCliente ? 'Enviado ao estoque (cliente aguardando).' : 'Enviado ao estoque.');
       produtoSelecionado = null;
       el.produtoSelecionadoWrap.hidden = true;
+      el.selExistente.hidden = true;
       el.chkCliente.checked = false;
       el.inputBusca.value = '';
       el.listaResultados.hidden = true;
@@ -357,8 +408,16 @@
     meta.className = 'hint-text';
     meta.style.margin = '4px 0 0';
     meta.textContent = novo
-      ? `Solicitado em ${formatDateTime(n.criadoEm)}`
-      : `Anotado em ${formatDateTime(n.respondidoEm)} · aguardando seu retorno`;
+      ? `Solicitado ${formatRelative(n.criadoEm)} · ${formatDateTime(n.criadoEm)}`
+      : `Anotado ${formatRelative(n.respondidoEm)} · aguardando seu retorno`;
+
+    // Atalho para o estoque promover/tirar prioridade de cliente aguardando.
+    const clienteToggle = document.createElement('button');
+    clienteToggle.className = 'btn-link cliente-toggle';
+    clienteToggle.dataset.action = 'toggle-cliente';
+    clienteToggle.dataset.id = n.id;
+    clienteToggle.dataset.valor = n.clienteAguardando ? '0' : '1';
+    clienteToggle.textContent = n.clienteAguardando ? 'Remover prioridade de cliente' : 'Marcar cliente aguardando';
 
     const acoes = document.createElement('div');
     acoes.className = 'need-actions';
@@ -395,7 +454,7 @@
       </div>
     `;
 
-    li.append(l1, meta, acoes, form, obsForm);
+    li.append(l1, meta, clienteToggle, acoes, form, obsForm);
     return li;
   }
 
@@ -444,11 +503,27 @@
       return;
     }
 
+    if (action === 'toggle-cliente') {
+      const valor = btn.dataset.valor === '1';
+      btn.disabled = true;
+      try {
+        await EstoqueStore.definirClienteAguardando(id, valor);
+        showError(null);
+        showToast(valor ? 'Prioridade de cliente marcada.' : 'Prioridade de cliente removida.');
+        await renderFilaEstoque();
+      } catch (e) {
+        showError(e.message);
+        btn.disabled = false;
+      }
+      return;
+    }
+
     if (action === 'recebido') {
       btn.disabled = true;
       try {
         await EstoqueStore.responderRecebido(id);
         showError(null);
+        showToast('Anotado — aguardando seu retorno.');
         await renderFilaEstoque();
       } catch (e) {
         showError(e.message);
@@ -464,6 +539,7 @@
       try {
         await EstoqueStore.responderPedidoExistente(id, { numeroPedido, previsaoEntrega });
         showError(null);
+        showToast('Respondido ao balcão.');
         await renderFilaEstoque();
       } catch (e) {
         showError(e.message);
@@ -478,6 +554,7 @@
       try {
         await EstoqueStore.responderObservacao(id, { observacao });
         showError(null);
+        showToast('Respondido ao balcão.');
         await renderFilaEstoque();
       } catch (e) {
         showError(e.message);
@@ -490,6 +567,9 @@
   // retorno), então o mesmo handler escuta as duas listas.
   el.listaPendentes.addEventListener('click', onNeedListClick);
   el.listaCompra.addEventListener('click', onNeedListClick);
+
+  // Recarrega ao voltar o foco ao painel — dados sempre frescos sem esperar o ciclo de polling.
+  window.addEventListener('focus', () => { if (roleAtual) recarregarVisaoAtual(); });
 
   // ---------------------------------------------------------------------
   initRole();

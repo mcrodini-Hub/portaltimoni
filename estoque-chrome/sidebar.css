@@ -288,6 +288,32 @@ h1 { font-size: 18px; margin: 0 0 4px; }
 }
 .check-row input { width: 16px; height: 16px; accent-color: var(--blue); cursor: pointer; }
 
+.existente-box {
+  background: #eef2ff;
+  border: 1px solid #cdd6ff;
+  color: var(--ink);
+  border-radius: 10px;
+  padding: 9px 11px;
+  font-size: 12px;
+  margin: 0 0 10px;
+  line-height: 1.4;
+}
+.existente-box .rotulo { display: block; font-weight: 700; color: var(--blue); margin-bottom: 2px; }
+
+.toast {
+  background: #e8f6ec;
+  border: 1px solid #b7e0c4;
+  color: var(--green);
+  padding: 9px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.cliente-toggle { margin-top: 2px; }
+.item-meta-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+
 .chip-cliente {
   display: inline-block;
   font-size: 11px;

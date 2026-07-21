@@ -18,6 +18,18 @@ módulos:
   Se o mesmo produto for pedido de novo já marcando cliente aguardando, o item existente é
   promovido em vez de duplicar.
 
+Outros recursos para agilizar o dia a dia:
+
+- **Prioridade nos dois lados**: além do balcão, o Lucas pode marcar/tirar "cliente
+  aguardando" de qualquer item direto na fila.
+- **Situação do produto no balcão**: ao selecionar um produto, o balcão já vê se ele tem
+  solicitação/pedido/previsão em aberto — evita pedir duplicado e responde na hora "tem
+  pedido?".
+- **Tempo de espera**: cada item da fila mostra há quanto tempo está esperando ("há 2 h",
+  "há 3 dias").
+- **Confirmações e dados frescos**: aviso curto ao enviar/responder, e recarga automática
+  ao focar o painel (além do polling de ~15s no modo planilha).
+
 ## Dois modos de funcionamento
 
 A extensão escolhe o modo sozinha conforme haja ou não uma planilha configurada:

@@ -78,7 +78,21 @@ async function ensureTrelloBoardTab() {
 
   const alreadyOnBoard = tab && path.startsWith(TRELLO_BOARD_PATH_PREFIX);
   if (alreadyOnBoard) {
-    return HubTabs.activateTab(tab);
+    await HubTabs.activateTab(tab);
+    // Recarrega sempre (bypassCache), mesmo já estando no board: se a extensão foi
+    // atualizada/recarregada desde que essa aba carregou, o content script rodando nela é o
+    // ANTIGO (chrome não reinjeta script em aba já aberta ao atualizar a extensão) — qualquer
+    // correção de código nunca chegaria a rodar até essa aba ser recarregada de verdade. Um
+    // reload aqui é a única forma de garantir que o código mais recente sempre é usado.
+    await new Promise((resolve, reject) => {
+      chrome.tabs.reload(tab.id, { bypassCache: true }, () => {
+        if (chrome.runtime.lastError) reject(new Error(chrome.runtime.lastError.message));
+        else resolve();
+      });
+    });
+    await HubTabs.waitForTabComplete(tab.id);
+    await new Promise((r) => setTimeout(r, 1500)); // espera a SPA do Trello renderizar
+    return tab;
   }
 
   if (tab) {

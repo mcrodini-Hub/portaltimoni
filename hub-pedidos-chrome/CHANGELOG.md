@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.1.0-alpha.15 — Suspeita da causa real do erro persistente: content script desatualizado
+
+Depois de várias correções (alpha.12/13/14) mudarem a lógica de busca da lista
+sem o erro sumir, a hipótese mais provável deixou de ser "a lógica está
+errada" e passou a ser "a lógica nova nunca está rodando de verdade": quando
+a aba do Trello já estava aberta no board (comum, já que a extensão passou a
+manter isso), `ensureTrelloBoardTab()` só REATIVAVA essa aba — nunca
+recarregava a página. Como o Chrome NÃO reinjeta o content script numa aba já
+aberta quando a extensão é atualizada/recarregada, o código antigo (de
+alpha.11 ou anterior) podia continuar rodando indefinidamente nessa aba,
+não importa quantas versões novas fossem instaladas — até a aba ser
+recarregada manualmente.
+
+- **Corrigido**: `ensureTrelloBoardTab()` agora sempre recarrega a aba do
+  Trello (`chrome.tabs.reload` com `bypassCache: true`) ao reaproveitá-la,
+  garantindo que o content script mais recente é o que roda, mesmo que a aba
+  já estivesse aberta desde antes da extensão ser atualizada.
+
+**Se o erro persistir mesmo com essa versão**: feche COMPLETAMENTE a aba do
+Trello (não só recarregue a extensão) antes de clicar em "Abrir Trello" — o
+que dispara a criação de uma aba nova, com garantia de código fresco.
+
 ## 1.1.0-alpha.14 — Varredura no DOM para encontrar lista "PEDIDOS PENDENTES"
 
 O erro "Lista de pedidos não encontrada" persistia porque `findListElement()`

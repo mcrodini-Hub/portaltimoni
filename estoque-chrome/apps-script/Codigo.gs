@@ -17,16 +17,20 @@
  *   Aba "Necessidades":
  *      A: id | B: codigo | C: descricao | D: status | E: criadoEm |
  *      F: respondidoEm | G: numeroPedido | H: previsaoEntrega | I: observacao |
- *      J: clienteAguardando | K: unidade
+ *      J: clienteAguardando | K: unidade | L: vendedor
+ *   Aba "Vendedores" (opcional, para a lista de nomes):
+ *      A: nome | B: unidade   (unidade em branco = aparece nas duas lojas)
  *
  * status possíveis: "pendente", "em_compra", "pedido_existente", "observacao".
  * clienteAguardando: "true"/"false" — marca itens com cliente esperando (prioridade).
  * unidade: "rio_claro" ou "araras" — loja de origem do pedido.
+ * vendedor: nome de quem fez o pedido.
  */
 
 var ABA_PRODUTOS = 'Produtos';
 var ABA_NECESSIDADES = 'Necessidades';
-var COLUNAS_NEC = ['id', 'codigo', 'descricao', 'status', 'criadoEm', 'respondidoEm', 'numeroPedido', 'previsaoEntrega', 'observacao', 'clienteAguardando', 'unidade'];
+var ABA_VENDEDORES = 'Vendedores';
+var COLUNAS_NEC = ['id', 'codigo', 'descricao', 'status', 'criadoEm', 'respondidoEm', 'numeroPedido', 'previsaoEntrega', 'observacao', 'clienteAguardando', 'unidade', 'vendedor'];
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
@@ -41,9 +45,11 @@ function doGet(e) {
         return json({ ok: true, produtos: lerProdutos() });
       case 'necessidades':
         return json({ ok: true, necessidades: lerNecessidades() });
+      case 'vendedores':
+        return json({ ok: true, vendedores: lerVendedores() });
       // Escritas travam (comLock) para não haver duas gravando a mesma linha ao mesmo tempo.
       case 'criar':
-        return comLock(function () { return json({ ok: true, necessidade: criar(p.codigo, p.cliente, p.unidade) }); });
+        return comLock(function () { return json({ ok: true, necessidade: criar(p.codigo, p.cliente, p.unidade, p.vendedor) }); });
       case 'recebido':
         return comLock(function () { return json({ ok: true, necessidade: responder(p.id, 'em_compra', {}) }); });
       case 'pedido':
@@ -110,6 +116,21 @@ function lerProdutos() {
   return out;
 }
 
+// Lista de vendedores (aba opcional). Se a aba não existir, devolve vazio — a extensão trata.
+function lerVendedores() {
+  var sheet = planilha().getSheetByName(ABA_VENDEDORES);
+  if (!sheet) return [];
+  var valores = sheet.getDataRange().getValues();
+  var out = [];
+  for (var i = 1; i < valores.length; i++) {
+    var nome = String(valores[i][0] || '').trim();
+    if (!nome) continue;
+    var uni = String(valores[i][1] || '').trim().toLowerCase();
+    out.push({ nome: nome, unidade: uni });
+  }
+  return out;
+}
+
 function lerNecessidades() {
   var sheet = aba(ABA_NECESSIDADES);
   var valores = sheet.getDataRange().getValues();
@@ -156,11 +177,12 @@ function registroDaLinha(sheet, linhaSheet) {
   return reg;
 }
 
-function criar(codigo, cliente, unidade) {
+function criar(codigo, cliente, unidade, vendedor) {
   codigo = String(codigo || '').trim();
   if (!codigo) throw new Error('Código do produto não informado.');
   var querCliente = parseBool(cliente);
   unidade = String(unidade || 'rio_claro').trim();
+  vendedor = String(vendedor || '').trim();
 
   var produto = null;
   var produtos = lerProdutos();
@@ -201,7 +223,8 @@ function criar(codigo, cliente, unidade) {
     previsaoEntrega: null,
     observacao: null,
     clienteAguardando: querCliente,
-    unidade: unidade
+    unidade: unidade,
+    vendedor: vendedor
   };
 
   sheet.appendRow(COLUNAS_NEC.map(function (c) { return registro[c] === null ? '' : registro[c]; }));

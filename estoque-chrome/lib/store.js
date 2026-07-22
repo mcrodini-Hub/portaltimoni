@@ -14,8 +14,10 @@
   const KEYS = Object.freeze({
     ROLE: 'estoqueRole',
     UNIDADE: 'estoqueUnidade',
+    VENDEDOR: 'estoqueVendedor',
     WEBAPP_URL: 'estoqueWebAppUrl',
     PRODUTOS_CACHE: 'estoqueProdutosCache',
+    VENDEDORES_CACHE: 'estoqueVendedoresCache',
     NECESSIDADES: 'estoqueNecessidadesLocal',
     NOTIFICACOES: 'estoqueNotificacoes'
   });
@@ -77,6 +79,24 @@
     return set(KEYS.UNIDADE, unidade);
   }
 
+  async function getVendedor() { return get(KEYS.VENDEDOR, ''); }
+  async function setVendedor(nome) { return set(KEYS.VENDEDOR, (nome || '').trim()); }
+
+  // Lista de vendedores. No modo planilha vem da aba "Vendedores" (cacheada); no local, mock.
+  async function carregarVendedores(force) {
+    if (await isRemote()) {
+      if (!force) {
+        const cache = await get(KEYS.VENDEDORES_CACHE, null);
+        if (cache) return cache;
+      }
+      const data = await apiGet({ action: 'vendedores' });
+      const vendedores = data.vendedores || [];
+      await set(KEYS.VENDEDORES_CACHE, vendedores);
+      return vendedores;
+    }
+    return (root.EstoqueMockVendedores || []).slice();
+  }
+
   async function getNotificacoes() { return get(KEYS.NOTIFICACOES, false); }
   async function setNotificacoes(ativo) { return set(KEYS.NOTIFICACOES, !!ativo); }
 
@@ -87,8 +107,9 @@
     if (limpa && !/^https:\/\/script\.google\.com\/.*\/exec(\?.*)?$/.test(limpa)) {
       throw new Error('URL inválida. Cole a URL do Web App terminada em /exec.');
     }
-    // Ao trocar de planilha, o cache de produtos antigo não vale mais.
+    // Ao trocar de planilha, os caches antigos não valem mais.
     await set(KEYS.PRODUTOS_CACHE, null);
+    await set(KEYS.VENDEDORES_CACHE, null);
     return set(KEYS.WEBAPP_URL, limpa);
   }
 
@@ -207,9 +228,10 @@
     invalidarNecessidades();
     const querCliente = !!(opts && opts.clienteAguardando);
     const unidade = (opts && opts.unidade) || UNIDADES.RIO_CLARO;
+    const vendedor = (opts && opts.vendedor) || '';
 
     if (await isRemote()) {
-      const data = await apiGet({ action: 'criar', codigo: produto.codigo, cliente: querCliente ? '1' : '0', unidade });
+      const data = await apiGet({ action: 'criar', codigo: produto.codigo, cliente: querCliente ? '1' : '0', unidade, vendedor });
       return data.necessidade;
     }
 
@@ -235,7 +257,8 @@
       numeroPedido: null,
       previsaoEntrega: null,
       observacao: null,
-      clienteAguardando: querCliente
+      clienteAguardando: querCliente,
+      vendedor
     };
     necessidades.unshift(nova);
     await set(KEYS.NECESSIDADES, necessidades);
@@ -306,6 +329,9 @@
     setRole,
     getUnidade,
     setUnidade,
+    getVendedor,
+    setVendedor,
+    carregarVendedores,
     getNotificacoes,
     setNotificacoes,
     getWebAppUrl,

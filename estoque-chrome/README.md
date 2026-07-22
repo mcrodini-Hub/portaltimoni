@@ -4,9 +4,10 @@ Extensão Chrome (Manifest V3) para a Casa Timoni, com **duas lojas**: Rio Claro
 Cada necessidade nasce carimbada com a loja de quem pediu, e cada perfil enxerga só a sua
 loja (a gestão geral vê as duas). Cobre dois módulos:
 
-- **Módulo 1 — Consulta de Produtos (Vendedores)**: busca por código ou descrição, e permite
-  informar uma necessidade de compra para o produto selecionado, marcando se **tem cliente
-  aguardando**. Sem valores, sem anexos.
+- **Módulo 1 — Consulta de Produtos (Vendedores)**: o vendedor escolhe o **seu nome** (lista
+  cadastrada na aba `Vendedores`, filtrada pela loja), busca por código ou descrição, e informa
+  uma necessidade de compra para o produto selecionado, marcando se **tem cliente aguardando**.
+  O nome vai junto no pedido e aparece para o estoque e a gestão. Sem valores, sem anexos.
 - **Acompanhamento (gestão)**: um terceiro perfil que mostra a troca completa entre balcão e
   estoque (aguardando estoque, aguardando retorno do Lucas, e respondidos), com contadores no
   topo. É **ativo**: as duas primeiras seções têm os mesmos botões de resposta do estoque, então
@@ -54,7 +55,9 @@ A extensão escolhe o modo sozinha conforme haja ou não uma planilha configurad
    - Aba **`Produtos`**: `codigo` | `descricao`
    - Aba **`Necessidades`**: `id` | `codigo` | `descricao` | `status` | `criadoEm` |
      `respondidoEm` | `numeroPedido` | `previsaoEntrega` | `observacao` | `clienteAguardando` |
-     `unidade`
+     `unidade` | `vendedor`
+   - Aba **`Vendedores`** (opcional, para a lista de nomes): `nome` | `unidade`
+     (unidade em branco = o vendedor aparece nas duas lojas)
 2. **Preencha a aba `Produtos`** com o catálogo real (código e descrição). É essa aba que
    alimenta a busca do balcão. A aba `Necessidades` começa vazia (só o cabeçalho) — a
    extensão preenche sozinha.

@@ -28,6 +28,8 @@
     connStatusAcomp: document.getElementById('conn-status-acomp'),
 
     viewBalcao: document.getElementById('view-balcao'),
+    selectVendedor: document.getElementById('select-vendedor'),
+    vendedorVazio: document.getElementById('vendedor-vazio'),
     inputBusca: document.getElementById('input-busca'),
     listaResultados: document.getElementById('lista-resultados'),
     buscaVazio: document.getElementById('busca-vazio'),
@@ -135,6 +137,13 @@
     return span;
   }
 
+  function chipVendedor(n) {
+    const span = document.createElement('span');
+    span.className = 'chip-vendedor';
+    span.textContent = n.vendedor;
+    return span;
+  }
+
   // Filtra a lista pela unidade do perfil atual. Gestão geral ('todas') vê tudo.
   function filtrarUnidade(lista) {
     if (unidadeAtual === EstoqueStore.UNIDADES.TODAS) return lista;
@@ -238,6 +247,38 @@
     el.btnUnidadeBalcao.textContent = `CT ${EstoqueStore.UNIDADE_LABEL[unidadeAtual]}`;
   }
 
+  // Popula o seletor de vendedor com os nomes da loja atual (nomes sem unidade valem para as
+  // duas). Restaura a última escolha deste computador, se ainda estiver na lista.
+  async function popularVendedores() {
+    let lista = [];
+    try {
+      lista = await EstoqueStore.carregarVendedores(false);
+    } catch (e) {
+      // Sem lista agora; segue com seletor vazio.
+    }
+    const daLoja = lista.filter((v) => !v.unidade || v.unidade === unidadeAtual);
+    const salvo = await EstoqueStore.getVendedor();
+
+    el.selectVendedor.innerHTML = '';
+    const placeholder = document.createElement('option');
+    placeholder.value = '';
+    placeholder.textContent = daLoja.length ? 'Selecione o vendedor…' : '(sem vendedores cadastrados)';
+    el.selectVendedor.appendChild(placeholder);
+    daLoja.forEach((v) => {
+      const opt = document.createElement('option');
+      opt.value = v.nome;
+      opt.textContent = v.nome;
+      el.selectVendedor.appendChild(opt);
+    });
+    // Mantém a escolha anterior se ela existe nesta loja.
+    el.selectVendedor.value = daLoja.some((v) => v.nome === salvo) ? salvo : '';
+    el.vendedorVazio.hidden = daLoja.length > 0;
+  }
+
+  el.selectVendedor.addEventListener('change', async () => {
+    await EstoqueStore.setVendedor(el.selectVendedor.value);
+  });
+
   // Estoque e Acompanhamento renderizam itens com os mesmos ids de formulário (form-<id> etc.).
   // Como só um perfil fica visível por vez, limpamos as listas dinâmicas ao trocar de perfil
   // para nunca haver ids duplicados no DOM.
@@ -257,7 +298,7 @@
     el.rolePill.textContent = rotuloPerfil(papel, unidadeAtual);
     // Só o balcão pode alternar de loja (troca de unidade, não de perfil).
     el.btnUnidadeBalcao.hidden = papel !== ROLES.BALCAO;
-    if (papel === ROLES.BALCAO) atualizarBotaoUnidade();
+    if (papel === ROLES.BALCAO) { atualizarBotaoUnidade(); await popularVendedores(); }
     el.viewBalcao.hidden = papel !== ROLES.BALCAO;
     el.viewEstoque.hidden = papel !== ROLES.ESTOQUE;
     el.viewAcompanhamento.hidden = papel !== ROLES.ACOMPANHAMENTO;
@@ -286,6 +327,7 @@
     await EstoqueStore.setUnidade(nova);
     unidadeAtual = nova;
     atualizarBotaoUnidade();
+    await popularVendedores(); // a lista de vendedores muda conforme a loja
     produtoSelecionado = null;
     el.produtoSelecionadoWrap.hidden = true;
     el.selExistente.hidden = true;
@@ -423,10 +465,17 @@
 
   el.btnInformarNecessidade.addEventListener('click', async () => {
     if (!produtoSelecionado) return;
+    // Se há vendedores cadastrados, exige a escolha antes de pedir (para o nome constar).
+    const vendedor = el.selectVendedor.value;
+    if (!vendedor && el.selectVendedor.options.length > 1) {
+      showError('Selecione o vendedor antes de pedir.');
+      el.selectVendedor.focus();
+      return;
+    }
     el.btnInformarNecessidade.disabled = true;
     try {
       const comCliente = el.chkCliente.checked;
-      await EstoqueStore.criarNecessidade(produtoSelecionado, { clienteAguardando: comCliente, unidade: unidadeAtual });
+      await EstoqueStore.criarNecessidade(produtoSelecionado, { clienteAguardando: comCliente, unidade: unidadeAtual, vendedor });
       showError(null);
       showToast(comCliente ? 'Enviado ao estoque (cliente aguardando).' : 'Enviado ao estoque.');
       produtoSelecionado = null;
@@ -478,6 +527,7 @@
       desc.textContent = n.descricao;
       linha1.append(cod, desc);
       if (n.clienteAguardando) linha1.append(chipCliente());
+      if (n.vendedor) linha1.append(chipVendedor(n));
       const linha2 = document.createElement('div');
       linha2.className = 'status-line';
       linha2.textContent = statusLabel(n);
@@ -507,6 +557,7 @@
     l1.append(cod, desc);
     if (n.clienteAguardando) l1.append(chipCliente());
     if (unidadeAtual === EstoqueStore.UNIDADES.TODAS) l1.append(chipUnidade(n));
+    if (n.vendedor) l1.append(chipVendedor(n));
 
     const meta = document.createElement('p');
     meta.className = 'hint-text';
@@ -592,6 +643,7 @@
     linha1.append(cod, desc);
     if (n.clienteAguardando) linha1.append(chipCliente());
     if (unidadeAtual === EstoqueStore.UNIDADES.TODAS) linha1.append(chipUnidade(n));
+    if (n.vendedor) linha1.append(chipVendedor(n));
     const linha2 = document.createElement('div');
     linha2.className = 'status-line';
     linha2.textContent = statusLabel(n);

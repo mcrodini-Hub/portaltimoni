@@ -96,9 +96,10 @@ async function verificarNovidades() {
   lista.forEach((n) => {
     const prev = anterior[n.id];
     if (!prev) {
+      const quem = n.vendedor ? ` · ${n.vendedor}` : '';
       notificar(
-        n.clienteAguardando ? 'Novo pedido do balcão · cliente aguardando' : 'Novo pedido do balcão',
-        `${n.codigo} — ${n.descricao}${sufixoUnidade(n)}`
+        n.clienteAguardando ? 'Novo pedido · cliente aguardando' : 'Novo pedido de vendedor',
+        `${n.codigo} — ${n.descricao}${quem}${sufixoUnidade(n)}`
       );
     } else if (prev.status !== n.status) {
       notificar(tituloMudanca(n), `${textoMudanca(n)}${sufixoUnidade(n)}`);

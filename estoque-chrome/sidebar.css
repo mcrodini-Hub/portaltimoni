@@ -189,6 +189,23 @@ h1 { font-size: 18px; margin: 0 0 4px; }
 .btn-secondary { background: #eef0f4; color: var(--ink); margin-top: 8px; }
 .btn-secondary:hover { background: #e2e5eb; }
 
+/* Botões da tela de perfil, com cor clara por setor. */
+.role-btn { border: 1px solid transparent; }
+.role-btn:active:not(:disabled) { transform: translateY(1px); }
+
+.role-vendedores { background: #eaf0ff; color: #2c4be0; border-color: #cdd8fb; }
+.role-vendedores:hover:not(:disabled) { background: #dbe6ff; }
+
+.role-estoque { background: #fdf1e4; color: #b5651d; border-color: #f2d5b3; }
+.role-estoque:hover:not(:disabled) { background: #fbe7d0; }
+
+.role-gestao { background: #e9f7ef; color: #1f8a4c; border-color: #c3e8d1; }
+.role-gestao:hover:not(:disabled) { background: #d9f0e2; }
+
+.role-group.g-vendedores { color: #2c4be0; }
+.role-group.g-estoque { color: #b5651d; }
+.role-group.g-gestao { color: #1f8a4c; }
+
 .btn-small {
   width: auto;
   padding: 6px 10px;

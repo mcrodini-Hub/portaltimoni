@@ -84,7 +84,9 @@
     selAcompWrap: document.getElementById('sel-acomp-wrap'),
     selAcompCodigo: document.getElementById('sel-acomp-codigo'),
     selAcompDescricao: document.getElementById('sel-acomp-descricao'),
-    selExistenteAcomp: document.getElementById('sel-existente-acomp')
+    selExistenteAcomp: document.getElementById('sel-existente-acomp'),
+    limparWrap: document.getElementById('limpar-wrap'),
+    btnLimparNecessidades: document.getElementById('btn-limpar-necessidades')
   };
 
   let produtoSelecionado = null;
@@ -926,9 +928,8 @@
     el.acompClientes.textContent = String(necessidades.filter((n) => n.clienteAguardando && (n.status === STATUS.PENDENTE || n.status === STATUS.EM_COMPRA)).length);
     el.acompResumo.textContent = resumoPeriodo(necessidades);
 
-    // "Registrar pedido em aberto" fica disponível para todos os perfis de acompanhamento
-    // (gestão geral e gerências) — é a única tarefa que a gerência executa, mesmo sendo leitura
-    // no resto. A gerência lança só na sua loja (campo travado); a gestão escolhe a loja.
+    // "Registrar pedido em aberto": todo perfil de acompanhamento hoje é Gestão geral (vê as
+    // duas lojas), então a loja fica sempre livre para escolher.
     el.registrarWrap.hidden = false;
     if (unidadeAtual === EstoqueStore.UNIDADES.TODAS) {
       el.regUnidade.disabled = false;
@@ -962,6 +963,30 @@
       meta: (n) => n.status === STATUS.CHEGOU
         ? `Chegou ${formatRelative(n.chegouEm)} · ${formatDateTime(n.chegouEm)}`
         : `Respondido ${formatRelative(n.respondidoEm)} · ${formatDateTime(n.respondidoEm)}`
+    });
+
+    // "Limpar solicitações" é uma ação destrutiva (apaga tudo, sem volta) — só para Gestão geral.
+    if (el.limparWrap) el.limparWrap.hidden = unidadeAtual !== EstoqueStore.UNIDADES.TODAS;
+  }
+
+  if (el.btnLimparNecessidades) {
+    el.btnLimparNecessidades.addEventListener('click', async () => {
+      const passo1 = confirm('Apagar TODAS as solicitações (as duas lojas), sem volta? Produtos e Vendedores não são afetados.');
+      if (!passo1) return;
+      const passo2 = confirm('Confirma mesmo? Isso limpa a planilha para todo mundo agora.');
+      if (!passo2) return;
+      el.btnLimparNecessidades.disabled = true;
+      try {
+        await EstoqueStore.limparNecessidades();
+        showError(null);
+        showToast('Solicitações limpas.');
+        limparListasDinamicas();
+        await recarregarVisaoAtual();
+      } catch (e) {
+        showError(e.message);
+      } finally {
+        el.btnLimparNecessidades.disabled = false;
+      }
     });
   }
 

@@ -189,6 +189,9 @@ h1 { font-size: 18px; margin: 0 0 4px; }
 .btn-secondary { background: #eef0f4; color: var(--ink); margin-top: 8px; }
 .btn-secondary:hover { background: #e2e5eb; }
 
+.btn-danger { background: #fdeceb; color: #c0362c; border: 1px solid #f3c9c4; }
+.btn-danger:hover:not(:disabled) { background: #fbdedb; }
+
 /* Botões da tela de perfil, com cor clara por setor. */
 .role-btn { border: 1px solid transparent; }
 .role-btn:active:not(:disabled) { transform: translateY(1px); }

@@ -68,6 +68,10 @@ function doGet(e) {
         return comLock(function () {
           return json({ ok: true, necessidade: responder(p.id, 'observacao', { observacao: p.texto }) });
         });
+      // Apaga TODAS as linhas de Necessidades (as duas lojas) — uso de teste/gestão.
+      // Não mexe em Produtos nem Vendedores.
+      case 'limpar':
+        return comLock(function () { limparNecessidades(); return json({ ok: true }); });
       default:
         return json({ ok: false, erro: 'Ação desconhecida: ' + action });
     }
@@ -285,4 +289,13 @@ function responder(id, status, extra) {
 
 function coluna(nome) {
   return COLUNAS_NEC.indexOf(nome) + 1; // 1-based
+}
+
+// Apaga todas as linhas de dados da aba Necessidades, mantendo o cabeçalho (linha 1).
+function limparNecessidades() {
+  var sheet = aba(ABA_NECESSIDADES);
+  var ultimaLinha = sheet.getLastRow();
+  if (ultimaLinha > 1) {
+    sheet.deleteRows(2, ultimaLinha - 1);
+  }
 }

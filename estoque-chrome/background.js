@@ -21,7 +21,11 @@ function filtrarUnidade(lista, unidade) {
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+  // chrome.sidePanel só existe em Chrome 114+; em versões mais antigas o painel ainda abre
+  // pelo manifest.side_panel, só não abre automaticamente ao clicar no ícone.
+  if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
+    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+  }
   chrome.alarms.create(POLL_ALARM, { periodInMinutes: 1 });
 });
 

@@ -355,6 +355,18 @@
     return alvo;
   }
 
+  // Apaga TODAS as necessidades (as duas lojas), sem volta — uso de teste/gestão para limpar
+  // a fila. Não mexe em Produtos nem Vendedores.
+  async function limparNecessidades() {
+    invalidarNecessidades();
+    if (await isRemote()) {
+      await apiGet({ action: 'limpar' });
+      invalidarNecessidades();
+      return;
+    }
+    await set(KEYS.NECESSIDADES, []);
+  }
+
   root.EstoqueStore = {
     KEYS,
     ROLES,
@@ -384,6 +396,7 @@
     responderPedidoExistente,
     responderObservacao,
     marcarChegada,
-    registrarPedidoEmAberto
+    registrarPedidoEmAberto,
+    limparNecessidades
   };
 })(self);

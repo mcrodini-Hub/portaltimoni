@@ -461,10 +461,22 @@
     });
   }
 
+  // Pré-seleciona a unidade de medida do produto (se a lista não tiver, acrescenta).
+  function aplicarUnidadeProduto(u) {
+    const sel = el.selectUnidadeMedida;
+    if (!sel) return;
+    const val = String(u || '').trim();
+    if (!val) { sel.value = 'un'; return; }
+    let opt = Array.from(sel.options).find((o) => o.value.toLowerCase() === val.toLowerCase());
+    if (!opt) { opt = new Option(val, val); sel.add(opt); }
+    sel.value = opt.value;
+  }
+
   async function selecionarProduto(produto) {
     produtoSelecionado = produto;
     el.selCodigo.textContent = produto.codigo;
-    el.selDescricao.textContent = produto.descricao;
+    el.selDescricao.textContent = produto.descricao + (produto.unidade ? ' · ' + produto.unidade : '');
+    aplicarUnidadeProduto(produto.unidade);
     el.selExistente.hidden = true;
     el.chkCliente.checked = false;
     el.produtoSelecionadoWrap.hidden = false;
@@ -577,7 +589,7 @@
 
   async function selecionarProdutoAcomp(produto) {
     el.selAcompCodigo.textContent = produto.codigo;
-    el.selAcompDescricao.textContent = produto.descricao;
+    el.selAcompDescricao.textContent = produto.descricao + (produto.unidade ? ' · ' + produto.unidade : '');
     el.selAcompWrap.hidden = false;
     el.selExistenteAcomp.innerHTML = '';
     el.selExistenteAcomp.hidden = true;

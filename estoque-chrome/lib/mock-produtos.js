@@ -4,21 +4,21 @@
 
 (function (root) {
   const PRODUTOS_MOCK = [
-    { codigo: '1001', descricao: 'Torneira monocomando cozinha cromada' },
-    { codigo: '1002', descricao: 'Torneira parede jardim 1/2 polegada' },
-    { codigo: '1050', descricao: 'Registro de gaveta 3/4 bruto' },
-    { codigo: '1051', descricao: 'Registro de pressão 1/2 cromado' },
-    { codigo: '2010', descricao: 'Tubo PVC soldável 25mm 6m' },
-    { codigo: '2011', descricao: 'Tubo PVC esgoto 100mm 6m' },
-    { codigo: '2200', descricao: 'Joelho 90 graus PVC soldável 25mm' },
-    { codigo: '3005', descricao: 'Cimento CP II 50kg' },
-    { codigo: '3010', descricao: 'Argamassa colante AC II 20kg' },
-    { codigo: '4020', descricao: 'Disjuntor bipolar 32A' },
-    { codigo: '4021', descricao: 'Disjuntor monopolar 20A' },
-    { codigo: '4100', descricao: 'Cabo flexível 2,5mm preto 100m' },
-    { codigo: '5030', descricao: 'Tinta acrílica branca 18L' },
-    { codigo: '5031', descricao: 'Tinta esmalte sintético branco 3,6L' },
-    { codigo: '6001', descricao: 'Vaso sanitário com caixa acoplada branco' }
+    { codigo: '1001', descricao: 'Torneira monocomando cozinha cromada', unidade: 'un' },
+    { codigo: '1002', descricao: 'Torneira parede jardim 1/2 polegada', unidade: 'un' },
+    { codigo: '1050', descricao: 'Registro de gaveta 3/4 bruto', unidade: 'un' },
+    { codigo: '1051', descricao: 'Registro de pressão 1/2 cromado', unidade: 'un' },
+    { codigo: '2010', descricao: 'Tubo PVC soldável 25mm 6m', unidade: 'barra' },
+    { codigo: '2011', descricao: 'Tubo PVC esgoto 100mm 6m', unidade: 'barra' },
+    { codigo: '2200', descricao: 'Joelho 90 graus PVC soldável 25mm', unidade: 'un' },
+    { codigo: '3005', descricao: 'Cimento CP II 50kg', unidade: 'sc' },
+    { codigo: '3010', descricao: 'Argamassa colante AC II 20kg', unidade: 'sc' },
+    { codigo: '4020', descricao: 'Disjuntor bipolar 32A', unidade: 'un' },
+    { codigo: '4021', descricao: 'Disjuntor monopolar 20A', unidade: 'un' },
+    { codigo: '4100', descricao: 'Cabo flexível 2,5mm preto 100m', unidade: 'rolo' },
+    { codigo: '5030', descricao: 'Tinta acrílica branca 18L', unidade: 'lata' },
+    { codigo: '5031', descricao: 'Tinta esmalte sintético branco 3,6L', unidade: 'lata' },
+    { codigo: '6001', descricao: 'Vaso sanitário com caixa acoplada branco', unidade: 'un' }
   ];
 
   root.EstoqueMockProdutos = PRODUTOS_MOCK;

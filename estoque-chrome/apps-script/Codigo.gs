@@ -13,7 +13,7 @@
  *
  * ESTRUTURA ESPERADA DA PLANILHA (crie duas abas com estes cabeçalhos na linha 1):
  *   Aba "Produtos":
- *      A: codigo | B: descricao
+ *      A: codigo | B: descricao | C: unidade   (unidade de medida do produto, ex.: un, barra, sc)
  *   Aba "Necessidades":
  *      A: id | B: codigo | C: descricao | D: status | E: criadoEm |
  *      F: respondidoEm | G: numeroPedido | H: previsaoEntrega | I: observacao |
@@ -115,8 +115,9 @@ function lerProdutos() {
   for (var i = 1; i < valores.length; i++) {
     var codigo = String(valores[i][0] || '').trim();
     var descricao = String(valores[i][1] || '').trim();
+    var unidade = String(valores[i][2] || '').trim();
     if (!codigo && !descricao) continue;
-    out.push({ codigo: codigo, descricao: descricao });
+    out.push({ codigo: codigo, descricao: descricao, unidade: unidade });
   }
   return out;
 }

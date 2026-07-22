@@ -45,7 +45,7 @@ certas (`Produtos`, `Necessidades`, `Vendedores`) e os nomes de vendedores cadas
 
 ## Estrutura das abas (referência)
 
-- **Produtos**: `codigo` | `descricao`
+- **Produtos**: `codigo` | `descricao` | `unidade` (unidade de medida — ex.: `un`, `barra`, `sc`; pode ficar em branco)
 - **Necessidades**: `id` | `codigo` | `descricao` | `status` | `criadoEm` | `respondidoEm` |
   `numeroPedido` | `previsaoEntrega` | `observacao` | `clienteAguardando` | `unidade` |
   `vendedor` | `quantidade` | `notaVendedor` | `chegouEm`

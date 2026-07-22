@@ -56,8 +56,9 @@ A extensão escolhe o modo sozinha conforme haja ou não uma planilha configurad
 
 ## Configuração da planilha (uma vez)
 
-1. **Crie a planilha** no Google Sheets com **duas abas**, com estes cabeçalhos na linha 1:
-   - Aba **`Produtos`**: `codigo` | `descricao`
+1. **Crie a planilha** no Google Sheets com **três abas**, com estes cabeçalhos na linha 1:
+   - Aba **`Produtos`**: `codigo` | `descricao` | `unidade`
+     (unidade de medida do produto — ex.: `un`, `barra`, `sc`, `rolo`, `lata`; pode ficar em branco)
    - Aba **`Necessidades`**: `id` | `codigo` | `descricao` | `status` | `criadoEm` |
      `respondidoEm` | `numeroPedido` | `previsaoEntrega` | `observacao` | `clienteAguardando` |
      `unidade` | `vendedor` | `quantidade` | `notaVendedor` | `chegouEm`
@@ -85,10 +86,12 @@ A extensão escolhe o modo sozinha conforme haja ou não uma planilha configurad
 O catálogo e a lista de nomes ficam **na planilha** — atualizar é só editar as abas, **sem
 mexer no Apps Script e sem republicar** (o Web App lê a planilha ao vivo).
 
-- **Produtos** (aba `Produtos`): mantenha a **linha 1** (`codigo` | `descricao`) intacta. A partir
-  da linha 2, coluna **A = código** (único) e coluna **B = descrição**. Pode colar em bloco de
-  outra planilha. Quanto mais completa a descrição, mais fácil achar na busca (que casa com
-  **código ou qualquer palavra da descrição**).
+- **Produtos** (aba `Produtos`): mantenha a **linha 1** (`codigo` | `descricao` | `unidade`) intacta.
+  A partir da linha 2, coluna **A = código** (único), **B = descrição** e **C = unidade de medida**
+  (ex.: `un`, `barra`, `sc`, `rolo`, `lata`; pode ficar em branco). A unidade já vem pré-selecionada
+  no pedido do vendedor quando ele escolhe o produto. Pode colar em bloco de outra planilha; quanto
+  mais completa a descrição, mais fácil achar na busca (que casa com **código ou qualquer palavra da
+  descrição**).
 - **Vendedores** (aba `Vendedores`): coluna **A = nome**, coluna **B = unidade**
   (`rio_claro`, `araras`, ou em branco = aparece nas duas lojas).
 - Depois de editar, na extensão (perfil Vendedores) clique em **Atualizar** para a busca já
@@ -96,25 +99,22 @@ mexer no Apps Script e sem republicar** (o Web App lê a planilha ao vivo).
 
 ## Perfis e lojas
 
-Perfis disponíveis (escolhidos na primeira abertura):
+Há **dois setores**: **Vendas** e **Gestão**. Cada computador escolhe um perfil na primeira abertura.
 
-| Perfil | Enxerga | Age? |
-|---|---|---|
-| Vendedores — Rio Claro / Araras | só a sua loja | cria pedidos (pode alternar de loja) |
-| Estoque — Lucas Rio Claro / Lucas Araras | só a sua loja | responde |
-| Gerência Araras (Reginaldo) | só Araras | leitura |
-| Gestão geral (você) | Rio Claro + Araras | responde tudo (fecha com fornecedor) |
+| Setor | Perfil | Enxerga | Age? |
+|---|---|---|---|
+| **Vendas** | Vendedores — Rio Claro / Araras | só a sua loja | cria pedidos (pode alternar de loja) |
+| **Gestão** | Estoque — Lucas Rio Claro / Lucas Araras | só a sua loja | responde |
+| **Gestão** | Gestão geral — Ciça / Marcelo / Jeovana / Reginaldo | Rio Claro + Araras | vê tudo, consulta produto e responde (fecha com fornecedor) |
 
 - Só os **Vendedores** podem alternar de loja (CT Rio Claro ⇄ CT Araras) pelo botão no topo — é
   troca de *loja*, não de *perfil*.
-- A **Gestão geral** vê as duas lojas juntas, com etiqueta da loja em cada item, e um **resumo de
-  7 dias** (volume, tempo médio de resposta, atrasados).
+- A **Gestão geral** (Ciça, Marcelo, Jeovana e Reginaldo) vê as duas lojas juntas, com etiqueta da
+  loja em cada item, um **resumo de 7 dias** (volume, tempo médio de resposta, atrasados) e a
+  **Consulta de produto** (situação atual por loja) — todos com o mesmo acesso.
 - **"Registrar pedido em aberto"** (opcional): lançar um pedido já feito que não veio de uma
   solicitação (ex.: os que estão no Trello/PDF), para ele aparecer na "situação atual" do
-  produto. Disponível para a **Gestão geral** e para as **gerências** (Jeovana e Reginaldo) —
-  a gerência lança só na sua loja.
-- **Gerência** (Jeovana em Rio Claro, Reginaldo em Araras) vê a sua loja em leitura; a única
-  ação que executa é registrar pedido em aberto.
+  produto. Disponível para toda a **Gestão geral**.
 - Notificações e contadores respeitam a loja de cada computador.
 
 ## Identificação de usuário

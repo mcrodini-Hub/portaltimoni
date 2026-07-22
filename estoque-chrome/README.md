@@ -1,4 +1,4 @@
-# Estoque — Portal Timoni
+# Estoque CT — Portal Timoni
 
 Extensão Chrome (Manifest V3) para a Casa Timoni, com **duas lojas**: Rio Claro e Araras.
 Cada necessidade nasce carimbada com a loja de quem pediu, e cada perfil enxerga só a sua

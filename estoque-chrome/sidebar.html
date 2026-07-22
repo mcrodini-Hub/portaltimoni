@@ -34,7 +34,7 @@
         <p id="config-status" class="hint-text"></p>
         <div class="divider-config"></div>
         <label class="check-row"><input type="checkbox" id="chk-notif"> Receber notificações neste computador</label>
-        <p class="hint-text" style="margin-top:0;">Avisa quando entra pedido do balcão ou o Lucas responde, mesmo com o painel fechado (enquanto o Chrome estiver aberto).</p>
+        <p class="hint-text" style="margin-top:0;">Avisa quando entra pedido de um vendedor ou o estoque responde, mesmo com o painel fechado (enquanto o Chrome estiver aberto).</p>
         <div class="divider-config"></div>
         <p class="hint-text" style="margin-top:0;">Perfil deste computador: <strong id="perfil-atual-config">--</strong>. No dia a dia o perfil é fixo; troque só para reconfigurar a máquina ou testar.</p>
         <button id="btn-trocar-perfil" class="btn btn-secondary btn-small">Trocar perfil deste computador</button>
@@ -45,11 +45,11 @@
     <section id="tela-papel" class="step" hidden>
       <p class="step-label">Qual é o perfil deste computador?</p>
       <div class="step-card role-card">
-        <p class="hint-text" style="margin-top:0;">O perfil fica fixo no dia a dia (troca só pelo ⚙). O Balcão pode alternar de loja depois.</p>
+        <p class="hint-text" style="margin-top:0;">O perfil fica fixo no dia a dia (troca só pelo ⚙). Vendedores podem alternar de loja depois.</p>
 
-        <p class="role-group">Balcão</p>
-        <button class="btn btn-primary js-papel" data-papel="balcao" data-unidade="rio_claro">Balcão — Rio Claro</button>
-        <button class="btn btn-primary js-papel" data-papel="balcao" data-unidade="araras">Balcão — Araras</button>
+        <p class="role-group">Vendedores</p>
+        <button class="btn btn-primary js-papel" data-papel="balcao" data-unidade="rio_claro">Vendedores — Rio Claro</button>
+        <button class="btn btn-primary js-papel" data-papel="balcao" data-unidade="araras">Vendedores — Araras</button>
 
         <p class="role-group">Estoque</p>
         <button class="btn btn-secondary js-papel" data-papel="estoque" data-unidade="rio_claro">Estoque — Lucas Rio Claro</button>
@@ -121,7 +121,7 @@
           <span class="count-text" id="pendentes-count">0</span>
         </div>
         <div class="step-card">
-          <p id="pendentes-vazio" class="placeholder-text">Nenhum pedido do balcão no momento.</p>
+          <p id="pendentes-vazio" class="placeholder-text">Nenhum pedido de vendedor no momento.</p>
           <ul id="lista-pendentes" class="need-list"></ul>
         </div>
       </section>

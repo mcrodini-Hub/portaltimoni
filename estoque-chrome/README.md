@@ -4,7 +4,7 @@ Extensão Chrome (Manifest V3) para a Casa Timoni, com **duas lojas**: Rio Claro
 Cada necessidade nasce carimbada com a loja de quem pediu, e cada perfil enxerga só a sua
 loja (a gestão geral vê as duas). Cobre dois módulos:
 
-- **Módulo 1 — Consulta de Produtos (Balcão)**: busca por código ou descrição, e permite
+- **Módulo 1 — Consulta de Produtos (Vendedores)**: busca por código ou descrição, e permite
   informar uma necessidade de compra para o produto selecionado, marcando se **tem cliente
   aguardando**. Sem valores, sem anexos.
 - **Acompanhamento (gestão)**: um terceiro perfil que mostra a troca completa entre balcão e
@@ -12,7 +12,7 @@ loja (a gestão geral vê as duas). Cobre dois módulos:
   topo. É **ativo**: as duas primeiras seções têm os mesmos botões de resposta do estoque, então
   a gestão pode intervir e lançar pedido — inclusive na ausência do Lucas. "Respondidos" é
   histórico (leitura). Para quem fecha com o fornecedor e precisa acompanhar e agir.
-- **Módulo 2 — Central de Necessidades (Estoque/Lucas)**: recebe as solicitações do balcão
+- **Módulo 2 — Central de Necessidades (Estoque/Lucas)**: recebe as solicitações dos vendedores
   ("Aguardando você") e responde de três formas:
   - **Recebido! Vou providenciar** — o item vai para a lista de necessidade de compra;
   - **Já tem pedido** — informa nº do pedido e previsão de entrega, que volta para quem
@@ -74,19 +74,19 @@ Perfis disponíveis (escolhidos na primeira abertura):
 
 | Perfil | Enxerga | Age? |
 |---|---|---|
-| Balcão — Rio Claro / Araras | só a sua loja | cria pedidos (pode alternar de loja) |
+| Vendedores — Rio Claro / Araras | só a sua loja | cria pedidos (pode alternar de loja) |
 | Estoque — Lucas Rio Claro / Lucas Araras | só a sua loja | responde |
 | Gerência Araras (Reginaldo) | só Araras | leitura |
 | Gestão geral (você) | Rio Claro + Araras | responde tudo (fecha com fornecedor) |
 
-- Só o **Balcão** pode alternar de loja (CT Rio Claro ⇄ CT Araras) pelo botão no topo — é
+- Só os **Vendedores** podem alternar de loja (CT Rio Claro ⇄ CT Araras) pelo botão no topo — é
   troca de *loja*, não de *perfil*.
 - A **Gestão geral** vê as duas lojas juntas, com etiqueta da loja em cada item.
 - Notificações e contadores respeitam a loja de cada computador.
 
 ## Identificação de usuário
 
-Não há login. Cada computador é configurado uma única vez com um perfil (Balcão, Estoque,
+Não há login. Cada computador é configurado uma única vez com um perfil (Vendedores, Estoque,
 Gerência ou Gestão) e a sua loja na primeira abertura da sidebar — fica salvo localmente. No dia a dia o perfil
 é **fixo**: a troca não fica na barra de cima, e sim dentro do **⚙** (configuração da máquina),
 com confirmação. Assim o vendedor não muda de perfil sozinho; a troca serve só para
@@ -95,7 +95,7 @@ reconfigurar a máquina ou para testar os perfis.
 ## Notificações
 
 No painel ⚙ há a opção **"Receber notificações neste computador"**. Ligada, a extensão avisa
-(notificação do Chrome) quando entra um pedido do balcão ou quando o estoque responde —
+(notificação do Chrome) quando entra um pedido de um vendedor ou quando o estoque responde —
 mesmo com o painel fechado, enquanto o Chrome estiver aberto. Útil para o perfil de
 Acompanhamento seguir a troca sem ficar de olho na tela. A verificação é periódica
 (~1 min), reaproveitando a mesma fila (planilha no modo compartilhado).
@@ -145,7 +145,5 @@ estoque-chrome/
 
 - Sincronização em tempo real: hoje o modo planilha usa polling leve (recarrega a cada
   ~15s) e um botão "Atualizar". Suficiente para o volume atual.
-- Módulo 2, segunda etapa: quando existirem outras lojas além de Rio Claro, adicionar
-  seleção de unidade e validador responsável por unidade (Lucas Rio Claro / Lucas Araras).
-- Consultar/exibir previsão de chegada já vinculada a um pedido existente diretamente no
-  balcão (Módulo 1) a partir de uma aba de pedidos na planilha.
+- Consultar/exibir previsão de chegada já vinculada a um pedido existente diretamente para
+  o vendedor (Módulo 1) a partir de uma aba de pedidos na planilha.

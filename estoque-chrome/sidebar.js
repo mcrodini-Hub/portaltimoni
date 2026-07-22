@@ -143,7 +143,7 @@
 
   function rotuloPerfil(papel, unidade) {
     const U = EstoqueStore.UNIDADE_LABEL;
-    if (papel === ROLES.BALCAO) return 'Balcão';
+    if (papel === ROLES.BALCAO) return 'Vendedores';
     if (papel === ROLES.ESTOQUE) return `Estoque · ${U[unidade]}`;
     if (papel === ROLES.ACOMPANHAMENTO) {
       return unidade === EstoqueStore.UNIDADES.TODAS ? 'Gestão geral' : `Gerência · ${U[unidade]}`;
@@ -533,7 +533,7 @@
       <input type="text" class="text-input" placeholder="Nº do pedido" id="input-numero-${n.id}">
       <input type="date" class="text-input" id="input-previsao-${n.id}">
       <div class="pedido-form-actions">
-        <button class="btn btn-primary btn-small" data-action="confirmar-pedido" data-id="${n.id}">Responder ao balcão</button>
+        <button class="btn btn-primary btn-small" data-action="confirmar-pedido" data-id="${n.id}">Responder ao vendedor</button>
         <button class="btn btn-secondary btn-small" data-action="cancelar-pedido" data-id="${n.id}">Cancelar</button>
       </div>
     `;
@@ -545,7 +545,7 @@
     obsForm.innerHTML = `
       <input type="text" class="text-input" placeholder="Ex.: tem no depósito, pode buscar / não vamos repor por ora" id="input-obs-${n.id}">
       <div class="pedido-form-actions">
-        <button class="btn btn-primary btn-small" data-action="observacao-enviar" data-id="${n.id}">Enviar ao balcão</button>
+        <button class="btn btn-primary btn-small" data-action="observacao-enviar" data-id="${n.id}">Enviar ao vendedor</button>
         <button class="btn btn-secondary btn-small" data-action="observacao-cancelar" data-id="${n.id}">Cancelar</button>
       </div>
     `;
@@ -695,7 +695,7 @@
       try {
         await EstoqueStore.responderPedidoExistente(id, { numeroPedido, previsaoEntrega });
         showError(null);
-        showToast('Respondido ao balcão.');
+        showToast('Respondido ao vendedor.');
         await recarregarVisaoAtual();
       } catch (e) {
         showError(e.message);
@@ -710,7 +710,7 @@
       try {
         await EstoqueStore.responderObservacao(id, { observacao });
         showError(null);
-        showToast('Respondido ao balcão.');
+        showToast('Respondido ao vendedor.');
         await recarregarVisaoAtual();
       } catch (e) {
         showError(e.message);

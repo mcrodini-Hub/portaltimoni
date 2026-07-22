@@ -77,7 +77,14 @@
     acompListaAcaminho: document.getElementById('acomp-lista-acaminho'),
     acompAcaminhoVazio: document.getElementById('acomp-acaminho-vazio'),
     acompListaRespondidos: document.getElementById('acomp-lista-respondidos'),
-    acompRespondidosVazio: document.getElementById('acomp-respondidos-vazio')
+    acompRespondidosVazio: document.getElementById('acomp-respondidos-vazio'),
+    inputBuscaAcomp: document.getElementById('input-busca-acomp'),
+    listaResultadosAcomp: document.getElementById('lista-resultados-acomp'),
+    buscaVazioAcomp: document.getElementById('busca-vazio-acomp'),
+    selAcompWrap: document.getElementById('sel-acomp-wrap'),
+    selAcompCodigo: document.getElementById('sel-acomp-codigo'),
+    selAcompDescricao: document.getElementById('sel-acomp-descricao'),
+    selExistenteAcomp: document.getElementById('sel-existente-acomp')
   };
 
   let produtoSelecionado = null;
@@ -304,6 +311,12 @@
       el.listaSolicitacoes, el.listaPendentes, el.listaCompra, el.listaAcaminho,
       el.acompListaPendentes, el.acompListaAnotados, el.acompListaAcaminho, el.acompListaRespondidos
     ].forEach((ul) => { if (ul) ul.innerHTML = ''; });
+    // Limpa a consulta de produto da Gestão.
+    if (el.inputBuscaAcomp) el.inputBuscaAcomp.value = '';
+    if (el.listaResultadosAcomp) { el.listaResultadosAcomp.innerHTML = ''; el.listaResultadosAcomp.hidden = true; }
+    if (el.buscaVazioAcomp) el.buscaVazioAcomp.hidden = true;
+    if (el.selAcompWrap) el.selAcompWrap.hidden = true;
+    if (el.selExistenteAcomp) { el.selExistenteAcomp.hidden = true; el.selExistenteAcomp.innerHTML = ''; }
   }
 
   async function applyRole(papel, unidade) {
@@ -519,6 +532,94 @@
       el.btnInformarNecessidade.disabled = false;
     }
   });
+
+  // ---------------------------------------------------------------------
+  // Consultar produto na Gestão — só leitura da situação atual (sem pedir).
+  // ---------------------------------------------------------------------
+  let buscaAcompTimer = null;
+  if (el.inputBuscaAcomp) {
+    el.inputBuscaAcomp.addEventListener('input', () => {
+      clearTimeout(buscaAcompTimer);
+      buscaAcompTimer = setTimeout(() => executarBuscaAcomp(el.inputBuscaAcomp.value), 200);
+    });
+  }
+
+  async function executarBuscaAcomp(termo) {
+    el.listaResultadosAcomp.innerHTML = '';
+    if (!termo.trim()) {
+      el.listaResultadosAcomp.hidden = true;
+      el.buscaVazioAcomp.hidden = true;
+      return;
+    }
+    let resultados;
+    try {
+      resultados = await EstoqueStore.buscarProdutos(termo);
+    } catch (e) {
+      showError(e.message);
+      return;
+    }
+    if (resultados.length === 0) {
+      el.listaResultadosAcomp.hidden = true;
+      el.buscaVazioAcomp.hidden = false;
+      return;
+    }
+    el.buscaVazioAcomp.hidden = true;
+    el.listaResultadosAcomp.hidden = false;
+    resultados.forEach((produto) => {
+      const li = document.createElement('li');
+      li.innerHTML = `<span class="codigo"></span><span class="desc"></span>`;
+      li.querySelector('.codigo').textContent = produto.codigo;
+      li.querySelector('.desc').textContent = produto.descricao;
+      li.addEventListener('click', () => selecionarProdutoAcomp(produto));
+      el.listaResultadosAcomp.appendChild(li);
+    });
+  }
+
+  async function selecionarProdutoAcomp(produto) {
+    el.selAcompCodigo.textContent = produto.codigo;
+    el.selAcompDescricao.textContent = produto.descricao;
+    el.selAcompWrap.hidden = false;
+    el.selExistenteAcomp.innerHTML = '';
+    el.selExistenteAcomp.hidden = true;
+    el.listaResultadosAcomp.hidden = true;
+    showError(null);
+
+    const rotulo = document.createElement('span');
+    rotulo.className = 'rotulo';
+    rotulo.textContent = 'Situação atual deste produto';
+    el.selExistenteAcomp.appendChild(rotulo);
+
+    try {
+      const necessidades = filtrarUnidade(await EstoqueStore.getNecessidades());
+      const doProduto = necessidades.filter((n) => n.codigo === produto.codigo);
+      if (doProduto.length > 0) {
+        // Uma linha por loja, com a situação mais recente daquela loja.
+        const porUnidade = {};
+        doProduto.forEach((n) => {
+          const u = n.unidade || EstoqueStore.UNIDADES.RIO_CLARO;
+          if (!porUnidade[u] || new Date(n.criadoEm).getTime() > new Date(porUnidade[u].criadoEm).getTime()) {
+            porUnidade[u] = n;
+          }
+        });
+        Object.keys(porUnidade).forEach((u) => {
+          const linha = document.createElement('span');
+          linha.className = 'linha';
+          const prefixo = unidadeAtual === EstoqueStore.UNIDADES.TODAS ? `${EstoqueStore.UNIDADE_LABEL[u]}: ` : '';
+          linha.textContent = prefixo + statusLabel(porUnidade[u]);
+          el.selExistenteAcomp.appendChild(linha);
+        });
+      } else {
+        const linha = document.createElement('span');
+        linha.className = 'linha';
+        linha.textContent = 'Sem solicitação ou pedido em aberto.';
+        el.selExistenteAcomp.appendChild(linha);
+      }
+      el.selExistenteAcomp.hidden = false;
+    } catch (e) {
+      // Consulta é um extra; se falhar, não bloqueia o resto da tela.
+      el.selExistenteAcomp.hidden = true;
+    }
+  }
 
   function statusLabel(n) {
     if (n.status === STATUS.PENDENTE) return 'Enviado ao estoque — aguardando retorno';

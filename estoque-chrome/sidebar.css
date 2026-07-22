@@ -380,6 +380,7 @@ select.text-input { appearance: auto; background: #fff; cursor: pointer; }
   line-height: 1.4;
 }
 .existente-box .rotulo { display: block; font-weight: 700; color: var(--blue); margin-bottom: 2px; }
+.existente-box .linha { display: block; }
 
 .toast {
   background: #e8f6ec;

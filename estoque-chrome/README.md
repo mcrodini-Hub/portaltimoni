@@ -76,6 +76,24 @@ A extensão escolhe o modo sozinha conforme haja ou não uma planilha configurad
 5. Na extensão, clique no **⚙** (topo) e cole a URL em "Planilha compartilhada", depois
    **Salvar e testar**. Faça isso em cada computador (balcão e estoque) uma vez.
 
+> Atalho: em [`apps-script/planilha/`](apps-script/planilha/) há uma planilha pronta
+> (`Estoque-Portal-Timoni.xlsx`, com as 3 abas e nomes já preenchidos) e o passo a passo
+> completo em [`PLANILHA.md`](apps-script/planilha/PLANILHA.md).
+
+## Atualizar produtos e vendedores
+
+O catálogo e a lista de nomes ficam **na planilha** — atualizar é só editar as abas, **sem
+mexer no Apps Script e sem republicar** (o Web App lê a planilha ao vivo).
+
+- **Produtos** (aba `Produtos`): mantenha a **linha 1** (`codigo` | `descricao`) intacta. A partir
+  da linha 2, coluna **A = código** (único) e coluna **B = descrição**. Pode colar em bloco de
+  outra planilha. Quanto mais completa a descrição, mais fácil achar na busca (que casa com
+  **código ou qualquer palavra da descrição**).
+- **Vendedores** (aba `Vendedores`): coluna **A = nome**, coluna **B = unidade**
+  (`rio_claro`, `araras`, ou em branco = aparece nas duas lojas).
+- Depois de editar, na extensão (perfil Vendedores) clique em **Atualizar** para a busca já
+  usar a lista nova. A aba `Necessidades` é preenchida pela própria extensão — não edite à mão.
+
 ## Perfis e lojas
 
 Perfis disponíveis (escolhidos na primeira abertura):
@@ -120,8 +138,27 @@ Acompanhamento seguir a troca sem ficar de olho na tela. A verificação é peri
 1. Abra `chrome://extensions/`.
 2. Ative o **Modo de desenvolvedor**.
 3. Clique em **Carregar sem compactação** e selecione a pasta `estoque-chrome/`.
-4. Clique no ícone da extensão — a sidebar abre. Na primeira vez, escolha o papel deste
-   computador (Balcão ou Estoque) e, se for usar o modo planilha, configure a URL no ⚙.
+4. Clique no ícone da extensão — a sidebar abre. Na primeira vez, escolha o perfil deste
+   computador (Vendedores, Estoque, Gerência ou Gestão) e, se for usar o modo planilha,
+   configure a URL no ⚙.
+
+### Instalar nas outras máquinas
+
+A extensão é carregada "sem compactação", então em **cada** computador:
+
+1. **Leve a pasta** `estoque-chrome/` para a máquina: no GitHub, branch de trabalho →
+   **Code → Download ZIP** e descompacte (ou copie a pasta por pen drive / rede).
+2. `chrome://extensions/` → **Modo de desenvolvedor** → **Carregar sem compactação** →
+   selecione a pasta **`estoque-chrome`**.
+3. Escolha **o perfil daquela máquina** na primeira abertura.
+4. **⚙ → cole a mesma URL `/exec`** (a mesma em todas as máquinas — é o que liga todas à
+   planilha) → **Salvar e testar** até dar "conexão OK".
+5. Opcional: marque **"Receber notificações neste computador"** no ⚙.
+
+> ⚠️ **Não apague nem mova** a pasta `estoque-chrome/` depois de carregar — o Chrome lê os
+> arquivos daquele local. Deixe numa pasta fixa (ex.: `Documentos/EstoqueCT`). Para atualizar
+> a extensão numa máquina, substitua os arquivos da pasta e clique em **recarregar (↻)** no
+> `chrome://extensions/`.
 
 ## Teste rápido (modo local, sem planilha)
 

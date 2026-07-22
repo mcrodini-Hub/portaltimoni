@@ -27,8 +27,10 @@
   root.EstoqueMockVendedores = [
     { nome: 'Adriel', unidade: 'rio_claro' },
     { nome: 'Carina', unidade: 'rio_claro' },
+    { nome: 'Ciça', unidade: 'rio_claro' },
     { nome: 'Davi', unidade: 'rio_claro' },
     { nome: 'Jaqueline', unidade: 'rio_claro' },
+    { nome: 'Jeovana', unidade: 'rio_claro' },
     { nome: 'João', unidade: 'rio_claro' },
     { nome: 'José Roberto', unidade: 'rio_claro' },
     { nome: 'Rafaela', unidade: 'rio_claro' },
@@ -37,6 +39,7 @@
     { nome: 'Lyra', unidade: 'araras' },
     { nome: 'Carolina', unidade: 'araras' },
     { nome: 'Paulo', unidade: 'araras' },
+    { nome: 'Reginaldo', unidade: 'araras' },
     { nome: 'Reinaldo', unidade: 'araras' }
   ];
 })(self);

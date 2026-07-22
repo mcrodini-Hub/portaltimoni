@@ -239,6 +239,8 @@ h1 { font-size: 18px; margin: 0 0 4px; }
 .text-input:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(44,75,224,0.12); }
 
 select.text-input { appearance: auto; background: #fff; cursor: pointer; }
+.qtd-row { display: grid; grid-template-columns: 1fr 96px; gap: 8px; }
+.qtd-row .text-input { margin-bottom: 10px; }
 .vendedor-row { display: block; font-size: 11px; font-weight: 700; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 0.03em; margin: 0 0 4px 2px; }
 
 .chip-vendedor {

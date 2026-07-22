@@ -94,7 +94,25 @@
             <strong id="sel-codigo">--</strong> — <span id="sel-descricao">--</span>
           </p>
           <p id="sel-existente" class="existente-box" hidden></p>
-          <input type="text" id="input-quantidade" class="text-input" placeholder="Quantidade (opcional)">
+          <div class="qtd-row">
+            <input type="text" id="input-quantidade" class="text-input" placeholder="Quantidade (opcional)" inputmode="decimal">
+            <select id="select-unidade-medida" class="text-input" title="Unidade de medida" aria-label="Unidade de medida">
+              <option value="un">un</option>
+              <option value="pç">pç</option>
+              <option value="m">m</option>
+              <option value="cm">cm</option>
+              <option value="mm">mm</option>
+              <option value="kg">kg</option>
+              <option value="g">g</option>
+              <option value="L">L</option>
+              <option value="cx">cx</option>
+              <option value="pct">pct</option>
+              <option value="rolo">rolo</option>
+              <option value="par">par</option>
+              <option value="jogo">jogo</option>
+              <option value="barra">barra</option>
+            </select>
+          </div>
           <input type="text" id="input-nota" class="text-input" placeholder="Observação p/ o estoque (opcional)">
           <label class="check-row"><input type="checkbox" id="chk-cliente"> Tem cliente aguardando</label>
           <button id="btn-informar-necessidade" class="btn btn-primary">Pedir ao estoque</button>

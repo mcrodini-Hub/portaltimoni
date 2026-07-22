@@ -38,6 +38,7 @@
     selDescricao: document.getElementById('sel-descricao'),
     selExistente: document.getElementById('sel-existente'),
     inputQuantidade: document.getElementById('input-quantidade'),
+    selectUnidadeMedida: document.getElementById('select-unidade-medida'),
     inputNota: document.getElementById('input-nota'),
     chkCliente: document.getElementById('chk-cliente'),
     btnInformarNecessidade: document.getElementById('btn-informar-necessidade'),
@@ -491,11 +492,13 @@
     el.btnInformarNecessidade.disabled = true;
     try {
       const comCliente = el.chkCliente.checked;
+      const qtdVal = el.inputQuantidade.value.trim();
+      const quantidade = qtdVal ? `${qtdVal} ${el.selectUnidadeMedida.value}` : '';
       await EstoqueStore.criarNecessidade(produtoSelecionado, {
         clienteAguardando: comCliente,
         unidade: unidadeAtual,
         vendedor,
-        quantidade: el.inputQuantidade.value.trim(),
+        quantidade,
         notaVendedor: el.inputNota.value.trim()
       });
       showError(null);
@@ -505,6 +508,7 @@
       el.selExistente.hidden = true;
       el.chkCliente.checked = false;
       el.inputQuantidade.value = '';
+      el.selectUnidadeMedida.value = 'un';
       el.inputNota.value = '';
       el.inputBusca.value = '';
       el.listaResultados.hidden = true;

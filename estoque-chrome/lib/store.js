@@ -13,6 +13,7 @@
 (function (root) {
   const KEYS = Object.freeze({
     ROLE: 'estoqueRole',
+    UNIDADE: 'estoqueUnidade',
     WEBAPP_URL: 'estoqueWebAppUrl',
     PRODUTOS_CACHE: 'estoqueProdutosCache',
     NECESSIDADES: 'estoqueNecessidadesLocal',
@@ -20,6 +21,17 @@
   });
 
   const ROLES = Object.freeze({ BALCAO: 'balcao', ESTOQUE: 'estoque', ACOMPANHAMENTO: 'acompanhamento' });
+
+  // Unidades (lojas). 'todas' só vale para a gestão geral, que enxerga as duas.
+  const UNIDADES = Object.freeze({ RIO_CLARO: 'rio_claro', ARARAS: 'araras', TODAS: 'todas' });
+  const UNIDADE_LABEL = Object.freeze({ rio_claro: 'Rio Claro', araras: 'Araras', todas: 'geral' });
+
+  // Gestão geral (acompanhamento + todas) age; gerência de unidade (acompanhamento + 1 loja)
+  // é só leitura. Balcão e estoque sempre agem, dentro da sua unidade.
+  function podeAgir(papel, unidade) {
+    if (papel === ROLES.ACOMPANHAMENTO) return unidade === UNIDADES.TODAS;
+    return true;
+  }
 
   const STATUS = Object.freeze({
     PENDENTE: 'pendente',
@@ -55,6 +67,14 @@
       throw new Error(`Papel inválido: ${role}`);
     }
     return set(KEYS.ROLE, role);
+  }
+
+  async function getUnidade() { return get(KEYS.UNIDADE, UNIDADES.RIO_CLARO); }
+  async function setUnidade(unidade) {
+    if (unidade !== UNIDADES.RIO_CLARO && unidade !== UNIDADES.ARARAS && unidade !== UNIDADES.TODAS) {
+      throw new Error(`Unidade inválida: ${unidade}`);
+    }
+    return set(KEYS.UNIDADE, unidade);
   }
 
   async function getNotificacoes() { return get(KEYS.NOTIFICACOES, false); }
@@ -186,15 +206,16 @@
     if (!produto || !produto.codigo) throw new Error('Selecione um produto antes de informar a necessidade.');
     invalidarNecessidades();
     const querCliente = !!(opts && opts.clienteAguardando);
+    const unidade = (opts && opts.unidade) || UNIDADES.RIO_CLARO;
 
     if (await isRemote()) {
-      const data = await apiGet({ action: 'criar', codigo: produto.codigo, cliente: querCliente ? '1' : '0' });
+      const data = await apiGet({ action: 'criar', codigo: produto.codigo, cliente: querCliente ? '1' : '0', unidade });
       return data.necessidade;
     }
 
-    // Modo local
+    // Modo local. Dedup por produto + unidade (mesmo item em lojas diferentes são pedidos distintos).
     const necessidades = await get(KEYS.NECESSIDADES, []);
-    const jaPendente = necessidades.find((n) => n.codigo === produto.codigo && n.status === STATUS.PENDENTE);
+    const jaPendente = necessidades.find((n) => n.codigo === produto.codigo && (n.unidade || UNIDADES.RIO_CLARO) === unidade && n.status === STATUS.PENDENTE);
     if (jaPendente) {
       // Se a nova solicitação marca cliente aguardando e a existente não, promove.
       if (querCliente && !jaPendente.clienteAguardando) {
@@ -208,6 +229,7 @@
       codigo: produto.codigo,
       descricao: produto.descricao,
       status: STATUS.PENDENTE,
+      unidade,
       criadoEm: new Date().toISOString(),
       respondidoEm: null,
       numeroPedido: null,
@@ -277,8 +299,13 @@
     KEYS,
     ROLES,
     STATUS,
+    UNIDADES,
+    UNIDADE_LABEL,
+    podeAgir,
     getRole,
     setRole,
+    getUnidade,
+    setUnidade,
     getNotificacoes,
     setNotificacoes,
     getWebAppUrl,

@@ -8,11 +8,9 @@
 
   const el = {
     telaPapel: document.getElementById('tela-papel'),
-    btnPapelBalcao: document.getElementById('btn-papel-balcao'),
-    btnPapelEstoque: document.getElementById('btn-papel-estoque'),
-    btnPapelAcompanhamento: document.getElementById('btn-papel-acompanhamento'),
     rolePillWrap: document.getElementById('role-pill-wrap'),
     rolePill: document.getElementById('role-pill'),
+    btnUnidadeBalcao: document.getElementById('btn-unidade-balcao'),
     btnTrocarPerfil: document.getElementById('btn-trocar-perfil'),
     btnConfig: document.getElementById('btn-config'),
     errorBanner: document.getElementById('error-banner'),
@@ -56,6 +54,7 @@
     acompClientes: document.getElementById('acomp-clientes'),
     acompListaPendentes: document.getElementById('acomp-lista-pendentes'),
     acompPendentesVazio: document.getElementById('acomp-pendentes-vazio'),
+    acompPendentesHint: document.getElementById('acomp-pendentes-hint'),
     acompListaAnotados: document.getElementById('acomp-lista-anotados'),
     acompAnotadosVazio: document.getElementById('acomp-anotados-vazio'),
     acompListaRespondidos: document.getElementById('acomp-lista-respondidos'),
@@ -64,6 +63,8 @@
 
   let produtoSelecionado = null;
   let roleAtual = null;
+  let unidadeAtual = EstoqueStore.UNIDADES.RIO_CLARO;
+  let podeAgirAtual = true;
   let pollTimer = null;
 
   function showError(msg) {
@@ -127,6 +128,29 @@
     return span;
   }
 
+  function chipUnidade(n) {
+    const span = document.createElement('span');
+    span.className = 'chip-unidade';
+    span.textContent = EstoqueStore.UNIDADE_LABEL[n.unidade || EstoqueStore.UNIDADES.RIO_CLARO];
+    return span;
+  }
+
+  // Filtra a lista pela unidade do perfil atual. Gestão geral ('todas') vê tudo.
+  function filtrarUnidade(lista) {
+    if (unidadeAtual === EstoqueStore.UNIDADES.TODAS) return lista;
+    return lista.filter((n) => (n.unidade || EstoqueStore.UNIDADES.RIO_CLARO) === unidadeAtual);
+  }
+
+  function rotuloPerfil(papel, unidade) {
+    const U = EstoqueStore.UNIDADE_LABEL;
+    if (papel === ROLES.BALCAO) return 'Balcão';
+    if (papel === ROLES.ESTOQUE) return `Estoque · ${U[unidade]}`;
+    if (papel === ROLES.ACOMPANHAMENTO) {
+      return unidade === EstoqueStore.UNIDADES.TODAS ? 'Gestão geral' : `Gerência · ${U[unidade]}`;
+    }
+    return papel;
+  }
+
   // ---------------------------------------------------------------------
   // Status de conexão (planilha x local)
   // ---------------------------------------------------------------------
@@ -148,7 +172,7 @@
     if (!el.telaConfig.hidden) {
       el.inputWebappUrl.value = await EstoqueStore.getWebAppUrl();
       el.chkNotif.checked = await EstoqueStore.getNotificacoes();
-      el.perfilAtualConfig.textContent = PILL_LABEL[roleAtual] || '--';
+      el.perfilAtualConfig.textContent = roleAtual ? rotuloPerfil(roleAtual, unidadeAtual) : '--';
       el.configStatus.textContent = '';
       el.configStatus.className = 'hint-text';
     }
@@ -201,19 +225,18 @@
   // ---------------------------------------------------------------------
   async function initRole() {
     await atualizarStatusConexao();
-    const role = await EstoqueStore.getRole();
-    if (!role) {
+    const papel = await EstoqueStore.getRole();
+    if (!papel) {
       el.telaPapel.hidden = false;
       return;
     }
-    applyRole(role);
+    const unidade = await EstoqueStore.getUnidade();
+    applyRole(papel, unidade);
   }
 
-  const PILL_LABEL = {
-    [ROLES.BALCAO]: 'Balcão',
-    [ROLES.ESTOQUE]: 'Estoque (Lucas)',
-    [ROLES.ACOMPANHAMENTO]: 'Acompanhamento'
-  };
+  function atualizarBotaoUnidade() {
+    el.btnUnidadeBalcao.textContent = `CT ${EstoqueStore.UNIDADE_LABEL[unidadeAtual]}`;
+  }
 
   // Estoque e Acompanhamento renderizam itens com os mesmos ids de formulário (form-<id> etc.).
   // Como só um perfil fica visível por vez, limpamos as listas dinâmicas ao trocar de perfil
@@ -225,33 +248,51 @@
     ].forEach((ul) => { if (ul) ul.innerHTML = ''; });
   }
 
-  async function applyRole(role) {
-    roleAtual = role;
+  async function applyRole(papel, unidade) {
+    roleAtual = papel;
+    unidadeAtual = unidade || EstoqueStore.UNIDADES.RIO_CLARO;
+    podeAgirAtual = EstoqueStore.podeAgir(papel, unidadeAtual);
     el.telaPapel.hidden = true;
     el.rolePillWrap.hidden = false;
-    el.rolePill.textContent = PILL_LABEL[role] || role;
-    el.viewBalcao.hidden = role !== ROLES.BALCAO;
-    el.viewEstoque.hidden = role !== ROLES.ESTOQUE;
-    el.viewAcompanhamento.hidden = role !== ROLES.ACOMPANHAMENTO;
+    el.rolePill.textContent = rotuloPerfil(papel, unidadeAtual);
+    // Só o balcão pode alternar de loja (troca de unidade, não de perfil).
+    el.btnUnidadeBalcao.hidden = papel !== ROLES.BALCAO;
+    if (papel === ROLES.BALCAO) atualizarBotaoUnidade();
+    el.viewBalcao.hidden = papel !== ROLES.BALCAO;
+    el.viewEstoque.hidden = papel !== ROLES.ESTOQUE;
+    el.viewAcompanhamento.hidden = papel !== ROLES.ACOMPANHAMENTO;
     limparListasDinamicas();
     await atualizarStatusConexao();
     await recarregarVisaoAtual();
     iniciarPolling();
   }
 
-  el.btnPapelBalcao.addEventListener('click', async () => {
-    await EstoqueStore.setRole(ROLES.BALCAO);
-    applyRole(ROLES.BALCAO);
+  // Seleção de perfil (uma vez, ou ao reconfigurar pelo ⚙).
+  document.querySelectorAll('.js-papel').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const papel = btn.dataset.papel;
+      const unidade = btn.dataset.unidade;
+      await EstoqueStore.setRole(papel);
+      await EstoqueStore.setUnidade(unidade);
+      applyRole(papel, unidade);
+    });
   });
 
-  el.btnPapelEstoque.addEventListener('click', async () => {
-    await EstoqueStore.setRole(ROLES.ESTOQUE);
-    applyRole(ROLES.ESTOQUE);
-  });
-
-  el.btnPapelAcompanhamento.addEventListener('click', async () => {
-    await EstoqueStore.setRole(ROLES.ACOMPANHAMENTO);
-    applyRole(ROLES.ACOMPANHAMENTO);
+  // Balcão alterna entre CT Rio Claro e CT Araras (só a unidade; o perfil segue Balcão).
+  el.btnUnidadeBalcao.addEventListener('click', async () => {
+    const nova = unidadeAtual === EstoqueStore.UNIDADES.RIO_CLARO
+      ? EstoqueStore.UNIDADES.ARARAS
+      : EstoqueStore.UNIDADES.RIO_CLARO;
+    await EstoqueStore.setUnidade(nova);
+    unidadeAtual = nova;
+    atualizarBotaoUnidade();
+    produtoSelecionado = null;
+    el.produtoSelecionadoWrap.hidden = true;
+    el.selExistente.hidden = true;
+    el.inputBusca.value = '';
+    el.listaResultados.hidden = true;
+    showToast(`Agora atendendo: CT ${EstoqueStore.UNIDADE_LABEL[nova]}`);
+    await renderSolicitacoes();
   });
 
   el.btnTrocarPerfil.addEventListener('click', () => {
@@ -263,6 +304,7 @@
     el.telaConfig.hidden = true;
     el.telaPapel.hidden = false;
     el.rolePillWrap.hidden = true;
+    el.btnUnidadeBalcao.hidden = true;
     el.viewBalcao.hidden = true;
     el.viewEstoque.hidden = true;
     el.viewAcompanhamento.hidden = true;
@@ -359,7 +401,7 @@
     // Situação atual: se este produto já tem solicitação/pedido, mostra na hora — evita pedir
     // duplicado e já responde "tem pedido? / previsão?" com os dados que a extensão tem.
     try {
-      const necessidades = await EstoqueStore.getNecessidades();
+      const necessidades = filtrarUnidade(await EstoqueStore.getNecessidades());
       const doProduto = necessidades
         .filter((n) => n.codigo === produto.codigo)
         .sort((a, b) => new Date(b.criadoEm).getTime() - new Date(a.criadoEm).getTime());
@@ -384,7 +426,7 @@
     el.btnInformarNecessidade.disabled = true;
     try {
       const comCliente = el.chkCliente.checked;
-      await EstoqueStore.criarNecessidade(produtoSelecionado, { clienteAguardando: comCliente });
+      await EstoqueStore.criarNecessidade(produtoSelecionado, { clienteAguardando: comCliente, unidade: unidadeAtual });
       showError(null);
       showToast(comCliente ? 'Enviado ao estoque (cliente aguardando).' : 'Enviado ao estoque.');
       produtoSelecionado = null;
@@ -416,7 +458,7 @@
   async function renderSolicitacoes() {
     let necessidades;
     try {
-      necessidades = ordenarPorCriadoDesc(await EstoqueStore.getNecessidades());
+      necessidades = ordenarPorCriadoDesc(filtrarUnidade(await EstoqueStore.getNecessidades()));
     } catch (e) {
       showError(e.message);
       return;
@@ -464,6 +506,7 @@
     desc.textContent = ` ${n.descricao}`;
     l1.append(cod, desc);
     if (n.clienteAguardando) l1.append(chipCliente());
+    if (unidadeAtual === EstoqueStore.UNIDADES.TODAS) l1.append(chipUnidade(n));
 
     const meta = document.createElement('p');
     meta.className = 'hint-text';
@@ -519,6 +562,7 @@
       showError(e.message);
       return;
     }
+    necessidades = filtrarUnidade(necessidades);
     const pendentes = ordenarFila(necessidades.filter((n) => n.status === STATUS.PENDENTE));
     const anotados = ordenarFila(necessidades.filter((n) => n.status === STATUS.EM_COMPRA));
 
@@ -547,6 +591,7 @@
     desc.textContent = n.descricao;
     linha1.append(cod, desc);
     if (n.clienteAguardando) linha1.append(chipCliente());
+    if (unidadeAtual === EstoqueStore.UNIDADES.TODAS) linha1.append(chipUnidade(n));
     const linha2 = document.createElement('div');
     linha2.className = 'status-line';
     linha2.textContent = statusLabel(n);
@@ -570,7 +615,7 @@
   async function renderAcompanhamento() {
     let necessidades;
     try {
-      necessidades = await EstoqueStore.getNecessidades();
+      necessidades = filtrarUnidade(await EstoqueStore.getNecessidades());
     } catch (e) {
       showError(e.message);
       return;
@@ -586,15 +631,19 @@
     el.acompRespondidos.textContent = String(respondidos.length);
     el.acompClientes.textContent = String(necessidades.filter((n) => n.clienteAguardando && (n.status === STATUS.PENDENTE || n.status === STATUS.EM_COMPRA)).length);
 
-    // As duas primeiras seções são acionáveis (mesmas respostas do estoque): a gestão pode
-    // intervir e responder, inclusive na ausência do Lucas. Respondidos é histórico (leitura).
+    // Gestão geral pode agir (mesmas respostas do estoque); gerência de unidade é só leitura.
+    el.acompPendentesHint.hidden = !podeAgirAtual;
+    const construir = podeAgirAtual
+      ? (n, novo) => buildNeedItem(n, { novo })
+      : (n) => buildItemLeitura(n, { meta: (x) => `Solicitado ${formatRelative(x.criadoEm)} · ${formatDateTime(x.criadoEm)}` });
+
     el.acompListaPendentes.innerHTML = '';
     el.acompPendentesVazio.hidden = pendentes.length > 0;
-    pendentes.forEach((n) => el.acompListaPendentes.appendChild(buildNeedItem(n, { novo: true })));
+    pendentes.forEach((n) => el.acompListaPendentes.appendChild(construir(n, true)));
 
     el.acompListaAnotados.innerHTML = '';
     el.acompAnotadosVazio.hidden = anotados.length > 0;
-    anotados.forEach((n) => el.acompListaAnotados.appendChild(buildNeedItem(n, { novo: false })));
+    anotados.forEach((n) => el.acompListaAnotados.appendChild(construir(n, false)));
 
     preencherLista(el.acompListaRespondidos, el.acompRespondidosVazio, respondidos, {
       meta: (n) => `Respondido ${formatRelative(n.respondidoEm)} · ${formatDateTime(n.respondidoEm)}`

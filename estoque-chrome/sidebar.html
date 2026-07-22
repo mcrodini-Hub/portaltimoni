@@ -14,6 +14,7 @@
     </div>
     <div class="topbar-actions" id="role-pill-wrap" hidden>
       <span class="role-pill" id="role-pill">--</span>
+      <button id="btn-unidade-balcao" class="unidade-toggle" hidden title="Trocar de loja">CT Rio Claro</button>
       <button id="btn-config" class="icon-btn" title="Configurar computador" aria-label="Configurar computador">⚙</button>
     </div>
   </header>
@@ -42,12 +43,21 @@
 
     <!-- SELEÇÃO DE PAPEL (primeiro uso neste computador) -->
     <section id="tela-papel" class="step" hidden>
-      <p class="step-label">Este computador é usado por qual equipe?</p>
+      <p class="step-label">Qual é o perfil deste computador?</p>
       <div class="step-card role-card">
-        <p class="hint-text" style="margin-top:0;">Cada computador fica configurado com um papel fixo. Dá para trocar depois em "Trocar", no topo.</p>
-        <button id="btn-papel-balcao" class="btn btn-primary">Balcão (vendedores)</button>
-        <button id="btn-papel-estoque" class="btn btn-secondary">Estoque (Lucas)</button>
-        <button id="btn-papel-acompanhamento" class="btn btn-secondary">Acompanhamento (gestão)</button>
+        <p class="hint-text" style="margin-top:0;">O perfil fica fixo no dia a dia (troca só pelo ⚙). O Balcão pode alternar de loja depois.</p>
+
+        <p class="role-group">Balcão</p>
+        <button class="btn btn-primary js-papel" data-papel="balcao" data-unidade="rio_claro">Balcão — Rio Claro</button>
+        <button class="btn btn-primary js-papel" data-papel="balcao" data-unidade="araras">Balcão — Araras</button>
+
+        <p class="role-group">Estoque</p>
+        <button class="btn btn-secondary js-papel" data-papel="estoque" data-unidade="rio_claro">Estoque — Lucas Rio Claro</button>
+        <button class="btn btn-secondary js-papel" data-papel="estoque" data-unidade="araras">Estoque — Lucas Araras</button>
+
+        <p class="role-group">Gestão</p>
+        <button class="btn btn-secondary js-papel" data-papel="acompanhamento" data-unidade="araras">Gerência Araras (Reginaldo) — leitura</button>
+        <button class="btn btn-secondary js-papel" data-papel="acompanhamento" data-unidade="todas">Gestão geral (você)</button>
       </div>
     </section>
 
@@ -147,14 +157,14 @@
       <section class="step">
         <p class="step-label">Aguardando o estoque</p>
         <div class="step-card">
-          <p class="hint-text" style="margin-top:0;">Você pode responder aqui — útil quando o Lucas não está.</p>
+          <p id="acomp-pendentes-hint" class="hint-text" style="margin-top:0;">Você pode responder aqui — útil quando o estoque não está.</p>
           <p id="acomp-pendentes-vazio" class="placeholder-text">Nada aguardando o estoque.</p>
           <ul id="acomp-lista-pendentes" class="need-list"></ul>
         </div>
       </section>
 
       <section class="step">
-        <p class="step-label">Aguardando retorno do Lucas</p>
+        <p class="step-label">Aguardando retorno do estoque</p>
         <div class="step-card">
           <p id="acomp-anotados-vazio" class="placeholder-text">Nada aguardando retorno.</p>
           <ul id="acomp-lista-anotados" class="need-list"></ul>

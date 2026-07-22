@@ -11,6 +11,14 @@ importScripts('lib/mock-produtos.js', 'lib/store.js');
 const POLL_ALARM = 'estoque-poll';
 const SNAP_KEY = 'estoqueSnapshot';        // último estado conhecido (id -> {status,...})
 const NOTIF_KEY = 'estoqueNotificacoes';   // notificações ligadas neste computador?
+const UNIDADE_KEY = 'estoqueUnidade';      // unidade deste computador (filtra as notificações)
+const UNIDADE_LABEL = { rio_claro: 'Rio Claro', araras: 'Araras', todas: 'geral' };
+
+// Considera só as necessidades da unidade deste computador ('todas' vê as duas).
+function filtrarUnidade(lista, unidade) {
+  if (!unidade || unidade === 'todas') return lista;
+  return lista.filter((n) => (n.unidade || 'rio_claro') === unidade);
+}
 
 chrome.runtime.onInstalled.addListener(() => {
   chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
@@ -53,7 +61,8 @@ function snapshotDaLista(lista) {
 
 async function resetSnapshot() {
   try {
-    const lista = await EstoqueStore.getNecessidades();
+    const unidade = await getLocal(UNIDADE_KEY, 'rio_claro');
+    const lista = filtrarUnidade(await EstoqueStore.getNecessidades(), unidade);
     await setLocal(SNAP_KEY, snapshotDaLista(lista));
   } catch (e) {
     // Sem conexão agora; o próximo ciclo tenta de novo.
@@ -64,9 +73,10 @@ async function verificarNovidades() {
   const ativo = await getLocal(NOTIF_KEY, false);
   if (!ativo) return;
 
+  const unidade = await getLocal(UNIDADE_KEY, 'rio_claro');
   let lista;
   try {
-    lista = await EstoqueStore.getNecessidades();
+    lista = filtrarUnidade(await EstoqueStore.getNecessidades(), unidade);
   } catch (e) {
     return; // sem conexão; tenta no próximo ciclo
   }
@@ -80,15 +90,18 @@ async function verificarNovidades() {
     return;
   }
 
+  // Quando o computador vê as duas lojas (gestão), inclui a loja na mensagem.
+  const sufixoUnidade = (n) => (unidade === 'todas' ? ` [${UNIDADE_LABEL[n.unidade || 'rio_claro']}]` : '');
+
   lista.forEach((n) => {
     const prev = anterior[n.id];
     if (!prev) {
       notificar(
         n.clienteAguardando ? 'Novo pedido do balcão · cliente aguardando' : 'Novo pedido do balcão',
-        `${n.codigo} — ${n.descricao}`
+        `${n.codigo} — ${n.descricao}${sufixoUnidade(n)}`
       );
     } else if (prev.status !== n.status) {
-      notificar(tituloMudanca(n), textoMudanca(n));
+      notificar(tituloMudanca(n), `${textoMudanca(n)}${sufixoUnidade(n)}`);
     }
   });
 

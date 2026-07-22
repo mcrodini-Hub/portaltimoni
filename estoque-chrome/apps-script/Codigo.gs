@@ -17,15 +17,16 @@
  *   Aba "Necessidades":
  *      A: id | B: codigo | C: descricao | D: status | E: criadoEm |
  *      F: respondidoEm | G: numeroPedido | H: previsaoEntrega | I: observacao |
- *      J: clienteAguardando
+ *      J: clienteAguardando | K: unidade
  *
  * status possíveis: "pendente", "em_compra", "pedido_existente", "observacao".
  * clienteAguardando: "true"/"false" — marca itens com cliente esperando (prioridade).
+ * unidade: "rio_claro" ou "araras" — loja de origem do pedido.
  */
 
 var ABA_PRODUTOS = 'Produtos';
 var ABA_NECESSIDADES = 'Necessidades';
-var COLUNAS_NEC = ['id', 'codigo', 'descricao', 'status', 'criadoEm', 'respondidoEm', 'numeroPedido', 'previsaoEntrega', 'observacao', 'clienteAguardando'];
+var COLUNAS_NEC = ['id', 'codigo', 'descricao', 'status', 'criadoEm', 'respondidoEm', 'numeroPedido', 'previsaoEntrega', 'observacao', 'clienteAguardando', 'unidade'];
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
@@ -42,7 +43,7 @@ function doGet(e) {
         return json({ ok: true, necessidades: lerNecessidades() });
       // Escritas travam (comLock) para não haver duas gravando a mesma linha ao mesmo tempo.
       case 'criar':
-        return comLock(function () { return json({ ok: true, necessidade: criar(p.codigo, p.cliente) }); });
+        return comLock(function () { return json({ ok: true, necessidade: criar(p.codigo, p.cliente, p.unidade) }); });
       case 'recebido':
         return comLock(function () { return json({ ok: true, necessidade: responder(p.id, 'em_compra', {}) }); });
       case 'pedido':
@@ -123,6 +124,7 @@ function lerNecessidades() {
     reg.criadoEm = normalizarData(reg.criadoEm);
     reg.respondidoEm = normalizarData(reg.respondidoEm);
     reg.clienteAguardando = parseBool(reg.clienteAguardando);
+    reg.unidade = reg.unidade || 'rio_claro';
     out.push(reg);
   }
   return out;
@@ -150,13 +152,15 @@ function registroDaLinha(sheet, linhaSheet) {
   reg.criadoEm = normalizarData(reg.criadoEm);
   reg.respondidoEm = normalizarData(reg.respondidoEm);
   reg.clienteAguardando = parseBool(reg.clienteAguardando);
+  reg.unidade = reg.unidade || 'rio_claro';
   return reg;
 }
 
-function criar(codigo, cliente) {
+function criar(codigo, cliente, unidade) {
   codigo = String(codigo || '').trim();
   if (!codigo) throw new Error('Código do produto não informado.');
   var querCliente = parseBool(cliente);
+  unidade = String(unidade || 'rio_claro').trim();
 
   var produto = null;
   var produtos = lerProdutos();
@@ -170,11 +174,14 @@ function criar(codigo, cliente) {
   var cCodigo = coluna('codigo') - 1;
   var cStatus = coluna('status') - 1;
   var cCliente = coluna('clienteAguardando') - 1;
+  var cUnidade = coluna('unidade') - 1;
 
-  // Evita solicitação duplicada: mesmo produto já pendente (sem resposta do estoque).
-  // Se a nova solicitação marca "cliente aguardando" e a existente não marcava, promove.
+  // Evita solicitação duplicada: mesmo produto + mesma unidade já pendente (o mesmo item em
+  // lojas diferentes são pedidos distintos). Se a nova marca "cliente aguardando", promove.
   for (var j = 1; j < valores.length; j++) {
-    if (String(valores[j][cCodigo] || '').trim() === codigo && String(valores[j][cStatus] || '').trim() === 'pendente') {
+    if (String(valores[j][cCodigo] || '').trim() === codigo
+        && String(valores[j][cStatus] || '').trim() === 'pendente'
+        && String(valores[j][cUnidade] || 'rio_claro').trim() === unidade) {
       var linhaExistente = j + 1;
       if (querCliente && !parseBool(valores[j][cCliente])) {
         sheet.getRange(linhaExistente, coluna('clienteAguardando')).setValue(true);
@@ -193,7 +200,8 @@ function criar(codigo, cliente) {
     numeroPedido: null,
     previsaoEntrega: null,
     observacao: null,
-    clienteAguardando: querCliente
+    clienteAguardando: querCliente,
+    unidade: unidade
   };
 
   sheet.appendRow(COLUNAS_NEC.map(function (c) { return registro[c] === null ? '' : registro[c]; }));

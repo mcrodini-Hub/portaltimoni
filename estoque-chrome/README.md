@@ -1,7 +1,8 @@
 # Estoque — Portal Timoni
 
-Extensão Chrome (Manifest V3) para a Casa Timoni Rio Claro. Primeira versão cobre dois
-módulos:
+Extensão Chrome (Manifest V3) para a Casa Timoni, com **duas lojas**: Rio Claro e Araras.
+Cada necessidade nasce carimbada com a loja de quem pediu, e cada perfil enxerga só a sua
+loja (a gestão geral vê as duas). Cobre dois módulos:
 
 - **Módulo 1 — Consulta de Produtos (Balcão)**: busca por código ou descrição, e permite
   informar uma necessidade de compra para o produto selecionado, marcando se **tem cliente
@@ -52,7 +53,8 @@ A extensão escolhe o modo sozinha conforme haja ou não uma planilha configurad
 1. **Crie a planilha** no Google Sheets com **duas abas**, com estes cabeçalhos na linha 1:
    - Aba **`Produtos`**: `codigo` | `descricao`
    - Aba **`Necessidades`**: `id` | `codigo` | `descricao` | `status` | `criadoEm` |
-     `respondidoEm` | `numeroPedido` | `previsaoEntrega` | `observacao` | `clienteAguardando`
+     `respondidoEm` | `numeroPedido` | `previsaoEntrega` | `observacao` | `clienteAguardando` |
+     `unidade`
 2. **Preencha a aba `Produtos`** com o catálogo real (código e descrição). É essa aba que
    alimenta a busca do balcão. A aba `Necessidades` começa vazia (só o cabeçalho) — a
    extensão preenche sozinha.
@@ -66,10 +68,26 @@ A extensão escolhe o modo sozinha conforme haja ou não uma planilha configurad
 5. Na extensão, clique no **⚙** (topo) e cole a URL em "Planilha compartilhada", depois
    **Salvar e testar**. Faça isso em cada computador (balcão e estoque) uma vez.
 
+## Perfis e lojas
+
+Perfis disponíveis (escolhidos na primeira abertura):
+
+| Perfil | Enxerga | Age? |
+|---|---|---|
+| Balcão — Rio Claro / Araras | só a sua loja | cria pedidos (pode alternar de loja) |
+| Estoque — Lucas Rio Claro / Lucas Araras | só a sua loja | responde |
+| Gerência Araras (Reginaldo) | só Araras | leitura |
+| Gestão geral (você) | Rio Claro + Araras | responde tudo (fecha com fornecedor) |
+
+- Só o **Balcão** pode alternar de loja (CT Rio Claro ⇄ CT Araras) pelo botão no topo — é
+  troca de *loja*, não de *perfil*.
+- A **Gestão geral** vê as duas lojas juntas, com etiqueta da loja em cada item.
+- Notificações e contadores respeitam a loja de cada computador.
+
 ## Identificação de usuário
 
-Não há login. Cada computador é configurado uma única vez com um papel (Balcão, Estoque ou
-Acompanhamento) na primeira abertura da sidebar — fica salvo localmente. No dia a dia o perfil
+Não há login. Cada computador é configurado uma única vez com um perfil (Balcão, Estoque,
+Gerência ou Gestão) e a sua loja na primeira abertura da sidebar — fica salvo localmente. No dia a dia o perfil
 é **fixo**: a troca não fica na barra de cima, e sim dentro do **⚙** (configuração da máquina),
 com confirmação. Assim o vendedor não muda de perfil sozinho; a troca serve só para
 reconfigurar a máquina ou para testar os perfis.

@@ -1,5 +1,5 @@
 /**
- * Portal Timoni — Estoque
+ * Timoni Portal — Estoque
  * Backend (Web App) da Central de Necessidades, rodando no Apps Script da própria planilha.
  *
  * COMO PUBLICAR (uma vez):

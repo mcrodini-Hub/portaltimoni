@@ -57,7 +57,51 @@
   }
   .brand-dim{color:var(--ink-soft);font-weight:500;}
 
+  .topbar-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
+
+  .loja-pill{
+    font-size:11px;
+    font-weight:700;
+    color:var(--blue);
+    background:rgba(44,75,224,0.1);
+    padding:4px 10px;
+    border-radius:999px;
+    white-space:nowrap;
+  }
+  .icon-btn{
+    border:none;
+    background:transparent;
+    color:var(--ink-soft);
+    width:26px;
+    height:26px;
+    border-radius:6px;
+    font-size:15px;
+    line-height:1;
+    cursor:pointer;
+  }
+  .icon-btn:hover{background:rgba(0,0,0,0.06);}
+
   .content{padding:20px;padding-bottom:40px;max-width:1200px;margin:0 auto;}
+
+  .role-card{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    max-width:420px;
+    background:var(--card-bg);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:16px;
+    box-shadow:0 1px 2px rgba(20,20,30,0.04);
+  }
+  .role-card .btn-loja{
+    background:var(--blue);
+    color:#fff;
+    width:100%;
+    padding:12px 16px;
+    text-align:left;
+  }
+  .role-card .btn-loja:hover{background:var(--blue-dark);}
 
   h1{font-size:18px;margin:0 0 4px;}
   .subtitle{margin:0 0 16px;font-size:12px;color:var(--ink-soft);}
@@ -289,9 +333,24 @@
     <img class="brand-logo" src="icons/icon48.png" alt="Casa Timoni">
     <span class="brand-title">Agenda de Motorista <span class="brand-dim">· Portal Timoni</span></span>
   </div>
+  <div class="topbar-actions" id="lojaPillWrap" hidden>
+    <span class="loja-pill" id="lojaPill">--</span>
+    <button id="btnTrocarLoja" class="icon-btn" title="Trocar de loja" aria-label="Trocar de loja">⚙</button>
+  </div>
 </header>
 
 <main class="content">
+  <!-- SELEÇÃO DE LOJA (primeiro uso neste computador) -->
+  <section id="telaLoja" hidden>
+    <p class="step-label" style="font-size:12px;font-weight:600;color:var(--ink-soft);margin:0 0 6px 2px;">Qual loja é este computador?</p>
+    <div class="role-card">
+      <p class="subtitle" style="margin:0 0 4px;">Fica salvo neste computador. Dá para trocar depois pelo ⚙ ao lado do título.</p>
+      <button class="btn-loja js-loja" data-loja="rio_claro">Casa Timoni — Rio Claro</button>
+      <button class="btn-loja js-loja" data-loja="araras">Casa Timoni — Araras</button>
+    </div>
+  </section>
+
+  <div id="telaAgenda" hidden>
   <h1>Agenda de Motorista</h1>
   <p class="subtitle">Monte a agenda de viagens do dia e gere o texto pronto para o WhatsApp.</p>
 
@@ -315,6 +374,7 @@
       </div>
       <div class="validation-msg" id="validationMsg"></div>
     </div>
+  </div>
   </div>
 </main>
 
@@ -409,6 +469,7 @@ function addTrip(){
       <option value="Ciça">Ciça</option>
       <option value="Jaqueline">Jaqueline</option>
       <option value="Jeovana">Jeovana</option>
+      <option value="Reginaldo">Reginaldo</option>
       <option value="Thais">Thais</option>
     </select>
 
@@ -844,6 +905,63 @@ function gerarExcel(){
 
 // start with one trip
 addTrip();
+
+// ---------------------------------------------------------------------
+// Seleção de loja (Rio Claro / Araras), salva neste computador
+// ---------------------------------------------------------------------
+const LOJA_KEY = 'agendaMotoristaLoja';
+const LOJA_LABEL = { rio_claro: 'Rio Claro', araras: 'Araras' };
+
+function getLoja(){
+  try{ return localStorage.getItem(LOJA_KEY) || ''; }catch(e){ return ''; }
+}
+
+function setLoja(loja){
+  try{ localStorage.setItem(LOJA_KEY, loja); }catch(e){}
+}
+
+function aplicarTituloLoja(loja){
+  const input = document.getElementById('tituloAgenda');
+  const label = LOJA_LABEL[loja];
+  const padroes = Object.values(LOJA_LABEL).map(l => `🚚Agenda de Motorista - Casa Timoni ${l}🚚`);
+  padroes.push('🚚Agenda de Motorista - Casa Timoni🚚');
+  if(!input.value.trim() || padroes.includes(input.value.trim())){
+    input.value = `🚚Agenda de Motorista - Casa Timoni ${label}🚚`;
+    generate();
+  }
+}
+
+function mostrarTelaAgenda(loja){
+  document.getElementById('telaLoja').hidden = true;
+  document.getElementById('telaAgenda').hidden = false;
+  const pillWrap = document.getElementById('lojaPillWrap');
+  pillWrap.hidden = false;
+  document.getElementById('lojaPill').textContent = `CT ${LOJA_LABEL[loja]}`;
+  aplicarTituloLoja(loja);
+}
+
+function mostrarTelaLoja(){
+  document.getElementById('telaAgenda').hidden = true;
+  document.getElementById('lojaPillWrap').hidden = true;
+  document.getElementById('telaLoja').hidden = false;
+}
+
+document.querySelectorAll('.js-loja').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    const loja = btn.dataset.loja;
+    setLoja(loja);
+    mostrarTelaAgenda(loja);
+  });
+});
+
+document.getElementById('btnTrocarLoja').addEventListener('click', mostrarTelaLoja);
+
+const lojaSalva = getLoja();
+if(lojaSalva && LOJA_LABEL[lojaSalva]){
+  mostrarTelaAgenda(lojaSalva);
+} else {
+  mostrarTelaLoja();
+}
 </script>
 </body>
 </html>

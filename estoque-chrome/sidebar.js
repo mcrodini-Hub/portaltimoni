@@ -797,7 +797,17 @@
     el.acompRespondidos.textContent = String(respondidos.length);
     el.acompClientes.textContent = String(necessidades.filter((n) => n.clienteAguardando && (n.status === STATUS.PENDENTE || n.status === STATUS.EM_COMPRA)).length);
     el.acompResumo.textContent = resumoPeriodo(necessidades);
-    el.registrarWrap.hidden = !podeAgirAtual; // só a gestão registra pedido em aberto
+
+    // "Registrar pedido em aberto" fica disponível para todos os perfis de acompanhamento
+    // (gestão geral e gerências) — é a única tarefa que a gerência executa, mesmo sendo leitura
+    // no resto. A gerência lança só na sua loja (campo travado); a gestão escolhe a loja.
+    el.registrarWrap.hidden = false;
+    if (unidadeAtual === EstoqueStore.UNIDADES.TODAS) {
+      el.regUnidade.disabled = false;
+    } else {
+      el.regUnidade.value = unidadeAtual;
+      el.regUnidade.disabled = true;
+    }
 
     // Gestão geral pode agir (mesmas respostas do estoque); gerência de unidade é só leitura.
     el.acompPendentesHint.hidden = !podeAgirAtual;
@@ -918,7 +928,7 @@
   el.acompListaPendentes.addEventListener('click', onNeedListClick);
   el.acompListaAnotados.addEventListener('click', onNeedListClick);
 
-  // Registrar pedido em aberto (gestão)
+  // Registrar pedido em aberto (gestão e gerências)
   el.btnRegistrarToggle.addEventListener('click', () => {
     el.registrarForm.hidden = !el.registrarForm.hidden;
   });

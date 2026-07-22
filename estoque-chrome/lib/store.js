@@ -153,12 +153,29 @@
   // -------------------------------------------------------------------------
   // Necessidades
   // -------------------------------------------------------------------------
-  async function getNecessidades() {
-    if (await isRemote()) {
-      const data = await apiGet({ action: 'necessidades' });
-      return data.necessidades || [];
+  // Cache curto em memória da fila de necessidades. Seleção de produto, recarga por foco e
+  // polling costumam pedir a fila em rajada; sem isso, cada um faria uma ida à planilha. O TTL
+  // é baixo (poucos segundos) e qualquer escrita invalida o cache, então os dados seguem
+  // frescos. É por contexto (a sidebar tem o seu; o background, o dele).
+  let necCache = null; // { data, ts }
+  const NEC_TTL_MS = 3000;
+
+  function invalidarNecessidades() { necCache = null; }
+
+  async function getNecessidades(opts) {
+    const forcar = opts && opts.forcar;
+    if (!forcar && necCache && (Date.now() - necCache.ts) < NEC_TTL_MS) {
+      return necCache.data;
     }
-    return get(KEYS.NECESSIDADES, []);
+    let data;
+    if (await isRemote()) {
+      const r = await apiGet({ action: 'necessidades' });
+      data = r.necessidades || [];
+    } else {
+      data = await get(KEYS.NECESSIDADES, []);
+    }
+    necCache = { data, ts: Date.now() };
+    return data;
   }
 
   function generateId() {
@@ -167,6 +184,7 @@
 
   async function criarNecessidade(produto, opts) {
     if (!produto || !produto.codigo) throw new Error('Selecione um produto antes de informar a necessidade.');
+    invalidarNecessidades();
     const querCliente = !!(opts && opts.clienteAguardando);
 
     if (await isRemote()) {
@@ -203,6 +221,7 @@
   }
 
   async function responderRecebido(id) {
+    invalidarNecessidades();
     if (await isRemote()) {
       const data = await apiGet({ action: 'recebido', id });
       return data.necessidade;
@@ -220,6 +239,7 @@
     if (!numeroPedido || !previsaoEntrega) {
       throw new Error('Informe o número do pedido e a previsão de entrega.');
     }
+    invalidarNecessidades();
     if (await isRemote()) {
       const data = await apiGet({ action: 'pedido', id, numeroPedido, previsao: previsaoEntrega });
       return data.necessidade;
@@ -238,6 +258,7 @@
   async function responderObservacao(id, { observacao }) {
     const texto = (observacao || '').trim();
     if (!texto) throw new Error('Escreva a resposta ao balcão.');
+    invalidarNecessidades();
     if (await isRemote()) {
       const data = await apiGet({ action: 'observacao', id, texto });
       return data.necessidade;
@@ -267,6 +288,7 @@
     carregarProdutos,
     buscarProdutos,
     getNecessidades,
+    invalidarNecessidades,
     criarNecessidade,
     responderRecebido,
     responderPedidoExistente,

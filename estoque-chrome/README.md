@@ -94,6 +94,18 @@ Escolha "Balcão", busque um produto (ex. "1001" ou "torneira"), informe a neces
 depois clique em "Trocar" e escolha "Estoque" para ver e responder a mesma solicitação.
 No modo local os dados são desta sessão do Chrome, então tudo aparece na mesma janela.
 
+## Desempenho
+
+Pensado para ser leve mesmo com polling e várias telas lendo a mesma fila:
+
+- **Backend não trava nas leituras**: o Apps Script só usa `LockService` nas escritas
+  (criar/responder). As leituras — que o polling dispara com frequência — não pegam o lock.
+- **Cache curto da fila** (~3s, em memória, por contexto): seleção de produto, recarga por
+  foco e polling reaproveitam a mesma busca em vez de irem à planilha várias vezes seguidas.
+  Qualquer escrita invalida o cache, então os dados seguem frescos.
+- **Polling pausa quando o painel não está visível** e retoma (com recarga imediata) ao
+  reaparecer. O botão "Atualizar" só refaz o catálogo no perfil Balcão.
+
 ## Estrutura de arquivos
 
 ```

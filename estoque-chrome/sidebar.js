@@ -288,7 +288,9 @@
     btn.addEventListener('click', async () => {
       showError(null);
       try {
-        await EstoqueStore.carregarProdutos(true); // força recarga do catálogo
+        // Só o balcão usa o catálogo; nos outros perfis, refazê-lo seria uma busca à toa.
+        if (roleAtual === ROLES.BALCAO) await EstoqueStore.carregarProdutos(true);
+        EstoqueStore.invalidarNecessidades(); // garante fila fresca ao pedir "Atualizar"
         await recarregarVisaoAtual();
       } catch (e) {
         showError(e.message);
@@ -671,7 +673,19 @@
   el.acompListaAnotados.addEventListener('click', onNeedListClick);
 
   // Recarrega ao voltar o foco ao painel — dados sempre frescos sem esperar o ciclo de polling.
+  // (O cache curto da fila evita busca redundante se foco e visibilidade dispararem juntos.)
   window.addEventListener('focus', () => { if (roleAtual) recarregarVisaoAtual(); });
+
+  // Pausa o polling quando o painel não está visível (não gasta rede à toa) e retoma —
+  // com uma recarga imediata — quando volta a aparecer.
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      pararPolling();
+    } else if (roleAtual) {
+      recarregarVisaoAtual();
+      iniciarPolling();
+    }
+  });
 
   // ---------------------------------------------------------------------
   initRole();

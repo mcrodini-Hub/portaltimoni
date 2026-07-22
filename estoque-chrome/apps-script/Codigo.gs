@@ -30,34 +30,46 @@ var COLUNAS_NEC = ['id', 'codigo', 'descricao', 'status', 'criadoEm', 'respondid
 function doGet(e) {
   var p = (e && e.parameter) || {};
   var action = p.action || 'listar';
-  var lock = LockService.getScriptLock();
   try {
-    lock.waitLock(10000);
     switch (action) {
+      // Leituras NÃO travam: o polling da extensão dispara essas o tempo todo e o lock só
+      // serializaria tudo à toa. O Sheets já lida com leitura concorrente.
       case 'listar':
         return json({ ok: true, produtos: lerProdutos(), necessidades: lerNecessidades() });
       case 'produtos':
         return json({ ok: true, produtos: lerProdutos() });
       case 'necessidades':
         return json({ ok: true, necessidades: lerNecessidades() });
+      // Escritas travam (comLock) para não haver duas gravando a mesma linha ao mesmo tempo.
       case 'criar':
-        return json({ ok: true, necessidade: criar(p.codigo, p.cliente) });
+        return comLock(function () { return json({ ok: true, necessidade: criar(p.codigo, p.cliente) }); });
       case 'recebido':
-        return json({ ok: true, necessidade: responder(p.id, 'em_compra', {}) });
+        return comLock(function () { return json({ ok: true, necessidade: responder(p.id, 'em_compra', {}) }); });
       case 'pedido':
-        return json({ ok: true, necessidade: responder(p.id, 'pedido_existente', {
-          numeroPedido: p.numeroPedido,
-          previsaoEntrega: p.previsao
-        }) });
+        return comLock(function () {
+          return json({ ok: true, necessidade: responder(p.id, 'pedido_existente', {
+            numeroPedido: p.numeroPedido,
+            previsaoEntrega: p.previsao
+          }) });
+        });
       case 'observacao':
-        return json({ ok: true, necessidade: responder(p.id, 'observacao', {
-          observacao: p.texto
-        }) });
+        return comLock(function () {
+          return json({ ok: true, necessidade: responder(p.id, 'observacao', { observacao: p.texto }) });
+        });
       default:
         return json({ ok: false, erro: 'Ação desconhecida: ' + action });
     }
   } catch (err) {
     return json({ ok: false, erro: String((err && err.message) || err) });
+  }
+}
+
+// Executa fn segurando o lock de escrita; sempre libera no fim.
+function comLock(fn) {
+  var lock = LockService.getScriptLock();
+  try {
+    lock.waitLock(10000);
+    return fn();
   } finally {
     try { lock.releaseLock(); } catch (ignore) {}
   }

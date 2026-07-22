@@ -39,7 +39,8 @@
     PENDENTE: 'pendente',
     EM_COMPRA: 'em_compra',
     PEDIDO_EXISTENTE: 'pedido_existente',
-    OBSERVACAO: 'observacao'
+    OBSERVACAO: 'observacao',
+    CHEGOU: 'chegou'
   });
 
   // -------------------------------------------------------------------------
@@ -229,9 +230,14 @@
     const querCliente = !!(opts && opts.clienteAguardando);
     const unidade = (opts && opts.unidade) || UNIDADES.RIO_CLARO;
     const vendedor = (opts && opts.vendedor) || '';
+    const quantidade = (opts && opts.quantidade) || '';
+    const notaVendedor = (opts && opts.notaVendedor) || '';
 
     if (await isRemote()) {
-      const data = await apiGet({ action: 'criar', codigo: produto.codigo, cliente: querCliente ? '1' : '0', unidade, vendedor });
+      const data = await apiGet({
+        action: 'criar', codigo: produto.codigo, cliente: querCliente ? '1' : '0',
+        unidade, vendedor, quantidade, nota: notaVendedor
+      });
       return data.necessidade;
     }
 
@@ -252,6 +258,8 @@
       descricao: produto.descricao,
       status: STATUS.PENDENTE,
       unidade,
+      quantidade,
+      notaVendedor,
       criadoEm: new Date().toISOString(),
       respondidoEm: null,
       numeroPedido: null,
@@ -318,6 +326,22 @@
     return alvo;
   }
 
+  // Marca a chegada do produto (fecha o ciclo até o cliente).
+  async function marcarChegada(id) {
+    invalidarNecessidades();
+    if (await isRemote()) {
+      const data = await apiGet({ action: 'chegou', id });
+      return data.necessidade;
+    }
+    const necessidades = await get(KEYS.NECESSIDADES, []);
+    const alvo = necessidades.find((n) => n.id === id);
+    if (!alvo) throw new Error('Necessidade não encontrada.');
+    alvo.status = STATUS.CHEGOU;
+    alvo.chegouEm = new Date().toISOString();
+    await set(KEYS.NECESSIDADES, necessidades);
+    return alvo;
+  }
+
   root.EstoqueStore = {
     KEYS,
     ROLES,
@@ -345,6 +369,7 @@
     criarNecessidade,
     responderRecebido,
     responderPedidoExistente,
-    responderObservacao
+    responderObservacao,
+    marcarChegada
   };
 })(self);

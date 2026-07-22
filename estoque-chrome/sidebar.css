@@ -304,6 +304,21 @@ select.text-input { appearance: auto; background: #fff; cursor: pointer; }
 .result-list li.status-em_compra .status-line { color: var(--green); }
 .result-list li.status-pedido_existente .status-line { color: var(--blue); }
 .result-list li.status-observacao .status-line { color: var(--ink); }
+.result-list li.status-chegou { background: #e8f6ec; }
+.result-list li.status-chegou .status-line { color: var(--green); font-weight: 700; }
+
+.chip-atrasado {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--red);
+  border-radius: 10px;
+  padding: 2px 7px;
+  margin-left: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
 
 .need-list li {
   border: 1px solid var(--border);

@@ -23,12 +23,20 @@
 
   root.EstoqueMockProdutos = PRODUTOS_MOCK;
 
-  // Lista de vendedores de exemplo (modo local). No modo planilha vem da aba "Vendedores".
+  // Lista de vendedores (modo local). No modo planilha vem da aba "Vendedores".
   root.EstoqueMockVendedores = [
-    { nome: 'Ana', unidade: 'rio_claro' },
-    { nome: 'Bruna', unidade: 'rio_claro' },
-    { nome: 'Carla', unidade: 'araras' },
-    { nome: 'Daniela', unidade: 'araras' },
-    { nome: 'Eduardo', unidade: '' }
+    { nome: 'Adriel', unidade: 'rio_claro' },
+    { nome: 'Carina', unidade: 'rio_claro' },
+    { nome: 'Davi', unidade: 'rio_claro' },
+    { nome: 'Jaqueline', unidade: 'rio_claro' },
+    { nome: 'João', unidade: 'rio_claro' },
+    { nome: 'José Roberto', unidade: 'rio_claro' },
+    { nome: 'Rafaela', unidade: 'rio_claro' },
+    { nome: 'San', unidade: 'rio_claro' },
+    { nome: 'Yan', unidade: 'araras' },
+    { nome: 'Lyra', unidade: 'araras' },
+    { nome: 'Carolina', unidade: 'araras' },
+    { nome: 'Paulo', unidade: 'araras' },
+    { nome: 'Reinaldo', unidade: 'araras' }
   ];
 })(self);

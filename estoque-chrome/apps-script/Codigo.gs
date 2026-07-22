@@ -17,20 +17,23 @@
  *   Aba "Necessidades":
  *      A: id | B: codigo | C: descricao | D: status | E: criadoEm |
  *      F: respondidoEm | G: numeroPedido | H: previsaoEntrega | I: observacao |
- *      J: clienteAguardando | K: unidade | L: vendedor
+ *      J: clienteAguardando | K: unidade | L: vendedor | M: quantidade |
+ *      N: notaVendedor | O: chegouEm
  *   Aba "Vendedores" (opcional, para a lista de nomes):
  *      A: nome | B: unidade   (unidade em branco = aparece nas duas lojas)
  *
- * status possíveis: "pendente", "em_compra", "pedido_existente", "observacao".
+ * status possíveis: "pendente", "em_compra", "pedido_existente", "observacao", "chegou".
  * clienteAguardando: "true"/"false" — marca itens com cliente esperando (prioridade).
  * unidade: "rio_claro" ou "araras" — loja de origem do pedido.
  * vendedor: nome de quem fez o pedido.
+ * quantidade / notaVendedor: contexto opcional informado pelo vendedor.
+ * chegouEm: quando o produto chegou (status "chegou").
  */
 
 var ABA_PRODUTOS = 'Produtos';
 var ABA_NECESSIDADES = 'Necessidades';
 var ABA_VENDEDORES = 'Vendedores';
-var COLUNAS_NEC = ['id', 'codigo', 'descricao', 'status', 'criadoEm', 'respondidoEm', 'numeroPedido', 'previsaoEntrega', 'observacao', 'clienteAguardando', 'unidade', 'vendedor'];
+var COLUNAS_NEC = ['id', 'codigo', 'descricao', 'status', 'criadoEm', 'respondidoEm', 'numeroPedido', 'previsaoEntrega', 'observacao', 'clienteAguardando', 'unidade', 'vendedor', 'quantidade', 'notaVendedor', 'chegouEm'];
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
@@ -49,9 +52,11 @@ function doGet(e) {
         return json({ ok: true, vendedores: lerVendedores() });
       // Escritas travam (comLock) para não haver duas gravando a mesma linha ao mesmo tempo.
       case 'criar':
-        return comLock(function () { return json({ ok: true, necessidade: criar(p.codigo, p.cliente, p.unidade, p.vendedor) }); });
+        return comLock(function () { return json({ ok: true, necessidade: criar(p.codigo, p.cliente, p.unidade, p.vendedor, p.quantidade, p.nota) }); });
       case 'recebido':
         return comLock(function () { return json({ ok: true, necessidade: responder(p.id, 'em_compra', {}) }); });
+      case 'chegou':
+        return comLock(function () { return json({ ok: true, necessidade: responder(p.id, 'chegou', {}) }); });
       case 'pedido':
         return comLock(function () {
           return json({ ok: true, necessidade: responder(p.id, 'pedido_existente', {
@@ -146,6 +151,7 @@ function lerNecessidades() {
     reg.respondidoEm = normalizarData(reg.respondidoEm);
     reg.clienteAguardando = parseBool(reg.clienteAguardando);
     reg.unidade = reg.unidade || 'rio_claro';
+    reg.chegouEm = normalizarData(reg.chegouEm);
     out.push(reg);
   }
   return out;
@@ -174,15 +180,18 @@ function registroDaLinha(sheet, linhaSheet) {
   reg.respondidoEm = normalizarData(reg.respondidoEm);
   reg.clienteAguardando = parseBool(reg.clienteAguardando);
   reg.unidade = reg.unidade || 'rio_claro';
+    reg.chegouEm = normalizarData(reg.chegouEm);
   return reg;
 }
 
-function criar(codigo, cliente, unidade, vendedor) {
+function criar(codigo, cliente, unidade, vendedor, quantidade, nota) {
   codigo = String(codigo || '').trim();
   if (!codigo) throw new Error('Código do produto não informado.');
   var querCliente = parseBool(cliente);
   unidade = String(unidade || 'rio_claro').trim();
   vendedor = String(vendedor || '').trim();
+  quantidade = String(quantidade || '').trim();
+  nota = String(nota || '').trim();
 
   var produto = null;
   var produtos = lerProdutos();
@@ -224,7 +233,10 @@ function criar(codigo, cliente, unidade, vendedor) {
     observacao: null,
     clienteAguardando: querCliente,
     unidade: unidade,
-    vendedor: vendedor
+    vendedor: vendedor,
+    quantidade: quantidade,
+    notaVendedor: nota,
+    chegouEm: null
   };
 
   sheet.appendRow(COLUNAS_NEC.map(function (c) { return registro[c] === null ? '' : registro[c]; }));
@@ -249,7 +261,11 @@ function responder(id, status, extra) {
     if (String(valores[i][0] || '').trim() === id) {
       var linhaSheet = i + 1; // 1-based, +1 do cabeçalho já embutido no índice
       sheet.getRange(linhaSheet, coluna('status')).setValue(status);
-      sheet.getRange(linhaSheet, coluna('respondidoEm')).setValue(new Date().toISOString());
+      if (status === 'chegou') {
+        sheet.getRange(linhaSheet, coluna('chegouEm')).setValue(new Date().toISOString());
+      } else {
+        sheet.getRange(linhaSheet, coluna('respondidoEm')).setValue(new Date().toISOString());
+      }
       if (status === 'pedido_existente') {
         sheet.getRange(linhaSheet, coluna('numeroPedido')).setValue(extra.numeroPedido);
         sheet.getRange(linhaSheet, coluna('previsaoEntrega')).setValue(extra.previsaoEntrega);

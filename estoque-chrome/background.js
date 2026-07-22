@@ -113,6 +113,7 @@ function tituloMudanca(n) {
   if (n.status === 'em_compra') return 'Estoque anotou — aguardando retorno';
   if (n.status === 'pedido_existente') return 'Estoque: já tem pedido';
   if (n.status === 'observacao') return 'Estoque respondeu';
+  if (n.status === 'chegou') return 'Produto chegou — avise o cliente';
   return 'Necessidade atualizada';
 }
 

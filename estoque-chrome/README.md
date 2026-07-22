@@ -21,6 +21,11 @@ loja (a gestão geral vê as duas). Cobre dois módulos:
   - **Outra resposta** — texto livre (ex.: "tem no depósito, pode buscar" ou "não vamos
     repor por ora").
 
+  Quando o pedido é feito, o item vai para **"A caminho"**; ao chegar, o estoque/gestão marca
+  **"Chegou"** e o vendedor vê **"Chegou! Avise o cliente"** — fechando o ciclo até o cliente.
+  Itens pendentes há muito tempo (ou com cliente aguardando há poucas horas) ganham a etiqueta
+  **"Atrasado"**. O vendedor pode informar **quantidade** e uma **observação** curta no pedido.
+
   A fila do Lucas mostra primeiro os itens com **cliente aguardando** (etiqueta vermelha).
   Se o mesmo produto for pedido de novo já marcando cliente aguardando, o item existente é
   promovido em vez de duplicar.
@@ -55,8 +60,8 @@ A extensão escolhe o modo sozinha conforme haja ou não uma planilha configurad
    - Aba **`Produtos`**: `codigo` | `descricao`
    - Aba **`Necessidades`**: `id` | `codigo` | `descricao` | `status` | `criadoEm` |
      `respondidoEm` | `numeroPedido` | `previsaoEntrega` | `observacao` | `clienteAguardando` |
-     `unidade` | `vendedor`
-   - Aba **`Vendedores`** (opcional, para a lista de nomes): `nome` | `unidade`
+     `unidade` | `vendedor` | `quantidade` | `notaVendedor` | `chegouEm`
+   - Aba **`Vendedores`** (para a lista de nomes): `nome` | `unidade`
      (unidade em branco = o vendedor aparece nas duas lojas)
 2. **Preencha a aba `Produtos`** com o catálogo real (código e descrição). É essa aba que
    alimenta a busca do balcão. A aba `Necessidades` começa vazia (só o cabeçalho) — a

@@ -56,6 +56,7 @@
         <button class="btn btn-secondary js-papel" data-papel="estoque" data-unidade="araras">Estoque — Lucas Araras</button>
 
         <p class="role-group">Gestão</p>
+        <button class="btn btn-secondary js-papel" data-papel="acompanhamento" data-unidade="rio_claro">Gerência Rio Claro (Jeovana) — leitura</button>
         <button class="btn btn-secondary js-papel" data-papel="acompanhamento" data-unidade="araras">Gerência Araras (Reginaldo) — leitura</button>
         <button class="btn btn-secondary js-papel" data-papel="acompanhamento" data-unidade="todas">Gestão geral (você)</button>
       </div>
@@ -93,6 +94,8 @@
             <strong id="sel-codigo">--</strong> — <span id="sel-descricao">--</span>
           </p>
           <p id="sel-existente" class="existente-box" hidden></p>
+          <input type="text" id="input-quantidade" class="text-input" placeholder="Quantidade (opcional)">
+          <input type="text" id="input-nota" class="text-input" placeholder="Observação p/ o estoque (opcional)">
           <label class="check-row"><input type="checkbox" id="chk-cliente"> Tem cliente aguardando</label>
           <button id="btn-informar-necessidade" class="btn btn-primary">Pedir ao estoque</button>
         </div>
@@ -132,9 +135,18 @@
       <section class="step">
         <p class="step-label">Anotados — pendente do seu retorno</p>
         <div class="step-card">
-          <p class="hint-text" style="margin-top:0;">Itens que você anotou para levantar estoque e montar a relação de compra. Quando tiver o pedido, responda aqui para o balcão saber.</p>
+          <p class="hint-text" style="margin-top:0;">Itens que você anotou para levantar estoque e montar a relação de compra. Quando tiver o pedido, responda aqui para o vendedor saber.</p>
           <p id="compra-vazio" class="placeholder-text">Nada anotado aguardando seu retorno.</p>
           <ul id="lista-compra" class="need-list"></ul>
+        </div>
+      </section>
+
+      <section class="step">
+        <p class="step-label">A caminho — marcar chegada</p>
+        <div class="step-card">
+          <p class="hint-text" style="margin-top:0;">Pedidos já feitos. Quando o produto chegar, marque aqui para o vendedor avisar o cliente.</p>
+          <p id="acaminho-vazio" class="placeholder-text">Nenhum pedido a caminho.</p>
+          <ul id="lista-acaminho" class="need-list"></ul>
         </div>
       </section>
     </section>
@@ -171,6 +183,14 @@
         <div class="step-card">
           <p id="acomp-anotados-vazio" class="placeholder-text">Nada aguardando retorno.</p>
           <ul id="acomp-lista-anotados" class="need-list"></ul>
+        </div>
+      </section>
+
+      <section class="step">
+        <p class="step-label">A caminho — marcar chegada</p>
+        <div class="step-card">
+          <p id="acomp-acaminho-vazio" class="placeholder-text">Nenhum pedido a caminho.</p>
+          <ul id="acomp-lista-acaminho" class="need-list"></ul>
         </div>
       </section>
 

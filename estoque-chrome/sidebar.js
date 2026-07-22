@@ -37,6 +37,8 @@
     selCodigo: document.getElementById('sel-codigo'),
     selDescricao: document.getElementById('sel-descricao'),
     selExistente: document.getElementById('sel-existente'),
+    inputQuantidade: document.getElementById('input-quantidade'),
+    inputNota: document.getElementById('input-nota'),
     chkCliente: document.getElementById('chk-cliente'),
     btnInformarNecessidade: document.getElementById('btn-informar-necessidade'),
     solicitacoesVazio: document.getElementById('solicitacoes-vazio'),
@@ -48,6 +50,8 @@
     listaPendentes: document.getElementById('lista-pendentes'),
     compraVazio: document.getElementById('compra-vazio'),
     listaCompra: document.getElementById('lista-compra'),
+    acaminhoVazio: document.getElementById('acaminho-vazio'),
+    listaAcaminho: document.getElementById('lista-acaminho'),
 
     viewAcompanhamento: document.getElementById('view-acompanhamento'),
     acompPendentes: document.getElementById('acomp-pendentes'),
@@ -59,6 +63,8 @@
     acompPendentesHint: document.getElementById('acomp-pendentes-hint'),
     acompListaAnotados: document.getElementById('acomp-lista-anotados'),
     acompAnotadosVazio: document.getElementById('acomp-anotados-vazio'),
+    acompListaAcaminho: document.getElementById('acomp-lista-acaminho'),
+    acompAcaminhoVazio: document.getElementById('acomp-acaminho-vazio'),
     acompListaRespondidos: document.getElementById('acomp-lista-respondidos'),
     acompRespondidosVazio: document.getElementById('acomp-respondidos-vazio')
   };
@@ -284,8 +290,8 @@
   // para nunca haver ids duplicados no DOM.
   function limparListasDinamicas() {
     [
-      el.listaSolicitacoes, el.listaPendentes, el.listaCompra,
-      el.acompListaPendentes, el.acompListaAnotados, el.acompListaRespondidos
+      el.listaSolicitacoes, el.listaPendentes, el.listaCompra, el.listaAcaminho,
+      el.acompListaPendentes, el.acompListaAnotados, el.acompListaAcaminho, el.acompListaRespondidos
     ].forEach((ul) => { if (ul) ul.innerHTML = ''; });
   }
 
@@ -475,13 +481,21 @@
     el.btnInformarNecessidade.disabled = true;
     try {
       const comCliente = el.chkCliente.checked;
-      await EstoqueStore.criarNecessidade(produtoSelecionado, { clienteAguardando: comCliente, unidade: unidadeAtual, vendedor });
+      await EstoqueStore.criarNecessidade(produtoSelecionado, {
+        clienteAguardando: comCliente,
+        unidade: unidadeAtual,
+        vendedor,
+        quantidade: el.inputQuantidade.value.trim(),
+        notaVendedor: el.inputNota.value.trim()
+      });
       showError(null);
       showToast(comCliente ? 'Enviado ao estoque (cliente aguardando).' : 'Enviado ao estoque.');
       produtoSelecionado = null;
       el.produtoSelecionadoWrap.hidden = true;
       el.selExistente.hidden = true;
       el.chkCliente.checked = false;
+      el.inputQuantidade.value = '';
+      el.inputNota.value = '';
       el.inputBusca.value = '';
       el.listaResultados.hidden = true;
       await renderSolicitacoes();
@@ -496,12 +510,33 @@
     if (n.status === STATUS.PENDENTE) return 'Enviado ao estoque — aguardando retorno';
     if (n.status === STATUS.EM_COMPRA) return 'Aguarde retorno';
     if (n.status === STATUS.PEDIDO_EXISTENTE) {
-      return `Já tem pedido nº ${n.numeroPedido} — previsão de entrega ~${formatDateOnly(n.previsaoEntrega)}`;
+      return `A caminho — pedido nº ${n.numeroPedido}, previsão ~${formatDateOnly(n.previsaoEntrega)}`;
+    }
+    if (n.status === STATUS.CHEGOU) {
+      return 'Chegou! Avise o cliente';
     }
     if (n.status === STATUS.OBSERVACAO) {
       return `Estoque: ${n.observacao || ''}`;
     }
     return '';
+  }
+
+  // Item parado: pendente/anotado há muito tempo (mais ainda se tem cliente aguardando).
+  const HORAS_ATRASO = 24;
+  const HORAS_ATRASO_CLIENTE = 4;
+  function estaAtrasado(n) {
+    if (n.status !== STATUS.PENDENTE && n.status !== STATUS.EM_COMPRA) return false;
+    const base = new Date(n.criadoEm).getTime();
+    if (isNaN(base)) return false;
+    const horas = (Date.now() - base) / 3600000;
+    return horas >= (n.clienteAguardando ? HORAS_ATRASO_CLIENTE : HORAS_ATRASO);
+  }
+
+  function chipAtrasado() {
+    const span = document.createElement('span');
+    span.className = 'chip-atrasado';
+    span.textContent = 'Atrasado';
+    return span;
   }
 
   async function renderSolicitacoes() {
@@ -532,6 +567,8 @@
       linha2.className = 'status-line';
       linha2.textContent = statusLabel(n);
       li.append(linha1, linha2);
+      const info = detalheQtdNota(n);
+      if (info) li.append(info);
       el.listaSolicitacoes.appendChild(li);
     });
   }
@@ -556,6 +593,7 @@
     desc.textContent = ` ${n.descricao}`;
     l1.append(cod, desc);
     if (n.clienteAguardando) l1.append(chipCliente());
+    if (estaAtrasado(n)) l1.append(chipAtrasado());
     if (unidadeAtual === EstoqueStore.UNIDADES.TODAS) l1.append(chipUnidade(n));
     if (n.vendedor) l1.append(chipVendedor(n));
 
@@ -565,6 +603,8 @@
     meta.textContent = novo
       ? `Solicitado ${formatRelative(n.criadoEm)} · ${formatDateTime(n.criadoEm)}`
       : `Anotado ${formatRelative(n.respondidoEm)} · aguardando seu retorno`;
+
+    const info = detalheQtdNota(n);
 
     const acoes = document.createElement('div');
     acoes.className = 'need-actions';
@@ -601,7 +641,51 @@
       </div>
     `;
 
-    li.append(l1, meta, acoes, form, obsForm);
+    li.append(l1, meta);
+    if (info) li.append(info);
+    li.append(acoes, form, obsForm);
+    return li;
+  }
+
+  // Linha opcional com quantidade e observação do vendedor.
+  function detalheQtdNota(n) {
+    const partes = [];
+    if (n.quantidade) partes.push(`Qtd: ${n.quantidade}`);
+    if (n.notaVendedor) partes.push(n.notaVendedor);
+    if (!partes.length) return null;
+    const p = document.createElement('p');
+    p.className = 'hint-text';
+    p.style.margin = '2px 0 0';
+    p.style.color = 'var(--ink)';
+    p.textContent = partes.join(' · ');
+    return p;
+  }
+
+  // Item da seção "A caminho": mostra o pedido e permite marcar chegada.
+  function buildItemACaminho(n) {
+    const li = document.createElement('li');
+    const l1 = document.createElement('div');
+    const cod = document.createElement('span');
+    cod.className = 'item-codigo';
+    cod.style.fontWeight = '700';
+    cod.textContent = n.codigo;
+    const desc = document.createElement('span');
+    desc.style.color = 'var(--ink-soft)';
+    desc.textContent = ` ${n.descricao}`;
+    l1.append(cod, desc);
+    if (unidadeAtual === EstoqueStore.UNIDADES.TODAS) l1.append(chipUnidade(n));
+    if (n.vendedor) l1.append(chipVendedor(n));
+
+    const meta = document.createElement('p');
+    meta.className = 'hint-text';
+    meta.style.margin = '4px 0 0';
+    meta.textContent = `Pedido nº ${n.numeroPedido} · previsão ~${formatDateOnly(n.previsaoEntrega)}`;
+
+    const acoes = document.createElement('div');
+    acoes.className = 'need-actions';
+    acoes.innerHTML = `<button class="btn btn-primary btn-small" data-action="chegou" data-id="${n.id}">Chegou</button>`;
+
+    li.append(l1, meta, acoes);
     return li;
   }
 
@@ -616,6 +700,7 @@
     necessidades = filtrarUnidade(necessidades);
     const pendentes = ordenarFila(necessidades.filter((n) => n.status === STATUS.PENDENTE));
     const anotados = ordenarFila(necessidades.filter((n) => n.status === STATUS.EM_COMPRA));
+    const aCaminho = ordenarPorCriadoDesc(necessidades.filter((n) => n.status === STATUS.PEDIDO_EXISTENTE));
 
     el.pendentesCount.textContent = String(pendentes.length);
     el.listaPendentes.innerHTML = '';
@@ -625,6 +710,10 @@
     el.listaCompra.innerHTML = '';
     el.compraVazio.hidden = anotados.length > 0;
     anotados.forEach((n) => el.listaCompra.appendChild(buildNeedItem(n, { novo: false })));
+
+    el.listaAcaminho.innerHTML = '';
+    el.acaminhoVazio.hidden = aCaminho.length > 0;
+    aCaminho.forEach((n) => el.listaAcaminho.appendChild(buildItemACaminho(n)));
   }
 
   // ---------------------------------------------------------------------
@@ -674,9 +763,10 @@
     }
     const pendentes = ordenarFila(necessidades.filter((n) => n.status === STATUS.PENDENTE));
     const anotados = ordenarFila(necessidades.filter((n) => n.status === STATUS.EM_COMPRA));
+    const aCaminho = ordenarPorCriadoDesc(necessidades.filter((n) => n.status === STATUS.PEDIDO_EXISTENTE));
     const respondidos = necessidades
-      .filter((n) => n.status === STATUS.PEDIDO_EXISTENTE || n.status === STATUS.OBSERVACAO)
-      .sort((a, b) => new Date(b.respondidoEm || b.criadoEm).getTime() - new Date(a.respondidoEm || a.criadoEm).getTime());
+      .filter((n) => n.status === STATUS.OBSERVACAO || n.status === STATUS.CHEGOU)
+      .sort((a, b) => new Date(b.chegouEm || b.respondidoEm || b.criadoEm).getTime() - new Date(a.chegouEm || a.respondidoEm || a.criadoEm).getTime());
 
     el.acompPendentes.textContent = String(pendentes.length);
     el.acompAnotados.textContent = String(anotados.length);
@@ -697,8 +787,17 @@
     el.acompAnotadosVazio.hidden = anotados.length > 0;
     anotados.forEach((n) => el.acompListaAnotados.appendChild(construir(n, false)));
 
+    // "A caminho" é acionável (marcar chegada) só para quem pode agir; senão, leitura.
+    el.acompListaAcaminho.innerHTML = '';
+    el.acompAcaminhoVazio.hidden = aCaminho.length > 0;
+    aCaminho.forEach((n) => el.acompListaAcaminho.appendChild(
+      podeAgirAtual ? buildItemACaminho(n) : buildItemLeitura(n, { meta: (x) => `Pedido nº ${x.numeroPedido} · previsão ~${formatDateOnly(x.previsaoEntrega)}` })
+    ));
+
     preencherLista(el.acompListaRespondidos, el.acompRespondidosVazio, respondidos, {
-      meta: (n) => `Respondido ${formatRelative(n.respondidoEm)} · ${formatDateTime(n.respondidoEm)}`
+      meta: (n) => n.status === STATUS.CHEGOU
+        ? `Chegou ${formatRelative(n.chegouEm)} · ${formatDateTime(n.chegouEm)}`
+        : `Respondido ${formatRelative(n.respondidoEm)} · ${formatDateTime(n.respondidoEm)}`
     });
   }
 
@@ -732,6 +831,20 @@
         await EstoqueStore.responderRecebido(id);
         showError(null);
         showToast('Anotado — aguardando retorno.');
+        await recarregarVisaoAtual();
+      } catch (e) {
+        showError(e.message);
+        btn.disabled = false;
+      }
+      return;
+    }
+
+    if (action === 'chegou') {
+      btn.disabled = true;
+      try {
+        await EstoqueStore.marcarChegada(id);
+        showError(null);
+        showToast('Chegada registrada — o vendedor será avisado.');
         await recarregarVisaoAtual();
       } catch (e) {
         showError(e.message);

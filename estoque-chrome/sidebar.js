@@ -24,6 +24,7 @@
     btnFecharConfig: document.getElementById('btn-fechar-config'),
     configStatus: document.getElementById('config-status'),
     chkNotif: document.getElementById('chk-notif'),
+    perfilAtualConfig: document.getElementById('perfil-atual-config'),
     connStatusBalcao: document.getElementById('conn-status-balcao'),
     connStatusEstoque: document.getElementById('conn-status-estoque'),
     connStatusAcomp: document.getElementById('conn-status-acomp'),
@@ -147,6 +148,7 @@
     if (!el.telaConfig.hidden) {
       el.inputWebappUrl.value = await EstoqueStore.getWebAppUrl();
       el.chkNotif.checked = await EstoqueStore.getNotificacoes();
+      el.perfilAtualConfig.textContent = PILL_LABEL[roleAtual] || '--';
       el.configStatus.textContent = '';
       el.configStatus.className = 'hint-text';
     }
@@ -253,8 +255,12 @@
   });
 
   el.btnTrocarPerfil.addEventListener('click', () => {
+    // Fica dentro do ⚙ (configuração da máquina), não na barra do dia a dia — o usuário comum
+    // não troca de perfil; só quem reconfigura/testa. Confirmação evita troca acidental.
+    if (!confirm('Trocar o perfil deste computador? Use só para reconfigurar ou testar.')) return;
     pararPolling();
     roleAtual = null;
+    el.telaConfig.hidden = true;
     el.telaPapel.hidden = false;
     el.rolePillWrap.hidden = true;
     el.viewBalcao.hidden = true;

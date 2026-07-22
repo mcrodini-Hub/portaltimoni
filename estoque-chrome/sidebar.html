@@ -14,8 +14,7 @@
     </div>
     <div class="topbar-actions" id="role-pill-wrap" hidden>
       <span class="role-pill" id="role-pill">--</span>
-      <button id="btn-trocar-perfil" class="btn-link" title="Trocar perfil deste computador">Trocar</button>
-      <button id="btn-config" class="icon-btn" title="Configurar planilha" aria-label="Configurar planilha">⚙</button>
+      <button id="btn-config" class="icon-btn" title="Configurar computador" aria-label="Configurar computador">⚙</button>
     </div>
   </header>
 
@@ -35,6 +34,9 @@
         <div class="divider-config"></div>
         <label class="check-row"><input type="checkbox" id="chk-notif"> Receber notificações neste computador</label>
         <p class="hint-text" style="margin-top:0;">Avisa quando entra pedido do balcão ou o Lucas responde, mesmo com o painel fechado (enquanto o Chrome estiver aberto).</p>
+        <div class="divider-config"></div>
+        <p class="hint-text" style="margin-top:0;">Perfil deste computador: <strong id="perfil-atual-config">--</strong>. No dia a dia o perfil é fixo; troque só para reconfigurar a máquina ou testar.</p>
+        <button id="btn-trocar-perfil" class="btn btn-secondary btn-small">Trocar perfil deste computador</button>
       </div>
     </section>
 

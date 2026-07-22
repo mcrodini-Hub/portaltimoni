@@ -69,8 +69,10 @@ A extensão escolhe o modo sozinha conforme haja ou não uma planilha configurad
 ## Identificação de usuário
 
 Não há login. Cada computador é configurado uma única vez com um papel (Balcão, Estoque ou
-Acompanhamento) na primeira abertura da sidebar — fica salvo localmente e pode ser trocado a
-qualquer momento pelo link "Trocar" no topo.
+Acompanhamento) na primeira abertura da sidebar — fica salvo localmente. No dia a dia o perfil
+é **fixo**: a troca não fica na barra de cima, e sim dentro do **⚙** (configuração da máquina),
+com confirmação. Assim o vendedor não muda de perfil sozinho; a troca serve só para
+reconfigurar a máquina ou para testar os perfis.
 
 ## Notificações
 

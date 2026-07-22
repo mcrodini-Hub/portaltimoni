@@ -213,6 +213,16 @@
     [ROLES.ACOMPANHAMENTO]: 'Acompanhamento'
   };
 
+  // Estoque e Acompanhamento renderizam itens com os mesmos ids de formulário (form-<id> etc.).
+  // Como só um perfil fica visível por vez, limpamos as listas dinâmicas ao trocar de perfil
+  // para nunca haver ids duplicados no DOM.
+  function limparListasDinamicas() {
+    [
+      el.listaSolicitacoes, el.listaPendentes, el.listaCompra,
+      el.acompListaPendentes, el.acompListaAnotados, el.acompListaRespondidos
+    ].forEach((ul) => { if (ul) ul.innerHTML = ''; });
+  }
+
   async function applyRole(role) {
     roleAtual = role;
     el.telaPapel.hidden = true;
@@ -221,6 +231,7 @@
     el.viewBalcao.hidden = role !== ROLES.BALCAO;
     el.viewEstoque.hidden = role !== ROLES.ESTOQUE;
     el.viewAcompanhamento.hidden = role !== ROLES.ACOMPANHAMENTO;
+    limparListasDinamicas();
     await atualizarStatusConexao();
     await recarregarVisaoAtual();
     iniciarPolling();
@@ -567,12 +578,16 @@
     el.acompRespondidos.textContent = String(respondidos.length);
     el.acompClientes.textContent = String(necessidades.filter((n) => n.clienteAguardando && (n.status === STATUS.PENDENTE || n.status === STATUS.EM_COMPRA)).length);
 
-    preencherLista(el.acompListaPendentes, el.acompPendentesVazio, pendentes, {
-      meta: (n) => `Solicitado ${formatRelative(n.criadoEm)} · ${formatDateTime(n.criadoEm)}`
-    });
-    preencherLista(el.acompListaAnotados, el.acompAnotadosVazio, anotados, {
-      meta: (n) => `Anotado ${formatRelative(n.respondidoEm)}`
-    });
+    // As duas primeiras seções são acionáveis (mesmas respostas do estoque): a gestão pode
+    // intervir e responder, inclusive na ausência do Lucas. Respondidos é histórico (leitura).
+    el.acompListaPendentes.innerHTML = '';
+    el.acompPendentesVazio.hidden = pendentes.length > 0;
+    pendentes.forEach((n) => el.acompListaPendentes.appendChild(buildNeedItem(n, { novo: true })));
+
+    el.acompListaAnotados.innerHTML = '';
+    el.acompAnotadosVazio.hidden = anotados.length > 0;
+    anotados.forEach((n) => el.acompListaAnotados.appendChild(buildNeedItem(n, { novo: false })));
+
     preencherLista(el.acompListaRespondidos, el.acompRespondidosVazio, respondidos, {
       meta: (n) => `Respondido ${formatRelative(n.respondidoEm)} · ${formatDateTime(n.respondidoEm)}`
     });
@@ -607,8 +622,8 @@
       try {
         await EstoqueStore.responderRecebido(id);
         showError(null);
-        showToast('Anotado — aguardando seu retorno.');
-        await renderFilaEstoque();
+        showToast('Anotado — aguardando retorno.');
+        await recarregarVisaoAtual();
       } catch (e) {
         showError(e.message);
         btn.disabled = false;
@@ -624,7 +639,7 @@
         await EstoqueStore.responderPedidoExistente(id, { numeroPedido, previsaoEntrega });
         showError(null);
         showToast('Respondido ao balcão.');
-        await renderFilaEstoque();
+        await recarregarVisaoAtual();
       } catch (e) {
         showError(e.message);
         btn.disabled = false;
@@ -639,7 +654,7 @@
         await EstoqueStore.responderObservacao(id, { observacao });
         showError(null);
         showToast('Respondido ao balcão.');
-        await renderFilaEstoque();
+        await recarregarVisaoAtual();
       } catch (e) {
         showError(e.message);
         btn.disabled = false;
@@ -651,6 +666,9 @@
   // retorno), então o mesmo handler escuta as duas listas.
   el.listaPendentes.addEventListener('click', onNeedListClick);
   el.listaCompra.addEventListener('click', onNeedListClick);
+  // O perfil Acompanhamento também é acionável (gestão pode responder na ausência do Lucas).
+  el.acompListaPendentes.addEventListener('click', onNeedListClick);
+  el.acompListaAnotados.addEventListener('click', onNeedListClick);
 
   // Recarrega ao voltar o foco ao painel — dados sempre frescos sem esperar o ciclo de polling.
   window.addEventListener('focus', () => { if (roleAtual) recarregarVisaoAtual(); });

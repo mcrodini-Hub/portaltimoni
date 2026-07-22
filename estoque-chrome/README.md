@@ -6,9 +6,11 @@ módulos:
 - **Módulo 1 — Consulta de Produtos (Balcão)**: busca por código ou descrição, e permite
   informar uma necessidade de compra para o produto selecionado, marcando se **tem cliente
   aguardando**. Sem valores, sem anexos.
-- **Acompanhamento (gestão)**: um terceiro perfil, de leitura, que mostra a troca completa
-  entre balcão e estoque (aguardando estoque, aguardando retorno do Lucas, e respondidos),
-  com contadores no topo. Para quem fecha com o fornecedor e precisa acompanhar tudo.
+- **Acompanhamento (gestão)**: um terceiro perfil que mostra a troca completa entre balcão e
+  estoque (aguardando estoque, aguardando retorno do Lucas, e respondidos), com contadores no
+  topo. É **ativo**: as duas primeiras seções têm os mesmos botões de resposta do estoque, então
+  a gestão pode intervir e lançar pedido — inclusive na ausência do Lucas. "Respondidos" é
+  histórico (leitura). Para quem fecha com o fornecedor e precisa acompanhar e agir.
 - **Módulo 2 — Central de Necessidades (Estoque/Lucas)**: recebe as solicitações do balcão
   ("Aguardando você") e responde de três formas:
   - **Recebido! Vou providenciar** — o item vai para a lista de necessidade de compra;

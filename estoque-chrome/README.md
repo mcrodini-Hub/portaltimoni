@@ -92,8 +92,9 @@ Perfis disponíveis (escolhidos na primeira abertura):
 - A **Gestão geral** vê as duas lojas juntas, com etiqueta da loja em cada item, e um **resumo de
   7 dias** (volume, tempo médio de resposta, atrasados).
 - **"Registrar pedido em aberto"** (opcional): lançar um pedido já feito que não veio de uma
-  solicitação, para ele aparecer na "situação atual" do produto. Disponível para a **Gestão
-  geral** e para as **gerências** (Jeovana e Reginaldo) — a gerência lança só na sua loja.
+  solicitação (ex.: os que estão no Trello/PDF), para ele aparecer na "situação atual" do
+  produto. Disponível para a **Gestão geral** e para as **gerências** (Jeovana e Reginaldo) —
+  a gerência lança só na sua loja.
 - **Gerência** (Jeovana em Rio Claro, Reginaldo em Araras) vê a sua loja em leitura; a única
   ação que executa é registrar pedido em aberto.
 - Notificações e contadores respeitam a loja de cada computador.

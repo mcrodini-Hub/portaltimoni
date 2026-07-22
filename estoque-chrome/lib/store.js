@@ -189,7 +189,9 @@
     const alvo = normalize(termo);
     if (!alvo) return [];
     const produtos = await carregarProdutos(false);
-    return produtos.filter((p) => normalize(p.codigo).includes(alvo) || normalize(p.descricao).includes(alvo));
+    return produtos
+      .filter((p) => normalize(p.codigo).includes(alvo) || normalize(p.descricao).includes(alvo))
+      .sort((a, b) => normalize(a.descricao).localeCompare(normalize(b.descricao)));
   }
 
   // -------------------------------------------------------------------------

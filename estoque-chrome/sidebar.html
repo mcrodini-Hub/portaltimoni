@@ -162,12 +162,31 @@
       </div>
       <p class="conn-status" id="conn-status-acomp"></p>
 
+      <section class="step" id="registrar-wrap" hidden>
+        <button id="btn-registrar-toggle" class="btn-link" style="padding-left:2px;">+ Registrar pedido em aberto</button>
+        <div id="registrar-form" class="step-card" hidden>
+          <p class="hint-text" style="margin-top:0;">Para pedidos que não vieram de uma solicitação (ex.: do Trello/PDF). Ele passa a aparecer na "situação atual" do produto.</p>
+          <input type="text" id="reg-codigo" class="text-input" placeholder="Código do produto">
+          <input type="text" id="reg-numero" class="text-input" placeholder="Nº do pedido">
+          <input type="date" id="reg-previsao" class="text-input">
+          <select id="reg-unidade" class="text-input">
+            <option value="rio_claro">Rio Claro</option>
+            <option value="araras">Araras</option>
+          </select>
+          <div class="pedido-form-actions">
+            <button id="btn-registrar-salvar" class="btn btn-primary btn-small">Registrar</button>
+            <button id="btn-registrar-cancelar" class="btn btn-secondary btn-small">Cancelar</button>
+          </div>
+        </div>
+      </section>
+
       <div class="stat-row">
         <div class="stat"><span class="stat-num" id="acomp-pendentes">0</span><span class="stat-lbl">Aguardando estoque</span></div>
         <div class="stat"><span class="stat-num" id="acomp-anotados">0</span><span class="stat-lbl">Aguardando retorno</span></div>
         <div class="stat"><span class="stat-num" id="acomp-respondidos">0</span><span class="stat-lbl">Respondidos</span></div>
         <div class="stat stat-alerta"><span class="stat-num" id="acomp-clientes">0</span><span class="stat-lbl">Cliente aguardando</span></div>
       </div>
+      <p class="resumo-periodo" id="acomp-resumo"></p>
 
       <section class="step">
         <p class="step-label">Aguardando o estoque</p>

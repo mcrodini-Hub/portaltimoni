@@ -58,6 +58,16 @@
     acompAnotados: document.getElementById('acomp-anotados'),
     acompRespondidos: document.getElementById('acomp-respondidos'),
     acompClientes: document.getElementById('acomp-clientes'),
+    acompResumo: document.getElementById('acomp-resumo'),
+    registrarWrap: document.getElementById('registrar-wrap'),
+    btnRegistrarToggle: document.getElementById('btn-registrar-toggle'),
+    registrarForm: document.getElementById('registrar-form'),
+    regCodigo: document.getElementById('reg-codigo'),
+    regNumero: document.getElementById('reg-numero'),
+    regPrevisao: document.getElementById('reg-previsao'),
+    regUnidade: document.getElementById('reg-unidade'),
+    btnRegistrarSalvar: document.getElementById('btn-registrar-salvar'),
+    btnRegistrarCancelar: document.getElementById('btn-registrar-cancelar'),
     acompListaPendentes: document.getElementById('acomp-lista-pendentes'),
     acompPendentesVazio: document.getElementById('acomp-pendentes-vazio'),
     acompPendentesHint: document.getElementById('acomp-pendentes-hint'),
@@ -753,6 +763,20 @@
     lista.forEach((n) => ul.appendChild(buildItemLeitura(n, opts || {})));
   }
 
+  // Resumo de gestão dos últimos 7 dias: volume, tempo médio de resposta e atrasados.
+  function resumoPeriodo(lista) {
+    const seteDias = Date.now() - 7 * 24 * 3600000;
+    const doPeriodo = lista.filter((n) => new Date(n.criadoEm).getTime() >= seteDias);
+    const respondidos = doPeriodo.filter((n) => n.respondidoEm);
+    let mediaTxt = '—';
+    if (respondidos.length) {
+      const horas = respondidos.reduce((soma, n) => soma + (new Date(n.respondidoEm).getTime() - new Date(n.criadoEm).getTime()) / 3600000, 0) / respondidos.length;
+      mediaTxt = horas < 1 ? `${Math.round(horas * 60)} min` : `${horas.toFixed(1)} h`;
+    }
+    const atrasados = lista.filter(estaAtrasado).length;
+    return `7 dias: ${doPeriodo.length} pedido(s) · resposta média ${mediaTxt} · ${atrasados} atrasado(s)`;
+  }
+
   async function renderAcompanhamento() {
     let necessidades;
     try {
@@ -772,6 +796,8 @@
     el.acompAnotados.textContent = String(anotados.length);
     el.acompRespondidos.textContent = String(respondidos.length);
     el.acompClientes.textContent = String(necessidades.filter((n) => n.clienteAguardando && (n.status === STATUS.PENDENTE || n.status === STATUS.EM_COMPRA)).length);
+    el.acompResumo.textContent = resumoPeriodo(necessidades);
+    el.registrarWrap.hidden = !podeAgirAtual; // só a gestão registra pedido em aberto
 
     // Gestão geral pode agir (mesmas respostas do estoque); gerência de unidade é só leitura.
     el.acompPendentesHint.hidden = !podeAgirAtual;
@@ -891,6 +917,32 @@
   // O perfil Acompanhamento também é acionável (gestão pode responder na ausência do Lucas).
   el.acompListaPendentes.addEventListener('click', onNeedListClick);
   el.acompListaAnotados.addEventListener('click', onNeedListClick);
+
+  // Registrar pedido em aberto (gestão)
+  el.btnRegistrarToggle.addEventListener('click', () => {
+    el.registrarForm.hidden = !el.registrarForm.hidden;
+  });
+  el.btnRegistrarCancelar.addEventListener('click', () => { el.registrarForm.hidden = true; });
+  el.btnRegistrarSalvar.addEventListener('click', async () => {
+    el.btnRegistrarSalvar.disabled = true;
+    try {
+      await EstoqueStore.registrarPedidoEmAberto({
+        codigo: el.regCodigo.value,
+        unidade: el.regUnidade.value,
+        numeroPedido: el.regNumero.value.trim(),
+        previsaoEntrega: el.regPrevisao.value // AAAA-MM-DD
+      });
+      showError(null);
+      showToast('Pedido registrado.');
+      el.regCodigo.value = ''; el.regNumero.value = ''; el.regPrevisao.value = '';
+      el.registrarForm.hidden = true;
+      await recarregarVisaoAtual();
+    } catch (e) {
+      showError(e.message);
+    } finally {
+      el.btnRegistrarSalvar.disabled = false;
+    }
+  });
 
   // Recarrega ao voltar o foco ao painel — dados sempre frescos sem esperar o ciclo de polling.
   // (O cache curto da fila evita busca redundante se foco e visibilidade dispararem juntos.)

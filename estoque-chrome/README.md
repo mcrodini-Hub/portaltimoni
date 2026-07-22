@@ -89,7 +89,10 @@ Perfis disponíveis (escolhidos na primeira abertura):
 
 - Só os **Vendedores** podem alternar de loja (CT Rio Claro ⇄ CT Araras) pelo botão no topo — é
   troca de *loja*, não de *perfil*.
-- A **Gestão geral** vê as duas lojas juntas, com etiqueta da loja em cada item.
+- A **Gestão geral** vê as duas lojas juntas, com etiqueta da loja em cada item, um **resumo de
+  7 dias** (volume, tempo médio de resposta, atrasados) e um **"Registrar pedido em aberto"**
+  (para pedidos que não vieram de uma solicitação — ex.: os que estavam no Trello/PDF).
+- **Gerência** (Jeovana em Rio Claro, Reginaldo em Araras) vê a sua loja, só leitura.
 - Notificações e contadores respeitam a loja de cada computador.
 
 ## Identificação de usuário

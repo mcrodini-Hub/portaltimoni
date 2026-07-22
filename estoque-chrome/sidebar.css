@@ -365,6 +365,8 @@ select.text-input { appearance: auto; background: #fff; cursor: pointer; }
 .stat-lbl { font-size: 11px; color: var(--ink-soft); font-weight: 600; }
 .stat-alerta .stat-num { color: var(--red); }
 
+.resumo-periodo { font-size: 12px; color: var(--ink-soft); margin: -6px 0 16px; font-weight: 600; }
+
 .existente-box {
   background: #eef2ff;
   border: 1px solid #cdd6ff;

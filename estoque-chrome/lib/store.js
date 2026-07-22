@@ -326,6 +326,19 @@
     return alvo;
   }
 
+  // Registra um pedido já feito ao fornecedor, mesmo sem uma solicitação de vendedor (ex.:
+  // pedidos que vinham do Trello/PDF). Cria a necessidade e já a marca como "a caminho".
+  async function registrarPedidoEmAberto({ codigo, unidade, numeroPedido, previsaoEntrega }) {
+    const cod = String(codigo || '').trim();
+    if (!cod) throw new Error('Informe o código do produto.');
+    if (!numeroPedido || !previsaoEntrega) throw new Error('Informe o número do pedido e a previsão de entrega.');
+    const produtos = await carregarProdutos(false);
+    const prod = produtos.find((p) => String(p.codigo) === cod);
+    if (!prod) throw new Error(`Produto ${cod} não encontrado no catálogo.`);
+    const nec = await criarNecessidade(prod, { unidade: unidade || UNIDADES.RIO_CLARO, vendedor: '' });
+    return responderPedidoExistente(nec.id, { numeroPedido, previsaoEntrega });
+  }
+
   // Marca a chegada do produto (fecha o ciclo até o cliente).
   async function marcarChegada(id) {
     invalidarNecessidades();
@@ -370,6 +383,7 @@
     responderRecebido,
     responderPedidoExistente,
     responderObservacao,
-    marcarChegada
+    marcarChegada,
+    registrarPedidoEmAberto
   };
 })(self);

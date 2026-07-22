@@ -651,6 +651,17 @@
   // Item parado: pendente/anotado há muito tempo (mais ainda se tem cliente aguardando).
   const HORAS_ATRASO = 24;
   const HORAS_ATRASO_CLIENTE = 4;
+  // Itens já resolvidos (chegou/observação) somem da tela depois de alguns dias — ficam
+  // guardados na planilha para histórico, só não poluem mais as listas do dia a dia.
+  const DIAS_OCULTAR_RESOLVIDOS = 7;
+
+  function resolvidoRecente(n) {
+    if (n.status !== STATUS.CHEGOU && n.status !== STATUS.OBSERVACAO) return true;
+    const data = new Date(n.chegouEm || n.respondidoEm || n.criadoEm).getTime();
+    if (isNaN(data)) return true;
+    const dias = (Date.now() - data) / 86400000;
+    return dias <= DIAS_OCULTAR_RESOLVIDOS;
+  }
   function estaAtrasado(n) {
     if (n.status !== STATUS.PENDENTE && n.status !== STATUS.EM_COMPRA) return false;
     const base = new Date(n.criadoEm).getTime();
@@ -669,7 +680,7 @@
   async function renderSolicitacoes() {
     let necessidades;
     try {
-      necessidades = ordenarPorCriadoDesc(filtrarUnidade(await EstoqueStore.getNecessidades()));
+      necessidades = ordenarPorCriadoDesc(filtrarUnidade(await EstoqueStore.getNecessidades())).filter(resolvidoRecente);
     } catch (e) {
       showError(e.message);
       return;
@@ -897,7 +908,7 @@
   async function renderAcompanhamento() {
     let necessidades;
     try {
-      necessidades = filtrarUnidade(await EstoqueStore.getNecessidades());
+      necessidades = filtrarUnidade(await EstoqueStore.getNecessidades()).filter(resolvidoRecente);
     } catch (e) {
       showError(e.message);
       return;

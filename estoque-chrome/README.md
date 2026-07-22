@@ -166,6 +166,14 @@ Escolha "Balcão", busque um produto (ex. "1001" ou "torneira"), informe a neces
 depois clique em "Trocar" e escolha "Estoque" para ver e responder a mesma solicitação.
 No modo local os dados são desta sessão do Chrome, então tudo aparece na mesma janela.
 
+## Limpeza automática das listas
+
+Itens já resolvidos (**Chegou** ou respondidos com observação) somem sozinhos das telas
+depois de **7 dias** — de "Minhas solicitações" (vendedor) e de "Respondidos" (Gestão).
+Não é apagado nada: o histórico completo continua na aba `Necessidades` da planilha, só
+não polui mais o dia a dia. Itens ainda em andamento (aguardando estoque, aguardando
+retorno, a caminho) continuam visíveis até serem resolvidos, não importa a idade.
+
 ## Desempenho
 
 Pensado para ser leve mesmo com polling e várias telas lendo a mesma fila:

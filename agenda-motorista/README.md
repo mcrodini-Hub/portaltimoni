@@ -13,9 +13,13 @@ Abra `index.html` direto no navegador (desktop ou celular) — não precisa de i
 - **Geração de texto para WhatsApp**: monta o texto com negrito (`*assim*`) a partir dos campos preenchidos, atualizado em tempo real.
 - **Validação de campos obrigatórios**: campos marcados com `*` são obrigatórios; ao tentar copiar sem preenchê-los, os campos inválidos ficam destacados e o foco vai para o primeiro pendente.
 - **Anexos (dividir pedido entre empresas)**: quando uma viagem tem mais de uma nota fiscal, permite detalhar itens por empresa.
-- **Preenchido por**: identifica quem montou a viagem (Ciça, Jaqueline, Jeovana, Thais).
+- **Preenchido por**: identifica quem montou a viagem (Ciça, Jaqueline, Jeovana, Reginaldo, Thais).
 - **Impressão**: por viagem individual ou da agenda inteira.
 - **Exportação em Excel**: gera um `.xls` (SpreadsheetML) com uma linha por viagem, todas as colunas preenchidas.
+
+## Acessos
+
+Sem restrição por pessoa ou por loja: é um motorista só para as duas lojas (Rio Claro e Araras), então qualquer um dos 5 caixas — Ciça, Jaqueline, Jeovana, Reginaldo, Thais — pode escolher qualquer loja em qualquer computador. A seleção de loja (tela inicial + pill no topbar) serve só para rotular a agenda gerada, não é um controle de permissão.
 
 ## Estrutura
 

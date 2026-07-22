@@ -93,6 +93,7 @@
   let roleAtual = null;
   let unidadeAtual = EstoqueStore.UNIDADES.RIO_CLARO;
   let podeAgirAtual = true;
+  let pessoaAtual = '';
   let pollTimer = null;
 
   function showError(msg) {
@@ -266,7 +267,8 @@
       return;
     }
     const unidade = await EstoqueStore.getUnidade();
-    applyRole(papel, unidade);
+    const pessoa = await EstoqueStore.getPessoa();
+    applyRole(papel, unidade, pessoa);
   }
 
   function atualizarBotaoUnidade() {
@@ -321,9 +323,10 @@
     if (el.selExistenteAcomp) { el.selExistenteAcomp.hidden = true; el.selExistenteAcomp.innerHTML = ''; }
   }
 
-  async function applyRole(papel, unidade) {
+  async function applyRole(papel, unidade, pessoa) {
     roleAtual = papel;
     unidadeAtual = unidade || EstoqueStore.UNIDADES.RIO_CLARO;
+    pessoaAtual = pessoa || '';
     podeAgirAtual = EstoqueStore.podeAgir(papel, unidadeAtual);
     el.telaPapel.hidden = true;
     el.rolePillWrap.hidden = false;
@@ -345,9 +348,11 @@
     btn.addEventListener('click', async () => {
       const papel = btn.dataset.papel;
       const unidade = btn.dataset.unidade;
+      const pessoa = btn.dataset.pessoa || '';
       await EstoqueStore.setRole(papel);
       await EstoqueStore.setUnidade(unidade);
-      applyRole(papel, unidade);
+      await EstoqueStore.setPessoa(pessoa);
+      applyRole(papel, unidade, pessoa);
     });
   });
 
@@ -965,8 +970,9 @@
         : `Respondido ${formatRelative(n.respondidoEm)} · ${formatDateTime(n.respondidoEm)}`
     });
 
-    // "Limpar solicitações" é uma ação destrutiva (apaga tudo, sem volta) — só para Gestão geral.
-    if (el.limparWrap) el.limparWrap.hidden = unidadeAtual !== EstoqueStore.UNIDADES.TODAS;
+    // "Limpar solicitações" é uma ação destrutiva (apaga tudo, sem volta) — exclusiva da Ciça,
+    // os demais perfis de Gestão geral não precisam dela.
+    if (el.limparWrap) el.limparWrap.hidden = pessoaAtual !== 'cica';
   }
 
   if (el.btnLimparNecessidades) {

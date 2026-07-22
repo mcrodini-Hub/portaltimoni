@@ -14,6 +14,7 @@
   const KEYS = Object.freeze({
     ROLE: 'estoqueRole',
     UNIDADE: 'estoqueUnidade',
+    PESSOA: 'estoquePessoa',
     VENDEDOR: 'estoqueVendedor',
     WEBAPP_URL: 'estoqueWebAppUrl',
     PRODUTOS_CACHE: 'estoqueProdutosCache',
@@ -79,6 +80,11 @@
     }
     return set(KEYS.UNIDADE, unidade);
   }
+
+  // Identifica qual Gestão geral é (Ciça, Marcelo, Jeovana, Reginaldo) — usado só para liberar
+  // ações exclusivas dela (ex.: "Limpar solicitações"), que os demais não precisam ter.
+  async function getPessoa() { return get(KEYS.PESSOA, ''); }
+  async function setPessoa(pessoa) { return set(KEYS.PESSOA, (pessoa || '').trim()); }
 
   async function getVendedor() { return get(KEYS.VENDEDOR, ''); }
   async function setVendedor(nome) { return set(KEYS.VENDEDOR, (nome || '').trim()); }
@@ -380,6 +386,8 @@
     setRole,
     getUnidade,
     setUnidade,
+    getPessoa,
+    setPessoa,
     getVendedor,
     setVendedor,
     carregarVendedores,

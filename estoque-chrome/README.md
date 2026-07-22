@@ -176,10 +176,12 @@ retorno, a caminho) continuam visíveis até serem resolvidos, não importa a id
 
 ## Limpar solicitações (zona de teste)
 
-Na tela de Acompanhamento, a **Gestão geral** tem, no final, o botão **"Limpar solicitações
-(teste)"**. Ele apaga **todas** as solicitações — as duas lojas, sem volta — para começar do
-zero num teste. Não mexe nas abas `Produtos` nem `Vendedores`. Pede **confirmação em duas
-etapas** antes de executar, porque no modo planilha limpa para todo mundo na hora.
+Na tela de Acompanhamento, só o perfil **Gestão geral — Ciça** tem, no final, o botão **"Limpar
+solicitações (teste)"** — é exclusivo dela, os demais perfis de Gestão geral (Marcelo, Jeovana,
+Reginaldo) não veem esse botão. Ele apaga **todas** as solicitações — as duas lojas, sem volta —
+para começar do zero num teste. Não mexe nas abas `Produtos` nem `Vendedores`. Pede
+**confirmação em duas etapas** antes de executar, porque no modo planilha limpa para todo mundo
+na hora.
 
 > Requer a versão atual do `Codigo.gs` publicada (ação `limpar`). Se o botão der erro, é
 > porque a planilha ainda está com uma versão mais antiga do script — cole o `Codigo.gs`

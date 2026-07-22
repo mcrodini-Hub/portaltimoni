@@ -623,7 +623,7 @@
 
   function statusLabel(n) {
     if (n.status === STATUS.PENDENTE) return 'Enviado ao estoque — aguardando retorno';
-    if (n.status === STATUS.EM_COMPRA) return 'Aguarde retorno';
+    if (n.status === STATUS.EM_COMPRA) return 'Estoque vai fazer a relação de compra — aguarde retorno';
     if (n.status === STATUS.PEDIDO_EXISTENTE) {
       return `A caminho — pedido nº ${n.numeroPedido}, previsão ~${formatDateOnly(n.previsaoEntrega)}`;
     }
@@ -725,7 +725,7 @@
     acoes.className = 'need-actions';
     let botoes = '';
     if (novo) {
-      botoes += `<button class="btn btn-primary btn-small" data-action="recebido" data-id="${n.id}">Aguardando retorno</button>`;
+      botoes += `<button class="btn btn-primary btn-small" data-action="recebido" data-id="${n.id}">Vou fazer a relação de compra</button>`;
     }
     botoes += `<button class="btn btn-${novo ? 'secondary' : 'primary'} btn-small" data-action="ja-tem-pedido" data-id="${n.id}">Já tem pedido</button>`;
     botoes += `<button class="btn btn-secondary btn-small" data-action="observacao-abrir" data-id="${n.id}">Outra resposta</button>`;
@@ -971,7 +971,7 @@
       try {
         await EstoqueStore.responderRecebido(id);
         showError(null);
-        showToast('Anotado — aguardando retorno.');
+        showToast('Anotado — vou fazer a relação de compra.');
         await recarregarVisaoAtual();
       } catch (e) {
         showError(e.message);

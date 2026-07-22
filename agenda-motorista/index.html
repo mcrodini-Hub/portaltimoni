@@ -1,0 +1,858 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda de Motorista — Portal Timoni</title>
+<style>
+  :root{
+    --blue:#2c4be0;
+    --blue-dark:#1f39b8;
+    --page-bg:#f8f7f6;
+    --header-bg:#fbeeec;
+    --card:#ffffff;
+    --border:#e7e4e2;
+    --ink:#22262e;
+    --ink-soft:#5b6270;
+    --muted:#8a8f99;
+    --green:#1f8a4c;
+    --error:#c0362c;
+    --field-bg:#ffffff;
+    --soft:#faf7f5;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    background:var(--page-bg);
+    color:var(--ink);
+    font-size:14px;
+    line-height:1.45;
+  }
+
+  /* ===== Cabeçalho (padrão Portal Timoni) ===== */
+  .topbar{
+    background:var(--header-bg);
+    border-bottom:1px solid var(--border);
+    padding:12px 24px;
+    display:flex;
+    align-items:center;
+    gap:10px;
+    position:sticky;
+    top:0;
+    z-index:20;
+  }
+  .brand{display:flex;align-items:center;gap:10px;}
+  .brand-logo{
+    width:32px;height:32px;border-radius:50%;
+    background:var(--blue);
+    color:#fff;
+    display:flex;align-items:center;justify-content:center;
+    font-weight:700;font-size:16px;
+    box-shadow:0 1px 2px rgba(0,0,0,.15);
+    flex:none;
+  }
+  .brand-title{font-size:15px;font-weight:700;color:var(--ink);}
+  .brand-dim{color:var(--ink-soft);font-weight:600;}
+
+  .page{
+    max-width:1100px;
+    margin:0 auto;
+    padding:20px 24px 48px;
+  }
+  .intro{
+    color:var(--ink-soft);
+    margin:0 0 16px;
+    font-size:13px;
+  }
+
+  .titulo-agenda{
+    width:100%;
+    font-size:16px;
+    font-weight:600;
+    padding:10px 12px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    margin-bottom:18px;
+    background:var(--card);
+    color:var(--ink);
+  }
+  .titulo-agenda:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(44,75,224,.15);}
+
+  .layout{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+    align-items:start;
+  }
+  @media (max-width:900px){
+    .topbar{padding:12px 16px;}
+    .page{padding:16px;}
+    .layout{grid-template-columns:1fr;}
+  }
+
+  .trip{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:16px;
+    margin-bottom:16px;
+    box-shadow:0 1px 2px rgba(0,0,0,.04);
+  }
+  .trip-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:10px;
+  }
+  .trip-header span{
+    font-weight:700;
+    color:var(--blue-dark);
+    font-size:15px;
+  }
+  .remove-btn, .remove-nota{
+    background:none;
+    border:none;
+    color:var(--error);
+    cursor:pointer;
+    font-size:13px;
+    padding:2px 4px;
+  }
+  .remove-btn:hover, .remove-nota:hover{text-decoration:underline;}
+
+  label{
+    display:block;
+    font-size:12px;
+    color:var(--ink-soft);
+    font-weight:600;
+    margin:12px 0 4px;
+  }
+  label .req{
+    color:var(--error);
+    font-weight:700;
+  }
+  label .hint{
+    font-style:italic;
+    font-weight:400;
+    color:var(--muted);
+  }
+  input[type=text], input[type=date], textarea, select{
+    width:100%;
+    padding:9px 11px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    font-size:14px;
+    font-family:inherit;
+    resize:vertical;
+    background:var(--field-bg);
+    color:var(--ink);
+  }
+  input[type=text]:focus, input[type=date]:focus, textarea:focus, select:focus{
+    outline:none;
+    border-color:var(--blue);
+    box-shadow:0 0 0 3px rgba(44,75,224,.15);
+  }
+  input.field-error, textarea.field-error, select.field-error{
+    border-color:var(--error);
+    background:#fff5f5;
+  }
+  textarea{min-height:60px;}
+  .row2{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:10px;
+  }
+  .row-cep{
+    display:grid;
+    grid-template-columns:1fr auto;
+    gap:8px;
+    align-items:end;
+  }
+  .check{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    margin-top:12px;
+    font-size:13px;
+    font-weight:600;
+    color:var(--ink);
+  }
+  .check input{width:auto;}
+  .notas-container{
+    margin-top:10px;
+    border-top:1px dashed var(--border);
+    padding-top:10px;
+  }
+  .nota-block{
+    background:var(--soft);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:10px;
+    margin-bottom:10px;
+  }
+  .nota-block .remove-nota{margin-left:8px;}
+
+  button{
+    cursor:pointer;
+    border:none;
+    border-radius:10px;
+    padding:9px 15px;
+    font-size:13px;
+    font-weight:600;
+    font-family:inherit;
+  }
+  .btn-primary{
+    background:var(--blue);
+    color:#fff;
+  }
+  .btn-primary:hover{background:var(--blue-dark);}
+  .btn-secondary{
+    background:#eef0fd;
+    color:var(--blue-dark);
+    margin-top:8px;
+  }
+  .btn-secondary:hover{background:#e2e6fb;}
+  .btn-outline{
+    background:#fff;
+    color:var(--blue-dark);
+    border:1px solid var(--blue);
+  }
+  .btn-outline:hover{background:#f2f4fe;}
+  .trip-actions{
+    margin-top:14px;
+    padding-top:12px;
+    border-top:1px solid var(--border);
+  }
+  .cep-msg{
+    font-size:12px;
+    margin-top:4px;
+  }
+  .cep-msg.ok{color:var(--green);}
+  .cep-msg.err{color:var(--error);}
+
+  .output-panel{
+    position:sticky;
+    top:76px;
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:14px;
+    padding:16px;
+    box-shadow:0 1px 2px rgba(0,0,0,.04);
+  }
+  .output-panel h2{
+    font-size:15px;
+    margin:0 0 10px;
+    color:var(--blue-dark);
+  }
+  #output{
+    width:100%;
+    min-height:420px;
+    font-family:"Courier New",monospace;
+    font-size:16px;
+    white-space:pre-wrap;
+    padding:12px;
+    border:1px solid var(--border);
+    border-radius:10px;
+    background:var(--soft);
+    color:var(--ink);
+  }
+  .copy-row{
+    margin-top:10px;
+    display:flex;
+    gap:8px;
+    align-items:center;
+    flex-wrap:wrap;
+  }
+  .copied-msg{
+    font-size:12px;
+    color:var(--green);
+    font-weight:600;
+    opacity:0;
+    transition:opacity .3s;
+  }
+  .validation-msg{
+    font-size:12px;
+    color:var(--error);
+    margin-top:6px;
+  }
+  .add-trip-row{
+    margin-bottom:16px;
+  }
+  .trip:not(:first-of-type){
+    position:relative;
+  }
+  .trip:not(:first-of-type)::before{
+    content:"==========================";
+    display:block;
+    text-align:center;
+    font-family:"Courier New",monospace;
+    color:var(--muted);
+    letter-spacing:1px;
+    margin:-4px 0 16px;
+  }
+</style>
+</head>
+<body>
+
+<header class="topbar">
+  <div class="brand">
+    <span class="brand-logo">T</span>
+    <span class="brand-title">Agenda de Motorista <span class="brand-dim">· Portal Timoni</span></span>
+  </div>
+</header>
+
+<main class="page">
+  <p class="intro">Monte a agenda de entregas e retiradas e gere o texto pronto para o WhatsApp. Funciona no computador e no celular.</p>
+
+  <input class="titulo-agenda" id="tituloAgenda" value="🚚Agenda de Motorista - Casa Timoni🚚">
+
+  <div class="add-trip-row">
+    <button class="btn-primary" onclick="addTrip()">+ Nova viagem</button>
+  </div>
+
+  <div class="layout">
+    <div id="tripsContainer"></div>
+
+    <div class="output-panel">
+      <h2>Texto gerado (pronto para o WhatsApp)</h2>
+      <textarea id="output" readonly></textarea>
+      <div class="copy-row">
+        <button class="btn-primary" onclick="copyOutput()">Copiar texto</button>
+        <button class="btn-outline" onclick="imprimirTudo()">Imprimir Tudo</button>
+        <button class="btn-outline" onclick="gerarExcel()">Gerar Relatório Excel</button>
+        <span class="copied-msg" id="copiedMsg">Copiado!</span>
+      </div>
+      <div class="validation-msg" id="validationMsg"></div>
+    </div>
+  </div>
+</main>
+
+<script>
+let tripCount = 0;
+
+function addTrip(){
+  tripCount++;
+  const id = tripCount;
+  const container = document.getElementById('tripsContainer');
+  const div = document.createElement('div');
+  div.className = 'trip';
+  div.id = 'trip-' + id;
+  div.innerHTML = `
+    <div class="trip-header">
+      <span>Viagem ${id}</span>
+      <button class="remove-btn" onclick="removeTrip(${id})">remover</button>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Data <span class="req">*</span></label>
+        <input type="date" class="f-data" oninput="generate()" onclick="try{this.showPicker()}catch(e){}" onfocus="try{this.showPicker()}catch(e){}">
+      </div>
+      <div>
+        <label>Horário <span class="req">*</span></label>
+        <input type="text" class="f-horario" placeholder="Ex: xx:xx" oninput="generate()" onblur="formatTimeField(this)">
+      </div>
+    </div>
+
+    <label>Entrega ou Retirada</label>
+    <select class="f-tipo-horario" onchange="generate()">
+      <option value="Retirada">Retirada</option>
+      <option value="Entrega">Entrega</option>
+    </select>
+
+    <label>CEP <span class="hint">(opcional, para buscar o endereço)</span></label>
+    <div class="row-cep">
+      <input type="text" class="f-cep" placeholder="Ex: 13500-000" oninput="generate()">
+      <button class="btn-secondary" onclick="buscarCep(${id})">Buscar CEP</button>
+    </div>
+    <div class="cep-msg" id="cepMsg-${id}"></div>
+
+    <label>Endereço/Link <span class="req">*</span></label>
+    <input type="text" class="f-endereco" placeholder="Ex: Rua, Bairro - Cidade/UF ou link do Google Maps" oninput="generate()">
+
+    <div class="row2">
+      <div>
+        <label>Número <span class="req">*</span></label>
+        <input type="text" class="f-numero-endereco" placeholder="Ex: 123" oninput="generate()">
+      </div>
+      <div>
+        <label>Complemento <span class="hint">(opcional)</span></label>
+        <input type="text" class="f-complemento-endereco" placeholder="Ex: Apto 4, Bloco B" oninput="generate()">
+      </div>
+    </div>
+
+    <div class="row2">
+      <div>
+        <label>Cliente/Fornecedor <span class="req">*</span></label>
+        <input type="text" class="f-cliente-fornecedor" placeholder="Ex: VILELA FIBRAS" oninput="generate()">
+      </div>
+      <div>
+        <label>NF/Pedido <span class="req">*</span></label>
+        <input type="text" class="f-numero-pedido" placeholder="Ex: 6073MCR" oninput="generate()">
+      </div>
+    </div>
+
+    <label>Detalhamento <span class="hint">(um item por linha)</span></label>
+    <textarea class="f-itens" placeholder="Ex: 5 rolos de 100g&#10;Ex: 10 rolos de 150g" oninput="generate()"></textarea>
+
+    <div class="row2">
+      <div>
+        <label>Nome do contato <span class="req">*</span></label>
+        <input type="text" class="f-contato-nome" placeholder="Ex: Edson" oninput="generate()">
+      </div>
+      <div>
+        <label>WhatsApp do contato <span class="req">*</span></label>
+        <input type="text" class="f-contato-whats" placeholder="Ex: (xx) xxxxx-xxxx" oninput="formatPhoneField(this)">
+      </div>
+    </div>
+
+    <label>Volume <span class="req">*</span></label>
+    <input type="text" class="f-volumes" placeholder="Ex: 3" oninput="generate()">
+
+    <label>Outras informações <span class="hint">(horário de retirada, horário de almoço, outros)</span></label>
+    <textarea class="f-info" placeholder="" oninput="generate()"></textarea>
+
+    <label>Preenchido por <span class="req">*</span></label>
+    <select class="f-preenchido-por" onchange="generate()">
+      <option value="">Selecione...</option>
+      <option value="Ciça">Ciça</option>
+      <option value="Jaqueline">Jaqueline</option>
+      <option value="Jeovana">Jeovana</option>
+      <option value="Thais">Thais</option>
+    </select>
+
+    <label class="check">
+      <input type="checkbox" class="f-dividir" onchange="toggleNotas(${id})"> Anexos (dividir pedido entre empresas)
+    </label>
+
+    <div class="notas-container" id="notas-${id}" style="display:none;">
+    </div>
+    <button class="btn-secondary" style="display:none;" id="addNotaBtn-${id}" onclick="addNota(${id})">+ Adicionar Anexo</button>
+
+    <div class="trip-actions">
+      <button class="btn-outline" onclick="imprimirViagem(${id})">Imprimir esta viagem</button>
+    </div>
+  `;
+  container.appendChild(div);
+  generate();
+}
+
+function removeTrip(id){
+  const el = document.getElementById('trip-' + id);
+  if(el) el.remove();
+  generate();
+}
+
+function toggleNotas(id){
+  const trip = document.getElementById('trip-' + id);
+  const checked = trip.querySelector('.f-dividir').checked;
+  document.getElementById('notas-' + id).style.display = checked ? 'block' : 'none';
+  document.getElementById('addNotaBtn-' + id).style.display = checked ? 'inline-block' : 'none';
+  if(checked && document.getElementById('notas-' + id).children.length === 0){
+    addNota(id);
+    addNota(id);
+  }
+  generate();
+}
+
+let notaCount = 0;
+function addNota(tripId){
+  notaCount++;
+  const nid = notaCount;
+  const container = document.getElementById('notas-' + tripId);
+  const div = document.createElement('div');
+  div.className = 'nota-block';
+  div.id = 'nota-' + nid;
+  div.innerHTML = `
+    <label>Nome da empresa <button class="remove-nota" onclick="removeNota(${nid})">remover</button></label>
+    <input type="text" class="n-nome" placeholder="Ex: Casa Timoni" oninput="generate()">
+    <label>Itens (um por linha)</label>
+    <textarea class="n-itens" placeholder="Ex: 3 rolos de 150g&#10;Ex: 5 rolos de 200g" oninput="generate()"></textarea>
+  `;
+  container.appendChild(div);
+  generate();
+}
+
+function removeNota(nid){
+  const el = document.getElementById('nota-' + nid);
+  if(el) el.remove();
+  generate();
+}
+
+function weekdayLabel(dateStr){
+  const [y,m,d] = dateStr.split('-').map(Number);
+  const dt = new Date(y, m-1, d);
+  const map = ['dom','2ªf','3ªf','4ªf','5ªf','6ªf','sáb'];
+  return map[dt.getDay()];
+}
+
+function formatDataLine(dateStr){
+  const [y,m,d] = dateStr.split('-');
+  return `${d}/${m} - ${weekdayLabel(dateStr)}`;
+}
+
+function nonEmptyLines(text){
+  return text.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+}
+
+function formatTime(raw){
+  const trimmed = raw.trim();
+  if(!trimmed) return '';
+  if(trimmed.includes(':')) return trimmed;
+  const digits = trimmed.replace(/\D/g, '');
+  if(!digits) return trimmed;
+  if(digits.length <= 2) return `${digits}:00`;
+  if(digits.length === 3) return `${digits.slice(0,1)}:${digits.slice(1)}`;
+  return `${digits.slice(0,2)}:${digits.slice(2,4)}`;
+}
+
+function formatTimeField(el){
+  el.value = formatTime(el.value);
+  generate();
+}
+
+function formatPhone(raw){
+  const digits = raw.replace(/\D/g, '').slice(0, 11);
+  if(!digits) return '';
+  if(digits.length <= 2) return `(${digits}`;
+  const ddd = digits.slice(0, 2);
+  const rest = digits.slice(2);
+  if(rest.length <= 4) return `(${ddd}) ${rest}`;
+  if(digits.length <= 10) return `(${ddd}) ${rest.slice(0,4)}-${rest.slice(4)}`;
+  return `(${ddd}) ${rest.slice(0,5)}-${rest.slice(5)}`;
+}
+
+function formatPhoneField(el){
+  el.value = formatPhone(el.value);
+  generate();
+}
+
+async function buscarCep(tripId){
+  const trip = document.getElementById('trip-' + tripId);
+  const cepInput = trip.querySelector('.f-cep');
+  const msgEl = document.getElementById('cepMsg-' + tripId);
+  const cep = cepInput.value.replace(/\D/g, '');
+
+  if(cep.length !== 8){
+    msgEl.textContent = 'Digite um CEP válido (8 dígitos).';
+    msgEl.className = 'cep-msg err';
+    return;
+  }
+
+  msgEl.textContent = 'Buscando...';
+  msgEl.className = 'cep-msg';
+
+  try{
+    const resp = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const data = await resp.json();
+    if(data.erro){
+      msgEl.textContent = 'CEP não encontrado.';
+      msgEl.className = 'cep-msg err';
+      return;
+    }
+    const endereco = [data.logradouro, data.bairro, `${data.localidade}/${data.uf}`].filter(Boolean).join(' - ');
+    trip.querySelector('.f-endereco').value = endereco;
+    msgEl.textContent = 'Endereço preenchido. Complete com número/complemento se precisar.';
+    msgEl.className = 'cep-msg ok';
+    generate();
+  } catch(e){
+    msgEl.textContent = 'Não foi possível buscar o CEP agora.';
+    msgEl.className = 'cep-msg err';
+  }
+}
+
+function hasAnyContent(trip){
+  const fields = ['.f-data','.f-horario','.f-endereco','.f-numero-endereco','.f-cliente-fornecedor','.f-numero-pedido','.f-itens','.f-volumes','.f-info'];
+  return fields.some(sel => trip.querySelector(sel).value.trim().length > 0);
+}
+
+function validateRequired(){
+  const tripEls = document.querySelectorAll('.trip');
+  let firstInvalid = null;
+  let anyInvalid = false;
+
+  tripEls.forEach(trip => {
+    const relevant = hasAnyContent(trip);
+
+    const checks = [
+      trip.querySelector('.f-data'),
+      trip.querySelector('.f-horario'),
+      trip.querySelector('.f-endereco'),
+      trip.querySelector('.f-numero-endereco'),
+      trip.querySelector('.f-cliente-fornecedor'),
+      trip.querySelector('.f-numero-pedido'),
+      trip.querySelector('.f-contato-nome'),
+      trip.querySelector('.f-contato-whats'),
+      trip.querySelector('.f-volumes'),
+      trip.querySelector('.f-preenchido-por')
+    ];
+
+    checks.forEach(el => {
+      const val = el.value.trim();
+      const invalid = relevant && !val;
+      el.classList.toggle('field-error', invalid);
+      if(invalid){
+        anyInvalid = true;
+        if(!firstInvalid) firstInvalid = el;
+      }
+    });
+  });
+
+  return { anyInvalid, firstInvalid };
+}
+
+function buildTripText(trip){
+  const data = trip.querySelector('.f-data').value;
+  const horario = trip.querySelector('.f-horario').value.trim();
+  const tipoHorario = trip.querySelector('.f-tipo-horario').value;
+  const endereco = trip.querySelector('.f-endereco').value.trim();
+  const numeroEndereco = trip.querySelector('.f-numero-endereco').value.trim();
+  const complementoEndereco = trip.querySelector('.f-complemento-endereco').value.trim();
+  const clienteFornecedor = trip.querySelector('.f-cliente-fornecedor').value.trim();
+  const numeroPedido = trip.querySelector('.f-numero-pedido').value.trim();
+  const itens = nonEmptyLines(trip.querySelector('.f-itens').value);
+  const contatoNome = trip.querySelector('.f-contato-nome').value.trim();
+  const contatoWhats = trip.querySelector('.f-contato-whats').value.trim();
+  const volumes = trip.querySelector('.f-volumes').value.trim();
+  const info = nonEmptyLines(trip.querySelector('.f-info').value);
+  const preenchidoPor = trip.querySelector('.f-preenchido-por').value.trim();
+  const dividir = trip.querySelector('.f-dividir').checked;
+
+  let enderecoCompleto = endereco;
+  if(numeroEndereco) enderecoCompleto += `, ${numeroEndereco}`;
+  if(complementoEndereco) enderecoCompleto += ` - ${complementoEndereco}`;
+
+  let lines = [];
+
+  // bloco em negrito: data/endereço, horário, pedido/fornecedor, contato
+  let boldLines = [];
+  if(data) boldLines.push(`${formatDataLine(data)}${enderecoCompleto ? ' - ' + enderecoCompleto : ''}`);
+  if(horario) boldLines.push(`${tipoHorario}: ${horario}`);
+  if(clienteFornecedor || numeroPedido) boldLines.push(`Pedido/Fornecedor: ${numeroPedido}${numeroPedido && clienteFornecedor ? ' ' : ''}${clienteFornecedor}`);
+  if(contatoNome || contatoWhats){
+    boldLines.push(`Contato: ${contatoNome}${contatoNome && contatoWhats ? ' - ' : ''}${contatoWhats}`);
+  }
+  if(boldLines.length) lines.push('*' + boldLines.join('\n') + '*');
+
+  if(itens.length){
+    itens.forEach(i => lines.push(i));
+  }
+
+  if(volumes) lines.push(`*Volume: ${volumes}*`);
+
+  if(info.length){
+    lines.push('*Informações:*');
+    lines.push('');
+    info.forEach(i => lines.push(`- ${i}`));
+  }
+
+  if(dividir){
+    const notas = trip.querySelectorAll('.nota-block');
+    const validNotas = [];
+    notas.forEach(n => {
+      const nome = n.querySelector('.n-nome').value.trim();
+      const nItens = nonEmptyLines(n.querySelector('.n-itens').value);
+      if(nome || nItens.length) validNotas.push({nome, nItens});
+    });
+    if(validNotas.length){
+      lines.push('');
+      lines.push(`*Este total terá ${validNotas.length} notas fiscais, sendo:*`);
+      validNotas.forEach(n => {
+        lines.push('');
+        lines.push(`*${n.nome || '(empresa)'}*:`);
+        n.nItens.forEach(i => lines.push(i));
+      });
+    }
+  }
+
+  if(preenchidoPor){
+    lines.push('');
+    lines.push(`*Preenchido por: ${preenchidoPor}*`);
+  }
+
+  return lines.join('\n');
+}
+
+function generate(){
+  const titulo = document.getElementById('tituloAgenda').value.trim();
+  const tripEls = document.querySelectorAll('.trip');
+  const blocks = [];
+
+  tripEls.forEach(trip => {
+    const text = buildTripText(trip);
+    if(text) blocks.push(text);
+  });
+
+  const separator = '='.repeat(47);
+  let fullText = titulo ? '*' + titulo + '*' + '\n\n' : '';
+  fullText += blocks.join('\n' + separator + '\n\n');
+
+  document.getElementById('output').value = fullText;
+
+  // clear error highlighting live as user types (soft revalidate without blocking)
+  validateRequired();
+  document.getElementById('validationMsg').textContent = '';
+}
+
+function copyOutput(){
+  const { anyInvalid, firstInvalid } = validateRequired();
+
+  if(anyInvalid){
+    document.getElementById('validationMsg').textContent = 'Preencha os campos obrigatórios (data, horário, endereço, número, cliente/fornecedor, NF/pedido, contato, volume, preenchido por) antes de copiar.';
+    if(firstInvalid) firstInvalid.focus();
+    return;
+  }
+
+  document.getElementById('validationMsg').textContent = '';
+
+  const out = document.getElementById('output');
+  out.select();
+  out.setSelectionRange(0, out.value.length);
+
+  function showCopied(){
+    const msg = document.getElementById('copiedMsg');
+    msg.style.opacity = 1;
+    setTimeout(() => msg.style.opacity = 0, 1500);
+  }
+
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(out.value).then(showCopied).catch(() => {
+      document.execCommand('copy');
+      showCopied();
+    });
+  } else {
+    document.execCommand('copy');
+    showCopied();
+  }
+}
+
+function printText(texto){
+  const escaped = texto
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Imprimir</title>'
+    + '<style>body{font-family:"Courier New",monospace;font-size:15px;white-space:pre-wrap;padding:20px;margin:0;}</style>'
+    + '</head><body>' + escaped + '</body></html>';
+
+  const printWindow = window.open('', '_blank');
+  if(!printWindow){
+    document.getElementById('validationMsg').textContent = 'Não foi possível abrir a janela de impressão. Permita pop-ups para este site e tente novamente.';
+    return;
+  }
+  printWindow.document.open();
+  printWindow.document.write(html);
+  printWindow.document.close();
+  printWindow.focus();
+  setTimeout(function(){
+    try{ printWindow.print(); }catch(e){}
+  }, 300);
+}
+
+function imprimirViagem(tripId){
+  const trip = document.getElementById('trip-' + tripId);
+  const texto = buildTripText(trip);
+  document.getElementById('validationMsg').textContent = '';
+  if(!texto){
+    document.getElementById('validationMsg').textContent = 'Preencha os dados da viagem antes de imprimir.';
+    return;
+  }
+  printText(texto);
+}
+
+function imprimirTudo(){
+  const texto = document.getElementById('output').value;
+  document.getElementById('validationMsg').textContent = '';
+  if(!texto.trim()){
+    document.getElementById('validationMsg').textContent = 'Preencha os dados da agenda antes de imprimir.';
+    return;
+  }
+  printText(texto);
+}
+
+function escXml(v){
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+}
+
+function gerarExcel(){
+  document.getElementById('validationMsg').textContent = '';
+  const tripEls = document.querySelectorAll('.trip');
+
+  if(!tripEls.length){
+    document.getElementById('validationMsg').textContent = 'Preencha ao menos uma viagem antes de gerar o relatório.';
+    return;
+  }
+
+  const headers = ['Viagem','Data','Tipo','Horário','Endereço','Número','Complemento','Cliente/Fornecedor','NF/Pedido','Detalhamento','Contato','WhatsApp','Volume','Outras informações','Anexos (dividido)','Preenchido por'];
+
+  const rows = [];
+  tripEls.forEach((trip, idx) => {
+    const dividir = trip.querySelector('.f-dividir').checked;
+    let anexosResumo = '';
+    if(dividir){
+      const nomes = Array.from(trip.querySelectorAll('.nota-block .n-nome'))
+        .map(n => n.value.trim())
+        .filter(Boolean);
+      anexosResumo = nomes.length ? nomes.join(' / ') : 'Sim';
+    }
+    rows.push([
+      idx + 1,
+      trip.querySelector('.f-data').value,
+      trip.querySelector('.f-tipo-horario').value,
+      trip.querySelector('.f-horario').value,
+      trip.querySelector('.f-endereco').value,
+      trip.querySelector('.f-numero-endereco').value,
+      trip.querySelector('.f-complemento-endereco').value,
+      trip.querySelector('.f-cliente-fornecedor').value,
+      trip.querySelector('.f-numero-pedido').value,
+      trip.querySelector('.f-itens').value.replace(/\n/g, '; '),
+      trip.querySelector('.f-contato-nome').value,
+      trip.querySelector('.f-contato-whats').value,
+      trip.querySelector('.f-volumes').value,
+      trip.querySelector('.f-info').value.replace(/\n/g, '; '),
+      anexosResumo,
+      trip.querySelector('.f-preenchido-por').value
+    ]);
+  });
+
+  let xml = '<?xml version="1.0"?>\n';
+  xml += '<?mso-application progid="Excel.Sheet"?>\n';
+  xml += '<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet" xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">\n';
+  xml += '<Styles><Style ss:ID="Header"><Font ss:Bold="1"/><Interior ss:Color="#DBE4F0" ss:Pattern="Solid"/></Style></Styles>\n';
+  xml += '<Worksheet ss:Name="Agenda"><Table>\n';
+  xml += '<Row>' + headers.map(h => `<Cell ss:StyleID="Header"><Data ss:Type="String">${escXml(h)}</Data></Cell>`).join('') + '</Row>\n';
+  rows.forEach(r => {
+    xml += '<Row>' + r.map(v => `<Cell><Data ss:Type="String">${escXml(v)}</Data></Cell>`).join('') + '</Row>\n';
+  });
+  xml += '</Table></Worksheet>\n</Workbook>';
+
+  const dataUrl = 'data:application/vnd.ms-excel;charset=utf-8,' + encodeURIComponent(xml);
+  const dataStr = new Date().toISOString().slice(0, 10);
+  const filename = 'agenda-motorista-' + dataStr + '.xls';
+
+  const win = window.open('', '_blank');
+  if(!win){
+    document.getElementById('validationMsg').textContent = 'Não foi possível abrir a janela para gerar o relatório. Permita pop-ups para este site e tente novamente.';
+    return;
+  }
+  win.document.open();
+  win.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório</title></head><body>Gerando relatório...</body></html>');
+  win.document.close();
+
+  const a = win.document.createElement('a');
+  a.href = dataUrl;
+  a.download = filename;
+  win.document.body.appendChild(a);
+  a.click();
+  setTimeout(function(){ try{ win.close(); }catch(e){} }, 500);
+}
+
+// start with one trip
+addTrip();
+</script>
+</body>
+</html>

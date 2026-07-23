@@ -12,6 +12,7 @@ import type { CalendarEventDTO } from "@/lib/types";
 
 const POLL_INTERVAL_MS = 60_000;
 const TICK_INTERVAL_MS = 30_000;
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const DAY_LABELS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 
@@ -24,14 +25,16 @@ export function CalendarView({
 }) {
   const [events, setEvents] = useState(initialEvents);
   const [weekDays, setWeekDays] = useState<WeekDay[]>(() => getWeekRange().days);
+  const [weekOffset, setWeekOffset] = useState(0);
   const [error, setError] = useState(initialError);
   const [now, setNow] = useState(() => Date.now());
   const [formOpen, setFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEventDTO | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  async function refreshEvents() {
-    const { start, end, days } = getWeekRange();
+  async function refreshEvents(offset: number) {
+    const reference = new Date(Date.now() + offset * WEEK_MS);
+    const { start, end, days } = getWeekRange(reference);
     try {
       const res = await fetch(
         `/api/events?timeMin=${encodeURIComponent(start.toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}`
@@ -50,12 +53,14 @@ export function CalendarView({
   }
 
   useEffect(() => {
-    const poll = setInterval(refreshEvents, POLL_INTERVAL_MS);
+    refreshEvents(weekOffset);
+    const poll = setInterval(() => refreshEvents(weekOffset), POLL_INTERVAL_MS);
+    return () => clearInterval(poll);
+  }, [weekOffset]);
+
+  useEffect(() => {
     const tick = setInterval(() => setNow(Date.now()), TICK_INTERVAL_MS);
-    return () => {
-      clearInterval(poll);
-      clearInterval(tick);
-    };
+    return () => clearInterval(tick);
   }, []);
 
   const urgentCount = useMemo(
@@ -68,6 +73,10 @@ export function CalendarView({
   }, [urgentCount]);
 
   const todayIndex = saoPauloDayIndex(new Date(now).toISOString());
+
+  // Na semana atual, esconde os dias que já passaram — só mostra de hoje em
+  // diante. Em outras semanas (navegando com os botões), mostra os 7 dias.
+  const visibleDays = weekOffset === 0 ? weekDays.filter((d) => d.dayIndex >= todayIndex) : weekDays;
 
   const eventsByDay = useMemo(() => {
     const grouped: CalendarEventDTO[][] = Array.from({ length: 7 }, () => []);
@@ -92,7 +101,7 @@ export function CalendarView({
         setError(data.error ?? "Não foi possível cancelar o evento.");
         return;
       }
-      await refreshEvents();
+      await refreshEvents(weekOffset);
     } catch {
       setError("Falha de conexão ao cancelar o evento.");
     } finally {
@@ -100,10 +109,22 @@ export function CalendarView({
     }
   }
 
+  const rangeLabel =
+    visibleDays.length > 0
+      ? `${format(visibleDays[0].date, "dd/MM", { locale: ptBR })} – ${format(
+          visibleDays[visibleDays.length - 1].date,
+          "dd/MM",
+          { locale: ptBR }
+        )}`
+      : "";
+
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h1 className="text-lg font-semibold">Agenda da semana</h1>
+        <div>
+          <h1 className="text-lg font-semibold">Agenda</h1>
+          <p className="text-sm text-slate-400">{rangeLabel}</p>
+        </div>
         <Button
           onClick={() => {
             setEditingEvent(null);
@@ -114,13 +135,25 @@ export function CalendarView({
         </Button>
       </div>
 
+      <div className="mt-4 flex items-center gap-2">
+        <Button variant="secondary" onClick={() => setWeekOffset((o) => o - 1)}>
+          ← Semana anterior
+        </Button>
+        <Button variant="secondary" onClick={() => setWeekOffset(0)}>
+          Hoje
+        </Button>
+        <Button variant="secondary" onClick={() => setWeekOffset((o) => o + 1)}>
+          Semana seguinte →
+        </Button>
+      </div>
+
       {error && (
         <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
 
-      {weekDays.map((day) => {
+      {visibleDays.map((day) => {
         const dayEvents = eventsByDay[day.dayIndex] ?? [];
-        const isToday = day.dayIndex === todayIndex;
+        const isToday = day.dayIndex === todayIndex && weekOffset === 0;
 
         return (
           <section key={day.dayIndex} className="mt-6">
@@ -162,7 +195,7 @@ export function CalendarView({
         <EventForm
           event={editingEvent}
           onClose={() => setFormOpen(false)}
-          onSaved={refreshEvents}
+          onSaved={() => refreshEvents(weekOffset)}
         />
       )}
 

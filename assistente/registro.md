@@ -5,6 +5,7 @@
 
 ## 📄 Documentos Pendentes
 
+- [ ] **Apagar arquivo de teste no Google Drive**: `[TESTE] Rio_Claro-Pauta_22_08_2026` (Google Doc, pasta REUNIÕES, id `16rpk_qTe01nYGOdaay5Qijmza6BC6Tu0GVJjLNf5vus`) — criado só para validar a conversão para Google Docs, conteúdo fictício. Claude não tem ferramenta de exclusão de arquivos no Drive nesta sessão, então precisa ser apagado manualmente. · **Responsável**: Ciça · **Prazo**: a definir · **Origem**: validação 23/07
 - [ ] **Lista completa de participantes de Araras** (gestão + equipe) · **Responsável**: Ciça · **Prazo**: a definir · **Origem**: compilado de reuniões 23/07
 - [ ] **Confirmar quem faltou na reunião de Araras de 05/08** · **Responsável**: Ciça · **Prazo**: a definir · **Origem**: compilado 23/07
 - [ ] **Produto da campanha Agosto-Setembro** (comissão já definida: 2% padrão / 4% top vendedor) · **Responsável**: a definir · **Prazo**: a definir · **Origem**: compilado 23/07
@@ -34,15 +35,19 @@
 - **23/07/2026** — Gestão de Araras: Ciça, Marcelo, Reginaldo (demais participantes ainda a confirmar — ver Documentos Pendentes).
 - **23/07/2026** — Documentos já gerados: `Rio_Claro-Pauta_08_08_2026.docx`, `Rio_Claro-Ata_08_08_2026.docx` (versões PDF descartadas), `Araras-Pauta_05_08_2026.docx` (mantido), histórico: `Ata_Rio_Claro_18_07_2026.docx`.
 - **23/07/2026** — Estrutura de pastas do projeto (fora deste repositório git, na pasta de trabalho real da Ciça): `Reuniões_Quinzenais_Casa_Timoni/Rio_Claro/2026/DD_MM_AAAA/` e `.../Araras/2026/DD_MM_AAAA/`, mais `Documentos_Projeto/` (Modelos/Cronograma/Referência).
+- **23/07/2026** — ⚠️ A pasta real no Google Drive da Ciça é **"REUNIÕES"** (id `1K28hA9drzFXP8f1_1-F3MTu78MQ6fiu7`), plana (sem subpastas por loja/ano/data) — diferente da estrutura `Reuniões_Quinzenais_Casa_Timoni/Rio_Claro/2026/DD_MM_AAAA/` descrita no compilado. Arquivos existentes usam nomes como "PAUTA REUNIAO RIO CLARO 20 06 2026" (nem sempre no padrão `[Local]-Pauta_DD_MM_AAAA`) e alguns já são Google Docs nativos, outros PDF. Confirmar com Ciça se a pasta plana "REUNIÕES" é o destino real para os próximos documentos, e se deve seguir o nome padronizado ou o estilo já usado.
+- **23/07/2026** — ⚠️ **Bug de codificação encontrado**: ao criar um Google Doc via upload de texto simples (`textContent`) pelo conector do Google Drive, caracteres acentuados corromperam (ex: "Ciça" virou "CiÃ§a" — mojibake UTF-8/Latin-1). Isso NÃO acontece ao subir o DOCX/PPTX binário gerado por este repositório (`base64Content`), que preserva a codificação corretamente. **Conclusão prática: para conteúdo real em português, sempre converter via upload do DOCX/PPTX binário (base64), nunca via texto simples.**
 
 ## 📌 Próximas Ações
 
 - [ ] Gerar pauta Rio Claro 22/08/2026 (sábado) · **Responsável**: Ciça · **Prazo**: antes de 22/08/2026 · **Status**: gerar automaticamente quando o lembrete chegar, sem perguntar
 - [ ] Gerar pauta Araras 04/09/2026 (sexta) · **Responsável**: Ciça · **Prazo**: antes de 04/09/2026 · **Status**: gerar automaticamente quando o lembrete chegar, sem perguntar
 - [ ] Esclarecer com Ciça a divergência de data/dia da reunião de Araras (05/08 vs terça 04/08) · **Responsável**: Ciça · **Prazo**: a definir · **Status**: em andamento
-- [ ] Validar o fluxo Google Docs/Slides fim a fim (gerar DOCX+PPTX de exemplo e subir no Drive real da Ciça para conferir a conversão) · **Responsável**: Claude · **Prazo**: a definir · **Status**: aguardando confirmação da Ciça antes de criar arquivos reais no Drive
+- [x] Validar o fluxo Google Docs/Slides fim a fim · **Status**: concluído em 23/07 — confirmado que Drive converte texto/DOCX/PPTX para Google Docs/Slides nativos; encontrado bug de acentuação na via texto simples (ver Detalhes e Lembretes) — usar sempre a via DOCX/PPTX binário para conteúdo real
+- [ ] Confirmar com Ciça o destino real dos documentos (pasta "REUNIÕES" plana vs. estrutura por loja/ano/data) e o padrão de nome a seguir dali em diante · **Responsável**: Ciça · **Prazo**: a definir · **Status**: pendente
 
 ## 🗂️ Histórico de Atualizações
 
 - **23/07/2026** — Registrado o compilado completo do projeto "Reuniões Quinzenais Casa Timoni": cronograma até setembro, padrão de pauta/ata (DOCX, não PDF/ReportLab), participantes e presença, workflow operacional (T-7 a T+1), campanhas 2026, confraternização 01/11 e pendências abertas.
 - **23/07/2026** — Registrada a revisão do uso de PDF: passa a usar Google Docs (documento) + Google Slides (projeção) em vez do aplicativo próprio de PDF.
+- **23/07/2026** — Validado o fluxo real de conversão para Google Docs no Drive da Ciça (pasta REUNIÕES): criado documento de teste, confirmada a conversão automática, e identificado bug de acentuação na via de texto simples (corrigido na recomendação: sempre usar DOCX/PPTX binário).

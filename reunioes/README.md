@@ -74,6 +74,13 @@ converte automaticamente quando recebe um DOCX/PPTX):
   enviado — o Drive oferece a conversão). O resultado é editável como
   qualquer Doc/Slides nativo.
 
+> **⚠️ Validado em 23/07/2026 — sempre subir o DOCX/PPTX binário, nunca
+> texto simples.** Testamos a conversão real no Drive da Ciça: subir o
+> conteúdo como texto simples (`textContent`) corrompe acentos (ex:
+> "Ciça" virou "CiÃ§a"). Subir o `.docx`/`.pptx` gerado por este
+> repositório (conteúdo binário) preserva a acentuação corretamente.
+> Detalhes em `assistente/registro.md`.
+
 ## Formato do arquivo de dados (JSON)
 
 ```json

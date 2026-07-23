@@ -11,24 +11,24 @@ página estática (GitHub Pages, por exemplo).
 
 ## O que é "ao vivo" e o que é exemplo
 
-Hoje só dois módulos já publicam dados via planilha (Google Sheets + Apps Script Web App, o
-mesmo padrão gratuito usado pela extensão Estoque e pela página Motorista):
+Três módulos já publicam dados via planilha (Google Sheets + Apps Script Web App, sempre o
+mesmo padrão gratuito — sem servidor próprio):
 
+- **Compras** — espelho do estado da extensão (`hub-pedidos-chrome/apps-script/Codigo.gs`)
 - **Estoque** — fila de necessidades (`estoque-chrome/apps-script/Codigo.gs`)
 - **Motorista** — viagens do dia (`agenda-motorista/apps-script/Codigo.gs`)
 
 Clique em **⚙ Planilhas** no topo e cole a URL do Web App (terminada em `/exec`) de cada um —
-é a mesma URL já configurada na extensão/página do próprio módulo. Os cards passam a mostrar
-o selo **ao vivo** e os números reais; sem URL configurada (ou se a planilha responder erro),
-o card mostra o selo **exemplo**/**erro** e mantém dados ilustrativos.
+é a mesma URL já configurada na extensão/página do próprio módulo (no caso do Compras, na
+seção "Painel Timoni" no rodapé da sidebar). Os cards passam a mostrar o selo **ao vivo** e os
+números reais; sem URL configurada (ou se a planilha responder erro), o card mostra o selo
+**exemplo**/**erro** e mantém dados ilustrativos. Logo depois de colar a URL do Compras, os
+cards podem aparecer com o selo "ao vivo" mas ainda com dados de exemplo por um instante —
+é a planilha nova, sem nenhum registro até a extensão rodar a primeira etapa.
 
-Compras, Reuniões, Agenda Ciça e Marketing continuam com dados de exemplo porque ainda não têm
-um endpoint web para este painel consultar:
+Reuniões, Agenda Ciça e Marketing continuam com dados de exemplo porque ainda não têm um
+endpoint web para este painel consultar:
 
-- **Compras** é uma extensão Chrome que só lê Trello/Sheets por scraping de DOM dentro da
-  própria aba — não existe um serviço web para uma página externa chamar. Dá pra "ligar" no
-  futuro publicando um Apps Script Web App próprio (mesmo padrão do Estoque/Motorista) que
-  leia a planilha do fornecedor e/ou fale com a API do Trello.
 - **Reuniões** é um arquivo (`assistente/registro.md`) mantido por um subagente — não é um
   serviço web.
 - **Agenda Ciça** (`timoni-portal`, Next.js) exige login Google (NextAuth) — puxar os eventos
@@ -45,6 +45,7 @@ painel-timoni/
 └── lib/
     ├── config.js            # URLs dos Web Apps em localStorage (com validação)
     └── sources/
+        ├── compras.js       # fetch em ?action=estado (espelho do Compras)
         ├── estoque.js       # fetch em ?action=listar + cálculo de "atrasado"
         └── motorista.js     # fetch em ?action=dia + detecção de conflito de horário
 ```
@@ -60,6 +61,6 @@ painel-timoni/
 
 ## Próximos passos
 
-Para o painel inteiro ficar "ao vivo": dar a Compras um Web App próprio (Apps Script lendo a
-planilha do fornecedor e, opcionalmente, falando com a API do Trello) segue a mesma receita já
-usada em Estoque e Motorista — grátis, sem servidor próprio, só Google Sheets + Apps Script.
+Para o painel inteiro ficar "ao vivo" falta Reuniões, Agenda Ciça e Marketing — cada um precisa
+primeiro de um jeito de expor dados por HTTP (Reuniões e Marketing ainda não têm nada disso;
+Agenda Ciça teria que resolver a autenticação Google antes).

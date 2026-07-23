@@ -30,6 +30,64 @@ async function logError(message) {
   await HubState.setState({ currentState: STATES.ERRO, lastError: message });
 }
 
+// ---------------------------------------------------------------------------
+// Espelho do estado na planilha do Painel Timoni (ver apps-script/Codigo.gs)
+// ---------------------------------------------------------------------------
+// O Compras continua funcionando 100% localmente (chrome.storage.local) mesmo sem essa URL
+// configurada — este espelho é só para o Painel Timoni conseguir ler o estado de fora da
+// extensão. Nunca lança erro nem atrasa/bloqueia o fluxo do usuário por falha de rede.
+
+function buildEstadoParams(state) {
+  const conferencia = state.conferencia || HubState.defaultConferencia();
+  return {
+    action: 'registrar',
+    currentState: state.currentState || '',
+    selectedSupplierNome: state.selectedSupplier ? state.selectedSupplier.nome : '',
+    selectedSupplierUrgente: state.selectedSupplier ? String(!!state.selectedSupplier.urgente) : '',
+    fornecedoresJson: JSON.stringify(state.suppliers || []),
+    itensJson: JSON.stringify(state.extractedItems || []),
+    bessaniUrl: state.bessaniUrl || '',
+    bessaniPrintAnexado: String(!!state.bessaniPrint),
+    conferenciaTipoDocumento: conferencia.tipoDocumento || '',
+    conferenciaAprovado: conferencia.aprovado === null || conferencia.aprovado === undefined ? '' : String(conferencia.aprovado),
+    conferenciaChecklistJson: JSON.stringify(conferencia.checklist || {}),
+    conferenciaDivergenciasJson: JSON.stringify(conferencia.divergencias || []),
+    trelloResultadosJson: JSON.stringify(state.trelloUpdateResults || []),
+    diagnosticsJson: JSON.stringify(state.diagnostics || {})
+  };
+}
+
+async function pushEstadoAoPainel(state) {
+  if (!state.painelWebAppUrl) return;
+  try {
+    await fetch(state.painelWebAppUrl, { method: 'POST', body: new URLSearchParams(buildEstadoParams(state)) });
+  } catch (e) {
+    console.warn('Painel Timoni: falha ao espelhar estado (segue normalmente sem o painel):', e);
+  }
+}
+
+async function pushHistoricoAoPainel(state) {
+  if (!state.painelWebAppUrl) return;
+  try {
+    const resultados = state.trelloUpdateResults || [];
+    const conta = (status) => resultados.filter((r) => r.status === status).length;
+    const divergencias = (state.conferencia && state.conferencia.divergencias) || [];
+    const params = {
+      action: 'finalizar',
+      fornecedor: state.selectedSupplier ? state.selectedSupplier.nome : '',
+      itensCount: String((state.extractedItems || []).length),
+      conferenciaAprovado: String(!!(state.conferencia && state.conferencia.aprovado === true)),
+      divergenciasCount: String(divergencias.length),
+      trelloAtualizados: String(conta('atualizado')),
+      trelloIgnorados: String(conta('ignorado')),
+      trelloNaoEncontrados: String(conta('não encontrado'))
+    };
+    await fetch(state.painelWebAppUrl, { method: 'POST', body: new URLSearchParams(params) });
+  } catch (e) {
+    console.warn('Painel Timoni: falha ao registrar histórico (segue normalmente sem o painel):', e);
+  }
+}
+
 function getFocusedWindowId() {
   return new Promise((resolve) => {
     chrome.windows.getLastFocused({ windowTypes: ['normal'] }, (win) => {
@@ -152,7 +210,7 @@ async function handleScanTrello() {
     finalTab = await ensureTrelloBoardTab();
   }
 
-  await HubState.setState({
+  const newState = await HubState.setState({
     currentState: STATES.FORNECEDORES_CARREGADOS,
     suppliers,
     trelloScanned: true,
@@ -166,6 +224,7 @@ async function handleScanTrello() {
       lastUpdatedAt: Date.now()
     }
   });
+  await pushEstadoAoPainel(newState);
 
   return { suppliers };
 }
@@ -174,7 +233,7 @@ async function handleSelectSupplier(payload) {
   const supplier = payload && payload.supplier;
   if (!supplier) return { error: 'Fornecedor inválido.' };
 
-  await HubState.setState({
+  const newState = await HubState.setState({
     currentState: STATES.FORNECEDOR_SELECIONADO,
     selectedSupplier: supplier,
     extractedItems: [],
@@ -186,6 +245,7 @@ async function handleSelectSupplier(payload) {
     trelloUpdateResults: [],
     lastError: null
   });
+  await pushEstadoAoPainel(newState);
 
   return { selectedSupplier: supplier };
 }
@@ -254,8 +314,7 @@ async function handleExtractItems() {
   }
 
   const items = result.items || [];
-  const current = await HubState.getState();
-  await HubState.setState({
+  const newState = await HubState.setState({
     currentState: STATES.ITENS_EXTRAIDOS,
     extractedItems: items,
     lastError: null,
@@ -265,6 +324,7 @@ async function handleExtractItems() {
       lastUpdatedAt: Date.now()
     }
   });
+  await pushEstadoAoPainel(newState);
 
   return { items };
 }
@@ -272,7 +332,8 @@ async function handleExtractItems() {
 async function handleSaveBessaniUrl(payload) {
   const url = payload && payload.url;
   if (!url) return { error: 'Link inválido.' };
-  await HubState.setState({ bessaniUrl: url });
+  const newState = await HubState.setState({ bessaniUrl: url });
+  await pushEstadoAoPainel(newState);
   return { bessaniUrl: url };
 }
 
@@ -292,8 +353,18 @@ async function handleSaveSheetUrl(payload) {
 async function handleSaveConferencia(payload) {
   const conferencia = payload && payload.conferencia;
   if (!conferencia) return { error: 'Conferência inválida.' };
-  await HubState.setState({ conferencia });
+  const newState = await HubState.setState({ conferencia });
+  await pushEstadoAoPainel(newState);
   return { conferencia };
+}
+
+async function handleSavePainelUrl(payload) {
+  const url = (payload && payload.url) || '';
+  const newState = await HubState.setState({ painelWebAppUrl: url });
+  // Espelha o estado atual imediatamente, pra não esperar a próxima transição só pra o
+  // painel deixar de mostrar "sem dados".
+  await pushEstadoAoPainel(newState);
+  return { painelWebAppUrl: url };
 }
 
 async function handleOpenBessani() {
@@ -350,11 +421,13 @@ async function handleUpdateTrello() {
     return { error: msg };
   }
 
-  await HubState.setState({
+  const newState = await HubState.setState({
     currentState: STATES.FINALIZADO,
     trelloUpdateResults: result.results || [],
     lastError: null
   });
+  await pushEstadoAoPainel(newState);
+  await pushHistoricoAoPainel(newState);
 
   return { results: result.results || [] };
 }
@@ -394,6 +467,7 @@ const HANDLERS = {
   [TYPES.SAVE_BESSANI_PRINT]: handleSaveBessaniPrint,
   [TYPES.SAVE_SHEET_URL]: handleSaveSheetUrl,
   [TYPES.SAVE_CONFERENCIA]: handleSaveConferencia,
+  [TYPES.SAVE_PAINEL_URL]: handleSavePainelUrl,
   [TYPES.OPEN_BESSANI]: handleOpenBessani,
   [TYPES.UPDATE_TRELLO]: handleUpdateTrello,
   [TYPES.RESET_WORKFLOW]: handleResetWorkflow,

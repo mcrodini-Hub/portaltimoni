@@ -44,31 +44,31 @@
       <span class="module-swatch"></span>
       <p class="module-eyebrow">Módulo</p>
       <h2 class="module-title">Compras</h2>
-      <p class="module-desc">Fluxo de pedidos: Trello → fornecedor → planilha → conferência → Bessani → atualização. Cinco peças do mesmo fluxo, por isso ficam juntas. Ainda sem Web App próprio — ver README para deixar "ao vivo".</p>
+      <p class="module-desc">Fluxo de pedidos: Trello → fornecedor → planilha → conferência → Bessani → atualização. Cinco peças do mesmo fluxo, por isso ficam juntas. Configure a URL do Web App em "⚙ Planilhas" para ver dados reais.</p>
     </div>
     <div class="board">
 
-      <article class="card" data-module="compras" data-status="attention">
+      <article class="card" data-module="compras" data-status="attention" id="card-compras-fornecedores">
         <div class="card-body">
           <div class="card-head">
             <div>
               <p class="card-tag">Trello</p>
               <h3>Fornecedores</h3>
             </div>
-            <div class="pill-row">
+            <div class="pill-row" id="compras-fornecedores-pills">
               <span class="live-badge demo">exemplo</span>
               <span class="pill pill-neutral">9 carregados</span>
               <span class="pill pill-critical">2 urgentes</span>
             </div>
           </div>
-          <ul class="list">
+          <ul class="list" id="compras-fornecedores-lista">
             <li>Atacadão Rio Claro <span class="pill pill-critical">urgente</span></li>
             <li>Distribuidora Fumagalli <span class="pill pill-critical">urgente</span></li>
             <li>Comercial Rio Claro Alimentos</li>
           </ul>
-          <button class="details-toggle" data-target="det-trello">+ mais 6 fornecedores</button>
+          <button class="details-toggle" data-target="det-trello" id="compras-fornecedores-toggle">+ mais 6 fornecedores</button>
           <div class="details" id="det-trello">Atacadão Bessani, Hortifruti União, Distribuidora Sul, Comércio Ideal, Frigorífico Rio Claro, Empório Rio Claro.</div>
-          <p class="card-meta">última leitura: hoje 09:12</p>
+          <p class="card-meta" id="compras-fornecedores-meta">última leitura: hoje 09:12</p>
           <div class="card-footer">
             <span></span>
             <a class="btn" href="https://trello.com/b/UfPrTr1H/compras" target="_blank" rel="noopener">Abrir Trello →</a>
@@ -76,51 +76,51 @@
         </div>
       </article>
 
-      <article class="card" data-module="compras" data-status="done">
+      <article class="card" data-module="compras" data-status="done" id="card-compras-itens">
         <div class="card-body">
           <div class="card-head">
             <div>
               <p class="card-tag">Planilha</p>
               <h3>Itens extraídos</h3>
             </div>
-            <span class="live-badge demo">exemplo</span>
-            <span class="pill pill-ok">18 itens</span>
+            <span class="live-badge demo" id="compras-itens-badge">exemplo</span>
+            <span class="pill pill-ok" id="compras-itens-pill">18 itens</span>
           </div>
-          <p class="card-meta">fornecedor: Atacadão Rio Claro</p>
+          <p class="card-meta" id="compras-itens-meta">fornecedor: Atacadão Rio Claro</p>
           <table class="mono-table">
             <thead><tr><th>Cód.</th><th>Descrição</th><th>Qtd</th></tr></thead>
-            <tbody>
+            <tbody id="compras-itens-tbody">
               <tr><td>4471</td><td>Arroz tipo 1 5kg</td><td>24</td></tr>
               <tr><td>4483</td><td>Feijão carioca 1kg</td><td>40</td></tr>
               <tr><td>4502</td><td>Óleo de soja 900ml</td><td>60</td></tr>
             </tbody>
           </table>
-          <button class="details-toggle" data-target="det-sheets">+ mais 15 itens</button>
+          <button class="details-toggle" data-target="det-sheets" id="compras-itens-toggle">+ mais 15 itens</button>
           <div class="details" id="det-sheets">4515 Açúcar refinado 1kg · 30 · 4529 Café torrado 500g · 20 · 4540 Sal refinado 1kg · 50 · e outros 12 itens.</div>
           <div class="card-footer">
-            <span class="optional-tag">extraído pelo Hub de Pedidos</span>
+            <span class="optional-tag">extraído pela extensão Compras</span>
             <span></span>
           </div>
         </div>
       </article>
 
-      <article class="card" data-module="compras" data-status="attention">
+      <article class="card" data-module="compras" data-status="attention" id="card-compras-conferencia">
         <div class="card-body">
           <div class="card-head">
             <div>
               <p class="card-tag">Compras</p>
               <h3>Conferência de preços</h3>
             </div>
-            <span class="live-badge demo">exemplo</span>
-            <span class="pill pill-critical">não aprovado</span>
+            <span class="live-badge demo" id="compras-conferencia-badge">exemplo</span>
+            <span class="pill pill-critical" id="compras-conferencia-pill">não aprovado</span>
           </div>
-          <p class="card-meta">pedido MCR 6072 · Polybrasil · orçamento nº 268408</p>
-          <ul class="list">
+          <p class="card-meta" id="compras-conferencia-meta">pedido MCR 6072 · Polybrasil · orçamento nº 268408</p>
+          <ul class="list" id="compras-conferencia-lista">
             <li>Itens ausentes no orçamento <span class="pill pill-warn">2</span></li>
             <li>Preço unitário divergente <span class="pill pill-warn">5 itens</span></li>
             <li>IPI divergente (0% × 9,75%) <span class="pill pill-warn">1 item</span></li>
           </ul>
-          <p class="note-block">Total pedido R$ 5.513,83 × orçamento R$ 5.597,57 — diferença de R$ 83,74, sem contar os itens ausentes.</p>
+          <p class="note-block" id="compras-conferencia-nota">Total pedido R$ 5.513,83 × orçamento R$ 5.597,57 — diferença de R$ 83,74, sem contar os itens ausentes.</p>
           <button class="details-toggle" data-target="det-conferencia">+ ver checklist de conferência</button>
           <div class="details" id="det-conferencia">
             <ol>
@@ -135,27 +135,27 @@
             </ol>
           </div>
           <div class="card-footer">
-            <span class="optional-tag">aguardando fornecedor corrigir</span>
+            <span class="optional-tag" id="compras-conferencia-tag">aguardando fornecedor corrigir</span>
             <span></span>
           </div>
         </div>
       </article>
 
-      <article class="card" data-module="compras" data-status="done">
+      <article class="card" data-module="compras" data-status="done" id="card-compras-bessani">
         <div class="card-body">
           <div class="card-head">
             <div>
               <p class="card-tag">Bessani</p>
               <h3>Pedido de compra</h3>
             </div>
-            <span class="live-badge demo">exemplo</span>
-            <span class="pill pill-ok">link salvo</span>
+            <span class="live-badge demo" id="compras-bessani-badge">exemplo</span>
+            <span class="pill pill-ok" id="compras-bessani-pill">link salvo</span>
           </div>
-          <div class="link-preview">
+          <div class="link-preview" id="compras-bessani-link">
             <span class="thumb" title="print de referência anexado"></span>
             bessani.com.br/pedido/88213
           </div>
-          <p class="card-meta">print de referência anexado · uso opcional</p>
+          <p class="card-meta" id="compras-bessani-meta">print de referência anexado · uso opcional</p>
           <div class="card-footer">
             <span class="optional-tag">etapa opcional</span>
             <span></span>
@@ -163,26 +163,26 @@
         </div>
       </article>
 
-      <article class="card" data-module="compras" data-status="attention">
+      <article class="card" data-module="compras" data-status="attention" id="card-compras-atualizacao">
         <div class="card-body">
           <div class="card-head">
             <div>
               <p class="card-tag">Trello</p>
               <h3>Atualização final</h3>
             </div>
-            <span class="live-badge demo">exemplo</span>
+            <span class="live-badge demo" id="compras-atualizacao-badge">exemplo</span>
           </div>
-          <div class="stat-row">
+          <div class="stat-row" id="compras-atualizacao-stats">
             <div class="stat ok"><b>16</b><span>atualizados</span></div>
             <div class="stat warn"><b>1</b><span>ignorado</span></div>
             <div class="stat critical"><b>1</b><span>não encontrado</span></div>
           </div>
-          <ul class="list">
+          <ul class="list" id="compras-atualizacao-lista">
             <li>Atacadão Rio Claro <span class="pill pill-ok">ok</span></li>
             <li>Empório Rio Claro <span class="pill pill-critical">não encontrado</span></li>
           </ul>
           <div class="card-footer">
-            <span class="optional-tag">via extensão Hub de Pedidos</span>
+            <span class="optional-tag">via extensão Compras</span>
             <span></span>
           </div>
         </div>
@@ -424,7 +424,13 @@
 <aside class="drawer" id="drawer" aria-hidden="true">
   <button class="drawer-close" id="drawerClose" aria-label="Fechar">✕</button>
   <h2>Planilhas conectadas</h2>
-  <p class="hint">Cole a URL do Web App (Apps Script) de cada módulo que já publica dados — a mesma URL usada na extensão/página do módulo. Compras, Reuniões, Agenda e Marketing ainda não têm um Web App próprio, então continuam mostrando dados de exemplo.</p>
+  <p class="hint">Cole a URL do Web App (Apps Script) de cada módulo que já publica dados — a mesma URL usada na extensão/página do módulo. Reuniões, Agenda e Marketing ainda não têm um Web App próprio, então continuam mostrando dados de exemplo.</p>
+
+  <div class="field">
+    <label for="cfg-compras">Compras — URL do Web App</label>
+    <input type="url" id="cfg-compras" placeholder="https://script.google.com/.../exec">
+    <p class="field-status" id="cfg-compras-status"></p>
+  </div>
 
   <div class="field">
     <label for="cfg-estoque">Estoque — URL do Web App</label>
@@ -444,6 +450,7 @@
 <button class="back-to-top" id="backToTop" aria-label="Voltar ao topo" title="Voltar ao topo">↑</button>
 
 <script src="lib/config.js"></script>
+<script src="lib/sources/compras.js"></script>
 <script src="lib/sources/estoque.js"></script>
 <script src="lib/sources/motorista.js"></script>
 <script src="app.js"></script>

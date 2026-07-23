@@ -184,6 +184,16 @@
       <button id="btn-reiniciar" class="btn btn-secondary">Reiniciar fluxo</button>
     </div>
 
+    <!-- PAINEL TIMONI -->
+    <section class="step">
+      <button id="btn-toggle-painel" class="btn-link diag-toggle">Mostrar configuração do Painel Timoni</button>
+      <div id="painel-wrap" class="step-card diag-box" hidden>
+        <p class="hint-text">Cole a URL do Web App (Apps Script) da planilha "Compras — Painel Timoni" — ver <code>apps-script/Codigo.gs</code>. Com a URL salva, cada etapa passa a espelhar o estado nessa planilha, e o Painel Timoni mostra os 5 cartões de Compras com dados reais em vez de exemplo.</p>
+        <input type="text" id="input-painel-url" class="text-input" placeholder="https://script.google.com/.../exec">
+        <p class="hint-text" id="painel-url-status"></p>
+      </div>
+    </section>
+
     <!-- DIAGNÓSTICO -->
     <section class="step">
       <button id="btn-toggle-diag" class="btn-link diag-toggle">Mostrar diagnóstico</button>

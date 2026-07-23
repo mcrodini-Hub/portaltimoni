@@ -63,6 +63,17 @@ Use **Reiniciar fluxo** para começar um novo fornecedor do zero, e o painel
 **Mostrar diagnóstico** (rodapé) para copiar um relatório de texto útil em caso
 de problema.
 
+## Painel Timoni (opcional)
+
+A seção **"Mostrar configuração do Painel Timoni"** (rodapé, ao lado do diagnóstico)
+permite colar a URL de um Web App (Apps Script) publicado a partir de
+`apps-script/Codigo.gs`. Com a URL salva, cada etapa passa a espelhar o estado atual
+numa planilha própria ("Compras — Painel Timoni"), e o
+[Painel Timoni](../painel-timoni/README.md) mostra os 5 cartões de Compras (Fornecedores,
+Itens, Conferência de preços, Bessani, Atualização) com dados reais em vez de exemplo.
+É só um espelho — a extensão continua funcionando 100% normalmente sem essa URL
+configurada, e nenhuma etapa do fluxo depende dela.
+
 ## O que mudou em relação à v1.0.12
 
 Veja `CHANGELOG.md` para o detalhamento completo, incluindo a mudança de
@@ -91,6 +102,8 @@ hub-pedidos-chrome/
 │   ├── messages.js         # envelope de mensagens tipadas
 │   ├── validators.js       # validação de URLs e colunas da planilha
 │   └── xlsx-writer.js      # gerador mínimo de .xlsx (Etapa 5 → financeiro)
+├── apps-script/
+│   └── Codigo.gs           # backend (Web App) do espelho para o Painel Timoni — opcional
 ├── PROTOCOLO_CONFERENCIA_PEDIDOS.md  # protocolo por trás da Etapa 5
 ├── prompts-referencia/     # prompts originais que especificam cada etapa (fonte de verdade)
 └── icons/

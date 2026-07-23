@@ -76,15 +76,19 @@
   var drawer = document.getElementById('drawer');
   var drawerBackdrop = document.getElementById('drawerBackdrop');
   var drawerClose = document.getElementById('drawerClose');
+  var inputCompras = document.getElementById('cfg-compras');
   var inputEstoque = document.getElementById('cfg-estoque');
   var inputMotorista = document.getElementById('cfg-motorista');
+  var statusCompras = document.getElementById('cfg-compras-status');
   var statusEstoque = document.getElementById('cfg-estoque-status');
   var statusMotorista = document.getElementById('cfg-motorista-status');
   var saveBtn = document.getElementById('cfg-save');
 
   function openDrawer() {
+    inputCompras.value = PainelConfig.getComprasUrl();
     inputEstoque.value = PainelConfig.getEstoqueUrl();
     inputMotorista.value = PainelConfig.getMotoristaUrl();
+    statusCompras.textContent = '';
     statusEstoque.textContent = '';
     statusMotorista.textContent = '';
     drawer.classList.add('open');
@@ -105,6 +109,13 @@
 
   saveBtn.addEventListener('click', function () {
     var ok = true;
+    try {
+      PainelConfig.setComprasUrl(inputCompras.value);
+      statusCompras.textContent = '';
+    } catch (e) {
+      statusCompras.textContent = e.message;
+      ok = false;
+    }
     try {
       PainelConfig.setEstoqueUrl(inputEstoque.value);
       statusEstoque.textContent = '';
@@ -249,11 +260,209 @@
       : (result.entregas + result.retiradas === 0 ? 'Nenhuma viagem registrada para hoje.' : 'Nenhum conflito de horário hoje.');
   }
 
+  function setCardStatus(cardId, status) {
+    var card = document.getElementById(cardId);
+    if (card) card.setAttribute('data-status', status);
+  }
+
+  function renderCompras(result) {
+    var badges = ['compras-fornecedores-pills', 'compras-itens-badge', 'compras-conferencia-badge', 'compras-bessani-badge', 'compras-atualizacao-badge']
+      .map(function (id) { return document.getElementById(id); });
+    var fornecedoresBadge = badges[0].querySelector('.live-badge');
+
+    if (!result.configured) {
+      setBadge(fornecedoresBadge, 'demo');
+      setBadge(badges[1], 'demo');
+      setBadge(badges[2], 'demo');
+      setBadge(badges[3], 'demo');
+      setBadge(badges[4], 'demo');
+      return;
+    }
+    if (result.error || result.vazio) {
+      var estado = result.error ? 'erro' : 'live';
+      var titulo = result.error || 'Aguardando o primeiro registro enviado pela extensão Compras.';
+      [fornecedoresBadge, badges[1], badges[2], badges[3], badges[4]].forEach(function (b) {
+        setBadge(b, estado, titulo);
+      });
+      return;
+    }
+
+    setBadge(fornecedoresBadge, 'live');
+    setBadge(badges[1], 'live');
+    setBadge(badges[2], 'live');
+    setBadge(badges[3], 'live');
+    setBadge(badges[4], 'live');
+
+    // Fornecedores
+    var fPillRow = document.getElementById('compras-fornecedores-pills');
+    fPillRow.innerHTML = '';
+    fPillRow.appendChild(fornecedoresBadge);
+    var pTotal = document.createElement('span');
+    pTotal.className = 'pill pill-neutral';
+    pTotal.textContent = result.fornecedores.total + ' carregados';
+    fPillRow.appendChild(pTotal);
+    if (result.fornecedores.urgentes > 0) {
+      var pUrg = document.createElement('span');
+      pUrg.className = 'pill pill-critical';
+      pUrg.textContent = result.fornecedores.urgentes + ' urgente' + (result.fornecedores.urgentes === 1 ? '' : 's');
+      fPillRow.appendChild(pUrg);
+    }
+    var fLista = document.getElementById('compras-fornecedores-lista');
+    var fToggle = document.getElementById('compras-fornecedores-toggle');
+    var fDetails = document.getElementById('det-trello');
+    fLista.innerHTML = '';
+    if (result.fornecedores.lista.length === 0) {
+      fLista.innerHTML = '<li>Nenhum fornecedor lido ainda.</li>';
+      fToggle.style.display = 'none';
+    } else {
+      result.fornecedores.lista.slice(0, 3).forEach(function (f) {
+        var li = document.createElement('li');
+        li.textContent = f.nome;
+        if (f.urgente) {
+          var pill = document.createElement('span');
+          pill.className = 'pill pill-critical';
+          pill.textContent = 'urgente';
+          li.appendChild(pill);
+        }
+        fLista.appendChild(li);
+      });
+      var fResto = result.fornecedores.lista.slice(3);
+      if (fResto.length > 0) {
+        fToggle.style.display = '';
+        fToggle.textContent = '+ mais ' + fResto.length + ' fornecedor' + (fResto.length === 1 ? '' : 'es');
+        fDetails.textContent = fResto.map(function (f) { return f.nome; }).join(', ') + '.';
+      } else {
+        fToggle.style.display = 'none';
+      }
+    }
+    document.getElementById('compras-fornecedores-meta').textContent = result.fornecedores.ultimaLeitura
+      ? 'última leitura: ' + new Date(result.fornecedores.ultimaLeitura).toLocaleString('pt-BR')
+      : 'ainda sem leitura';
+    setCardStatus('card-compras-fornecedores', result.fornecedores.urgentes > 0 ? 'attention' : 'done');
+
+    // Itens
+    document.getElementById('compras-itens-pill').textContent = result.itens.total + (result.itens.total === 1 ? ' item' : ' itens');
+    document.getElementById('compras-itens-meta').textContent = result.itens.fornecedor
+      ? 'fornecedor: ' + result.itens.fornecedor
+      : 'nenhum fornecedor selecionado ainda';
+    var iTbody = document.getElementById('compras-itens-tbody');
+    var iToggle = document.getElementById('compras-itens-toggle');
+    var iDetails = document.getElementById('det-sheets');
+    iTbody.innerHTML = '';
+    if (result.itens.lista.length === 0) {
+      iTbody.innerHTML = '<tr><td colspan="3">Nenhum item extraído ainda.</td></tr>';
+      iToggle.style.display = 'none';
+    } else {
+      result.itens.lista.slice(0, 3).forEach(function (it) {
+        var tr = document.createElement('tr');
+        tr.innerHTML = '<td></td><td></td><td></td>';
+        tr.children[0].textContent = it.codigo;
+        tr.children[1].textContent = it.descricao;
+        tr.children[2].textContent = it.quantidade;
+        iTbody.appendChild(tr);
+      });
+      var iResto = result.itens.lista.slice(3);
+      if (iResto.length > 0) {
+        iToggle.style.display = '';
+        iToggle.textContent = '+ mais ' + iResto.length + (iResto.length === 1 ? ' item' : ' itens');
+        iDetails.textContent = iResto.map(function (it) { return it.codigo + ' ' + it.descricao + ' · ' + it.quantidade; }).join(' · ') + '.';
+      } else {
+        iToggle.style.display = 'none';
+      }
+    }
+    setCardStatus('card-compras-itens', result.itens.total > 0 ? 'done' : 'attention');
+
+    // Conferência de preços
+    var conf = result.conferencia;
+    var confPill = document.getElementById('compras-conferencia-pill');
+    if (conf.aprovado === true) {
+      confPill.className = 'pill pill-ok';
+      confPill.textContent = 'aprovado';
+    } else if (conf.aprovado === false) {
+      confPill.className = 'pill pill-critical';
+      confPill.textContent = 'não aprovado';
+    } else {
+      confPill.className = 'pill pill-neutral';
+      confPill.textContent = 'pendente';
+    }
+    document.getElementById('compras-conferencia-meta').textContent =
+      (result.itens.fornecedor ? 'fornecedor: ' + result.itens.fornecedor : 'sem fornecedor') +
+      (conf.tipoDocumento ? ' · documento: ' + (conf.tipoDocumento === 'nfe' ? 'NF-e' : 'orçamento') : '');
+    var confLista = document.getElementById('compras-conferencia-lista');
+    confLista.innerHTML = '';
+    if (conf.divergencias.length === 0) {
+      confLista.innerHTML = '<li>Nenhuma divergência registrada.</li>';
+    } else {
+      conf.divergencias.forEach(function (d) {
+        var li = document.createElement('li');
+        li.textContent = (d.item || 'item') + ' — pedido ' + (d.valorPedido || '--') + ' × recebido ' + (d.valorRecebido || '--');
+        confLista.appendChild(li);
+      });
+    }
+    document.getElementById('compras-conferencia-nota').textContent = conf.divergencias.length > 0
+      ? conf.divergencias.length + ' divergência' + (conf.divergencias.length === 1 ? '' : 's') + ' registrada' + (conf.divergencias.length === 1 ? '' : 's') + ' — ver checklist para detalhes de cada uma.'
+      : 'Sem divergências registradas até agora.';
+    document.getElementById('compras-conferencia-tag').textContent = conf.aprovado === true
+      ? 'aprovado'
+      : (conf.divergencias.length > 0 ? 'aguardando aprovação com divergências' : 'aguardando conferência');
+    setCardStatus('card-compras-conferencia', conf.aprovado === true ? 'done' : 'attention');
+
+    // Bessani
+    var bessaniPill = document.getElementById('compras-bessani-pill');
+    var bessaniLink = document.getElementById('compras-bessani-link');
+    if (result.bessani.url) {
+      bessaniPill.className = 'pill pill-ok';
+      bessaniPill.textContent = 'link salvo';
+      bessaniLink.lastChild.textContent = result.bessani.url;
+    } else {
+      bessaniPill.className = 'pill pill-neutral';
+      bessaniPill.textContent = 'sem link';
+      bessaniLink.lastChild.textContent = '(nenhum link colado ainda)';
+    }
+    document.getElementById('compras-bessani-meta').textContent = result.bessani.printAnexado
+      ? 'print de referência anexado · uso opcional'
+      : 'sem print anexado · uso opcional';
+    setCardStatus('card-compras-bessani', result.bessani.url ? 'done' : 'attention');
+
+    // Atualização final
+    var stats = document.getElementById('compras-atualizacao-stats');
+    stats.innerHTML =
+      '<div class="stat ok"><b>' + result.atualizacao.atualizados + '</b><span>atualizados</span></div>' +
+      '<div class="stat warn"><b>' + result.atualizacao.ignorados + '</b><span>ignorado' + (result.atualizacao.ignorados === 1 ? '' : 's') + '</span></div>' +
+      '<div class="stat critical"><b>' + result.atualizacao.naoEncontrados + '</b><span>não encontrado' + (result.atualizacao.naoEncontrados === 1 ? '' : 's') + '</span></div>';
+    var aLista = document.getElementById('compras-atualizacao-lista');
+    aLista.innerHTML = '';
+    if (result.atualizacao.lista.length === 0) {
+      aLista.innerHTML = '<li>Nenhuma atualização enviada ainda.</li>';
+    } else {
+      result.atualizacao.lista.slice(0, 3).forEach(function (r) {
+        var li = document.createElement('li');
+        li.textContent = r.card;
+        var pill = document.createElement('span');
+        pill.className = r.status === 'atualizado' ? 'pill pill-ok' : (r.status === 'erro' || r.status === 'não encontrado') ? 'pill pill-critical' : 'pill pill-warn';
+        pill.textContent = r.status;
+        li.appendChild(pill);
+        aLista.appendChild(li);
+      });
+    }
+    var atualOk = result.atualizacao.ignorados === 0 && result.atualizacao.naoEncontrados === 0 && result.atualizacao.atualizados > 0;
+    setCardStatus('card-compras-atualizacao', atualOk ? 'done' : 'attention');
+  }
+
+  var currentFilter = 'all';
+  filterBtns.forEach(function (btn) {
+    btn.addEventListener('click', function () { currentFilter = btn.getAttribute('data-filter'); });
+  });
+
   function refreshLiveData() {
+    var comprasUrl = PainelConfig.getComprasUrl();
     var estoqueUrl = PainelConfig.getEstoqueUrl();
     var motoristaUrl = PainelConfig.getMotoristaUrl();
-    PainelEstoque.buscar(estoqueUrl).then(renderEstoque);
-    PainelMotorista.buscar(motoristaUrl).then(renderMotorista);
+    Promise.all([
+      PainelCompras.buscar(comprasUrl).then(renderCompras),
+      PainelEstoque.buscar(estoqueUrl).then(renderEstoque),
+      PainelMotorista.buscar(motoristaUrl).then(renderMotorista)
+    ]).then(function () { applyFilter(currentFilter); });
   }
 
   refreshLiveData();

@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.1.0-alpha.25 — Espelha o estado no Painel Timoni (opcional)
+
+O Painel Timoni (dashboard pessoal em `painel-timoni/`) reúne todos os módulos do
+Portal Timoni como blocos independentes; os cartões de Compras precisavam de uma
+fonte de dados real em vez de exemplo.
+
+- **Adicionado**: `apps-script/Codigo.gs` — Web App (Apps Script) que espelha o
+  estado do Compras numa planilha própria ("Compras — Painel Timoni"), com uma aba
+  `Estado` (snapshot atual) e uma aba `Historico` (um registro por pedido
+  finalizado — histórico que a extensão sozinha não guarda, já que "Reiniciar
+  fluxo" apaga o estado local).
+- **Adicionado**: nova seção "Painel Timoni" na sidebar (rodapé) para colar a URL
+  do Web App publicado.
+- **Adicionado**: `background.js` agora chama esse Web App (best-effort, nunca
+  bloqueia nem lança erro) depois de ler fornecedores, selecionar fornecedor,
+  extrair itens, salvar o link do Bessani, salvar a conferência e atualizar o
+  Trello.
+- Sem essa URL configurada, nada muda: o Compras continua funcionando 100%
+  localmente, só o Painel Timoni fica com dados de exemplo nos 5 cartões.
+
 ## 1.1.0-alpha.24 — Corrige extração incluindo itens sem pedido no mês
 
 Revisão contra o prompt de referência original (`2-itens-pedido-rio-claro`,

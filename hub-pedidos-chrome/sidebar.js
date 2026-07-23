@@ -90,6 +90,11 @@ const ui = {
 
   btnReiniciar: el('btn-reiniciar'),
 
+  btnTogglePainel: el('btn-toggle-painel'),
+  painelWrap: el('painel-wrap'),
+  inputPainelUrl: el('input-painel-url'),
+  painelUrlStatus: el('painel-url-status'),
+
   btnToggleDiag: el('btn-toggle-diag'),
   diagWrap: el('diag-wrap'),
   diagText: el('diag-text'),
@@ -99,6 +104,7 @@ const ui = {
 let confirmOpen = false;
 let bessaniInputFocused = false;
 let sheetUrlInputFocused = false;
+let painelUrlInputFocused = false;
 
 function normalize(str) {
   return (str || '').toString().trim().toLowerCase();
@@ -210,6 +216,13 @@ function render(state) {
     li.innerHTML = `<span>${escapeHtml(r.card)}</span><strong>${escapeHtml(RESULT_LABELS[r.status] || r.status)}</strong>`;
     ui.resultadosLista.appendChild(li);
   });
+
+  if (!painelUrlInputFocused) {
+    ui.inputPainelUrl.value = state.painelWebAppUrl || '';
+  }
+  ui.painelUrlStatus.textContent = state.painelWebAppUrl
+    ? 'Estado sendo espelhado a cada etapa.'
+    : 'Sem planilha configurada — Compras funciona normalmente, só o Painel Timoni fica com dados de exemplo.';
 
   renderDiagnostics(state);
 }
@@ -369,6 +382,13 @@ ui.inputSheetUrl.addEventListener('blur', () => {
   sheetUrlInputFocused = false;
   const url = ui.inputSheetUrl.value.trim();
   send(TYPES.SAVE_SHEET_URL, { url }, 'sidebar').then(refresh);
+});
+
+ui.inputPainelUrl.addEventListener('focus', () => { painelUrlInputFocused = true; });
+ui.inputPainelUrl.addEventListener('blur', () => {
+  painelUrlInputFocused = false;
+  const url = ui.inputPainelUrl.value.trim();
+  send(TYPES.SAVE_PAINEL_URL, { url }, 'sidebar').then(refresh);
 });
 
 function saveBessaniPrintFromBlob(blob) {
@@ -595,6 +615,12 @@ ui.btnClose.addEventListener('click', () => {
   } catch (e) {
     /* ignorado de propósito */
   }
+});
+
+ui.btnTogglePainel.addEventListener('click', () => {
+  const showing = !ui.painelWrap.hidden;
+  ui.painelWrap.hidden = showing;
+  ui.btnTogglePainel.textContent = showing ? 'Mostrar configuração do Painel Timoni' : 'Ocultar configuração do Painel Timoni';
 });
 
 ui.btnToggleDiag.addEventListener('click', () => {

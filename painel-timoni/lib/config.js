@@ -5,7 +5,8 @@
 (function (root) {
   const KEYS = Object.freeze({
     ESTOQUE_URL: 'painelTimoniEstoqueUrl',
-    MOTORISTA_URL: 'painelTimoniMotoristaUrl'
+    MOTORISTA_URL: 'painelTimoniMotoristaUrl',
+    COMPRAS_URL: 'painelTimoniComprasUrl'
   });
 
   const WEBAPP_URL_RE = /^https:\/\/script\.google\.com\/.*\/exec(\?.*)?$/;
@@ -36,6 +37,8 @@
     getEstoqueUrl: () => get(KEYS.ESTOQUE_URL),
     setEstoqueUrl: (url) => set(KEYS.ESTOQUE_URL, url),
     getMotoristaUrl: () => get(KEYS.MOTORISTA_URL),
-    setMotoristaUrl: (url) => set(KEYS.MOTORISTA_URL, url)
+    setMotoristaUrl: (url) => set(KEYS.MOTORISTA_URL, url),
+    getComprasUrl: () => get(KEYS.COMPRAS_URL),
+    setComprasUrl: (url) => set(KEYS.COMPRAS_URL, url)
   };
 })(window);

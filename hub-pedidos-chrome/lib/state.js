@@ -49,6 +49,7 @@
     return {
       currentState: STATES.INICIO,
       pinned: false,
+      painelWebAppUrl: '',
       trelloScanned: false,
       driveOpened: false,
       selectedSupplier: null,

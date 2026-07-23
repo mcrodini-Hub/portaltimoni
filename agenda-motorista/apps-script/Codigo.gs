@@ -24,6 +24,11 @@
  * itens / info: texto com uma linha por item (igual ao textarea da página).
  * dividir: "true"/"false". notasJson: JSON de [{nome, itens}] quando dividir = true.
  * bloqueioMinutos: só relevante quando tipoHorario = "Retirada".
+ *
+ * Dica opcional: o Sheets converte sozinho o que parece data/hora (colunas B e F) em valores
+ * de Data/Hora de verdade — o código já lê isso de volta corretamente, mas se quiser que a
+ * planilha mostre "2026-07-24" e "09:00" em vez de datas formatadas, selecione as colunas B e F
+ * e troque o formato para "Texto simples" (Formatar > Número > Texto simples).
  */
 
 var ABA_VIAGENS = 'Viagens';
@@ -105,12 +110,34 @@ function normalizarData(valor) {
   return String(valor);
 }
 
+// O Sheets "adivinha" o tipo da célula pelo que foi escrito: uma string "2026-07-24" vira uma
+// Data de verdade, "9:00" vira uma Hora de verdade. Sem reconverter isso ao ler, reg.data e
+// reg.horario voltam com Object Date em vez do texto original — e como lerDia/resumoMes
+// comparam reg.data com a string "YYYY-MM-DD" pedida, a comparação falha e a viagem "some"
+// mesmo estando salva na planilha. As duas funções abaixo desfazem esse "adivinhado".
+function formatarDataChave(valor) {
+  if (valor === null || valor === '') return '';
+  if (Object.prototype.toString.call(valor) === '[object Date]') {
+    return Utilities.formatDate(valor, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  return String(valor).trim();
+}
+
+function formatarHorario(valor) {
+  if (valor === null || valor === '') return '';
+  if (Object.prototype.toString.call(valor) === '[object Date]') {
+    return Utilities.formatDate(valor, Session.getScriptTimeZone(), 'HH:mm');
+  }
+  return String(valor).trim();
+}
+
 function registroDaLinha(linha) {
   var reg = {};
   for (var c = 0; c < COLUNAS.length; c++) {
     reg[COLUNAS[c]] = linha[c] === '' || linha[c] === null || linha[c] === undefined ? null : linha[c];
   }
-  reg.data = String(reg.data || '');
+  reg.data = formatarDataChave(reg.data);
+  reg.horario = formatarHorario(reg.horario);
   reg.ordem = Number(reg.ordem || 0);
   reg.dividir = parseBool(reg.dividir);
   reg.notasJson = reg.notasJson || '[]';

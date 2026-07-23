@@ -9,10 +9,23 @@ let viagensDia = [];
 let filtroLoja = 'todas';
 let editandoId = null;
 let notaCount = 0;
+let toastTimer = null;
 
 // --------------------------------------------------------------------------
 // Utilidades
 // --------------------------------------------------------------------------
+function mostrarToast(mensagem, tipo) {
+  const el = document.getElementById('toast');
+  el.textContent = mensagem;
+  el.className = 'toast mostrar' + (tipo === 'erro' ? ' erro' : '');
+  el.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    el.classList.remove('mostrar');
+    setTimeout(() => { el.hidden = true; }, 250);
+  }, 2200);
+}
+
 function nonEmptyLines(text) {
   return (text || '').split('\n').map((l) => l.trim()).filter((l) => l.length > 0);
 }
@@ -186,14 +199,14 @@ function atualizarChipsFiltro() {
   document.querySelectorAll('.js-filtro-loja').forEach((b) => b.classList.toggle('ativo', b.dataset.loja === filtroLoja));
 }
 
-async function carregarDia() {
+async function carregarDia(destacarId) {
   try {
     viagensDia = await AgendaStore.listarDia(diaAtual);
   } catch (e) {
     document.getElementById('diaValidationMsg').textContent = e.message;
     viagensDia = [];
   }
-  renderDia();
+  renderDia(destacarId);
 }
 
 function calcularConflitos(viagens) {
@@ -214,7 +227,7 @@ function calcularConflitos(viagens) {
   });
 }
 
-function renderDia() {
+function renderDia(destacarId) {
   document.getElementById('diaTitulo').textContent = formatDataTitulo(diaAtual);
   const tag = padraoAraras(diaAtual);
   const banner = document.getElementById('diaBanner');
@@ -239,6 +252,7 @@ function renderDia() {
     const enderecoResumo = [v.endereco, v.numero].filter(Boolean).join(', ');
     const card = document.createElement('div');
     card.className = 'viagem-card';
+    card.id = 'viagem-' + v.id;
     card.innerHTML = `
       <div class="viagem-linha">
         <div class="viagem-mover">
@@ -257,6 +271,9 @@ function renderDia() {
           ${conflitos[idx] ? `<p class="viagem-conflito">⚠ ${escHtml(conflitos[idx])}</p>` : ''}
           <div class="viagem-acoes">
             <button class="btn-outline btn-small js-editar" data-id="${v.id}">Editar</button>
+            <button class="btn-secondary btn-small js-duplicar" data-id="${v.id}">Duplicar</button>
+            <button class="btn-secondary btn-small js-copiar" data-id="${v.id}">Copiar texto</button>
+            <button class="btn-secondary btn-small js-imprimir" data-id="${v.id}">Imprimir</button>
             <button class="btn-danger btn-small js-excluir" data-id="${v.id}">Excluir</button>
           </div>
         </div>
@@ -268,6 +285,18 @@ function renderDia() {
   lista.querySelectorAll('[data-mover]').forEach((btn) => btn.addEventListener('click', () => moverViagem(btn.dataset.id, Number(btn.dataset.mover))));
   lista.querySelectorAll('.js-editar').forEach((btn) => btn.addEventListener('click', () => abrirForm(viagensDia.find((x) => x.id === btn.dataset.id))));
   lista.querySelectorAll('.js-excluir').forEach((btn) => btn.addEventListener('click', () => excluirItem(btn.dataset.id)));
+  lista.querySelectorAll('.js-duplicar').forEach((btn) => btn.addEventListener('click', () => duplicarViagem(btn.dataset.id)));
+  lista.querySelectorAll('.js-copiar').forEach((btn) => btn.addEventListener('click', () => copiarViagemIndividual(btn.dataset.id)));
+  lista.querySelectorAll('.js-imprimir').forEach((btn) => btn.addEventListener('click', () => imprimirViagemIndividual(btn.dataset.id)));
+
+  if (destacarId) {
+    const cardDestacado = document.getElementById('viagem-' + destacarId);
+    if (cardDestacado) {
+      cardDestacado.classList.add('destaque');
+      cardDestacado.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      setTimeout(() => cardDestacado.classList.remove('destaque'), 1800);
+    }
+  }
 
   renderOutput();
 }
@@ -293,8 +322,10 @@ async function excluirItem(id) {
     await AgendaStore.excluirViagem(id, diaAtual);
     await carregarDia();
     renderCalendario();
+    mostrarToast('Viagem excluída');
   } catch (e) {
     document.getElementById('diaValidationMsg').textContent = e.message;
+    mostrarToast('Não foi possível excluir: ' + e.message, 'erro');
   }
 }
 
@@ -360,35 +391,77 @@ function resetForm() {
   document.querySelectorAll('#formPanel .field-error').forEach((el) => el.classList.remove('field-error'));
 }
 
+function preencherCampos(viagem) {
+  document.getElementById('f-data').value = viagem.data;
+  document.getElementById('f-loja').value = viagem.loja;
+  document.getElementById('f-tipoHorario').value = viagem.tipoHorario;
+  document.getElementById('f-horario').value = viagem.horario;
+  document.getElementById('f-endereco').value = viagem.endereco;
+  document.getElementById('f-numero').value = viagem.numero;
+  document.getElementById('f-complemento').value = viagem.complemento;
+  document.getElementById('f-clienteFornecedor').value = viagem.clienteFornecedor;
+  document.getElementById('f-numeroPedido').value = viagem.numeroPedido;
+  document.getElementById('f-itens').value = viagem.itens;
+  document.getElementById('f-contatoNome').value = viagem.contatoNome;
+  document.getElementById('f-contatoWhats').value = viagem.contatoWhats;
+  document.getElementById('f-volumes').value = viagem.volumes;
+  document.getElementById('f-info').value = viagem.info;
+  document.getElementById('f-preenchidoPor').value = viagem.preenchidoPor;
+  document.getElementById('f-bloqueioMinutos').value = viagem.bloqueioMinutos || '';
+  document.getElementById('f-dividir').checked = !!viagem.dividir;
+  toggleBloqueio();
+  toggleNotas(false);
+  (viagem.notas || []).forEach((n) => addNota(n.nome, n.itens));
+}
+
 function abrirForm(viagem) {
   resetForm();
   editandoId = viagem ? viagem.id : null;
   document.getElementById('formTitulo').textContent = viagem ? 'Editar viagem' : 'Nova viagem';
   document.getElementById('btnExcluirNoForm').hidden = !viagem;
-  if (viagem) {
-    document.getElementById('f-data').value = viagem.data;
-    document.getElementById('f-loja').value = viagem.loja;
-    document.getElementById('f-tipoHorario').value = viagem.tipoHorario;
-    document.getElementById('f-horario').value = viagem.horario;
-    document.getElementById('f-endereco').value = viagem.endereco;
-    document.getElementById('f-numero').value = viagem.numero;
-    document.getElementById('f-complemento').value = viagem.complemento;
-    document.getElementById('f-clienteFornecedor').value = viagem.clienteFornecedor;
-    document.getElementById('f-numeroPedido').value = viagem.numeroPedido;
-    document.getElementById('f-itens').value = viagem.itens;
-    document.getElementById('f-contatoNome').value = viagem.contatoNome;
-    document.getElementById('f-contatoWhats').value = viagem.contatoWhats;
-    document.getElementById('f-volumes').value = viagem.volumes;
-    document.getElementById('f-info').value = viagem.info;
-    document.getElementById('f-preenchidoPor').value = viagem.preenchidoPor;
-    document.getElementById('f-bloqueioMinutos').value = viagem.bloqueioMinutos || '';
-    document.getElementById('f-dividir').checked = !!viagem.dividir;
-    toggleBloqueio();
-    toggleNotas(false);
-    (viagem.notas || []).forEach((n) => addNota(n.nome, n.itens));
-  }
+  if (viagem) preencherCampos(viagem);
   document.getElementById('formPanel').hidden = false;
   document.getElementById('formPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+// Copia os dados de uma viagem existente para um formulário de viagem NOVA — agiliza
+// cadastrar algo parecido (mesmo cliente/endereço). O horário fica em branco de propósito,
+// pra forçar escolher um novo e não repetir sem querer o mesmo horário duas vezes.
+function duplicarViagem(id) {
+  const v = viagensDia.find((x) => x.id === id);
+  if (!v) return;
+  resetForm();
+  editandoId = null;
+  document.getElementById('formTitulo').textContent = 'Nova viagem (duplicada)';
+  document.getElementById('btnExcluirNoForm').hidden = true;
+  preencherCampos(v);
+  document.getElementById('f-horario').value = '';
+  document.getElementById('formPanel').hidden = false;
+  document.getElementById('formPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('f-horario').focus();
+}
+
+function copiarViagemIndividual(id) {
+  const v = viagensDia.find((x) => x.id === id);
+  if (!v) return;
+  const texto = buildTripText(v, true);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(texto).then(() => mostrarToast('Texto da viagem copiado ✓')).catch(() => mostrarToast('Não foi possível copiar.', 'erro'));
+  } else {
+    const tmp = document.createElement('textarea');
+    tmp.value = texto;
+    document.body.appendChild(tmp);
+    tmp.select();
+    document.execCommand('copy');
+    tmp.remove();
+    mostrarToast('Texto da viagem copiado ✓');
+  }
+}
+
+function imprimirViagemIndividual(id) {
+  const v = viagensDia.find((x) => x.id === id);
+  if (!v) return;
+  printText(buildTripText(v, true));
 }
 
 function fecharForm() {
@@ -453,14 +526,31 @@ async function salvarViagem() {
     bloqueioMinutos: tipoHorario === 'Retirada' ? document.getElementById('f-bloqueioMinutos').value.trim() : ''
   };
 
+  const btnSalvar = document.getElementById('btnSalvarViagem');
+  const textoOriginal = btnSalvar.textContent;
+  btnSalvar.disabled = true;
+  btnSalvar.textContent = 'Salvando...';
+
   try {
-    if (editandoId) await AgendaStore.atualizarViagem(editandoId, payload);
-    else await AgendaStore.criarViagem(payload);
+    const salva = editandoId
+      ? await AgendaStore.atualizarViagem(editandoId, payload)
+      : await AgendaStore.criarViagem(payload);
+    const moveuDeDia = payload.data !== diaAtual;
     fecharForm();
-    await carregarDia();
+    if (moveuDeDia) {
+      mostrarToast(`Viagem salva em ${formatDataLine(payload.data)} ✓`);
+      await carregarDia();
+    } else {
+      mostrarToast('Viagem salva ✓');
+      await carregarDia(salva.id);
+    }
     renderCalendario();
   } catch (e) {
     document.getElementById('formValidationMsg').textContent = e.message;
+    mostrarToast('Não foi possível salvar: ' + e.message, 'erro');
+  } finally {
+    btnSalvar.disabled = false;
+    btnSalvar.textContent = textoOriginal;
   }
 }
 

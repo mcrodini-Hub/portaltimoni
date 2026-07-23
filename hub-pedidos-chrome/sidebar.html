@@ -3,14 +3,14 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Portal Timoni — Hub de Pedidos</title>
+  <title>Portal Timoni — Compras</title>
   <link rel="stylesheet" href="sidebar.css">
 </head>
 <body>
   <header class="topbar">
     <div class="brand">
       <img class="brand-logo" src="icons/icon48.png" alt="Casa Timoni">
-      <span class="brand-title">Hub de Pedidos <span class="brand-dim">· Portal Timoni</span></span>
+      <span class="brand-title">Compras <span class="brand-dim">· Portal Timoni</span></span>
     </div>
     <div class="topbar-actions">
       <button id="btn-pin" class="icon-btn" title="Fixar painel" aria-pressed="false">
@@ -28,7 +28,7 @@
   <main class="content">
     <div class="intro-row">
       <div>
-        <h1>Hub de Pedidos</h1>
+        <h1>Compras</h1>
         <p class="subtitle">Abra cada etapa somente quando precisar.</p>
       </div>
       <label class="pin-checkbox">
@@ -102,13 +102,73 @@
 
     <!-- ETAPA 5 -->
     <section class="step">
-      <p class="step-label">5. Atualização final</p>
+      <p class="step-label">5. Conferência do pedido</p>
+      <div class="step-card">
+        <p class="hint-text conferencia-rule">
+          Confira item a item contra o documento de retorno do fornecedor
+          (orçamento ou NF-e) antes de aprovar — ver
+          <code>PROTOCOLO_CONFERENCIA_PEDIDOS.md</code>. Divergências não
+          impedem a aprovação: ficam registradas aqui para repassar ao
+          financeiro.
+        </p>
+
+        <p class="conferencia-subtitle">Documento de retorno recebido</p>
+        <div class="doc-tipo-row">
+          <label class="radio-label">
+            <input type="radio" name="tipo-documento" id="radio-doc-orcamento" value="orcamento">
+            <span>Orçamento</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="tipo-documento" id="radio-doc-nfe" value="nfe">
+            <span>NF-e</span>
+          </label>
+        </div>
+        <p class="hint-text" id="doc-orcamento-hint" hidden>
+          Orçamento é preliminar — não substitui a conferência quando a NF-e
+          chegar.
+        </p>
+
+        <p class="conferencia-subtitle">Checklist item a item</p>
+        <ul id="conferencia-checklist" class="checklist"></ul>
+
+        <p class="conferencia-subtitle">Divergências encontradas</p>
+        <ul id="divergencias-lista" class="divergencia-list"></ul>
+        <div class="divergencia-form">
+          <input type="text" id="input-div-item" class="text-input div-input" placeholder="Item">
+          <input type="text" id="input-div-pedido" class="text-input div-input" placeholder="Valor pedido">
+          <input type="text" id="input-div-recebido" class="text-input div-input" placeholder="Valor recebido">
+          <input type="text" id="input-div-obs" class="text-input div-input" placeholder="Observação (opcional)">
+          <button id="btn-add-divergencia" class="btn btn-secondary">Registrar divergência</button>
+        </div>
+
+        <div id="conferencia-status" class="conferencia-status"></div>
+
+        <button id="btn-aprovar-conferencia" class="btn btn-primary" disabled>Aprovar pedido</button>
+        <div id="conferencia-confirm-wrap" class="confirm-box" hidden>
+          <p id="conferencia-confirm-text"></p>
+          <div class="confirm-actions">
+            <button id="btn-confirmar-aprovar-conferencia" class="btn btn-primary">Confirmar aprovação</button>
+            <button id="btn-cancelar-aprovar-conferencia" class="btn btn-secondary">Cancelar</button>
+          </div>
+        </div>
+
+        <button id="btn-baixar-excel-conferencia" class="btn btn-secondary" hidden>Baixar Excel para o financeiro</button>
+      </div>
+    </section>
+
+    <!-- ETAPA 6 -->
+    <section class="step">
+      <p class="step-label">6. Atualização final</p>
       <div class="step-card">
         <div id="resumo-wrap" class="summary-box" hidden>
           <p><strong>Fornecedor:</strong> <span id="resumo-fornecedor">--</span></p>
           <p><strong>Itens a enviar:</strong> <span id="resumo-itens">0</span></p>
         </div>
+        <p id="conferencia-bloqueio-hint" class="hint-text" hidden>Aprove a conferência do pedido (Etapa 5) antes de atualizar o Trello.</p>
         <button id="btn-atualizar-trello" class="btn btn-primary" disabled>Atualizar Trello</button>
+        <!-- Confirmação proposital, mantida por decisão explícita mesmo com a Etapa 5 já
+             exigindo aprovação: uma aprova o conteúdo do pedido, esta confirma a ação de
+             gravar no Trello. Não é redundância a "simplificar". -->
         <div id="confirm-wrap" class="confirm-box" hidden>
           <p>Confirma atualizar os cartões do Trello com os itens extraídos?</p>
           <div class="confirm-actions">
@@ -136,6 +196,7 @@
 
   <script src="lib/state.js"></script>
   <script src="lib/messages.js"></script>
+  <script src="lib/xlsx-writer.js"></script>
   <script src="sidebar.js"></script>
 </body>
 </html>

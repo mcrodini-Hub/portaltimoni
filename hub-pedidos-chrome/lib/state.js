@@ -1,4 +1,4 @@
-// Máquina de estados do Hub de Pedidos + persistência em chrome.storage.local.
+// Máquina de estados do Compras + persistência em chrome.storage.local.
 // Compartilhado entre background.js (service worker) e sidebar.js (via <script> normal),
 // por isso usa o objeto global `self` em vez de import/export de módulos ES.
 
@@ -19,6 +19,32 @@
 
   const STORAGE_KEY = 'hubPedidosState';
 
+  // Itens do checklist item a item da Etapa 5 (Conferência), conforme
+  // PROTOCOLO_CONFERENCIA_PEDIDOS.md — comparação do pedido MCR contra o
+  // documento de retorno do fornecedor (orçamento ou NF-e) antes de aprovar.
+  const CONFERENCIA_CHECKLIST_ITEMS = Object.freeze([
+    { key: 'itensPresentes', label: 'Todos os itens do pedido aparecem no retorno do fornecedor' },
+    { key: 'codigosConferem', label: 'Códigos do fornecedor batem com os do pedido' },
+    { key: 'quantidadesConferem', label: 'Quantidades conferem (atenção à unidade: PC, PL, UN, JG, KG)' },
+    { key: 'precoConfere', label: 'Preço unitário confere com o negociado/pedido' },
+    { key: 'ipiConfere', label: 'Alíquota de IPI confere' },
+    { key: 'freteConfere', label: 'Frete e condição de pagamento conferem' },
+    { key: 'totalConfere', label: 'Total do pedido bate com o total do documento do fornecedor' },
+    { key: 'entregaConfere', label: 'Data de entrega e transportadora conferem' }
+  ]);
+
+  function defaultConferencia() {
+    const checklist = {};
+    CONFERENCIA_CHECKLIST_ITEMS.forEach((item) => { checklist[item.key] = false; });
+    return {
+      tipoDocumento: null, // 'orcamento' | 'nfe'
+      checklist,
+      divergencias: [],
+      aprovado: null, // null (pendente) | true | false
+      dataConferencia: null
+    };
+  }
+
   function defaultState() {
     return {
       currentState: STATES.INICIO,
@@ -31,6 +57,7 @@
       sheetUrl: '',
       bessaniUrl: '',
       bessaniPrint: null,
+      conferencia: defaultConferencia(),
       lastError: null,
       diagnostics: {
         activeTabUrl: null,
@@ -75,5 +102,13 @@
     });
   }
 
-  root.HubState = { STATES, getState, setState, resetState, STORAGE_KEY };
+  root.HubState = {
+    STATES,
+    getState,
+    setState,
+    resetState,
+    STORAGE_KEY,
+    CONFERENCIA_CHECKLIST_ITEMS,
+    defaultConferencia
+  };
 })(self);

@@ -1,4 +1,4 @@
-# Testes — Hub de Pedidos v1.1.0-alpha.1
+# Testes — Compras v1.1.0-alpha.1
 
 ## O que foi validado neste ambiente (sem Chrome real / sem acesso ao Trello, Drive e Bessani reais)
 
@@ -48,6 +48,7 @@ depois de carregar a extensão via `chrome://extensions/`.
 - [ ] Nenhum `fetch()` é disparado (checar aba Rede do DevTools).
 - [ ] A planilha não é editada (nenhuma célula muda).
 - [ ] Se as colunas não forem identificadas, mostra erro claro e mantém o estado anterior.
+- [ ] Linhas com código e descrição preenchidos mas quantidade do mês vazia NÃO aparecem nos itens extraídos (produto não pedido este mês).
 
 ### Teste 6 — Bessani
 - [ ] Link pode ser colado e salvo mesmo sem clicar em "Abrir".
@@ -57,13 +58,24 @@ depois de carregar a extensão via `chrome://extensions/`.
 - [ ] "Remover print" limpa a miniatura e volta a mostrar a área de colar.
 - [ ] Print NÃO é anexado ao card do Trello nem enviado a lugar nenhum.
 
-### Teste 7 — Atualização do Trello
+### Teste 7 — Conferência do pedido
+- [ ] "Aprovar pedido" fica desabilitado enquanto o checklist não estiver 100% marcado.
+- [ ] Com checklist completo e sem divergências, "Aprovar pedido" aprova direto (sem confirmação extra).
+- [ ] Com checklist completo e alguma divergência registrada, "Aprovar pedido" abre a confirmação extra citando o número de divergências; "Cancelar" volta sem aprovar, "Confirmar aprovação" aprova.
+- [ ] Editar o checklist ou adicionar/remover divergências depois de aprovado volta o status para pendente (precisa aprovar de novo).
+- [ ] Etapa 6 ("Atualizar Trello") permanece bloqueada, com aviso visível, enquanto a conferência não estiver aprovada.
+- [ ] Trocar de fornecedor (Etapa 2) reinicia a conferência (checklist, divergências e aprovação).
+- [ ] Painel de diagnóstico mostra data da conferência, nº de divergências e status aprovado (S/N).
+- [ ] Botão "Baixar Excel para o financeiro" só aparece depois de aprovar a conferência.
+- [ ] Clicar baixa um `.xlsx` (nome `conferencia-<fornecedor>-<data>.xlsx`) que abre normalmente no Excel/Google Sheets/LibreOffice, com fornecedor, data, itens do pedido e divergências.
+
+### Teste 8 — Atualização do Trello
 - [ ] Mostra resumo do fornecedor + itens antes de atualizar.
 - [ ] Pede confirmação explícita.
 - [ ] Atualiza somente os cartões do fornecedor selecionado, dentro da lista/filtro.
 - [ ] Mostra resultado por cartão (atualizado/ignorado/não encontrado/erro).
 
-### Teste 8 — Regressão
+### Teste 9 — Regressão
 - [ ] Leitura do Trello continua funcionando.
 - [ ] Filtro Rio Claro continua funcionando.
 - [ ] Extração de fornecedor continua funcionando.

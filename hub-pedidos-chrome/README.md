@@ -1,11 +1,11 @@
-# Hub de Pedidos — Portal Timoni
+# Compras — Portal Timoni
 
 Extensão Chrome (Manifest V3) que assiste o fluxo de compras por etapas, abrindo
 Trello, Google Drive e Bessani **somente sob demanda**, com uma sidebar fixável
 como interface única.
 
 Fluxo: **Trello → escolher fornecedor → Google Drive/Sheets → extrair itens →
-Bessani (opcional) → atualizar Trello**.
+Bessani (opcional) → conferência item a item → atualizar Trello**.
 
 ## Instalação
 
@@ -33,9 +33,27 @@ Bessani (opcional) → atualizar Trello**.
    abrir agora). Também dá para colar (Ctrl+V) ou fazer upload de um print do
    Bessani só como referência visual guardada na sidebar — não é enviado nem
    anexado a lugar nenhum.
-5. **5. Atualização final** — revise o resumo do fornecedor e a quantidade de
+5. **5. Conferência do pedido** — marque o tipo de documento recebido do
+   fornecedor (orçamento ou NF-e) e percorra o checklist item a item
+   (itens presentes, códigos, quantidades, preço, IPI, frete/pagamento,
+   total, entrega). Registre qualquer divergência encontrada (item, valor
+   pedido x valor recebido). **Aprovar pedido** exige o checklist completo,
+   mas não exige zerar as divergências — elas não travam a aprovação, só
+   disparam uma confirmação extra e ficam guardadas na sidebar para
+   repassar ao financeiro (preço/IPI são ajustados depois, fora da
+   extensão). Esta etapa segue `PROTOCOLO_CONFERENCIA_PEDIDOS.md` e
+   bloqueia a Etapa 6 enquanto não for aprovada. Depois de aprovar, aparece
+   o botão **Baixar Excel para o financeiro**, que gera um `.xlsx` com
+   fornecedor, data, itens do pedido e as divergências encontradas — pronto
+   para encaminhar.
+6. **6. Atualização final** — revise o resumo do fornecedor e a quantidade de
    itens, clique em **Atualizar Trello**, confirme, e acompanhe o resultado por
-   cartão (atualizado / ignorado / não encontrado / erro).
+   cartão (atualizado / ignorado / não encontrado / erro). Só fica disponível
+   depois da conferência da Etapa 5 aprovada. A confirmação desta etapa é
+   proposital e independente da aprovação da Etapa 5: uma aprova o
+   *conteúdo* do pedido, a outra confirma a *ação* de gravar no Trello —
+   duas camadas de segurança, mantidas por decisão explícita (não é
+   redundância a remover).
 
 A opção **Fixar** (no topo) preserva o estado (fornecedor selecionado, itens
 extraídos, link do Bessani) mesmo trocando de aba ou fechando/reabrindo a
@@ -71,6 +89,9 @@ hub-pedidos-chrome/
 │   ├── state.js           # máquina de estados + chrome.storage.local
 │   ├── tabs.js             # abrir/reaproveitar aba única
 │   ├── messages.js         # envelope de mensagens tipadas
-│   └── validators.js       # validação de URLs e colunas da planilha
+│   ├── validators.js       # validação de URLs e colunas da planilha
+│   └── xlsx-writer.js      # gerador mínimo de .xlsx (Etapa 5 → financeiro)
+├── PROTOCOLO_CONFERENCIA_PEDIDOS.md  # protocolo por trás da Etapa 5
+├── prompts-referencia/     # prompts originais que especificam cada etapa (fonte de verdade)
 └── icons/
 ```

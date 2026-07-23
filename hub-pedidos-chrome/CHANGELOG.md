@@ -1,5 +1,115 @@
 # Changelog
 
+## 1.1.0-alpha.24 — Corrige extração incluindo itens sem pedido no mês
+
+Revisão contra o prompt de referência original (`2-itens-pedido-rio-claro`,
+reenviado pela usuária): "Extract all rows where the current month
+quantity column has a non-empty value... Ignore any rows with empty
+cells in the quantity column." O código extraía o item mesmo com a coluna
+de quantidade vazia, desde que código e descrição estivessem preenchidos —
+ou seja, produtos do fornecedor que NÃO foram pedidos neste mês entravam
+na lista extraída (e, por consequência, iam para a conferência e para o
+cartão do Trello).
+
+- **Corrigido**: `content/sheets-content.js` (`extrairItens`) agora
+  também ignora a linha se a coluna de quantidade estiver vazia, além das
+  checagens já existentes de código/descrição.
+
+## 1.1.0-alpha.23 — Exportar conferência em Excel para o financeiro
+
+A usuária precisa, ao final da conferência (Etapa 5), de um arquivo Excel
+pra encaminhar ao financeiro (que ajusta preço/IPI a partir das
+divergências registradas).
+
+- **Adicionado**: `lib/xlsx-writer.js` — gerador mínimo de `.xlsx`
+  (formato OOXML/SpreadsheetML), escrito na mão sem nenhuma dependência
+  externa. Monta o `.zip` (método STORED, sem compressão) e o XML
+  necessário (`[Content_Types].xml`, `_rels/.rels`, `xl/workbook.xml`,
+  `xl/_rels/workbook.xml.rels`, `xl/styles.xml`, `xl/worksheets/sheet1.xml`)
+  diretamente em JS puro, usando só `TextEncoder`/`Blob`/`URL.createObjectURL`
+  (já disponíveis na página da sidebar). Não foi vendorizada nenhuma
+  biblioteca de terceiros (ex: SheetJS) porque o projeto não tem build
+  step e o ambiente de desenvolvimento não tem acesso à rede para buscar
+  esse arquivo — e o formato de uma planilha simples cabe em ~150 linhas
+  sem isso.
+- **Adicionado**: botão "Baixar Excel para o financeiro" na Etapa 5,
+  visível só depois da conferência aprovada. Gera
+  `conferencia-<fornecedor>-<data>.xlsx` com fornecedor, data da
+  conferência, tipo de documento, itens do pedido e a tabela de
+  divergências (valores numéricos de verdade quando possível, pra o
+  financeiro poder somar direto na planilha).
+- Validado abrindo o `.xlsx` gerado com `openpyxl` (round-trip de texto
+  acentuado, números e células vazias) — sem acesso a um Excel real neste
+  ambiente, mas o formato é o mesmo lido por Excel/Google Sheets/LibreOffice.
+
+## 1.1.0-alpha.22 — Renomeia "Hub de Pedidos" para "Compras"
+
+Renomeação de marca/exibição — sem mudança de comportamento. Faz mais
+sentido com a direção que o projeto tomou (módulo "Compras", entre outros
+módulos do Portal Timoni).
+
+- **Alterado**: nome da extensão (`manifest.json`), título/`<h1>`/marca da
+  sidebar, título do `README.md` e do `TESTES.md`, e comentários que citavam
+  "Hub de Pedidos" como nome do produto — tudo passou a "Compras".
+- **Não alterado** (de propósito, por serem detalhes internos sem impacto
+  visível): namespace interno em JS (`HubState`, `HubMessages`, `HubTabs`,
+  `HubValidators`), a chave de `chrome.storage.local`
+  (`hubPedidosState`) e o nome da pasta (`hub-pedidos-chrome/`). Renomear a
+  pasta trocaria o ID da extensão no Chrome (instalação "sem compactação"),
+  exigindo reinstalar e perdendo o estado salvo — avisar antes de fazer
+  isso, se for o caso.
+
+## 1.1.0-alpha.21 — Divergência não trava mais a aprovação da conferência
+
+Ajuste da alpha.20 baseado em como a Etapa 5 é usada na prática: a
+conferência é um parâmetro para evitar erros, não um veto — divergências
+de preço/IPI são o resultado esperado do processo, viram pauta para o
+financeiro ajustar, e o pedido segue aprovado.
+
+- **Alterado**: "Aprovar pedido" não fica mais desabilitado por
+  divergências registradas — continua exigindo o checklist 100% completo.
+  Havendo divergência pendente, o clique abre uma confirmação extra
+  (quantas divergências, lembrete de que ficam registradas para o
+  financeiro) antes de aprovar de fato.
+- **Removido**: botão "Reprovar pedido" e o estado `aprovado: false`. Na
+  prática esse fluxo nunca é usado — a usuária sempre aprova e resolve
+  divergência depois, fora da extensão.
+- Divergências continuam só na sidebar (não são adicionadas ao cartão do
+  Trello) — a usuária encaminha a planilha diretamente ao financeiro por
+  fora da extensão, então não há necessidade de duplicar esse dado no
+  Trello.
+- `PROTOCOLO_CONFERENCIA_PEDIDOS.md` ganhou uma nota de implementação
+  explicando essa diferença entre o texto original da seção 4 (documento
+  formal, mantido como está) e o comportamento real da Etapa 5.
+
+## 1.1.0-alpha.20 — Nova Etapa 5: Conferência do pedido
+
+Incorpora o `PROTOCOLO_CONFERENCIA_PEDIDOS.md` (fornecido pela usuária) ao
+fluxo como uma etapa própria, entre Bessani e a atualização final do Trello
+(que virou Etapa 6).
+
+- **Adicionado**: Etapa 5 — Conferência do pedido. Marcação do tipo de
+  documento de retorno recebido (orçamento/NF-e), checklist item a item
+  (itens presentes, códigos, quantidades, preço unitário, IPI, frete e
+  condição de pagamento, total, entrega/transportadora), registro de
+  divergências (item, valor pedido x valor recebido, diferença calculada
+  automaticamente) e decisão explícita **Aprovar pedido** / **Reprovar
+  pedido**. Estado persistido em `chrome.storage.local` junto com o resto
+  do fluxo (`lib/state.js`, chave `conferencia`).
+- **Adicionado**: a Etapa 6 (Atualizar Trello) agora exige
+  `conferencia.aprovado === true` — tanto na UI (botão desabilitado com
+  aviso) quanto no `background.js` (`handleUpdateTrello` recusa a
+  atualização mesmo se chamada diretamente). Reflete a regra 1 do
+  protocolo: nenhum pedido é atualizado sem a conferência aprovada.
+- Qualquer edição no checklist ou nas divergências depois de uma aprovação
+  ou reprovação reabre a conferência (`aprovado` volta a `null`), forçando
+  nova decisão explícita.
+- Trocar de fornecedor (Etapa 2) reinicia a conferência, como já acontecia
+  com itens extraídos e link do Bessani.
+- **Adicionado**: `PROTOCOLO_CONFERENCIA_PEDIDOS.md` — transcrição do
+  protocolo original, referenciado a partir do `README.md` e da própria
+  Etapa 5 na sidebar.
+
 ## 1.1.0-alpha.19 — Corrige ativação automática: faltava clicar em "OK" no diálogo
 
 Os prints do usuário mostraram exatamente por que a alpha.18 não resolveu:

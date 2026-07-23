@@ -238,6 +238,7 @@
       const quantidade = (row[columns.idxQuantidade] || '').trim();
       if (!codigo && !descricao) continue; // linha vazia
       if (!codigo || !descricao) continue; // linha incompleta, ignora
+      if (!quantidade) continue; // sem pedido no mês corrente, ignora (ver 2-itens-pedido-rio-claro)
       items.push({ codigo, descricao, quantidade });
     }
 

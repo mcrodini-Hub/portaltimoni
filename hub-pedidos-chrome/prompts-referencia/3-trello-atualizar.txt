@@ -1,0 +1,11 @@
+3-trello-atualizar
+
+No link https://trello.com/b/UfPrTr1H/compras?filter=label:Rio%20Claro,label:Urgente
+
+localizar na Lista PEDIDOS PENDENTES o card do fornecedor, conforme print, atualizar nome, data de envio e entrega, adicionar a etiqueta Enviado amarelo suave. Mover para o topo da Lista PEDIDOS ENVIADO RIO CLARO.
+
+Abrir para adicionar o anexo e fim.
+
+por padrão: ex: ROMPLAS 6055MCR
+
+finalizar com "Pronto!"

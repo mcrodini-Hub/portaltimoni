@@ -1,0 +1,3 @@
+4-pedido-araras-enviar
+
+Navigate to https://trello.com/b/UfPrTr1H/compras?filter=label:Araras to view the Trello board with the Araras (blue) label filter already applied. Locate the "PEDIDOS PENDENTES" list in the board. Read and extract all card names displayed in that list. The cards should be displayed in their current order as shown on the filtered board. Return the complete list of card names from the PEDIDOS PENDENTES list. Note: Do NOT attempt to sort the list or open list menus - simply read the cards as they appear in the filtered view. The filter for Araras label is already applied in the URL, so the list will only show cards with that label.

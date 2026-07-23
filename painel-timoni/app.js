@@ -124,6 +124,23 @@
   });
 
   // ---------------------------------------------------------------------
+  // Voltar ao topo
+  // ---------------------------------------------------------------------
+  var backToTop = document.getElementById('backToTop');
+  var SHOW_AFTER_PX = 480;
+  function updateBackToTopVisibility() {
+    backToTop.classList.toggle('visible', window.scrollY > SHOW_AFTER_PX);
+  }
+  updateBackToTopVisibility();
+  window.addEventListener('scroll', updateBackToTopVisibility, { passive: true });
+  backToTop.addEventListener('click', function () {
+    var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    window.scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+    var topHeading = document.getElementById('top');
+    if (topHeading) topHeading.focus({ preventScroll: true });
+  });
+
+  // ---------------------------------------------------------------------
   // Dados reais: Estoque e Motorista (únicos módulos com Web App hoje)
   // ---------------------------------------------------------------------
   function setBadge(el, state, title) {

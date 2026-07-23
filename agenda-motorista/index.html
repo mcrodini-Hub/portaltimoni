@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agenda de Motorista · Portal Timoni</title>
-<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="app.css?v=4">
 </head>
 <body>
 
@@ -58,12 +58,16 @@
   <!-- CALENDÁRIO -->
   <section id="telaCalendario" hidden>
     <div class="cal-header">
-      <h1 id="calMesLabel">--</h1>
+      <h1 id="calLabel">--</h1>
       <div class="cal-nav">
         <button class="btn-secondary btn-small" id="btnHoje">Hoje</button>
-        <button class="icon-btn" id="btnMesAnterior" title="Mês anterior">‹</button>
-        <button class="icon-btn" id="btnMesProximo" title="Próximo mês">›</button>
+        <button class="icon-btn" id="btnAnterior" title="Anterior">‹</button>
+        <button class="icon-btn" id="btnProximo" title="Próximo">›</button>
       </div>
+    </div>
+    <div class="filtro-loja">
+      <button class="chip js-modo-cal ativo" data-modo="semana">Semana</button>
+      <button class="chip js-modo-cal" data-modo="mes">Mês</button>
     </div>
     <p class="subtitle">Clique num dia para ver, registrar e reorganizar as viagens.</p>
     <div class="cal-legend">
@@ -72,7 +76,8 @@
       <span><span class="cal-day-tag" style="margin-right:4px;">Araras</span>dia padrão de Araras (seg. tarde, qua e sex)</span>
     </div>
     <p class="validation-msg" id="calMsg"></p>
-    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-grid-semana" id="calGridSemana"></div>
+    <div class="cal-grid" id="calGrid" hidden></div>
   </section>
 
   <!-- DIA -->
@@ -225,7 +230,7 @@
 
 </main>
 
-<script src="lib/store.js"></script>
-<script src="app.js"></script>
+<script src="lib/store.js?v=4"></script>
+<script src="app.js?v=4"></script>
 </body>
 </html>

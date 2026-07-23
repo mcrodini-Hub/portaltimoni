@@ -4,6 +4,8 @@
 
 let lojaAtualDevice = null;
 let mesAtual = { ano: 0, mes: 0 };
+let modoCalendario = 'semana';
+let semanaAtualInicio = null;
 let diaAtual = null;
 let viagensDia = [];
 let filtroLoja = 'todas';
@@ -125,17 +127,90 @@ async function init() {
   atualizarLojaPill();
   const hoje = new Date();
   mesAtual = { ano: hoje.getFullYear(), mes: hoje.getMonth() + 1 };
+  semanaAtualInicio = segundaDaSemana(hoje);
   mostrarTela('telaCalendario');
-  renderCalendario();
+  renderSemana();
+}
+
+function refrescarCalendario() {
+  if (modoCalendario === 'semana') renderSemana();
+  else renderCalendario();
 }
 
 // --------------------------------------------------------------------------
-// Calendário
+// Calendário — visão Semana (padrão) e visão Mês
 // --------------------------------------------------------------------------
 const NOMES_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+const DIAS_UTEIS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
+
+function segundaDaSemana(data) {
+  const d = new Date(data.getFullYear(), data.getMonth(), data.getDate());
+  const dow = d.getDay(); // 0=dom..6=sáb
+  d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
+  return d;
+}
+
+function diasDaSemana() {
+  const dias = [];
+  for (let i = 0; i < DIAS_UTEIS.length; i++) {
+    const d = new Date(semanaAtualInicio);
+    d.setDate(d.getDate() + i);
+    dias.push(d);
+  }
+  return dias;
+}
+
+function labelSemana(dias) {
+  const ini = dias[0];
+  const fim = dias[dias.length - 1];
+  const nomeIni = NOMES_MES[ini.getMonth()].toLowerCase();
+  const nomeFim = NOMES_MES[fim.getMonth()].toLowerCase();
+  if (ini.getMonth() === fim.getMonth() && ini.getFullYear() === fim.getFullYear()) {
+    return `${ini.getDate()} a ${fim.getDate()} de ${nomeIni} ${ini.getFullYear()}`;
+  }
+  return `${ini.getDate()} de ${nomeIni} a ${fim.getDate()} de ${nomeFim} de ${fim.getFullYear()}`;
+}
+
+async function renderSemana() {
+  const dias = diasDaSemana();
+  document.getElementById('calLabel').textContent = labelSemana(dias);
+
+  let listasPorDia;
+  try {
+    listasPorDia = await Promise.all(dias.map((d) => AgendaStore.listarDia(toDataStr(d))));
+  } catch (e) {
+    document.getElementById('calMsg').textContent = e.message;
+    return;
+  }
+  document.getElementById('calMsg').textContent = '';
+
+  const hojeStr = toDataStr(new Date());
+  const grid = document.getElementById('calGridSemana');
+  grid.innerHTML = '';
+
+  dias.forEach((d, idx) => {
+    const dataStr = toDataStr(d);
+    const viagens = listasPorDia[idx];
+    const tag = padraoAraras(dataStr);
+    const col = document.createElement('div');
+    col.className = 'week-day' + (dataStr === hojeStr ? ' hoje' : '');
+    const itensHtml = viagens.slice(0, 4).map((v) => `<div class="week-day-item ${v.tipoHorario === 'Retirada' ? 'retirada' : 'entrega'}">${escHtml(v.horario) || '--:--'} · ${escHtml(v.clienteFornecedor) || v.tipoHorario}</div>`).join('');
+    const maisHtml = viagens.length > 4 ? `<div class="week-day-mais">+${viagens.length - 4} mais</div>` : '';
+    col.innerHTML = `
+      <div class="week-day-header">
+        <span class="week-day-dow">${DIAS_UTEIS[idx]}</span>
+        <span class="week-day-num">${d.getDate()}/${String(d.getMonth() + 1).padStart(2, '0')}</span>
+      </div>
+      ${tag ? `<span class="cal-day-tag">${tag}</span>` : ''}
+      ${viagens.length ? itensHtml + maisHtml : '<span class="week-day-empty">Sem viagens</span>'}
+    `;
+    col.addEventListener('click', () => abrirDia(dataStr));
+    grid.appendChild(col);
+  });
+}
 
 async function renderCalendario() {
-  document.getElementById('calMesLabel').textContent = `${NOMES_MES[mesAtual.mes - 1]} ${mesAtual.ano}`;
+  document.getElementById('calLabel').textContent = `${NOMES_MES[mesAtual.mes - 1]} ${mesAtual.ano}`;
   let resumo = {};
   try {
     resumo = await AgendaStore.listarMes(mesAtual.ano, mesAtual.mes);
@@ -321,7 +396,7 @@ async function excluirItem(id) {
   try {
     await AgendaStore.excluirViagem(id, diaAtual);
     await carregarDia();
-    renderCalendario();
+    refrescarCalendario();
     mostrarToast('Viagem excluída');
   } catch (e) {
     document.getElementById('diaValidationMsg').textContent = e.message;
@@ -544,7 +619,7 @@ async function salvarViagem() {
       mostrarToast('Viagem salva ✓');
       await carregarDia(salva.id);
     }
-    renderCalendario();
+    refrescarCalendario();
   } catch (e) {
     document.getElementById('formValidationMsg').textContent = e.message;
     mostrarToast('Não foi possível salvar: ' + e.message, 'erro');
@@ -809,8 +884,9 @@ document.querySelectorAll('#telaLoja .js-loja').forEach((btn) => {
     atualizarLojaPill();
     const hoje = new Date();
     mesAtual = { ano: hoje.getFullYear(), mes: hoje.getMonth() + 1 };
+    semanaAtualInicio = segundaDaSemana(hoje);
     mostrarTela('telaCalendario');
-    renderCalendario();
+    renderSemana();
   });
 });
 
@@ -824,7 +900,7 @@ document.querySelectorAll('#telaConfig .js-loja').forEach((btn) => {
 });
 
 document.getElementById('btnConfig').addEventListener('click', abrirConfig);
-document.getElementById('btnFecharConfig').addEventListener('click', () => { mostrarTela('telaCalendario'); renderCalendario(); });
+document.getElementById('btnFecharConfig').addEventListener('click', () => { mostrarTela('telaCalendario'); refrescarCalendario(); });
 document.getElementById('btnSalvarConfig').addEventListener('click', async () => {
   const statusEl = document.getElementById('configStatus');
   try {
@@ -845,21 +921,40 @@ document.getElementById('btnSalvarConfig').addEventListener('click', async () =>
   }
 });
 
-document.getElementById('btnMesAnterior').addEventListener('click', () => {
-  mesAtual.mes--; if (mesAtual.mes < 1) { mesAtual.mes = 12; mesAtual.ano--; }
-  renderCalendario();
+document.querySelectorAll('.js-modo-cal').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    modoCalendario = btn.dataset.modo;
+    document.querySelectorAll('.js-modo-cal').forEach((b) => b.classList.toggle('ativo', b.dataset.modo === modoCalendario));
+    document.getElementById('calGridSemana').hidden = modoCalendario !== 'semana';
+    document.getElementById('calGrid').hidden = modoCalendario !== 'mes';
+    refrescarCalendario();
+  });
 });
-document.getElementById('btnMesProximo').addEventListener('click', () => {
-  mesAtual.mes++; if (mesAtual.mes > 12) { mesAtual.mes = 1; mesAtual.ano++; }
-  renderCalendario();
+
+document.getElementById('btnAnterior').addEventListener('click', () => {
+  if (modoCalendario === 'semana') {
+    semanaAtualInicio.setDate(semanaAtualInicio.getDate() - 7);
+  } else {
+    mesAtual.mes--; if (mesAtual.mes < 1) { mesAtual.mes = 12; mesAtual.ano--; }
+  }
+  refrescarCalendario();
+});
+document.getElementById('btnProximo').addEventListener('click', () => {
+  if (modoCalendario === 'semana') {
+    semanaAtualInicio.setDate(semanaAtualInicio.getDate() + 7);
+  } else {
+    mesAtual.mes++; if (mesAtual.mes > 12) { mesAtual.mes = 1; mesAtual.ano++; }
+  }
+  refrescarCalendario();
 });
 document.getElementById('btnHoje').addEventListener('click', () => {
   const hoje = new Date();
   mesAtual = { ano: hoje.getFullYear(), mes: hoje.getMonth() + 1 };
-  renderCalendario();
+  semanaAtualInicio = segundaDaSemana(hoje);
+  refrescarCalendario();
 });
 
-document.getElementById('btnVoltarCalendario').addEventListener('click', () => { mostrarTela('telaCalendario'); renderCalendario(); });
+document.getElementById('btnVoltarCalendario').addEventListener('click', () => { mostrarTela('telaCalendario'); refrescarCalendario(); });
 document.querySelectorAll('.js-filtro-loja').forEach((btn) => {
   btn.addEventListener('click', () => {
     filtroLoja = btn.dataset.loja;

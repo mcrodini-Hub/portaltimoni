@@ -1,0 +1,39 @@
+{
+  "_comentario": "Exemplo/modelo de dados para a pauta de Araras. Substitua objetivo, abertura e seções pelo conteúdo real de cada reunião antes de gerar o PDF. Araras não inclui WhatsApp/banheiro (ver README).",
+  "loja": "Araras",
+  "data": "05/08/2026",
+  "objetivo": "Alinhar metas de conversão do mês e resolver os gargalos de estoque e atraso de pedidos que estão afetando o atendimento.",
+  "abertura": "Time, vamos direto ao ponto: conversão caiu e atraso de pedido está custando venda. Hoje a gente resolve o que está travando, sem enrolação.",
+  "secoes": [
+    {
+      "titulo": "Vendas e Conversão",
+      "itens": [
+        "Meta do mês por vendedor apresentada na tabela abaixo.",
+        "Foco em fechar orçamentos pendentes da semana anterior.",
+        "Comissão especial para quem bater a meta de PJ."
+      ],
+      "tabela": {
+        "cabecalho": ["Vendedor(a)", "Meta (R$)", "Realizado (R$)"],
+        "linhas": [
+          ["Exemplo Nome 1", "10.000", "-"],
+          ["Exemplo Nome 2", "10.000", "-"]
+        ]
+      }
+    },
+    {
+      "titulo": "Estoque",
+      "itens": [
+        "Itens com ruptura recorrente: preencher antes da reunião.",
+        "Conferência de estoque físico x sistema — data a definir."
+      ]
+    },
+    {
+      "titulo": "Pedidos em Atraso",
+      "itens": [
+        "Lista de pedidos com atraso acima de 5 dias — revisar com fornecedor.",
+        "Combinar retorno padrão ao cliente sobre prazo."
+      ]
+    }
+  ],
+  "participantes": ["Exemplo Nome 1", "Exemplo Nome 2", "Exemplo Nome 3"]
+}

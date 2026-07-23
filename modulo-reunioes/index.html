@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Módulo Reuniões</title>
+<link rel="stylesheet" href="css/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-title">Módulo Reuniões</span>
+    </div>
+    <div class="topbar-actions">
+      <button id="btn-signin" class="btn btn-primary">Entrar com Google</button>
+      <button id="btn-signout" class="btn btn-secondary" hidden>Sair</button>
+    </div>
+  </header>
+
+  <div id="signed-out-notice" class="notice">
+    Entre com sua conta Google para agendar reuniões, ver a agenda e registrar atas.
+  </div>
+
+  <main id="app" hidden>
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="agendar">Agendar Reunião</button>
+      <button class="tab-btn" data-tab="proximas">Próximas Reuniões</button>
+      <button class="tab-btn" data-tab="historico">Histórico</button>
+    </nav>
+
+    <section id="tab-agendar" class="tab-panel active">
+      <h2>Agendar nova reunião</h2>
+      <form id="form-agendar">
+        <label>
+          Título
+          <input type="text" id="input-titulo" required placeholder="Ex: Reunião de condomínio" />
+        </label>
+
+        <div class="row">
+          <label>
+            Data e hora de início
+            <input type="datetime-local" id="input-inicio" required />
+          </label>
+          <label>
+            Data e hora de término
+            <input type="datetime-local" id="input-fim" required />
+          </label>
+        </div>
+
+        <label>
+          Local ou link (ex: Google Meet, endereço)
+          <input type="text" id="input-local" placeholder="Ex: https://meet.google.com/..." />
+        </label>
+
+        <label>
+          Pauta
+          <textarea id="input-pauta" rows="3" placeholder="Assuntos a serem discutidos"></textarea>
+        </label>
+
+        <label>
+          Participantes (e-mails separados por vírgula)
+          <input type="text" id="input-participantes" placeholder="fulano@email.com, ciclana@email.com" />
+        </label>
+
+        <button type="submit" class="btn btn-primary">Agendar reunião</button>
+      </form>
+      <p id="agendar-feedback" class="feedback" hidden></p>
+    </section>
+
+    <section id="tab-proximas" class="tab-panel">
+      <h2>Próximas reuniões</h2>
+      <ul id="lista-proximas" class="lista-reunioes"></ul>
+      <p id="proximas-vazio" class="vazio" hidden>Nenhuma reunião agendada.</p>
+    </section>
+
+    <section id="tab-historico" class="tab-panel">
+      <h2>Histórico de reuniões</h2>
+      <ul id="lista-historico" class="lista-reunioes"></ul>
+      <p id="historico-vazio" class="vazio" hidden>Nenhuma reunião anterior encontrada.</p>
+    </section>
+  </main>
+
+  <!-- Modal de registro de ata -->
+  <dialog id="modal-ata">
+    <form id="form-ata">
+      <h3>Registrar ata</h3>
+      <p id="ata-reuniao-titulo" class="ata-titulo"></p>
+      <label>
+        Decisões / notas da reunião
+        <textarea id="input-decisoes" rows="6" required placeholder="Descreva o que foi discutido e decidido"></textarea>
+      </label>
+      <div class="modal-actions">
+        <button type="button" id="btn-cancelar-ata" class="btn btn-secondary">Cancelar</button>
+        <button type="submit" class="btn btn-primary">Salvar ata</button>
+      </div>
+    </form>
+  </dialog>
+
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <script src="js/config.js"></script>
+  <script src="js/auth.js"></script>
+  <script src="js/calendar.js"></script>
+  <script src="js/sheets.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

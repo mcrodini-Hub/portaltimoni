@@ -1,0 +1,143 @@
+:root {
+  --blue: #2c4be0;
+  --blue-dark: #1f39b8;
+  --ink: #22262e;
+  --ink-soft: #5b6270;
+  --border: #e7e4e2;
+  --card-bg: #ffffff;
+  --page-bg: #f8f7f6;
+  --header-bg: #fbeeec;
+  --green: #1f8a4c;
+  --red: #c0362c;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+  background: var(--page-bg);
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: var(--header-bg);
+  border-bottom: 1px solid var(--border);
+}
+
+.brand-title { font-weight: 700; font-size: 18px; }
+
+.btn {
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.btn-primary { background: var(--blue); color: #fff; }
+.btn-primary:hover { background: var(--blue-dark); }
+.btn-secondary { background: transparent; color: var(--ink-soft); border: 1px solid var(--border); }
+.btn-secondary:hover { background: rgba(0, 0, 0, 0.04); }
+
+.notice {
+  margin: 24px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--ink-soft);
+}
+
+main { max-width: 760px; margin: 0 auto; padding: 24px; }
+
+.tabs {
+  display: flex;
+  gap: 4px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 24px;
+}
+
+.tab-btn {
+  border: none;
+  background: transparent;
+  padding: 10px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--ink-soft);
+  border-bottom: 2px solid transparent;
+}
+
+.tab-btn.active { color: var(--blue); border-bottom-color: var(--blue); font-weight: 600; }
+
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+h2 { font-size: 18px; margin-bottom: 16px; }
+
+form { display: flex; flex-direction: column; gap: 14px; }
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--ink-soft);
+  flex: 1;
+}
+
+.row { display: flex; gap: 14px; }
+
+input, textarea {
+  font-family: inherit;
+  font-size: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--ink);
+  background: #fff;
+}
+
+input:focus, textarea:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
+
+.feedback { margin-top: 12px; font-size: 14px; }
+.feedback.ok { color: var(--green); }
+.feedback.erro { color: var(--red); }
+
+.lista-reunioes { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 12px; }
+
+.reuniao-card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.reuniao-titulo { font-weight: 600; margin-bottom: 4px; }
+.reuniao-meta { font-size: 13px; color: var(--ink-soft); margin-bottom: 8px; }
+.reuniao-participantes { font-size: 13px; color: var(--ink-soft); margin-bottom: 8px; }
+.reuniao-ata { font-size: 13px; background: var(--page-bg); border-radius: 6px; padding: 8px 10px; margin-top: 8px; white-space: pre-wrap; }
+
+.vazio { color: var(--ink-soft); font-size: 14px; }
+
+dialog {
+  border: none;
+  border-radius: 10px;
+  padding: 0;
+  max-width: 480px;
+  width: 90%;
+}
+
+dialog::backdrop { background: rgba(0, 0, 0, 0.4); }
+
+dialog form { padding: 20px; }
+
+.ata-titulo { color: var(--ink-soft); font-size: 13px; margin-top: -8px; }
+
+.modal-actions { display: flex; justify-content: flex-end; gap: 10px; }

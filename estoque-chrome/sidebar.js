@@ -23,6 +23,10 @@
     configStatus: document.getElementById('config-status'),
     chkNotif: document.getElementById('chk-notif'),
     perfilAtualConfig: document.getElementById('perfil-atual-config'),
+    trocarPerfilWrap: document.getElementById('trocar-perfil-wrap'),
+    senhaCicaWrap: document.getElementById('senha-cica-wrap'),
+    inputSenhaCica: document.getElementById('input-senha-cica'),
+    btnSalvarSenhaCica: document.getElementById('btn-salvar-senha-cica'),
     connStatusBalcao: document.getElementById('conn-status-balcao'),
     connStatusEstoque: document.getElementById('conn-status-estoque'),
     connStatusAcomp: document.getElementById('conn-status-acomp'),
@@ -211,6 +215,10 @@
       el.perfilAtualConfig.textContent = roleAtual ? rotuloPerfil(roleAtual, unidadeAtual) : '--';
       el.configStatus.textContent = '';
       el.configStatus.className = 'hint-text';
+      // "Trocar perfil" some para a Ciça (evita troca casual); no lugar, ela define a senha.
+      el.trocarPerfilWrap.hidden = pessoaAtual === 'cica';
+      el.senhaCicaWrap.hidden = pessoaAtual !== 'cica';
+      el.inputSenhaCica.value = '';
     }
   });
 
@@ -256,9 +264,27 @@
     iniciarPolling();
   });
 
+  el.btnSalvarSenhaCica.addEventListener('click', async () => {
+    const nova = el.inputSenhaCica.value.trim();
+    await EstoqueStore.setSenhaCica(nova);
+    el.inputSenhaCica.value = '';
+    showToast(nova ? 'Senha salva.' : 'Senha removida.');
+  });
+
   // ---------------------------------------------------------------------
   // Papel do computador (Balcão / Estoque)
   // ---------------------------------------------------------------------
+  // Trava local (não é segurança de verdade, só uma barreira contra troca casual) para abrir o
+  // perfil da Ciça. Só pede senha se ela já tiver definido uma.
+  async function pedirSenhaCica() {
+    const salva = await EstoqueStore.getSenhaCica();
+    if (!salva) return true;
+    const digitada = prompt('Senha de acesso (Ciça):');
+    if (digitada === null) return false;
+    if (digitada !== salva) { alert('Senha incorreta.'); return false; }
+    return true;
+  }
+
   async function initRole() {
     await atualizarStatusConexao();
     const papel = await EstoqueStore.getRole();
@@ -268,6 +294,10 @@
     }
     const unidade = await EstoqueStore.getUnidade();
     const pessoa = await EstoqueStore.getPessoa();
+    if (pessoa === 'cica' && !(await pedirSenhaCica())) {
+      el.telaPapel.hidden = false;
+      return;
+    }
     applyRole(papel, unidade, pessoa);
   }
 
@@ -349,6 +379,7 @@
       const papel = btn.dataset.papel;
       const unidade = btn.dataset.unidade;
       const pessoa = btn.dataset.pessoa || '';
+      if (pessoa === 'cica' && !(await pedirSenhaCica())) return;
       await EstoqueStore.setRole(papel);
       await EstoqueStore.setUnidade(unidade);
       await EstoqueStore.setPessoa(pessoa);

@@ -15,6 +15,7 @@
     ROLE: 'estoqueRole',
     UNIDADE: 'estoqueUnidade',
     PESSOA: 'estoquePessoa',
+    SENHA_CICA: 'estoqueSenhaCica',
     VENDEDOR: 'estoqueVendedor',
     WEBAPP_URL: 'estoqueWebAppUrl',
     PRODUTOS_CACHE: 'estoqueProdutosCache',
@@ -85,6 +86,12 @@
   // ações exclusivas dela (ex.: "Limpar solicitações"), que os demais não precisam ter.
   async function getPessoa() { return get(KEYS.PESSOA, ''); }
   async function setPessoa(pessoa) { return set(KEYS.PESSOA, (pessoa || '').trim()); }
+
+  // Senha local (guardada só neste computador) para abrir o perfil da Ciça. É uma trava simples
+  // contra troca casual de perfil, não criptografia — quem tiver acesso ao computador e souber
+  // abrir o DevTools ainda consegue ler o chrome.storage.local.
+  async function getSenhaCica() { return get(KEYS.SENHA_CICA, ''); }
+  async function setSenhaCica(senha) { return set(KEYS.SENHA_CICA, (senha || '').trim()); }
 
   async function getVendedor() { return get(KEYS.VENDEDOR, ''); }
   async function setVendedor(nome) { return set(KEYS.VENDEDOR, (nome || '').trim()); }
@@ -388,6 +395,8 @@
     setUnidade,
     getPessoa,
     setPessoa,
+    getSenhaCica,
+    setSenhaCica,
     getVendedor,
     setVendedor,
     carregarVendedores,

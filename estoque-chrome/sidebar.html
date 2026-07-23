@@ -36,8 +36,16 @@
         <label class="check-row"><input type="checkbox" id="chk-notif"> Receber notificações neste computador</label>
         <p class="hint-text" style="margin-top:0;">Avisa quando entra pedido de um vendedor ou o estoque responde, mesmo com o painel fechado (enquanto o Chrome estiver aberto).</p>
         <div class="divider-config"></div>
-        <p class="hint-text" style="margin-top:0;">Perfil deste computador: <strong id="perfil-atual-config">--</strong>. No dia a dia o perfil é fixo; troque só para reconfigurar a máquina ou testar.</p>
-        <button id="btn-trocar-perfil" class="btn btn-secondary btn-small">Trocar perfil deste computador</button>
+        <p class="hint-text" style="margin-top:0;">Perfil deste computador: <strong id="perfil-atual-config">--</strong>.</p>
+        <div id="trocar-perfil-wrap">
+          <p class="hint-text" style="margin-top:0;">No dia a dia o perfil é fixo; troque só para reconfigurar a máquina ou testar.</p>
+          <button id="btn-trocar-perfil" class="btn btn-secondary btn-small">Trocar perfil deste computador</button>
+        </div>
+        <div id="senha-cica-wrap" hidden>
+          <p class="hint-text" style="margin-top:0;">Senha para abrir seu perfil (Ciça) neste computador. Deixe em branco e salve para remover a senha.</p>
+          <input type="password" id="input-senha-cica" class="text-input" placeholder="Senha de acesso">
+          <button id="btn-salvar-senha-cica" class="btn btn-secondary btn-small">Salvar senha</button>
+        </div>
       </div>
     </section>
 

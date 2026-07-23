@@ -3,7 +3,7 @@
 // através de chrome.storage.onChanged — isso substitui o mecanismo de mensageria
 // da base v1.0.12, que não chegava a atualizar a sidebar de forma confiável.
 
-const { STATES } = HubState;
+const { STATES, CONFERENCIA_CHECKLIST_ITEMS } = HubState;
 const { TYPES, send } = HubMessages;
 
 const STATE_LABELS = {
@@ -60,9 +60,24 @@ const ui = {
   printPreviewImg: el('print-preview-img'),
   btnRemoverPrint: el('btn-remover-print'),
 
+  radioDocOrcamento: el('radio-doc-orcamento'),
+  radioDocNfe: el('radio-doc-nfe'),
+  docOrcamentoHint: el('doc-orcamento-hint'),
+  conferenciaChecklist: el('conferencia-checklist'),
+  divergenciasLista: el('divergencias-lista'),
+  inputDivItem: el('input-div-item'),
+  inputDivPedido: el('input-div-pedido'),
+  inputDivRecebido: el('input-div-recebido'),
+  inputDivObs: el('input-div-obs'),
+  btnAddDivergencia: el('btn-add-divergencia'),
+  conferenciaStatus: el('conferencia-status'),
+  btnAprovarConferencia: el('btn-aprovar-conferencia'),
+  btnReprovarConferencia: el('btn-reprovar-conferencia'),
+
   resumoWrap: el('resumo-wrap'),
   resumoFornecedor: el('resumo-fornecedor'),
   resumoItens: el('resumo-itens'),
+  conferenciaBloqueioHint: el('conferencia-bloqueio-hint'),
   btnAtualizarTrello: el('btn-atualizar-trello'),
   confirmWrap: el('confirm-wrap'),
   btnConfirmarUpdate: el('btn-confirmar-update'),
@@ -170,13 +185,18 @@ function render(state) {
     ui.printPreviewImg.src = state.bessaniPrint;
   }
 
-  // Etapa 5
-  const canUpdate = !!state.selectedSupplier && hasItems;
-  ui.resumoWrap.hidden = !canUpdate;
-  if (canUpdate) {
+  // Etapa 5 (Conferência)
+  renderConferencia(state);
+
+  // Etapa 6
+  const conferenciaAprovada = !!(state.conferencia && state.conferencia.aprovado === true);
+  const canUpdate = !!state.selectedSupplier && hasItems && conferenciaAprovada;
+  ui.resumoWrap.hidden = !(state.selectedSupplier && hasItems);
+  if (state.selectedSupplier && hasItems) {
     ui.resumoFornecedor.textContent = state.selectedSupplier.nome;
     ui.resumoItens.textContent = String(state.extractedItems.length);
   }
+  ui.conferenciaBloqueioHint.hidden = !(state.selectedSupplier && hasItems && !conferenciaAprovada);
   ui.btnAtualizarTrello.disabled = !canUpdate;
 
   ui.resultadosLista.innerHTML = '';
@@ -198,6 +218,7 @@ function escapeHtml(value) {
 
 function renderDiagnostics(state) {
   const d = state.diagnostics || {};
+  const c = state.conferencia || {};
   const lines = [
     `Estado atual: ${state.currentState}`,
     `URL da aba ativa (última conhecida): ${d.activeTabUrl || '--'}`,
@@ -207,6 +228,9 @@ function renderDiagnostics(state) {
     `Fornecedores encontrados: ${d.suppliersFound ?? state.suppliers.length}`,
     `Fornecedor selecionado: ${state.selectedSupplier ? state.selectedSupplier.nome : '--'}`,
     `Itens extraídos: ${d.itemsExtracted ?? state.extractedItems.length}`,
+    `Conferência — data: ${formatDate(c.dataConferencia)}`,
+    `Conferência — divergências: ${(c.divergencias || []).length}`,
+    `Conferência — aprovado: ${c.aprovado === true ? 'S' : c.aprovado === false ? 'N' : '--'}`,
     `Último erro: ${state.lastError || '--'}`
   ];
   if (d.rowsRead !== undefined) {
@@ -216,6 +240,86 @@ function renderDiagnostics(state) {
     lines.push(d.rowsPreview || '--');
   }
   ui.diagText.textContent = lines.join('\n');
+}
+
+function formatDate(timestamp) {
+  if (!timestamp) return '--';
+  try {
+    return new Date(timestamp).toLocaleString('pt-BR');
+  } catch (e) {
+    return '--';
+  }
+}
+
+function renderConferencia(state) {
+  const conferencia = state.conferencia || HubState.defaultConferencia();
+
+  ui.radioDocOrcamento.checked = conferencia.tipoDocumento === 'orcamento';
+  ui.radioDocNfe.checked = conferencia.tipoDocumento === 'nfe';
+  ui.docOrcamentoHint.hidden = conferencia.tipoDocumento !== 'orcamento';
+
+  ui.conferenciaChecklist.innerHTML = '';
+  CONFERENCIA_CHECKLIST_ITEMS.forEach((item) => {
+    const checked = !!conferencia.checklist[item.key];
+    const li = document.createElement('li');
+    const inputId = `chk-conf-${item.key}`;
+    const input = document.createElement('input');
+    input.type = 'checkbox';
+    input.id = inputId;
+    input.checked = checked;
+    input.addEventListener('change', (e) => onChecklistChange(item.key, e.target.checked));
+    const label = document.createElement('label');
+    label.setAttribute('for', inputId);
+    label.textContent = item.label;
+    li.appendChild(input);
+    li.appendChild(label);
+    ui.conferenciaChecklist.appendChild(li);
+  });
+
+  const divergencias = conferencia.divergencias || [];
+  ui.divergenciasLista.innerHTML = '';
+  if (divergencias.length === 0) {
+    const li = document.createElement('li');
+    li.className = 'divergencia-empty';
+    li.textContent = 'Nenhuma divergência registrada.';
+    ui.divergenciasLista.appendChild(li);
+  } else {
+    divergencias.forEach((dvg, idx) => {
+      const li = document.createElement('li');
+      const parts = [dvg.item || '(item não informado)', `pedido: ${dvg.valorPedido || '--'}`, `recebido: ${dvg.valorRecebido || '--'}`];
+      if (dvg.observacao) parts.push(dvg.observacao);
+      const span = document.createElement('span');
+      span.textContent = parts.join(' · ');
+      const btn = document.createElement('button');
+      btn.className = 'divergencia-remove';
+      btn.title = 'Remover';
+      btn.textContent = '×';
+      btn.addEventListener('click', () => onRemoveDivergencia(idx));
+      li.appendChild(span);
+      li.appendChild(btn);
+      ui.divergenciasLista.appendChild(li);
+    });
+  }
+
+  const allChecked = CONFERENCIA_CHECKLIST_ITEMS.every((item) => !!conferencia.checklist[item.key]);
+  const hasDivergencias = divergencias.length > 0;
+
+  ui.btnAprovarConferencia.disabled = !allChecked || hasDivergencias || conferencia.aprovado === true;
+  ui.btnReprovarConferencia.disabled = conferencia.aprovado === false;
+
+  ui.conferenciaStatus.className = 'conferencia-status';
+  if (conferencia.aprovado === true) {
+    ui.conferenciaStatus.classList.add('status-aprovado');
+    ui.conferenciaStatus.textContent = `Conferência aprovada em ${formatDate(conferencia.dataConferencia)}.`;
+  } else if (conferencia.aprovado === false) {
+    ui.conferenciaStatus.classList.add('status-reprovado');
+    ui.conferenciaStatus.textContent = 'Pedido reprovado na conferência — não aprovar até o fornecedor corrigir e reenviar.';
+  } else {
+    ui.conferenciaStatus.classList.add('status-pendente');
+    ui.conferenciaStatus.textContent = hasDivergencias
+      ? 'Há divergências registradas — não é possível aprovar até serem resolvidas.'
+      : (allChecked ? 'Checklist completo — pronto para aprovar.' : 'Conferência pendente.');
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -288,6 +392,71 @@ ui.inputPrintUpload.addEventListener('change', (e) => {
 
 ui.btnRemoverPrint.addEventListener('click', () => {
   send(TYPES.SAVE_BESSANI_PRINT, { dataUrl: null }, 'sidebar').then(refresh);
+});
+
+async function updateConferencia(mutator) {
+  const state = await HubState.getState();
+  const conferencia = JSON.parse(JSON.stringify(state.conferencia || HubState.defaultConferencia()));
+  mutator(conferencia);
+  await send(TYPES.SAVE_CONFERENCIA, { conferencia }, 'sidebar');
+  refresh();
+}
+
+function onChecklistChange(key, checked) {
+  updateConferencia((c) => {
+    c.checklist[key] = checked;
+    c.aprovado = null;
+  });
+}
+
+ui.radioDocOrcamento.addEventListener('change', () => {
+  if (ui.radioDocOrcamento.checked) updateConferencia((c) => { c.tipoDocumento = 'orcamento'; });
+});
+ui.radioDocNfe.addEventListener('change', () => {
+  if (ui.radioDocNfe.checked) updateConferencia((c) => { c.tipoDocumento = 'nfe'; });
+});
+
+ui.btnAddDivergencia.addEventListener('click', () => {
+  const item = ui.inputDivItem.value.trim();
+  const valorPedido = ui.inputDivPedido.value.trim();
+  const valorRecebido = ui.inputDivRecebido.value.trim();
+  const observacao = ui.inputDivObs.value.trim();
+  if (!item) {
+    ui.inputDivItem.focus();
+    return;
+  }
+  const pedidoNum = parseFloat(valorPedido.replace(',', '.'));
+  const recebidoNum = parseFloat(valorRecebido.replace(',', '.'));
+  const diferenca = !isNaN(pedidoNum) && !isNaN(recebidoNum) ? (recebidoNum - pedidoNum).toFixed(2) : '';
+  updateConferencia((c) => {
+    c.divergencias.push({ item, valorPedido, valorRecebido, diferenca, observacao });
+    c.aprovado = null;
+  });
+  ui.inputDivItem.value = '';
+  ui.inputDivPedido.value = '';
+  ui.inputDivRecebido.value = '';
+  ui.inputDivObs.value = '';
+});
+
+function onRemoveDivergencia(idx) {
+  updateConferencia((c) => {
+    c.divergencias.splice(idx, 1);
+    c.aprovado = null;
+  });
+}
+
+ui.btnAprovarConferencia.addEventListener('click', () => {
+  updateConferencia((c) => {
+    c.aprovado = true;
+    c.dataConferencia = Date.now();
+  });
+});
+
+ui.btnReprovarConferencia.addEventListener('click', () => {
+  updateConferencia((c) => {
+    c.aprovado = false;
+    c.dataConferencia = Date.now();
+  });
 });
 
 ui.btnAtualizarTrello.addEventListener('click', () => {

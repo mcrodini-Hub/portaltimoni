@@ -378,6 +378,126 @@ h1 { font-size: 18px; margin: 0 0 4px; }
 .result-list li.status-nao-encontrado { background: #fff4e0; color: var(--amber); }
 .result-list li.status-erro { background: #fdecea; color: var(--red); }
 
+.conferencia-rule {
+  background: #fff8e6;
+  border: 1px solid #f0d98c;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 0 0 12px;
+}
+
+.conferencia-rule code {
+  font-size: 10px;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 4px;
+  padding: 1px 4px;
+}
+
+.conferencia-subtitle {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ink);
+  margin: 14px 0 8px;
+}
+
+.conferencia-subtitle:first-of-type { margin-top: 0; }
+
+.doc-tipo-row { display: flex; gap: 16px; }
+
+.radio-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.radio-label input { accent-color: var(--blue); cursor: pointer; }
+
+.checklist {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12.5px;
+}
+
+.checklist li:last-child { border-bottom: none; }
+
+.checklist input[type="checkbox"] {
+  margin-top: 2px;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  accent-color: var(--blue);
+  cursor: pointer;
+}
+
+.checklist label { cursor: pointer; }
+
+.divergencia-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+}
+
+.divergencia-list li {
+  background: #fdecea;
+  border: 1px solid #f3c2bd;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  font-size: 12px;
+  color: var(--red);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.divergencia-list .divergencia-remove {
+  background: none;
+  border: none;
+  color: var(--red);
+  font-weight: 700;
+  cursor: pointer;
+  flex: 0 0 auto;
+  padding: 0 2px;
+}
+
+.divergencia-list .divergencia-empty {
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  padding: 0;
+}
+
+.divergencia-form { margin-bottom: 10px; }
+.div-input { margin-bottom: 8px; }
+
+.conferencia-status {
+  font-size: 12px;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin-bottom: 10px;
+}
+
+.conferencia-status.status-pendente { background: #f1f2f5; color: var(--ink-soft); }
+.conferencia-status.status-aprovado { background: #e8f6ec; color: var(--green); }
+.conferencia-status.status-reprovado { background: #fdecea; color: var(--red); }
+.conferencia-status:empty { display: none; }
+
+.conferencia-actions { display: flex; gap: 8px; }
+.conferencia-actions .btn { margin-top: 0; }
+
 .footer-actions { margin: 8px 0 16px; }
 
 .diag-toggle { padding-left: 2px; margin-bottom: 6px; }

@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.1.0-alpha.20 — Nova Etapa 5: Conferência do pedido
+
+Incorpora o `PROTOCOLO_CONFERENCIA_PEDIDOS.md` (fornecido pela usuária) ao
+fluxo como uma etapa própria, entre Bessani e a atualização final do Trello
+(que virou Etapa 6).
+
+- **Adicionado**: Etapa 5 — Conferência do pedido. Marcação do tipo de
+  documento de retorno recebido (orçamento/NF-e), checklist item a item
+  (itens presentes, códigos, quantidades, preço unitário, IPI, frete e
+  condição de pagamento, total, entrega/transportadora), registro de
+  divergências (item, valor pedido x valor recebido, diferença calculada
+  automaticamente) e decisão explícita **Aprovar pedido** / **Reprovar
+  pedido**. Estado persistido em `chrome.storage.local` junto com o resto
+  do fluxo (`lib/state.js`, chave `conferencia`).
+- **Adicionado**: a Etapa 6 (Atualizar Trello) agora exige
+  `conferencia.aprovado === true` — tanto na UI (botão desabilitado com
+  aviso) quanto no `background.js` (`handleUpdateTrello` recusa a
+  atualização mesmo se chamada diretamente). Reflete a regra 1 do
+  protocolo: nenhum pedido é atualizado sem a conferência aprovada.
+- Qualquer edição no checklist ou nas divergências depois de uma aprovação
+  ou reprovação reabre a conferência (`aprovado` volta a `null`), forçando
+  nova decisão explícita.
+- Trocar de fornecedor (Etapa 2) reinicia a conferência, como já acontecia
+  com itens extraídos e link do Bessani.
+- **Adicionado**: `PROTOCOLO_CONFERENCIA_PEDIDOS.md` — transcrição do
+  protocolo original, referenciado a partir do `README.md` e da própria
+  Etapa 5 na sidebar.
+
 ## 1.1.0-alpha.19 — Corrige ativação automática: faltava clicar em "OK" no diálogo
 
 Os prints do usuário mostraram exatamente por que a alpha.18 não resolveu:

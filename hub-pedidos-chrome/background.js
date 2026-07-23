@@ -182,6 +182,7 @@ async function handleSelectSupplier(payload) {
     sheetUrl: '',
     bessaniUrl: '',
     bessaniPrint: null,
+    conferencia: HubState.defaultConferencia(),
     trelloUpdateResults: [],
     lastError: null
   });
@@ -288,6 +289,13 @@ async function handleSaveSheetUrl(payload) {
   return { sheetUrl: url };
 }
 
+async function handleSaveConferencia(payload) {
+  const conferencia = payload && payload.conferencia;
+  if (!conferencia) return { error: 'Conferência inválida.' };
+  await HubState.setState({ conferencia });
+  return { conferencia };
+}
+
 async function handleOpenBessani() {
   const state = await HubState.getState();
   if (!state.bessaniUrl) {
@@ -310,6 +318,12 @@ async function handleUpdateTrello() {
   const state = await HubState.getState();
   if (!state.selectedSupplier || !state.extractedItems || state.extractedItems.length === 0) {
     return { error: 'Não há itens extraídos para atualizar no Trello.' };
+  }
+  if (!state.conferencia || state.conferencia.aprovado !== true) {
+    return {
+      error: 'Conferência item a item do pedido ainda não foi aprovada (Etapa 5). ' +
+        'Nenhum pedido é atualizado no Trello sem essa conferência — ver PROTOCOLO_CONFERENCIA_PEDIDOS.md.'
+    };
   }
 
   const tab = await ensureTrelloBoardTab();
@@ -379,6 +393,7 @@ const HANDLERS = {
   [TYPES.SAVE_BESSANI_URL]: handleSaveBessaniUrl,
   [TYPES.SAVE_BESSANI_PRINT]: handleSaveBessaniPrint,
   [TYPES.SAVE_SHEET_URL]: handleSaveSheetUrl,
+  [TYPES.SAVE_CONFERENCIA]: handleSaveConferencia,
   [TYPES.OPEN_BESSANI]: handleOpenBessani,
   [TYPES.UPDATE_TRELLO]: handleUpdateTrello,
   [TYPES.RESET_WORKFLOW]: handleResetWorkflow,

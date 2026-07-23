@@ -102,12 +102,61 @@
 
     <!-- ETAPA 5 -->
     <section class="step">
-      <p class="step-label">5. Atualização final</p>
+      <p class="step-label">5. Conferência do pedido</p>
+      <div class="step-card">
+        <p class="hint-text conferencia-rule">
+          Nenhum pedido é aprovado sem conferência item a item contra o
+          documento de retorno do fornecedor (orçamento ou NF-e) — ver
+          <code>PROTOCOLO_CONFERENCIA_PEDIDOS.md</code>.
+        </p>
+
+        <p class="conferencia-subtitle">Documento de retorno recebido</p>
+        <div class="doc-tipo-row">
+          <label class="radio-label">
+            <input type="radio" name="tipo-documento" id="radio-doc-orcamento" value="orcamento">
+            <span>Orçamento</span>
+          </label>
+          <label class="radio-label">
+            <input type="radio" name="tipo-documento" id="radio-doc-nfe" value="nfe">
+            <span>NF-e</span>
+          </label>
+        </div>
+        <p class="hint-text" id="doc-orcamento-hint" hidden>
+          Orçamento é preliminar — não substitui a conferência quando a NF-e
+          chegar.
+        </p>
+
+        <p class="conferencia-subtitle">Checklist item a item</p>
+        <ul id="conferencia-checklist" class="checklist"></ul>
+
+        <p class="conferencia-subtitle">Divergências encontradas</p>
+        <ul id="divergencias-lista" class="divergencia-list"></ul>
+        <div class="divergencia-form">
+          <input type="text" id="input-div-item" class="text-input div-input" placeholder="Item">
+          <input type="text" id="input-div-pedido" class="text-input div-input" placeholder="Valor pedido">
+          <input type="text" id="input-div-recebido" class="text-input div-input" placeholder="Valor recebido">
+          <input type="text" id="input-div-obs" class="text-input div-input" placeholder="Observação (opcional)">
+          <button id="btn-add-divergencia" class="btn btn-secondary">Registrar divergência</button>
+        </div>
+
+        <div id="conferencia-status" class="conferencia-status"></div>
+
+        <div class="conferencia-actions">
+          <button id="btn-aprovar-conferencia" class="btn btn-primary" disabled>Aprovar pedido</button>
+          <button id="btn-reprovar-conferencia" class="btn btn-secondary">Reprovar pedido</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ETAPA 6 -->
+    <section class="step">
+      <p class="step-label">6. Atualização final</p>
       <div class="step-card">
         <div id="resumo-wrap" class="summary-box" hidden>
           <p><strong>Fornecedor:</strong> <span id="resumo-fornecedor">--</span></p>
           <p><strong>Itens a enviar:</strong> <span id="resumo-itens">0</span></p>
         </div>
+        <p id="conferencia-bloqueio-hint" class="hint-text" hidden>Aprove a conferência do pedido (Etapa 5) antes de atualizar o Trello.</p>
         <button id="btn-atualizar-trello" class="btn btn-primary" disabled>Atualizar Trello</button>
         <div id="confirm-wrap" class="confirm-box" hidden>
           <p>Confirma atualizar os cartões do Trello com os itens extraídos?</p>

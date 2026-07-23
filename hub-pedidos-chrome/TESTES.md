@@ -57,13 +57,23 @@ depois de carregar a extensão via `chrome://extensions/`.
 - [ ] "Remover print" limpa a miniatura e volta a mostrar a área de colar.
 - [ ] Print NÃO é anexado ao card do Trello nem enviado a lugar nenhum.
 
-### Teste 7 — Atualização do Trello
+### Teste 7 — Conferência do pedido
+- [ ] "Aprovar pedido" fica desabilitado enquanto o checklist não estiver 100% marcado.
+- [ ] Registrar uma divergência desabilita "Aprovar pedido" mesmo com checklist completo.
+- [ ] Remover todas as divergências e completar o checklist libera "Aprovar pedido".
+- [ ] "Reprovar pedido" funciona a qualquer momento e mostra o aviso de reprovado.
+- [ ] Editar o checklist ou as divergências depois de aprovar/reprovar volta o status para pendente.
+- [ ] Etapa 6 ("Atualizar Trello") permanece bloqueada, com aviso visível, enquanto a conferência não estiver aprovada.
+- [ ] Trocar de fornecedor (Etapa 2) reinicia a conferência (checklist, divergências e aprovação).
+- [ ] Painel de diagnóstico mostra data da conferência, nº de divergências e status aprovado (S/N).
+
+### Teste 8 — Atualização do Trello
 - [ ] Mostra resumo do fornecedor + itens antes de atualizar.
 - [ ] Pede confirmação explícita.
 - [ ] Atualiza somente os cartões do fornecedor selecionado, dentro da lista/filtro.
 - [ ] Mostra resultado por cartão (atualizado/ignorado/não encontrado/erro).
 
-### Teste 8 — Regressão
+### Teste 9 — Regressão
 - [ ] Leitura do Trello continua funcionando.
 - [ ] Filtro Rio Claro continua funcionando.
 - [ ] Extração de fornecedor continua funcionando.

@@ -5,7 +5,7 @@ Trello, Google Drive e Bessani **somente sob demanda**, com uma sidebar fixável
 como interface única.
 
 Fluxo: **Trello → escolher fornecedor → Google Drive/Sheets → extrair itens →
-Bessani (opcional) → atualizar Trello**.
+Bessani (opcional) → conferência item a item → atualizar Trello**.
 
 ## Instalação
 
@@ -33,9 +33,19 @@ Bessani (opcional) → atualizar Trello**.
    abrir agora). Também dá para colar (Ctrl+V) ou fazer upload de um print do
    Bessani só como referência visual guardada na sidebar — não é enviado nem
    anexado a lugar nenhum.
-5. **5. Atualização final** — revise o resumo do fornecedor e a quantidade de
+5. **5. Conferência do pedido** — marque o tipo de documento recebido do
+   fornecedor (orçamento ou NF-e) e percorra o checklist item a item
+   (itens presentes, códigos, quantidades, preço, IPI, frete/pagamento,
+   total, entrega). Registre qualquer divergência encontrada (item, valor
+   pedido x valor recebido). Só é possível **Aprovar pedido** com o
+   checklist completo e sem divergências pendentes; havendo divergência,
+   a única opção é **Reprovar pedido**. Esta etapa segue
+   `PROTOCOLO_CONFERENCIA_PEDIDOS.md` e bloqueia a Etapa 6 enquanto não for
+   aprovada.
+6. **6. Atualização final** — revise o resumo do fornecedor e a quantidade de
    itens, clique em **Atualizar Trello**, confirme, e acompanhe o resultado por
-   cartão (atualizado / ignorado / não encontrado / erro).
+   cartão (atualizado / ignorado / não encontrado / erro). Só fica disponível
+   depois da conferência da Etapa 5 aprovada.
 
 A opção **Fixar** (no topo) preserva o estado (fornecedor selecionado, itens
 extraídos, link do Bessani) mesmo trocando de aba ou fechando/reabrindo a
@@ -72,5 +82,6 @@ hub-pedidos-chrome/
 │   ├── tabs.js             # abrir/reaproveitar aba única
 │   ├── messages.js         # envelope de mensagens tipadas
 │   └── validators.js       # validação de URLs e colunas da planilha
+├── PROTOCOLO_CONFERENCIA_PEDIDOS.md  # protocolo por trás da Etapa 5
 └── icons/
 ```

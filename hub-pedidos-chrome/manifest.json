@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Portal Timoni - Hub de Pedidos",
   "version": "1.1.0",
-  "version_name": "1.1.0-alpha.19",
+  "version_name": "1.1.0-alpha.20",
   "description": "Fluxo assistido de compras: Trello -> Google Drive -> Planilha -> Bessani -> Trello, com abertura de abas somente sob demanda.",
   "icons": {
     "16": "icons/icon16.png",

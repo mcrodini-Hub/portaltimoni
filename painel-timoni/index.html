@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel Timoni</title>
+<link rel="stylesheet" href="app.css">
+</head>
+<body>
+
+<div class="wrap">
+  <div class="top">
+    <div>
+      <p class="eyebrow">Casa Timoni · painel pessoal</p>
+      <h1>Painel Timoni</h1>
+    </div>
+    <span class="private-chip"><span class="dot"></span>visível só para você</span>
+  </div>
+  <p class="subtitle">Cada módulo é uma peça independente — abra, leia ou atualize sem depender das outras. Dentro de Compras, as etapas ficam agrupadas por serem do mesmo fluxo; os demais módulos moram em blocos próprios, lado a lado.</p>
+
+  <div class="toolbar">
+    <div class="filter-group" role="group" aria-label="Filtrar cartões por status">
+      <button class="filter-btn" data-filter="all" aria-pressed="true">Todos</button>
+      <button class="filter-btn" data-filter="attention" aria-pressed="false">Precisam de atenção</button>
+      <button class="filter-btn" data-filter="done" aria-pressed="false">Concluídos</button>
+    </div>
+    <div class="spacer"></div>
+    <button class="icon-btn" id="settingsBtn"><span class="mark">⚙</span> Planilhas</button>
+    <button class="icon-btn" id="pinBtn" aria-pressed="false"><span class="mark pin-mark">📌</span> Fixar painel</button>
+  </div>
+
+  <nav class="modnav" aria-label="Ir para um módulo" id="modnav">
+    <a class="modchip" data-target="mod-compras" href="#mod-compras" style="--sw: var(--mod-compras);"><span class="swatch"></span>Compras</a>
+    <a class="modchip" data-target="mod-reunioes" href="#mod-reunioes" style="--sw: var(--mod-reunioes);"><span class="swatch"></span>Reuniões</a>
+    <a class="modchip" data-target="mod-agenda" href="#mod-agenda" style="--sw: var(--mod-agenda);"><span class="swatch"></span>Agenda Ciça</a>
+    <a class="modchip" data-target="mod-marketing" href="#mod-marketing" style="--sw: var(--mod-marketing);"><span class="swatch"></span>Marketing</a>
+    <a class="modchip" data-target="mod-estoque" href="#mod-estoque" style="--sw: var(--mod-estoque);"><span class="swatch"></span>Estoque</a>
+    <a class="modchip" data-target="mod-motorista" href="#mod-motorista" style="--sw: var(--mod-motorista);"><span class="swatch"></span>Motorista</a>
+  </nav>
+
+  <!-- ================= COMPRAS ================= -->
+  <section class="module" id="mod-compras" style="--sw: var(--mod-compras);">
+    <div class="module-head">
+      <span class="module-swatch"></span>
+      <p class="module-eyebrow">Módulo</p>
+      <h2 class="module-title">Compras</h2>
+      <p class="module-desc">Fluxo de pedidos: Trello → fornecedor → planilha → conferência → Bessani → atualização. Cinco peças do mesmo fluxo, por isso ficam juntas. Ainda sem Web App próprio — ver README para deixar "ao vivo".</p>
+    </div>
+    <div class="board">
+
+      <article class="card" data-module="compras" data-status="attention">
+        <div class="card-body">
+          <div class="card-head">
+            <div>
+              <p class="card-tag">Trello</p>
+              <h3>Fornecedores</h3>
+            </div>
+            <div class="pill-row">
+              <span class="live-badge demo">exemplo</span>
+              <span class="pill pill-neutral">9 carregados</span>
+              <span class="pill pill-critical">2 urgentes</span>
+            </div>
+          </div>
+          <ul class="list">
+            <li>Atacadão Rio Claro <span class="pill pill-critical">urgente</span></li>
+            <li>Distribuidora Fumagalli <span class="pill pill-critical">urgente</span></li>
+            <li>Comercial Rio Claro Alimentos</li>
+          </ul>
+          <button class="details-toggle" data-target="det-trello">+ mais 6 fornecedores</button>
+          <div class="details" id="det-trello">Atacadão Bessani, Hortifruti União, Distribuidora Sul, Comércio Ideal, Frigorífico Rio Claro, Empório Rio Claro.</div>
+          <p class="card-meta">última leitura: hoje 09:12</p>
+          <div class="card-footer">
+            <span></span>
+            <a class="btn" href="https://trello.com/b/UfPrTr1H/compras" target="_blank" rel="noopener">Abrir Trello →</a>
+          </div>
+        </div>
+      </article>
+
+      <article class="card" data-module="compras" data-status="done">
+        <div class="card-body">
+          <div class="card-head">
+            <div>
+              <p class="card-tag">Planilha</p>
+              <h3>Itens extraídos</h3>
+            </div>
+            <span class="live-badge demo">exemplo</span>
+            <span class="pill pill-ok">18 itens</span>
+          </div>
+          <p class="card-meta">fornecedor: Atacadão Rio Claro</p>
+          <table class="mono-table">
+            <thead><tr><th>Cód.</th><th>Descrição</th><th>Qtd</th></tr></thead>
+            <tbody>
+              <tr><td>4471</td><td>Arroz tipo 1 5kg</td><td>24</td></tr>
+              <tr><td>4483</td><td>Feijão carioca 1kg</td><td>40</td></tr>
+              <tr><td>4502</td><td>Óleo de soja 900ml</td><td>60</td></tr>
+            </tbody>
+          </table>
+          <button class="details-toggle" data-target="det-sheets">+ mais 15 itens</button>
+          <div class="details" id="det-sheets">4515 Açúcar refinado 1kg · 30 · 4529 Café torrado 500g · 20 · 4540 Sal refinado 1kg · 50 · e outros 12 itens.</div>
+          <div class="card-footer">
+            <span class="optional-tag">extraído pelo Hub de Pedidos</span>
+            <span></span>
+          </div>
+        </div>
+      </article>
+
+      <article class="card" data-module="compras" data-status="attention">
+        <div class="card-body">
+          <div class="card-head">
+            <div>
+              <p class="card-tag">Compras</p>
+              <h3>Conferência de preços</h3>
+            </div>
+            <span class="live-badge demo">exemplo</span>
+            <span class="pill pill-critical">não aprovado</span>
+          </div>
+          <p class="card-meta">pedido MCR 6072 · Polybrasil · orçamento nº 268408</p>
+          <ul class="list">
+            <li>Itens ausentes no orçamento <span class="pill pill-warn">2</span></li>
+            <li>Preço unitário divergente <span class="pill pill-warn">5 itens</span></li>
+            <li>IPI divergente (0% × 9,75%) <span class="pill pill-warn">1 item</span></li>
+          </ul>
+          <p class="note-block">Total pedido R$ 5.513,83 × orçamento R$ 5.597,57 — diferença de R$ 83,74, sem contar os itens ausentes.</p>
+          <button class="details-toggle" data-target="det-conferencia">+ ver checklist de conferência</button>
+          <div class="details" id="det-conferencia">
+            <ol>
+              <li>Todos os itens do pedido aparecem no retorno do fornecedor</li>
+              <li>Códigos do fornecedor batem com os do pedido</li>
+              <li>Quantidades conferem (atenção à unidade)</li>
+              <li>Preço unitário confere com o negociado</li>
+              <li>Alíquota de IPI confere</li>
+              <li>Frete e condição de pagamento conferem</li>
+              <li>Total do pedido bate com o total do documento</li>
+              <li>Data de entrega e transportadora conferem</li>
+            </ol>
+          </div>
+          <div class="card-footer">
+            <span class="optional-tag">aguardando fornecedor corrigir</span>
+            <span></span>
+          </div>
+        </div>
+      </article>
+
+      <article class="card" data-module="compras" data-status="done">
+        <div class="card-body">
+          <div class="card-head">
+            <div>
+              <p class="card-tag">Bessani</p>
+              <h3>Pedido de compra</h3>
+            </div>
+            <span class="live-badge demo">exemplo</span>
+            <span class="pill pill-ok">link salvo</span>
+          </div>
+          <div class="link-preview">
+            <span class="thumb" title="print de referência anexado"></span>
+            bessani.com.br/pedido/88213
+          </div>
+          <p class="card-meta">print de referência anexado · uso opcional</p>
+          <div class="card-footer">
+            <span class="optional-tag">etapa opcional</span>
+            <span></span>
+          </div>
+        </div>
+      </article>
+
+      <article class="card" data-module="compras" data-status="attention">
+        <div class="card-body">
+          <div class="card-head">
+            <div>
+              <p class="card-tag">Trello</p>
+              <h3>Atualização final</h3>
+            </div>
+            <span class="live-badge demo">exemplo</span>
+          </div>
+          <div class="stat-row">
+            <div class="stat ok"><b>16</b><span>atualizados</span></div>
+            <div class="stat warn"><b>1</b><span>ignorado</span></div>
+            <div class="stat critical"><b>1</b><span>não encontrado</span></div>
+          </div>
+          <ul class="list">
+            <li>Atacadão Rio Claro <span class="pill pill-ok">ok</span></li>
+            <li>Empório Rio Claro <span class="pill pill-critical">não encontrado</span></li>
+          </ul>
+          <div class="card-footer">
+            <span class="optional-tag">via extensão Hub de Pedidos</span>
+            <span></span>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ================= REUNIÕES ================= -->
+  <section class="module" id="mod-reunioes" style="--sw: var(--mod-reunioes);">
+    <div class="module-head">
+      <span class="module-swatch"></span>
+      <p class="module-eyebrow">Módulo</p>
+      <h2 class="module-title">Reuniões</h2>
+      <p class="module-desc">Assistente pessoal que cobra pendências e mantém o registro de decisões das quinzenais de Rio Claro e Araras. Fonte de verdade é um arquivo (assistente/registro.md), sem endpoint web ainda.</p>
+    </div>
+    <div class="board">
+
+      <article class="card" data-module="reunioes" data-status="attention">
+        <div class="card-body">
+          <div class="card-head">
+            <div>
+              <p class="card-tag">Registro</p>
+              <h3>Pendências</h3>
+            </div>
+            <span class="live-badge demo">exemplo</span>
+            <span class="pill pill-critical">8 atas em atraso</span>
+          </div>
+          <ul class="list">
+            <li>Atas faltando (8 reuniões) <span class="pill pill-warn">cobrar hoje 9:30</span></li>
+            <li>Apagar arquivo de teste no Drive</li>
+            <li>Lista de participantes de Araras</li>
+          </ul>
+          <button class="details-toggle" data-target="det-reunioes">+ mais 6 pendências</button>
+          <div class="details" id="det-reunioes">Confirmar quem faltou (Araras 04/08), produto da campanha ago-set, produto da campanha out-nov, detalhes do sorteio de Natal, confraternização 01/11 (local/orçamento e lista/premiados).</div>
+          <p class="card-meta">assistente-pessoal · atualizado hoje</p>
+          <div class="card-footer">
+            <span class="optional-tag">arquivo local do repositório</span>
+            <span></span>
+          </div>
+        </div>
+      </article>
+
+      <article class="card" data-module="reunioes" data-status="done">
+        <div class="card-body">
+          <div class="card-head">
+            <div>
+              <p class="card-tag">Cronograma</p>
+              <h3>Próxima reunião</h3>
+            </div>
+            <span class="live-badge demo">exemplo</span>
+            <span class="pill pill-ok">confirmada</span>
+          </div>
+          <ul class="list">
+            <li>Rio Claro — sáb. 25/07 <span class="pill pill-neutral">Ciça</span></li>
+            <li>Araras — ter. 04/08 <span class="pill pill-neutral">Ciça/Reginaldo</span></li>
+          </ul>
+          <p class="card-meta">quinzenal até setembro · mensal a partir de outubro</p>
+          <div class="card-footer">
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ================= AGENDA CIÇA ================= -->
+  <section class="module" id="mod-agenda" style="--sw: var(--mod-agenda);">
+    <div class="module-head">
+      <span class="module-swatch"></span>
+      <p class="module-eyebrow">Módulo</p>
+      <h2 class="module-title">Agenda Ciça</h2>
+      <p class="module-desc">Portal (Next.js) com login Google e sincronização direta do Google Calendar. Exige autenticação própria — este painel só linka, não busca os eventos.</p>
+    </div>
+    <div class="board">
+
+      <article class="card" data-module="agenda" data-status="done">
+        <div class="card-body">
+          <div class="card-head">
+            <div>
+              <p class="card-tag">Google Calendar</p>
+              <h3>Agenda de hoje</h3>
+            </div>
+            <span class="live-badge demo">exemplo</span>
+            <span class="pill pill-ok">sincronizada</span>
+          </div>
+          <ul class="list">
+            <li>09:00 Reunião fornecedor Polybrasil</li>
+            <li>14:00 Ligação — banco</li>
+            <li>17:30 Confraternização — planejamento</li>
+          </ul>
+          <p class="card-meta">login: ciça@ · timoni-portal</p>
+          <div class="card-footer">
+            <span class="optional-tag">requer login Google</span>
+            <span></span>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ================= MARKETING ================= -->
+  <section class="module" id="mod-marketing" style="--sw: var(--mod-marketing);">
+    <div class="module-head">
+      <span class="module-swatch"></span>
+      <p class="module-eyebrow">Módulo</p>
+      <h2 class="module-title">Marketing</h2>
+      <p class="module-desc">Esqueleto reservado — ainda sem fluxo funcional definido.</p>
+    </div>
+    <div class="board">
+
+      <article class="card is-placeholder" data-module="marketing" data-status="neutral">
+        <div class="card-body">
+          <div class="card-head">
+            <div>
+              <p class="card-tag">Marketing CT</p>
+              <h3>Em construção</h3>
+            </div>
+            <span class="pill pill-neutral">sem fluxo definido</span>
+          </div>
+          <p class="note-block">Reservado para campanhas (WhatsApp, quadro de posts). Próximo passo: definir com o time a primeira automação.</p>
+          <div class="card-footer">
+            <span class="optional-tag">placeholder</span>
+            <button class="btn" disabled>Em breve</button>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ================= ESTOQUE ================= -->
+  <section class="module" id="mod-estoque" style="--sw: var(--mod-estoque);">
+    <div class="module-head">
+      <span class="module-swatch"></span>
+      <p class="module-eyebrow">Módulo</p>
+      <h2 class="module-title">Estoque</h2>
+      <p class="module-desc">Ponte entre balcão e estoque nas duas lojas — Rio Claro e Araras. Configure a URL do Web App em "⚙ Planilhas" para ver dados reais.</p>
+    </div>
+    <div class="board">
+
+      <article class="card" data-module="estoque" data-status="attention" id="card-estoque-consulta">
+        <div class="card-body">
+          <div class="card-head">
+            <div>
+              <p class="card-tag">Vendedores</p>
+              <h3>Consulta de produtos</h3>
+            </div>
+            <div class="pill-row" id="estoque-consulta-badge">
+              <span class="live-badge demo">exemplo</span>
+              <span class="pill pill-warn">3 aguardando estoque</span>
+              <span class="pill pill-critical">1 cliente aguardando</span>
+            </div>
+          </div>
+          <ul class="list" id="estoque-consulta-lista">
+            <li>Chapa PVC 10mm — Rio Claro <span class="pill pill-critical">cliente aguardando</span></li>
+            <li>Lona vinílica azul — Araras</li>
+            <li>Perfil alumínio U — Rio Claro</li>
+          </ul>
+          <p class="card-meta">vendedores: Rafaela, Davi, José Roberto</p>
+          <div class="card-footer">
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </article>
+
+      <article class="card" data-module="estoque" data-status="attention" id="card-estoque-central">
+        <div class="card-body">
+          <div class="card-head">
+            <div>
+              <p class="card-tag">Estoque · Lucas</p>
+              <h3>Central de necessidades</h3>
+            </div>
+            <span class="live-badge demo" id="estoque-central-badge">exemplo</span>
+          </div>
+          <div class="stat-row" id="estoque-central-stats">
+            <div class="stat warn"><b>4</b><span>aguardando</span></div>
+            <div class="stat ok"><b>2</b><span>a caminho</span></div>
+            <div class="stat critical"><b>1</b><span>atrasado</span></div>
+          </div>
+          <ul class="list" id="estoque-central-lista">
+            <li>Chapa PVC 10mm <span class="pill pill-critical">atrasado há 3 dias</span></li>
+            <li>Lona vinílica azul <span class="pill pill-ok">pedido 512 · 28/07</span></li>
+          </ul>
+          <div class="card-footer">
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <!-- ================= MOTORISTA ================= -->
+  <section class="module" id="mod-motorista" style="--sw: var(--mod-motorista);">
+    <div class="module-head">
+      <span class="module-swatch"></span>
+      <p class="module-eyebrow">Módulo</p>
+      <h2 class="module-title">Motorista</h2>
+      <p class="module-desc">Agenda real de viagens entre Rio Claro e Araras — entregas, retiradas e rota do dia. Configure a URL do Web App em "⚙ Planilhas" para ver dados reais.</p>
+    </div>
+    <div class="board">
+
+      <article class="card" data-module="motorista" data-status="attention" id="card-motorista">
+        <div class="card-head" style="padding: 18px 20px 0;">
+          <div>
+            <p class="card-tag">Agenda</p>
+          </div>
+          <span class="live-badge demo" id="motorista-badge">exemplo</span>
+        </div>
+        <div class="card-body">
+          <h3 style="margin-top: -6px;">Viagens de hoje</h3>
+          <div class="stat-row" id="motorista-stats">
+            <div class="stat ok"><b>5</b><span>entregas</span></div>
+            <div class="stat ok"><b>2</b><span>retiradas</span></div>
+            <div class="stat critical"><b>1</b><span>conflito</span></div>
+          </div>
+          <p class="note-block" id="motorista-nota">Retirada 14:00 (Araras) segura a saída por 40 min — conflita com a entrega 14:20 (Rio Claro).</p>
+          <p class="card-meta">loja padrão: Rio Claro · preenchido por Ciça</p>
+          <div class="card-footer">
+            <span></span>
+            <span></span>
+          </div>
+        </div>
+      </article>
+
+    </div>
+  </section>
+
+  <footer class="note" id="footerNote">protótipo · dados de exemplo — configure as planilhas em "⚙ Planilhas" para ligar Estoque e Motorista</footer>
+</div>
+
+<div class="drawer-backdrop" id="drawerBackdrop"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <button class="drawer-close" id="drawerClose" aria-label="Fechar">✕</button>
+  <h2>Planilhas conectadas</h2>
+  <p class="hint">Cole a URL do Web App (Apps Script) de cada módulo que já publica dados — a mesma URL usada na extensão/página do módulo. Compras, Reuniões, Agenda e Marketing ainda não têm um Web App próprio, então continuam mostrando dados de exemplo.</p>
+
+  <div class="field">
+    <label for="cfg-estoque">Estoque — URL do Web App</label>
+    <input type="url" id="cfg-estoque" placeholder="https://script.google.com/.../exec">
+    <p class="field-status" id="cfg-estoque-status"></p>
+  </div>
+
+  <div class="field">
+    <label for="cfg-motorista">Motorista — URL do Web App</label>
+    <input type="url" id="cfg-motorista" placeholder="https://script.google.com/.../exec">
+    <p class="field-status" id="cfg-motorista-status"></p>
+  </div>
+
+  <button class="btn" id="cfg-save">Salvar e atualizar</button>
+</aside>
+
+<script src="lib/config.js"></script>
+<script src="lib/sources/estoque.js"></script>
+<script src="lib/sources/motorista.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

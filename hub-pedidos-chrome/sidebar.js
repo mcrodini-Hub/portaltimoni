@@ -76,6 +76,7 @@ const ui = {
   conferenciaConfirmText: el('conferencia-confirm-text'),
   btnConfirmarAprovarConferencia: el('btn-confirmar-aprovar-conferencia'),
   btnCancelarAprovarConferencia: el('btn-cancelar-aprovar-conferencia'),
+  btnBaixarExcelConferencia: el('btn-baixar-excel-conferencia'),
 
   resumoWrap: el('resumo-wrap'),
   resumoFornecedor: el('resumo-fornecedor'),
@@ -308,6 +309,7 @@ function renderConferencia(state) {
   const hasDivergencias = divergencias.length > 0;
 
   ui.btnAprovarConferencia.disabled = !allChecked || conferencia.aprovado === true;
+  ui.btnBaixarExcelConferencia.hidden = conferencia.aprovado !== true;
 
   ui.conferenciaStatus.className = 'conferencia-status';
   if (conferencia.aprovado === true) {
@@ -480,6 +482,76 @@ ui.btnConfirmarAprovarConferencia.addEventListener('click', () => {
 ui.btnCancelarAprovarConferencia.addEventListener('click', () => {
   ui.conferenciaConfirmWrap.hidden = true;
   ui.btnAprovarConferencia.hidden = false;
+});
+
+function slugify(text) {
+  return (text || '')
+    .toString()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '') || 'fornecedor';
+}
+
+function dateForFilename(timestamp) {
+  const d = timestamp ? new Date(timestamp) : new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+// Tenta ler "18,50" / "18.50" como número (pra a coluna virar número de verdade na
+// planilha, que o financeiro pode somar); mantém como texto se não for um valor puro.
+function parseValorNumerico(value) {
+  if (value === undefined || value === null || value === '') return '';
+  const normalized = String(value).trim().replace(',', '.');
+  if (/^-?\d+(\.\d+)?$/.test(normalized)) return parseFloat(normalized);
+  return value;
+}
+
+function buildConferenciaExportRows(state) {
+  const c = state.conferencia || HubState.defaultConferencia();
+  const tipoDocLabel = c.tipoDocumento === 'nfe' ? 'NF-e' : c.tipoDocumento === 'orcamento' ? 'Orçamento' : '--';
+  const rows = [
+    ['Conferência de pedido de compra — Portal Timoni'],
+    [],
+    ['Fornecedor:', state.selectedSupplier ? state.selectedSupplier.nome : '--'],
+    ['Data da conferência:', formatDate(c.dataConferencia)],
+    ['Documento de retorno:', tipoDocLabel],
+    ['Aprovado:', c.aprovado === true ? 'Sim' : 'Não'],
+    [],
+    ['Itens do pedido'],
+    ['Código', 'Descrição', 'Quantidade']
+  ];
+  (state.extractedItems || []).forEach((it) => {
+    rows.push([it.codigo, it.descricao, parseValorNumerico(it.quantidade)]);
+  });
+  rows.push([]);
+  rows.push(['Divergências encontradas']);
+  const divergencias = c.divergencias || [];
+  if (divergencias.length === 0) {
+    rows.push(['Nenhuma divergência registrada.']);
+  } else {
+    rows.push(['Item', 'Valor pedido', 'Valor recebido', 'Diferença (R$)', 'Observação']);
+    divergencias.forEach((d) => {
+      rows.push([
+        d.item || '',
+        parseValorNumerico(d.valorPedido),
+        parseValorNumerico(d.valorRecebido),
+        parseValorNumerico(d.diferenca),
+        d.observacao || ''
+      ]);
+    });
+  }
+  return rows;
+}
+
+ui.btnBaixarExcelConferencia.addEventListener('click', async () => {
+  const state = await HubState.getState();
+  const rows = buildConferenciaExportRows(state);
+  const fornecedorSlug = slugify(state.selectedSupplier ? state.selectedSupplier.nome : '');
+  const filename = `conferencia-${fornecedorSlug}-${dateForFilename(state.conferencia && state.conferencia.dataConferencia)}.xlsx`;
+  HubXlsx.downloadXlsx(filename, 'Conferência', rows);
 });
 
 ui.btnAtualizarTrello.addEventListener('click', () => {

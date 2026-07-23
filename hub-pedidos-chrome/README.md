@@ -42,7 +42,10 @@ Bessani (opcional) → conferência item a item → atualizar Trello**.
    disparam uma confirmação extra e ficam guardadas na sidebar para
    repassar ao financeiro (preço/IPI são ajustados depois, fora da
    extensão). Esta etapa segue `PROTOCOLO_CONFERENCIA_PEDIDOS.md` e
-   bloqueia a Etapa 6 enquanto não for aprovada.
+   bloqueia a Etapa 6 enquanto não for aprovada. Depois de aprovar, aparece
+   o botão **Baixar Excel para o financeiro**, que gera um `.xlsx` com
+   fornecedor, data, itens do pedido e as divergências encontradas — pronto
+   para encaminhar.
 6. **6. Atualização final** — revise o resumo do fornecedor e a quantidade de
    itens, clique em **Atualizar Trello**, confirme, e acompanhe o resultado por
    cartão (atualizado / ignorado / não encontrado / erro). Só fica disponível
@@ -86,7 +89,8 @@ hub-pedidos-chrome/
 │   ├── state.js           # máquina de estados + chrome.storage.local
 │   ├── tabs.js             # abrir/reaproveitar aba única
 │   ├── messages.js         # envelope de mensagens tipadas
-│   └── validators.js       # validação de URLs e colunas da planilha
+│   ├── validators.js       # validação de URLs e colunas da planilha
+│   └── xlsx-writer.js      # gerador mínimo de .xlsx (Etapa 5 → financeiro)
 ├── PROTOCOLO_CONFERENCIA_PEDIDOS.md  # protocolo por trás da Etapa 5
 └── icons/
 ```

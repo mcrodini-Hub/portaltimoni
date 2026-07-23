@@ -1,5 +1,32 @@
 # Changelog
 
+## 1.1.0-alpha.23 — Exportar conferência em Excel para o financeiro
+
+A usuária precisa, ao final da conferência (Etapa 5), de um arquivo Excel
+pra encaminhar ao financeiro (que ajusta preço/IPI a partir das
+divergências registradas).
+
+- **Adicionado**: `lib/xlsx-writer.js` — gerador mínimo de `.xlsx`
+  (formato OOXML/SpreadsheetML), escrito na mão sem nenhuma dependência
+  externa. Monta o `.zip` (método STORED, sem compressão) e o XML
+  necessário (`[Content_Types].xml`, `_rels/.rels`, `xl/workbook.xml`,
+  `xl/_rels/workbook.xml.rels`, `xl/styles.xml`, `xl/worksheets/sheet1.xml`)
+  diretamente em JS puro, usando só `TextEncoder`/`Blob`/`URL.createObjectURL`
+  (já disponíveis na página da sidebar). Não foi vendorizada nenhuma
+  biblioteca de terceiros (ex: SheetJS) porque o projeto não tem build
+  step e o ambiente de desenvolvimento não tem acesso à rede para buscar
+  esse arquivo — e o formato de uma planilha simples cabe em ~150 linhas
+  sem isso.
+- **Adicionado**: botão "Baixar Excel para o financeiro" na Etapa 5,
+  visível só depois da conferência aprovada. Gera
+  `conferencia-<fornecedor>-<data>.xlsx` com fornecedor, data da
+  conferência, tipo de documento, itens do pedido e a tabela de
+  divergências (valores numéricos de verdade quando possível, pra o
+  financeiro poder somar direto na planilha).
+- Validado abrindo o `.xlsx` gerado com `openpyxl` (round-trip de texto
+  acentuado, números e células vazias) — sem acesso a um Excel real neste
+  ambiente, mas o formato é o mesmo lido por Excel/Google Sheets/LibreOffice.
+
 ## 1.1.0-alpha.22 — Renomeia "Hub de Pedidos" para "Compras"
 
 Renomeação de marca/exibição — sem mudança de comportamento. Faz mais

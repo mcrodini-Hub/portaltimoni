@@ -65,6 +65,8 @@ depois de carregar a extensão via `chrome://extensions/`.
 - [ ] Etapa 6 ("Atualizar Trello") permanece bloqueada, com aviso visível, enquanto a conferência não estiver aprovada.
 - [ ] Trocar de fornecedor (Etapa 2) reinicia a conferência (checklist, divergências e aprovação).
 - [ ] Painel de diagnóstico mostra data da conferência, nº de divergências e status aprovado (S/N).
+- [ ] Botão "Baixar Excel para o financeiro" só aparece depois de aprovar a conferência.
+- [ ] Clicar baixa um `.xlsx` (nome `conferencia-<fornecedor>-<data>.xlsx`) que abre normalmente no Excel/Google Sheets/LibreOffice, com fornecedor, data, itens do pedido e divergências.
 
 ### Teste 8 — Atualização do Trello
 - [ ] Mostra resumo do fornecedor + itens antes de atualizar.

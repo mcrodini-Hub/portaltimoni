@@ -92,5 +92,6 @@ hub-pedidos-chrome/
 │   ├── validators.js       # validação de URLs e colunas da planilha
 │   └── xlsx-writer.js      # gerador mínimo de .xlsx (Etapa 5 → financeiro)
 ├── PROTOCOLO_CONFERENCIA_PEDIDOS.md  # protocolo por trás da Etapa 5
+├── prompts-referencia/     # prompts originais que especificam cada etapa (fonte de verdade)
 └── icons/
 ```

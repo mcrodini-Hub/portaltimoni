@@ -1,0 +1,10 @@
+-itens-pedido-rio-claro
+
+1. No link Identify the columns in the spreadsheet:
+   - Column for código (code) - labeled as "CODIGO" or "cod compra" or "compra"
+   - Column for descrição (description)
+   - Column for the current month's quantity
+
+2. Extract all rows where the current month quantity column has a non-empty value.
+
+3. Ignore any rows with empty cells in the quantity column.

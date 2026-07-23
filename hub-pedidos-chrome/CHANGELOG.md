@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.0-alpha.24 — Corrige extração incluindo itens sem pedido no mês
+
+Revisão contra o prompt de referência original (`2-itens-pedido-rio-claro`,
+reenviado pela usuária): "Extract all rows where the current month
+quantity column has a non-empty value... Ignore any rows with empty
+cells in the quantity column." O código extraía o item mesmo com a coluna
+de quantidade vazia, desde que código e descrição estivessem preenchidos —
+ou seja, produtos do fornecedor que NÃO foram pedidos neste mês entravam
+na lista extraída (e, por consequência, iam para a conferência e para o
+cartão do Trello).
+
+- **Corrigido**: `content/sheets-content.js` (`extrairItens`) agora
+  também ignora a linha se a coluna de quantidade estiver vazia, além das
+  checagens já existentes de código/descrição.
+
 ## 1.1.0-alpha.23 — Exportar conferência em Excel para o financeiro
 
 A usuária precisa, ao final da conferência (Etapa 5), de um arquivo Excel

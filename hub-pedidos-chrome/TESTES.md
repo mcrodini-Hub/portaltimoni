@@ -48,6 +48,7 @@ depois de carregar a extensão via `chrome://extensions/`.
 - [ ] Nenhum `fetch()` é disparado (checar aba Rede do DevTools).
 - [ ] A planilha não é editada (nenhuma célula muda).
 - [ ] Se as colunas não forem identificadas, mostra erro claro e mantém o estado anterior.
+- [ ] Linhas com código e descrição preenchidos mas quantidade do mês vazia NÃO aparecem nos itens extraídos (produto não pedido este mês).
 
 ### Teste 6 — Bessani
 - [ ] Link pode ser colado e salvo mesmo sem clicar em "Abrir".

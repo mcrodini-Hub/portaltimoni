@@ -46,7 +46,11 @@ Bessani (opcional) → conferência item a item → atualizar Trello**.
 6. **6. Atualização final** — revise o resumo do fornecedor e a quantidade de
    itens, clique em **Atualizar Trello**, confirme, e acompanhe o resultado por
    cartão (atualizado / ignorado / não encontrado / erro). Só fica disponível
-   depois da conferência da Etapa 5 aprovada.
+   depois da conferência da Etapa 5 aprovada. A confirmação desta etapa é
+   proposital e independente da aprovação da Etapa 5: uma aprova o
+   *conteúdo* do pedido, a outra confirma a *ação* de gravar no Trello —
+   duas camadas de segurança, mantidas por decisão explícita (não é
+   redundância a remover).
 
 A opção **Fixar** (no topo) preserva o estado (fornecedor selecionado, itens
 extraídos, link do Bessani) mesmo trocando de aba ou fechando/reabrindo a

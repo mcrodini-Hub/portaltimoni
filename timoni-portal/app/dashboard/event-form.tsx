@@ -3,7 +3,9 @@
 import { useState, type FormEvent } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import type { CalendarEventDTO } from "@/lib/types";
+import { CALENDAR_LABELS, type CalendarEventDTO, type CalendarKey } from "@/lib/types";
+
+const CALENDAR_OPTIONS = Object.entries(CALENDAR_LABELS) as [CalendarKey, string][];
 
 function toDatetimeLocal(iso: string) {
   const d = new Date(iso);
@@ -38,6 +40,7 @@ export function EventForm({
   const [description, setDescription] = useState(event?.description ?? "");
   const [start, setStart] = useState(event ? toDatetimeLocal(event.start) : defaults.start);
   const [end, setEnd] = useState(event ? toDatetimeLocal(event.end) : defaults.end);
+  const [calendarKey, setCalendarKey] = useState<CalendarKey>(event?.calendarKey ?? "principal");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -59,7 +62,10 @@ export function EventForm({
 
     setSaving(true);
     try {
-      const res = await fetch(isEditing ? `/api/events/${event!.id}` : "/api/events", {
+      const url = isEditing
+        ? `/api/events/${event!.id}?calendarKey=${event!.calendarKey}`
+        : "/api/events";
+      const res = await fetch(url, {
         method: isEditing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -68,6 +74,7 @@ export function EventForm({
           description: description.trim() || undefined,
           start: startIso,
           end: endIso,
+          ...(isEditing ? {} : { calendarKey }),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -87,6 +94,21 @@ export function EventForm({
   return (
     <Modal title={isEditing ? "Editar evento" : "Novo evento"} onClose={onClose}>
       <form onSubmit={handleSubmit} className="space-y-3">
+        <div>
+          <label className="block text-sm font-medium text-slate-700">Agenda</label>
+          <select
+            value={calendarKey}
+            onChange={(e) => setCalendarKey(e.target.value as CalendarKey)}
+            disabled={isEditing}
+            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
+          >
+            {CALENDAR_OPTIONS.map(([key, label]) => (
+              <option key={key} value={key}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </div>
         <div>
           <label className="block text-sm font-medium text-slate-700">Título</label>
           <input

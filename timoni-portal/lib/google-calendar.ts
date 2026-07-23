@@ -1,8 +1,19 @@
 import { google, calendar_v3 } from "googleapis";
-import type { CalendarEventDTO, CalendarEventInput } from "@/lib/types";
+import { CALENDAR_LABELS, type CalendarEventDTO, type CalendarEventInput, type CalendarKey } from "@/lib/types";
 
 const TIME_ZONE = "America/Sao_Paulo";
-const CALENDAR_ID = "primary"; // agenda Principal — fixo, nunca configurável na UI
+
+// As duas agendas do usuário que o portal mostra/gerencia. Nenhuma outra
+// agenda é acessível pela UI — a escolha é sempre entre essas duas.
+export const CALENDARS: Record<CalendarKey, { id: string; label: string }> = {
+  principal: { id: "primary", label: CALENDAR_LABELS.principal },
+  timoni: {
+    id:
+      process.env.TIMONI_CALENDAR_ID ||
+      "28fddf65c061d4f277f8ee4ddee48d5118d71dadf3e45de3443a3fd898b79356@group.calendar.google.com",
+    label: CALENDAR_LABELS.timoni,
+  },
+};
 
 function getCalendarClient(accessToken: string) {
   const auth = new google.auth.OAuth2();
@@ -10,7 +21,7 @@ function getCalendarClient(accessToken: string) {
   return google.calendar({ version: "v3", auth });
 }
 
-function toDTO(event: calendar_v3.Schema$Event): CalendarEventDTO | null {
+function toDTO(event: calendar_v3.Schema$Event, calendarKey: CalendarKey): CalendarEventDTO | null {
   if (!event.id || !event.start || !event.end) return null;
   const start = event.start.dateTime ?? event.start.date;
   const end = event.end.dateTime ?? event.end.date;
@@ -24,6 +35,8 @@ function toDTO(event: calendar_v3.Schema$Event): CalendarEventDTO | null {
     start,
     end,
     htmlLink: event.htmlLink ?? undefined,
+    calendarKey,
+    calendarLabel: CALENDARS[calendarKey].label,
   };
 }
 
@@ -32,27 +45,38 @@ export async function listUpcomingEvents(
   opts: { timeMin: string; timeMax?: string; maxResults?: number }
 ): Promise<CalendarEventDTO[]> {
   const calendar = getCalendarClient(accessToken);
-  const res = await calendar.events.list({
-    calendarId: CALENDAR_ID,
-    timeMin: opts.timeMin,
-    timeMax: opts.timeMax,
-    maxResults: opts.maxResults ?? 50,
-    singleEvents: true,
-    orderBy: "startTime",
-  });
+  const calendarKeys = Object.keys(CALENDARS) as CalendarKey[];
 
-  return (res.data.items ?? [])
-    .map(toDTO)
-    .filter((e): e is CalendarEventDTO => e !== null);
+  const results = await Promise.all(
+    calendarKeys.map((key) =>
+      calendar.events.list({
+        calendarId: CALENDARS[key].id,
+        timeMin: opts.timeMin,
+        timeMax: opts.timeMax,
+        maxResults: opts.maxResults ?? 50,
+        singleEvents: true,
+        orderBy: "startTime",
+      })
+    )
+  );
+
+  const events = calendarKeys.flatMap((key, i) =>
+    (results[i].data.items ?? [])
+      .map((event) => toDTO(event, key))
+      .filter((e): e is CalendarEventDTO => e !== null)
+  );
+
+  return events.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 }
 
 export async function createEvent(
   accessToken: string,
+  calendarKey: CalendarKey,
   input: CalendarEventInput
 ): Promise<CalendarEventDTO> {
   const calendar = getCalendarClient(accessToken);
   const res = await calendar.events.insert({
-    calendarId: CALENDAR_ID,
+    calendarId: CALENDARS[calendarKey].id,
     requestBody: {
       summary: input.summary,
       description: input.description,
@@ -62,19 +86,20 @@ export async function createEvent(
     },
   });
 
-  const dto = toDTO(res.data);
+  const dto = toDTO(res.data, calendarKey);
   if (!dto) throw new Error("Resposta inesperada do Google Calendar ao criar evento.");
   return dto;
 }
 
 export async function updateEvent(
   accessToken: string,
+  calendarKey: CalendarKey,
   eventId: string,
   input: Partial<CalendarEventInput>
 ): Promise<CalendarEventDTO> {
   const calendar = getCalendarClient(accessToken);
   const res = await calendar.events.patch({
-    calendarId: CALENDAR_ID,
+    calendarId: CALENDARS[calendarKey].id,
     eventId,
     requestBody: {
       summary: input.summary,
@@ -85,14 +110,18 @@ export async function updateEvent(
     },
   });
 
-  const dto = toDTO(res.data);
+  const dto = toDTO(res.data, calendarKey);
   if (!dto) throw new Error("Resposta inesperada do Google Calendar ao editar evento.");
   return dto;
 }
 
-export async function deleteEvent(accessToken: string, eventId: string): Promise<void> {
+export async function deleteEvent(
+  accessToken: string,
+  calendarKey: CalendarKey,
+  eventId: string
+): Promise<void> {
   const calendar = getCalendarClient(accessToken);
-  await calendar.events.delete({ calendarId: CALENDAR_ID, eventId });
+  await calendar.events.delete({ calendarId: CALENDARS[calendarKey].id, eventId });
 }
 
 // Traduz erros da Calendar API para uma mensagem segura de expor ao client
@@ -103,4 +132,8 @@ export function toApiError(error: unknown): { message: string; status: number } 
   if (status === 403) return { message: "Sem permissão para acessar a agenda.", status: 403 };
   if (status === 404) return { message: "Evento não encontrado.", status: 404 };
   return { message: "Erro ao falar com o Google Calendar. Tente novamente.", status: 500 };
+}
+
+export function isCalendarKey(value: unknown): value is CalendarKey {
+  return value === "principal" || value === "timoni";
 }

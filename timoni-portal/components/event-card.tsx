@@ -62,6 +62,9 @@ export function EventCard({
           <div className="flex items-center gap-2">
             <span className={clsx("h-2 w-2 rounded-full", URGENCY_DOT[urgency])} />
             <span className="text-sm text-slate-500">{timeLabel}</span>
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+              {event.calendarLabel}
+            </span>
           </div>
           <p className="mt-1 font-medium">{event.summary}</p>
           {event.location && <p className="text-sm text-slate-500">{event.location}</p>}

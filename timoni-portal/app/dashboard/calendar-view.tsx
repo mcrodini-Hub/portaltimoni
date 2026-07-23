@@ -76,7 +76,9 @@ export function CalendarView({
 
     setDeletingId(event.id);
     try {
-      const res = await fetch(`/api/events/${event.id}`, { method: "DELETE" });
+      const res = await fetch(`/api/events/${event.id}?calendarKey=${event.calendarKey}`, {
+        method: "DELETE",
+      });
       if (!res.ok && res.status !== 204) {
         const data = await res.json().catch(() => ({}));
         setError(data.error ?? "Não foi possível cancelar o evento.");
@@ -116,7 +118,7 @@ export function CalendarView({
           )}
           {todayEvents.map((event) => (
             <EventCard
-              key={event.id}
+              key={`${event.calendarKey}-${event.id}`}
               event={event}
               nowMs={now}
               onEdit={(e) => {
@@ -139,7 +141,7 @@ export function CalendarView({
           )}
           {futureEvents.map((event) => (
             <EventCard
-              key={event.id}
+              key={`${event.calendarKey}-${event.id}`}
               event={event}
               nowMs={now}
               onEdit={(e) => {

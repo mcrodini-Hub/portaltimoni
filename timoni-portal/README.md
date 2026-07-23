@@ -1,9 +1,11 @@
 # Timoni Portal — Agenda Google
 
-App web pessoal (Next.js) que integra com a agenda **Principal** do Google
-Calendar de `mcrodini@gmail.com`: mostra os próximos eventos com destaque
-visual para compromissos iminentes, e permite criar, editar e cancelar
-eventos direto pelo portal.
+App web pessoal (Next.js) que integra com duas agendas do Google Calendar
+de `mcrodini@gmail.com` — **Principal** e **TIMONI AGENDA** (férias,
+aniversários, ausências) — mostrando os eventos das duas juntas, com
+destaque visual para compromissos iminentes, e permitindo criar, editar e
+cancelar eventos direto pelo portal (escolhendo em qual das duas agendas
+criar cada evento novo).
 
 Login restrito a um único email (`AUTHORIZED_EMAIL`). Nenhum banco de dados
 próprio — o Google Calendar é a fonte de verdade dos dados.
@@ -49,6 +51,7 @@ GOOGLE_CLIENT_SECRET=        # do passo 5 acima
 NEXTAUTH_SECRET=             # gerar com: openssl rand -base64 32
 NEXTAUTH_URL=http://localhost:3000
 AUTHORIZED_EMAIL=mcrodini@gmail.com
+TIMONI_CALENDAR_ID=28fddf65c061d4f277f8ee4ddee48d5118d71dadf3e45de3443a3fd898b79356@group.calendar.google.com
 ```
 
 ## 3. Rodar localmente
@@ -74,12 +77,13 @@ vercel env add GOOGLE_CLIENT_SECRET production
 vercel env add NEXTAUTH_SECRET production
 vercel env add NEXTAUTH_URL production
 vercel env add AUTHORIZED_EMAIL production
+vercel env add TIMONI_CALENDAR_ID production
 vercel --prod
 ```
 
 Ou via dashboard: importe o repositório `mcrodini-hub/portaltimoni`, defina
 **Root Directory = `timoni-portal`** durante o wizard, e preencha as mesmas
-5 variáveis antes do primeiro deploy.
+6 variáveis antes do primeiro deploy.
 
 Depois do primeiro deploy, pegue a URL gerada (ex.:
 `https://timoni-portal-xxxx.vercel.app`) e:
@@ -104,7 +108,7 @@ aceita redirect URIs cadastrados). Teste login só em `localhost` e na URL de
    a 1h, outro amanhã) e confirme que aparecem no dashboard com o destaque
    de cor certo (vermelho ≤2h, amarelo hoje, cinza futuro).
 3. **Criar**: use "+ Novo evento" no portal e confirme que aparece também
-   no Google Calendar real (agenda Principal).
+   no Google Calendar real, na agenda escolhida no formulário.
 4. **Editar**: altere um evento pelo portal e confirme nos dois lugares.
 5. **Cancelar**: cancele um evento pelo portal e confirme que some dos dois
    lugares.

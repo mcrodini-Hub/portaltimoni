@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthorizedSession } from "@/lib/auth-guard";
-import { createEvent, listUpcomingEvents, toApiError } from "@/lib/google-calendar";
-import type { CalendarEventInput } from "@/lib/types";
+import { createEvent, isCalendarKey, listUpcomingEvents, toApiError } from "@/lib/google-calendar";
+import type { CalendarEventInput, CalendarKey } from "@/lib/types";
 
 export async function GET(request: NextRequest) {
   const { session, errorResponse } = await requireAuthorizedSession();
@@ -24,7 +24,10 @@ export async function POST(request: NextRequest) {
   const { session, errorResponse } = await requireAuthorizedSession();
   if (errorResponse) return errorResponse;
 
-  const body = (await request.json().catch(() => null)) as Partial<CalendarEventInput> | null;
+  const body = (await request.json().catch(() => null)) as
+    | (Partial<CalendarEventInput> & { calendarKey?: CalendarKey })
+    | null;
+
   if (!body?.summary?.trim()) {
     return NextResponse.json({ error: "Título do evento é obrigatório." }, { status: 400 });
   }
@@ -34,9 +37,12 @@ export async function POST(request: NextRequest) {
   if (new Date(body.end) <= new Date(body.start)) {
     return NextResponse.json({ error: "O fim do evento deve ser depois do início." }, { status: 400 });
   }
+  if (!isCalendarKey(body.calendarKey)) {
+    return NextResponse.json({ error: "Escolha em qual agenda criar o evento." }, { status: 400 });
+  }
 
   try {
-    const event = await createEvent(session!.accessToken!, {
+    const event = await createEvent(session!.accessToken!, body.calendarKey, {
       summary: body.summary.trim(),
       description: body.description,
       location: body.location,

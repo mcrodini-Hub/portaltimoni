@@ -492,11 +492,7 @@ h1 { font-size: 18px; margin: 0 0 4px; }
 
 .conferencia-status.status-pendente { background: #f1f2f5; color: var(--ink-soft); }
 .conferencia-status.status-aprovado { background: #e8f6ec; color: var(--green); }
-.conferencia-status.status-reprovado { background: #fdecea; color: var(--red); }
 .conferencia-status:empty { display: none; }
-
-.conferencia-actions { display: flex; gap: 8px; }
-.conferencia-actions .btn { margin-top: 0; }
 
 .footer-actions { margin: 8px 0 16px; }
 

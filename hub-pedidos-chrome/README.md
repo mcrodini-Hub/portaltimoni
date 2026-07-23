@@ -37,11 +37,12 @@ Bessani (opcional) → conferência item a item → atualizar Trello**.
    fornecedor (orçamento ou NF-e) e percorra o checklist item a item
    (itens presentes, códigos, quantidades, preço, IPI, frete/pagamento,
    total, entrega). Registre qualquer divergência encontrada (item, valor
-   pedido x valor recebido). Só é possível **Aprovar pedido** com o
-   checklist completo e sem divergências pendentes; havendo divergência,
-   a única opção é **Reprovar pedido**. Esta etapa segue
-   `PROTOCOLO_CONFERENCIA_PEDIDOS.md` e bloqueia a Etapa 6 enquanto não for
-   aprovada.
+   pedido x valor recebido). **Aprovar pedido** exige o checklist completo,
+   mas não exige zerar as divergências — elas não travam a aprovação, só
+   disparam uma confirmação extra e ficam guardadas na sidebar para
+   repassar ao financeiro (preço/IPI são ajustados depois, fora da
+   extensão). Esta etapa segue `PROTOCOLO_CONFERENCIA_PEDIDOS.md` e
+   bloqueia a Etapa 6 enquanto não for aprovada.
 6. **6. Atualização final** — revise o resumo do fornecedor e a quantidade de
    itens, clique em **Atualizar Trello**, confirme, e acompanhe o resultado por
    cartão (atualizado / ignorado / não encontrado / erro). Só fica disponível

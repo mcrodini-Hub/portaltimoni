@@ -72,7 +72,10 @@ const ui = {
   btnAddDivergencia: el('btn-add-divergencia'),
   conferenciaStatus: el('conferencia-status'),
   btnAprovarConferencia: el('btn-aprovar-conferencia'),
-  btnReprovarConferencia: el('btn-reprovar-conferencia'),
+  conferenciaConfirmWrap: el('conferencia-confirm-wrap'),
+  conferenciaConfirmText: el('conferencia-confirm-text'),
+  btnConfirmarAprovarConferencia: el('btn-confirmar-aprovar-conferencia'),
+  btnCancelarAprovarConferencia: el('btn-cancelar-aprovar-conferencia'),
 
   resumoWrap: el('resumo-wrap'),
   resumoFornecedor: el('resumo-fornecedor'),
@@ -304,21 +307,23 @@ function renderConferencia(state) {
   const allChecked = CONFERENCIA_CHECKLIST_ITEMS.every((item) => !!conferencia.checklist[item.key]);
   const hasDivergencias = divergencias.length > 0;
 
-  ui.btnAprovarConferencia.disabled = !allChecked || hasDivergencias || conferencia.aprovado === true;
-  ui.btnReprovarConferencia.disabled = conferencia.aprovado === false;
+  ui.btnAprovarConferencia.disabled = !allChecked || conferencia.aprovado === true;
 
   ui.conferenciaStatus.className = 'conferencia-status';
   if (conferencia.aprovado === true) {
     ui.conferenciaStatus.classList.add('status-aprovado');
-    ui.conferenciaStatus.textContent = `Conferência aprovada em ${formatDate(conferencia.dataConferencia)}.`;
-  } else if (conferencia.aprovado === false) {
-    ui.conferenciaStatus.classList.add('status-reprovado');
-    ui.conferenciaStatus.textContent = 'Pedido reprovado na conferência — não aprovar até o fornecedor corrigir e reenviar.';
+    ui.conferenciaStatus.textContent = hasDivergencias
+      ? `Conferência aprovada em ${formatDate(conferencia.dataConferencia)} — ${divergencias.length} divergência(s) registrada(s) para repassar ao financeiro.`
+      : `Conferência aprovada em ${formatDate(conferencia.dataConferencia)}.`;
   } else {
     ui.conferenciaStatus.classList.add('status-pendente');
-    ui.conferenciaStatus.textContent = hasDivergencias
-      ? 'Há divergências registradas — não é possível aprovar até serem resolvidas.'
-      : (allChecked ? 'Checklist completo — pronto para aprovar.' : 'Conferência pendente.');
+    if (!allChecked) {
+      ui.conferenciaStatus.textContent = 'Conferência pendente.';
+    } else {
+      ui.conferenciaStatus.textContent = hasDivergencias
+        ? 'Checklist completo, com divergência(s) registrada(s) — pronto para aprovar.'
+        : 'Checklist completo — pronto para aprovar.';
+    }
   }
 }
 
@@ -445,18 +450,36 @@ function onRemoveDivergencia(idx) {
   });
 }
 
-ui.btnAprovarConferencia.addEventListener('click', () => {
+function aprovarConferencia() {
   updateConferencia((c) => {
     c.aprovado = true;
     c.dataConferencia = Date.now();
   });
+}
+
+ui.btnAprovarConferencia.addEventListener('click', async () => {
+  const state = await HubState.getState();
+  const divergencias = (state.conferencia && state.conferencia.divergencias) || [];
+  if (divergencias.length > 0) {
+    ui.conferenciaConfirmText.textContent =
+      `Há ${divergencias.length} divergência(s) registrada(s). Confirma aprovar o pedido mesmo assim? ` +
+      'As divergências continuam registradas aqui para repassar ao financeiro.';
+    ui.conferenciaConfirmWrap.hidden = false;
+    ui.btnAprovarConferencia.hidden = true;
+    return;
+  }
+  aprovarConferencia();
 });
 
-ui.btnReprovarConferencia.addEventListener('click', () => {
-  updateConferencia((c) => {
-    c.aprovado = false;
-    c.dataConferencia = Date.now();
-  });
+ui.btnConfirmarAprovarConferencia.addEventListener('click', () => {
+  ui.conferenciaConfirmWrap.hidden = true;
+  ui.btnAprovarConferencia.hidden = false;
+  aprovarConferencia();
+});
+
+ui.btnCancelarAprovarConferencia.addEventListener('click', () => {
+  ui.conferenciaConfirmWrap.hidden = true;
+  ui.btnAprovarConferencia.hidden = false;
 });
 
 ui.btnAtualizarTrello.addEventListener('click', () => {

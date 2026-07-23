@@ -105,9 +105,11 @@
       <p class="step-label">5. Conferência do pedido</p>
       <div class="step-card">
         <p class="hint-text conferencia-rule">
-          Nenhum pedido é aprovado sem conferência item a item contra o
-          documento de retorno do fornecedor (orçamento ou NF-e) — ver
-          <code>PROTOCOLO_CONFERENCIA_PEDIDOS.md</code>.
+          Confira item a item contra o documento de retorno do fornecedor
+          (orçamento ou NF-e) antes de aprovar — ver
+          <code>PROTOCOLO_CONFERENCIA_PEDIDOS.md</code>. Divergências não
+          impedem a aprovação: ficam registradas aqui para repassar ao
+          financeiro.
         </p>
 
         <p class="conferencia-subtitle">Documento de retorno recebido</p>
@@ -141,9 +143,13 @@
 
         <div id="conferencia-status" class="conferencia-status"></div>
 
-        <div class="conferencia-actions">
-          <button id="btn-aprovar-conferencia" class="btn btn-primary" disabled>Aprovar pedido</button>
-          <button id="btn-reprovar-conferencia" class="btn btn-secondary">Reprovar pedido</button>
+        <button id="btn-aprovar-conferencia" class="btn btn-primary" disabled>Aprovar pedido</button>
+        <div id="conferencia-confirm-wrap" class="confirm-box" hidden>
+          <p id="conferencia-confirm-text"></p>
+          <div class="confirm-actions">
+            <button id="btn-confirmar-aprovar-conferencia" class="btn btn-primary">Confirmar aprovação</button>
+            <button id="btn-cancelar-aprovar-conferencia" class="btn btn-secondary">Cancelar</button>
+          </div>
         </div>
       </div>
     </section>

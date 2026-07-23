@@ -6,6 +6,14 @@ Casa Timoni / MCR Comércio de Plásticos e Lonas
 > Este documento é a fonte da Etapa 5 (Conferência do pedido) do Hub de
 > Pedidos. Foi fornecido pela usuária e incorporado ao fluxo da extensão —
 > ver `CHANGELOG.md`.
+>
+> **Nota de implementação (uso real da seção 4):** na prática, divergência
+> não é motivo para travar o pedido dentro da extensão — é o resultado
+> esperado da conferência. O checklist item a item continua obrigatório
+> antes de aprovar, mas divergências registradas não impedem o clique em
+> "Aprovar pedido" (só pedem uma confirmação extra); elas ficam guardadas
+> na sidebar como registro para repassar ao financeiro ajustar preço/IPI
+> depois. Não existe opção de "reprovar" na Etapa 5.
 
 ## 1. Regra geral
 

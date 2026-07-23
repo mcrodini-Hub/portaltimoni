@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.1.0-alpha.21 — Divergência não trava mais a aprovação da conferência
+
+Ajuste da alpha.20 baseado em como a Etapa 5 é usada na prática: a
+conferência é um parâmetro para evitar erros, não um veto — divergências
+de preço/IPI são o resultado esperado do processo, viram pauta para o
+financeiro ajustar, e o pedido segue aprovado.
+
+- **Alterado**: "Aprovar pedido" não fica mais desabilitado por
+  divergências registradas — continua exigindo o checklist 100% completo.
+  Havendo divergência pendente, o clique abre uma confirmação extra
+  (quantas divergências, lembrete de que ficam registradas para o
+  financeiro) antes de aprovar de fato.
+- **Removido**: botão "Reprovar pedido" e o estado `aprovado: false`. Na
+  prática esse fluxo nunca é usado — a usuária sempre aprova e resolve
+  divergência depois, fora da extensão.
+- Divergências continuam só na sidebar (não são adicionadas ao cartão do
+  Trello) — a usuária encaminha a planilha diretamente ao financeiro por
+  fora da extensão, então não há necessidade de duplicar esse dado no
+  Trello.
+- `PROTOCOLO_CONFERENCIA_PEDIDOS.md` ganhou uma nota de implementação
+  explicando essa diferença entre o texto original da seção 4 (documento
+  formal, mantido como está) e o comportamento real da Etapa 5.
+
 ## 1.1.0-alpha.20 — Nova Etapa 5: Conferência do pedido
 
 Incorpora o `PROTOCOLO_CONFERENCIA_PEDIDOS.md` (fornecido pela usuária) ao

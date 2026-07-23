@@ -59,10 +59,9 @@ depois de carregar a extensão via `chrome://extensions/`.
 
 ### Teste 7 — Conferência do pedido
 - [ ] "Aprovar pedido" fica desabilitado enquanto o checklist não estiver 100% marcado.
-- [ ] Registrar uma divergência desabilita "Aprovar pedido" mesmo com checklist completo.
-- [ ] Remover todas as divergências e completar o checklist libera "Aprovar pedido".
-- [ ] "Reprovar pedido" funciona a qualquer momento e mostra o aviso de reprovado.
-- [ ] Editar o checklist ou as divergências depois de aprovar/reprovar volta o status para pendente.
+- [ ] Com checklist completo e sem divergências, "Aprovar pedido" aprova direto (sem confirmação extra).
+- [ ] Com checklist completo e alguma divergência registrada, "Aprovar pedido" abre a confirmação extra citando o número de divergências; "Cancelar" volta sem aprovar, "Confirmar aprovação" aprova.
+- [ ] Editar o checklist ou adicionar/remover divergências depois de aprovado volta o status para pendente (precisa aprovar de novo).
 - [ ] Etapa 6 ("Atualizar Trello") permanece bloqueada, com aviso visível, enquanto a conferência não estiver aprovada.
 - [ ] Trocar de fornecedor (Etapa 2) reinicia a conferência (checklist, divergências e aprovação).
 - [ ] Painel de diagnóstico mostra data da conferência, nº de divergências e status aprovado (S/N).

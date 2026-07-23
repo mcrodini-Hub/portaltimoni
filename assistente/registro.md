@@ -28,10 +28,9 @@
 ## 🔔 Detalhes e Lembretes
 
 - **23/07/2026** — Cronograma Rio Claro (sábados, quinzenal): 25/07 (Ciça), 08/08 (Ciça), 22/08 (Ciça), 05/09 (Marcelo), 19/09 (Marcelo).
-- **23/07/2026** — Cronograma Araras: ~~05/08~~ **04/08/2026 (terça-feira, corrigido em 23/07)** (Ciça/Reginaldo), 04/09 (Ciça).
+- **23/07/2026** — Cronograma Araras: ~~05/08~~ **04/08/2026 (terça-feira, corrigido em 23/07)** (Ciça/Reginaldo), ~~04/09~~ **08/09/2026 (terça-feira, corrigido em 23/07)** (Ciça).
 - ~~**23/07/2026** — ⚠️ Inconsistência no compilado original: a reunião de Araras aparece como "05/08/2026" no cronograma, mas também é descrita como tendo ocorrido "terça-feira, 04/08/2026 às 7:30". Checar com Ciça qual é a data/dia corretos antes de gerar a próxima pauta de Araras.~~ **RESOLVIDO em 23/07/2026**: Ciça confirmou que a data correta é 04/08/2026 (terça-feira); regra passa a ser "Araras sempre às terças-feiras".
-- **23/07/2026** — Próxima reunião de Araras confirmada: 04/09/2026 às 7:30 (sexta-feira).
-- **23/07/2026** — ⚠️ **Nova inconsistência**: a regra recém-confirmada é "reuniões de Araras sempre às terças-feiras", mas a "próxima reunião de Araras" registrada é 04/09/2026, que é uma **sexta-feira** (cálculo confirmado), não terça. Ou a data de setembro está errada, ou há uma exceção não explicada à regra. Não resolver sozinho — perguntar a Ciça (ver Próximas Ações).
+- **23/07/2026** — Próxima reunião de Araras confirmada por Ciça: **08/09/2026 (terça-feira)**, corrigindo o "04/09 (sexta)" do cronograma original — consistente com a regra "Araras sempre às terças".
 - **23/07/2026** — Participantes fixos de Rio Claro (ordem alfabética): Adriel, Carina, Ciça (gestão), Davi, Jeovana (gestão), João, José Roberto, Marcelo (gestão), Rafaela, San.
 - **23/07/2026** — Presença em Rio Claro 08/08/2026: todos presentes exceto Davi (faltou).
 - **23/07/2026** — Gestão de Araras: Ciça, Marcelo, Reginaldo (demais participantes ainda a confirmar — ver Documentos Pendentes).
@@ -43,9 +42,9 @@
 ## 📌 Próximas Ações
 
 - [ ] Gerar pauta Rio Claro 22/08/2026 (sábado) · **Responsável**: Ciça · **Prazo**: antes de 22/08/2026 · **Status**: gerar automaticamente quando o lembrete chegar, sem perguntar
-- [ ] Gerar pauta Araras 04/09/2026 (sexta) · **Responsável**: Ciça · **Prazo**: antes de 04/09/2026 · **Status**: ⚠️ suspenso — data conflita com a nova regra "Araras sempre terça"; confirmar data correta antes de gerar (ver item abaixo)
+- [ ] Gerar pauta Araras 08/09/2026 (terça) · **Responsável**: Ciça · **Prazo**: antes de 08/09/2026 · **Status**: gerar automaticamente quando o lembrete chegar, sem perguntar (data corrigida de 04/09 para 08/09 em 23/07)
 - [x] Esclarecer com Ciça a divergência de data/dia da reunião de Araras (05/08 vs terça 04/08) · **Responsável**: Ciça · **Prazo**: a definir · **Status**: concluído em 23/07/2026 — Ciça confirmou que 04/08/2026 (terça-feira) é a data correta e que Araras passa a se reunir sempre às terças
-- [ ] Perguntar a Ciça qual é a data correta da próxima reunião de Araras de setembro, já que 04/09/2026 é sexta-feira e a nova regra é "sempre terça" (a terça mais próxima seria 01/09 ou 08/09 — não assumir, confirmar com Ciça) · **Responsável**: Ciça · **Prazo**: hoje, 23/07/2026 (Ciça corrigiu: não amanhã, é hoje) · **Status**: pendente — aguardando confirmação prometida para hoje
+- [x] Perguntar a Ciça qual é a data correta da próxima reunião de Araras de setembro · **Status**: concluído em 23/07/2026 — Ciça confirmou 08/09/2026 (terça-feira)
 - [x] Validar o fluxo Google Docs/Slides fim a fim · **Status**: concluído em 23/07 — confirmado que Drive converte texto/DOCX/PPTX para Google Docs/Slides nativos; encontrado bug de acentuação na via texto simples (ver Detalhes e Lembretes) — usar sempre a via DOCX/PPTX binário para conteúdo real
 - [ ] Confirmar com Ciça o destino real dos documentos (pasta "REUNIÕES" plana vs. estrutura por loja/ano/data) e o padrão de nome a seguir dali em diante · **Responsável**: Ciça · **Prazo**: a definir · **Status**: pendente
 
@@ -55,3 +54,4 @@
 - **23/07/2026** — Registrada a revisão do uso de PDF: passa a usar Google Docs (documento) + Google Slides (projeção) em vez do aplicativo próprio de PDF.
 - **23/07/2026** — Validado o fluxo real de conversão para Google Docs no Drive da Ciça (pasta REUNIÕES): criado documento de teste, confirmada a conversão automática, e identificado bug de acentuação na via de texto simples (corrigido na recomendação: sempre usar DOCX/PPTX binário).
 - **23/07/2026** — Ciça confirmou a data da reunião de Araras de agosto (04/08/2026, terça-feira, corrigindo o "05/08" do cronograma) e estabeleceu regra permanente: reuniões de Araras sempre às terças-feiras. Isso revelou nova inconsistência com a "próxima reunião de Araras" de setembro (04/09/2026 é sexta-feira, não terça) — sinalizada para confirmação com Ciça, sem assumir data.
+- **23/07/2026** — Ciça confirmou a data correta da reunião de Araras de setembro: **08/09/2026 (terça-feira)**, corrigindo o "04/09 (sexta)" do cronograma — consistente com a regra "sempre terça". Pendência encerrada.

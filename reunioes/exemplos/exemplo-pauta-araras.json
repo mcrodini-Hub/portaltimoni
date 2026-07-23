@@ -1,0 +1,20 @@
+{
+  "_comentario": "Exemplo/modelo para Araras. Não inclui a seção 'whatsapp' (padrão histórico: Araras omite WhatsApp/banheiro). Conteúdo das seções é placeholder — substitua pelo assunto real antes de gerar o DOCX definitivo.",
+  "loja": "Araras",
+  "data": "04/09/2026",
+  "participantes": [
+    "Ciça", "Marcelo", "Reginaldo"
+  ],
+  "pauta": "Reunião de alinhamento comercial de Araras. Foco em conversão, estoque e pedidos em atraso.",
+  "estoque": [
+    "Itens com ruptura recorrente — preencher com dados reais.",
+    "Conferência de estoque físico x sistema."
+  ],
+  "meta": "Posição atual da meta do mês e principais dificuldades enfrentadas pela equipe.",
+  "desafio_vendas": [
+    "Resultado do desafio de vendas em andamento.",
+    "O que está funcionando bem.",
+    "Principais dificuldades relatadas."
+  ],
+  "proxima_reuniao": "Data de outubro ainda a definir (transição para reuniões mensais — ver pendências no registro do assistente)."
+}

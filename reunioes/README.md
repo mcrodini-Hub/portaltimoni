@@ -1,78 +1,95 @@
-# Pautas de Reunião — Casa Timoni
+# Pautas e Atas de Reunião — Casa Timoni
 
-Ferramenta em Python (ReportLab) para gerar a pauta de reunião em PDF,
-seguindo o padrão fixo usado pela Casa Timoni (Rio Claro e Araras):
+Ferramenta em Python (python-docx) para gerar Pauta e Ata das reuniões
+quinzenais/mensais de equipe da Casa Timoni (Rio Claro e Araras), em
+**DOCX** — uma única página, sem elementos decorativos, pronta para Ciça
+ajustar e depois converter para PDF pelo aplicativo próprio dela
+(**não usamos ReportLab/PDF aqui** — decisão registrada em
+`assistente/registro.md`).
 
-- PDF preto e branco, 1 página, pronto para impressão, sem elementos decorativos.
-- Fonte e espaçamento grandes o suficiente para preencher a página A4.
-- Estrutura fixa: **1. Objetivo da Reunião**, **2. Abertura** (tom direto e
-  provocativo sobre conversão de vendas), e a partir da seção 3, temas
-  numerados definidos por reunião.
+## Estrutura fixa dos documentos
 
-**Rio Claro e Araras são mercados distintos** — a ferramenta não define
-conteúdo por loja; cada reunião define suas próprias seções no arquivo de
-dados. Como referência histórica: Rio Claro costuma incluir a ferramenta de
-atendimento via WhatsApp e rotinas de banheiro/limpeza; Araras costuma
-omitir esses dois temas e incluir estoque, falta de pedidos e mercadoria em
-atraso.
+**Pauta (6 seções):**
+1. Pauta — abertura/contexto da reunião
+2. Controle e Atendimento WhatsApp — status + feedback (opcional — ver nota Araras)
+3. Estoque — abastecimento + nova ferramenta (se aplicável)
+4. Meta — posição atual + dificuldades
+5. Desafio de Vendas — resultados, o que funciona, dificuldades
+6. Próxima Reunião — data e horário confirmados
+
+**Ata (7 seções):** as mesmas 5 primeiras seções da Pauta (chamada de
+"Ata" em vez de "Pauta" na seção 1) mais:
+6. Feedback — checklist operacional (☐ perguntas)
+7. Próxima Reunião
+
+> **Rio Claro x Araras:** Araras historicamente omite a seção de WhatsApp
+> (e rotinas de banheiro/limpeza). Basta não incluir a chave `whatsapp`
+> no JSON de dados que a seção é omitida e a numeração se ajusta
+> automaticamente — ver `exemplos/exemplo-pauta-araras.json`.
 
 ## Uso
 
 ```bash
-pip install reportlab
+pip install python-docx
 
-python3 gerar_pauta.py exemplos/exemplo-araras.json
-# ou especificando o caminho de saída:
-python3 gerar_pauta.py exemplos/exemplo-araras.json --saida saida/pauta-05-08.pdf
+python3 gerar_pauta.py exemplos/exemplo-pauta-rio-claro.json
+python3 gerar_ata.py exemplos/exemplo-ata-rio-claro.json
+
+# caminho de saída customizado:
+python3 gerar_pauta.py exemplos/exemplo-pauta-araras.json --saida caminho/pauta.docx
 ```
 
-O script avisa no terminal se o PDF gerado ficou com mais de 1 página, para
-que o conteúdo seja revisado/condensado antes da impressão.
+Sem `--saida`, o arquivo é gravado seguindo a convenção de nomes/pastas da
+Casa Timoni: `saida/<Local>/<Ano>/<DD_MM_AAAA>/<Local>-<Pauta|Ata>_DD_MM_AAAA.docx`
+(ex: `saida/Rio_Claro/2026/22_08_2026/Rio_Claro-Pauta_22_08_2026.docx`).
+Isso espelha localmente a estrutura da pasta real do projeto
+(`Reuniões_Quinzenais_Casa_Timoni/...`), documentada em
+`assistente/registro.md`.
 
 ## Formato do arquivo de dados (JSON)
 
 ```json
 {
-  "loja": "Araras",
-  "data": "05/08/2026",
-  "objetivo": "Texto do objetivo da reunião.",
-  "abertura": "Texto de abertura — direto e provocativo sobre conversão.",
-  "secoes": [
-    {
-      "titulo": "Nome do tema (numerado automaticamente a partir de 3)",
-      "itens": ["bullet 1", "bullet 2"],
-      "tabela": {
-        "cabecalho": ["Coluna A", "Coluna B"],
-        "linhas": [["valor 1", "valor 2"]]
-      }
-    }
-  ],
-  "participantes": ["Nome 1", "Nome 2"]
+  "loja": "Rio Claro",
+  "data": "22/08/2026",
+  "participantes": ["Adriel", "Carina", "..."],
+  "pauta": "Texto ou lista de bullets — seção 1 (Pauta) ou (Ata, no arquivo de ata usar a chave \"ata\")",
+  "whatsapp": "Opcional — omitir para Araras",
+  "estoque": "Texto ou lista",
+  "meta": "Texto ou lista",
+  "desafio_vendas": "Texto ou lista",
+  "proxima_reuniao": "Texto com data/horário"
 }
 ```
 
-- `secoes` é uma lista livre — cada reunião define quantos temas quiser, na
-  ordem desejada. Os títulos são numerados automaticamente a partir de 3.
-- `tabela` é opcional por seção; usada por exemplo para metas de vendas
-  por pessoa (ver `exemplos/exemplo-araras.json`).
-- `participantes` é opcional; quando presente, aparece ao final do
-  documento.
+- Qualquer campo de conteúdo aceita **string** (vira um parágrafo) ou
+  **lista de strings** (vira bullets).
+- No arquivo de **Ata**, use a chave `"ata"` em vez de `"pauta"`, e inclua
+  `"feedback"`: lista de perguntas do checklist operacional.
+- Em `"participantes"`, a Ata aceita objetos `{"nome": "...", "presente": true|false}`
+  para marcar presença com ✓/✗ (ver `exemplos/exemplo-ata-rio-claro.json`).
+  A Pauta aceita apenas a lista simples de nomes.
 
-Veja `exemplos/exemplo-araras.json` para um modelo completo — é um
-**exemplo/modelo com conteúdo fictício** (nomes e valores de placeholder),
-não a pauta real de nenhuma reunião. Substitua pelo conteúdo real de cada
-reunião antes de gerar o PDF definitivo.
+Os exemplos em `exemplos/` usam **conteúdo de discussão fictício**
+(placeholder) — apenas loja, data e participantes refletem dados reais já
+confirmados no cronograma. Substitua o conteúdo pelas informações reais
+de cada reunião antes de gerar o DOCX definitivo.
 
 ## Estrutura
 
 ```
 reunioes/
 ├── README.md
-├── gerar_pauta.py         # CLI: gera o PDF a partir de um JSON
-├── pauta/
-│   ├── estilos.py         # margens, fontes, espaçamento, tabela (spec fixa)
-│   └── construtor.py      # monta o PDF (SimpleDocTemplate) a partir dos dados
+├── gerar_pauta.py          # CLI: gera a Pauta a partir de um JSON
+├── gerar_ata.py            # CLI: gera a Ata a partir de um JSON
+├── documentos/
+│   ├── estilos.py          # margens, fontes, espaçamento, checklist (spec fixa)
+│   ├── nomes.py            # convenção de nome de arquivo/pasta
+│   ├── pauta.py            # monta o DOCX da Pauta (6 seções)
+│   └── ata.py              # monta o DOCX da Ata (7 seções, presença ✓/✗)
 ├── exemplos/
-│   └── exemplo-araras.json
-└── saida/                 # PDFs gerados (git-ignorado, exceto .gitkeep)
+│   ├── exemplo-pauta-rio-claro.json
+│   ├── exemplo-pauta-araras.json
+│   └── exemplo-ata-rio-claro.json
+└── saida/                  # DOCX gerados (git-ignorado, exceto .gitkeep)
 ```

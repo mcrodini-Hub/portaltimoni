@@ -1,0 +1,37 @@
+{
+  "_comentario": "Exemplo/modelo baseado na reunião real de 08/08/2026 (participantes e presença conforme registro do assistente pessoal). Conteúdo de discussão (ata, whatsapp, estoque, meta, desafio_vendas) é placeholder — substitua pelo resumo real da reunião.",
+  "loja": "Rio Claro",
+  "data": "08/08/2026",
+  "participantes": [
+    {"nome": "Adriel", "presente": true},
+    {"nome": "Carina", "presente": true},
+    {"nome": "Ciça", "presente": true},
+    {"nome": "Davi", "presente": false},
+    {"nome": "Jeovana", "presente": true},
+    {"nome": "João", "presente": true},
+    {"nome": "José Roberto", "presente": true},
+    {"nome": "Marcelo", "presente": true},
+    {"nome": "Rafaela", "presente": true},
+    {"nome": "San", "presente": true}
+  ],
+  "ata": "Resumo da discussão da reunião — preencher a partir da transcrição do áudio gravado.",
+  "whatsapp": [
+    "Feedback da equipe sobre o atendimento via WhatsApp.",
+    "Dificuldades relatadas no uso da ferramenta."
+  ],
+  "estoque": "Status do abastecimento discutido na reunião.",
+  "meta": "Posição atual da meta e dificuldades discutidas.",
+  "desafio_vendas": [
+    "Resultados apresentados na reunião.",
+    "O que está funcionando.",
+    "Dificuldades relatadas pela equipe."
+  ],
+  "feedback": [
+    "Caixas de som: Estão funcionando?",
+    "Expositor para tiras chique: Deu certo?",
+    "Sacolas: Estão organizadas?",
+    "Devolução de materiais: Estão sendo devolvidos nos lugares certos?",
+    "Catálogo WhatsApp balcão: O que já foi feito?"
+  ],
+  "proxima_reuniao": "22/08/2026 (sábado), conduzida por Ciça."
+}

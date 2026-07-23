@@ -1,0 +1,25 @@
+{
+  "_comentario": "Exemplo/modelo. Conteúdo das seções é placeholder — substitua pelo assunto real da reunião antes de gerar o DOCX definitivo. Data e participantes seguem o cronograma confirmado (registro do assistente pessoal).",
+  "loja": "Rio Claro",
+  "data": "22/08/2026",
+  "participantes": [
+    "Adriel", "Carina", "Ciça", "Davi", "Jeovana",
+    "João", "José Roberto", "Marcelo", "Rafaela", "San"
+  ],
+  "pauta": "Reunião quinzenal de alinhamento comercial. Foco em conversão de vendas e acompanhamento das metas do mês.",
+  "whatsapp": [
+    "Status do atendimento via WhatsApp desde a última reunião — preencher com dados reais.",
+    "Feedback da equipe sobre o uso da ferramenta."
+  ],
+  "estoque": [
+    "Situação do abastecimento — preencher com itens em falta/atenção.",
+    "Atualização sobre a nova ferramenta de controle de estoque, se aplicável."
+  ],
+  "meta": "Posição atual da meta do mês e principais dificuldades enfrentadas pela equipe.",
+  "desafio_vendas": [
+    "Resultado do desafio de vendas em andamento.",
+    "O que está funcionando bem.",
+    "Principais dificuldades relatadas."
+  ],
+  "proxima_reuniao": "05/09/2026 (sábado), conduzida por Marcelo."
+}

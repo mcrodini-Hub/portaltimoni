@@ -21,6 +21,24 @@ function getCalendarClient(accessToken: string) {
   return google.calendar({ version: "v3", auth });
 }
 
+// Troca o refresh_token de longa duração (guardado em GOOGLE_REFRESH_TOKEN, capturado uma
+// vez via /api/admin/refresh-token) por um access_token novo — usado pela rota pública
+// /api/public/agenda-resumo, que não tem uma sessão de navegador (cookie) para reaproveitar,
+// diferente das rotas de /api/events (protegidas por requireAuthorizedSession).
+export async function getAccessTokenFromRefreshToken(): Promise<string> {
+  const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
+  if (!refreshToken) {
+    throw new Error("GOOGLE_REFRESH_TOKEN não configurado no servidor.");
+  }
+  const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
+  auth.setCredentials({ refresh_token: refreshToken });
+  const { token } = await auth.getAccessToken();
+  if (!token) {
+    throw new Error("Não foi possível renovar o access_token a partir do refresh_token salvo.");
+  }
+  return token;
+}
+
 function toDTO(event: calendar_v3.Schema$Event, calendarKey: CalendarKey): CalendarEventDTO | null {
   if (!event.id || !event.start || !event.end) return null;
   const start = event.start.dateTime ?? event.start.date;

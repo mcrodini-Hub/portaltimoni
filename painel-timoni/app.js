@@ -77,18 +77,26 @@
   var drawerBackdrop = document.getElementById('drawerBackdrop');
   var drawerClose = document.getElementById('drawerClose');
   var inputCompras = document.getElementById('cfg-compras');
+  var inputAgendaUrl = document.getElementById('cfg-agenda-url');
+  var inputAgendaToken = document.getElementById('cfg-agenda-token');
   var inputEstoque = document.getElementById('cfg-estoque');
   var inputMotorista = document.getElementById('cfg-motorista');
   var statusCompras = document.getElementById('cfg-compras-status');
+  var statusAgendaUrl = document.getElementById('cfg-agenda-url-status');
+  var statusAgendaToken = document.getElementById('cfg-agenda-token-status');
   var statusEstoque = document.getElementById('cfg-estoque-status');
   var statusMotorista = document.getElementById('cfg-motorista-status');
   var saveBtn = document.getElementById('cfg-save');
 
   function openDrawer() {
     inputCompras.value = PainelConfig.getComprasUrl();
+    inputAgendaUrl.value = PainelConfig.getAgendaUrl();
+    inputAgendaToken.value = PainelConfig.getAgendaToken();
     inputEstoque.value = PainelConfig.getEstoqueUrl();
     inputMotorista.value = PainelConfig.getMotoristaUrl();
     statusCompras.textContent = '';
+    statusAgendaUrl.textContent = '';
+    statusAgendaToken.textContent = '';
     statusEstoque.textContent = '';
     statusMotorista.textContent = '';
     drawer.classList.add('open');
@@ -114,6 +122,20 @@
       statusCompras.textContent = '';
     } catch (e) {
       statusCompras.textContent = e.message;
+      ok = false;
+    }
+    try {
+      PainelConfig.setAgendaUrl(inputAgendaUrl.value);
+      statusAgendaUrl.textContent = '';
+    } catch (e) {
+      statusAgendaUrl.textContent = e.message;
+      ok = false;
+    }
+    try {
+      PainelConfig.setAgendaToken(inputAgendaToken.value);
+      statusAgendaToken.textContent = '';
+    } catch (e) {
+      statusAgendaToken.textContent = e.message;
       ok = false;
     }
     try {
@@ -258,6 +280,44 @@
     nota.textContent = result.primeiroConflito
       ? result.primeiroConflito.texto
       : (result.entregas + result.retiradas === 0 ? 'Nenhuma viagem registrada para hoje.' : 'Nenhum conflito de horário hoje.');
+  }
+
+  function formatHorario(iso) {
+    // Eventos de dia inteiro vêm como "YYYY-MM-DD" (sem hora) — trata separado de dateTime.
+    if (!iso || iso.length === 10) return 'dia inteiro';
+    var d = new Date(iso);
+    return d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function renderAgenda(result) {
+    var badge = document.getElementById('agenda-badge');
+    if (!result.configured) { setBadge(badge, 'demo'); return; }
+    if (result.error) { setBadge(badge, 'erro', result.error); return; }
+
+    setBadge(badge, 'live');
+    var pill = document.getElementById('agenda-pill');
+    pill.className = result.total > 0 ? 'pill pill-ok' : 'pill pill-neutral';
+    pill.textContent = result.total + (result.total === 1 ? ' evento hoje' : ' eventos hoje');
+
+    var lista = document.getElementById('agenda-lista');
+    lista.innerHTML = '';
+    if (result.eventos.length === 0) {
+      lista.innerHTML = '<li>Nenhum evento hoje.</li>';
+    } else {
+      result.eventos.slice(0, 5).forEach(function (ev) {
+        var li = document.createElement('li');
+        li.textContent = formatHorario(ev.inicio) + ' ' + ev.titulo;
+        var tag = document.createElement('span');
+        tag.className = 'pill pill-neutral';
+        tag.textContent = ev.calendario;
+        li.appendChild(tag);
+        lista.appendChild(li);
+      });
+    }
+    document.getElementById('agenda-meta').textContent = result.atualizadoEm
+      ? 'atualizado: ' + new Date(result.atualizadoEm).toLocaleString('pt-BR')
+      : 'timoni-portal';
+    setCardStatus('card-agenda', 'done');
   }
 
   function setCardStatus(cardId, status) {
@@ -456,10 +516,13 @@
 
   function refreshLiveData() {
     var comprasUrl = PainelConfig.getComprasUrl();
+    var agendaUrl = PainelConfig.getAgendaUrl();
+    var agendaToken = PainelConfig.getAgendaToken();
     var estoqueUrl = PainelConfig.getEstoqueUrl();
     var motoristaUrl = PainelConfig.getMotoristaUrl();
     Promise.all([
       PainelCompras.buscar(comprasUrl).then(renderCompras),
+      PainelAgenda.buscar(agendaUrl, agendaToken).then(renderAgenda),
       PainelEstoque.buscar(estoqueUrl).then(renderEstoque),
       PainelMotorista.buscar(motoristaUrl).then(renderMotorista)
     ]).then(function () { applyFilter(currentFilter); });

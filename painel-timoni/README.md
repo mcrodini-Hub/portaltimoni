@@ -11,28 +11,35 @@ página estática (GitHub Pages, por exemplo).
 
 ## O que é "ao vivo" e o que é exemplo
 
-Três módulos já publicam dados via planilha (Google Sheets + Apps Script Web App, sempre o
-mesmo padrão gratuito — sem servidor próprio):
+Quatro módulos já publicam dados reais, todos com o mesmo espírito gratuito (Google como base,
+sem servidor próprio):
 
-- **Compras** — espelho do estado da extensão (`hub-pedidos-chrome/apps-script/Codigo.gs`)
-- **Estoque** — fila de necessidades (`estoque-chrome/apps-script/Codigo.gs`)
-- **Motorista** — viagens do dia (`agenda-motorista/apps-script/Codigo.gs`)
+- **Compras** — espelho do estado da extensão, via planilha (`hub-pedidos-chrome/apps-script/Codigo.gs`)
+- **Estoque** — fila de necessidades, via planilha (`estoque-chrome/apps-script/Codigo.gs`)
+- **Motorista** — viagens do dia, via planilha (`agenda-motorista/apps-script/Codigo.gs`)
+- **Agenda Ciça** — resumo do Google Calendar de hoje, direto do `timoni-portal` (Next.js) —
+  ver `timoni-portal/README.md` seção 6
 
-Clique em **⚙ Planilhas** no topo e cole a URL do Web App (terminada em `/exec`) de cada um —
-é a mesma URL já configurada na extensão/página do próprio módulo (no caso do Compras, na
-seção "Painel Timoni" no rodapé da sidebar). Os cards passam a mostrar o selo **ao vivo** e os
-números reais; sem URL configurada (ou se a planilha responder erro), o card mostra o selo
-**exemplo**/**erro** e mantém dados ilustrativos. Logo depois de colar a URL do Compras, os
-cards podem aparecer com o selo "ao vivo" mas ainda com dados de exemplo por um instante —
-é a planilha nova, sem nenhum registro até a extensão rodar a primeira etapa.
+Clique em **⚙ Planilhas** no topo:
 
-Reuniões, Agenda Ciça e Marketing continuam com dados de exemplo porque ainda não têm um
-endpoint web para este painel consultar:
+- Compras/Estoque/Motorista: cole a URL do Web App (Apps Script, terminada em `/exec`) — a
+  mesma já configurada na extensão/página do próprio módulo (no caso do Compras, na seção
+  "Painel Timoni" no rodapé da sidebar).
+- Agenda Ciça: cole a URL do `timoni-portal` (ex.: `https://timoni-portal-xxxx.vercel.app`) e o
+  token gerado lá (`PAINEL_TIMONI_TOKEN`) — não é o login do portal, é um token simples só para
+  essa rota de resumo (ver `timoni-portal/README.md` seção 6 para o passo a passo completo).
+
+Os cards passam a mostrar o selo **ao vivo** e os dados reais; sem configuração (ou se o
+módulo responder erro), o card mostra o selo **exemplo**/**erro** e mantém dados ilustrativos.
+Logo depois de colar a URL do Compras, os cards podem aparecer com o selo "ao vivo" mas ainda
+com dados de exemplo por um instante — é a planilha nova, sem nenhum registro até a extensão
+rodar a primeira etapa.
+
+Reuniões e Marketing continuam com dados de exemplo porque ainda não têm um endpoint web para
+este painel consultar:
 
 - **Reuniões** é um arquivo (`assistente/registro.md`) mantido por um subagente — não é um
   serviço web.
-- **Agenda Ciça** (`timoni-portal`, Next.js) exige login Google (NextAuth) — puxar os eventos
-  aqui exigiria autenticação, então o card só linka para o portal.
 - **Marketing** ainda não tem fluxo definido (placeholder).
 
 ## Estrutura
@@ -43,9 +50,10 @@ painel-timoni/
 ├── app.css                 # identidade visual (paleta por módulo, cards, drawer)
 ├── app.js                  # pin, filtro por status, navegação, drawer de config, render dos dados reais
 └── lib/
-    ├── config.js            # URLs dos Web Apps em localStorage (com validação)
+    ├── config.js            # URLs/tokens dos módulos em localStorage (com validação)
     └── sources/
         ├── compras.js       # fetch em ?action=estado (espelho do Compras)
+        ├── agenda.js        # fetch em /api/public/agenda-resumo (timoni-portal, com token)
         ├── estoque.js       # fetch em ?action=listar + cálculo de "atrasado"
         └── motorista.js     # fetch em ?action=dia + detecção de conflito de horário
 ```
@@ -61,6 +69,5 @@ painel-timoni/
 
 ## Próximos passos
 
-Para o painel inteiro ficar "ao vivo" falta Reuniões, Agenda Ciça e Marketing — cada um precisa
-primeiro de um jeito de expor dados por HTTP (Reuniões e Marketing ainda não têm nada disso;
-Agenda Ciça teria que resolver a autenticação Google antes).
+Para o painel inteiro ficar "ao vivo" falta Reuniões e Marketing — cada um precisa primeiro de
+um jeito de expor dados por HTTP (nenhum dos dois tem isso hoje).

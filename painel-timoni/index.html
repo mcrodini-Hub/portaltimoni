@@ -257,28 +257,28 @@
       <span class="module-swatch"></span>
       <p class="module-eyebrow">Módulo</p>
       <h2 class="module-title">Agenda Ciça</h2>
-      <p class="module-desc">Portal (Next.js) com login Google e sincronização direta do Google Calendar. Exige autenticação própria — este painel só linka, não busca os eventos.</p>
+      <p class="module-desc">Portal (Next.js) com login Google e sincronização direta do Google Calendar. Configure a URL e o token em "⚙ Planilhas" para ver a agenda real de hoje.</p>
     </div>
     <div class="board">
 
-      <article class="card" data-module="agenda" data-status="done">
+      <article class="card" data-module="agenda" data-status="done" id="card-agenda">
         <div class="card-body">
           <div class="card-head">
             <div>
               <p class="card-tag">Google Calendar</p>
               <h3>Agenda de hoje</h3>
             </div>
-            <span class="live-badge demo">exemplo</span>
-            <span class="pill pill-ok">sincronizada</span>
+            <span class="live-badge demo" id="agenda-badge">exemplo</span>
+            <span class="pill pill-ok" id="agenda-pill">sincronizada</span>
           </div>
-          <ul class="list">
+          <ul class="list" id="agenda-lista">
             <li>09:00 Reunião fornecedor Polybrasil</li>
             <li>14:00 Ligação — banco</li>
             <li>17:30 Confraternização — planejamento</li>
           </ul>
-          <p class="card-meta">login: ciça@ · timoni-portal</p>
+          <p class="card-meta" id="agenda-meta">login: ciça@ · timoni-portal</p>
           <div class="card-footer">
-            <span class="optional-tag">requer login Google</span>
+            <span class="optional-tag">requer token do Timoni Portal</span>
             <span></span>
           </div>
         </div>
@@ -424,12 +424,24 @@
 <aside class="drawer" id="drawer" aria-hidden="true">
   <button class="drawer-close" id="drawerClose" aria-label="Fechar">✕</button>
   <h2>Planilhas conectadas</h2>
-  <p class="hint">Cole a URL do Web App (Apps Script) de cada módulo que já publica dados — a mesma URL usada na extensão/página do módulo. Reuniões, Agenda e Marketing ainda não têm um Web App próprio, então continuam mostrando dados de exemplo.</p>
+  <p class="hint">Cole a URL do Web App (Apps Script) de cada módulo que já publica dados — a mesma URL usada na extensão/página do módulo. Reuniões e Marketing ainda não têm um Web App próprio, então continuam mostrando dados de exemplo.</p>
 
   <div class="field">
     <label for="cfg-compras">Compras — URL do Web App</label>
     <input type="url" id="cfg-compras" placeholder="https://script.google.com/.../exec">
     <p class="field-status" id="cfg-compras-status"></p>
+  </div>
+
+  <div class="field">
+    <label for="cfg-agenda-url">Agenda Ciça — URL do Timoni Portal</label>
+    <input type="url" id="cfg-agenda-url" placeholder="https://timoni-portal-xxxx.vercel.app">
+    <p class="field-status" id="cfg-agenda-url-status"></p>
+  </div>
+
+  <div class="field">
+    <label for="cfg-agenda-token">Agenda Ciça — token (PAINEL_TIMONI_TOKEN)</label>
+    <input type="text" id="cfg-agenda-token" placeholder="cole o token gerado no timoni-portal">
+    <p class="field-status" id="cfg-agenda-token-status"></p>
   </div>
 
   <div class="field">
@@ -451,6 +463,7 @@
 
 <script src="lib/config.js"></script>
 <script src="lib/sources/compras.js"></script>
+<script src="lib/sources/agenda.js"></script>
 <script src="lib/sources/estoque.js"></script>
 <script src="lib/sources/motorista.js"></script>
 <script src="app.js"></script>

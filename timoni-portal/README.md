@@ -116,6 +116,32 @@ aceita redirect URIs cadastrados). Teste login só em `localhost` e na URL de
    de cor sem precisar recarregar a página (a lista atualiza sozinha a cada
    60s).
 
+## 6. Ligar ao Painel Timoni (opcional)
+
+O [Painel Timoni](../painel-timoni/README.md) é uma página estática pessoal que mostra um
+resumo da agenda de hoje sem exigir login — por isso não pode reaproveitar a sessão do
+NextAuth (cookie), que só existe no navegador de quem já entrou com `mcrodini@gmail.com`.
+A rota `/api/public/agenda-resumo` resolve isso com um **token compartilhado simples**
+(`PAINEL_TIMONI_TOKEN`, não o login) e um **refresh_token de longa duração** guardado como
+variável de ambiente, em vez da sessão curta do navegador.
+
+Passo a passo (uma vez):
+
+1. Gere um `PAINEL_TIMONI_TOKEN` qualquer (ex.: `openssl rand -hex 20`) e salve como variável
+   de ambiente (local e/ou na Vercel).
+2. Com o portal rodando e você já logado em `/dashboard`, acesse
+   `/api/admin/refresh-token` no mesmo navegador (mesma aba logada). A resposta traz
+   `{ "refreshToken": "..." }` — copie esse valor.
+3. Salve esse valor como `GOOGLE_REFRESH_TOKEN` (variável de ambiente, local e/ou Vercel).
+4. No Painel Timoni, abra **⚙ Planilhas** e preencha "Agenda Ciça" com a URL do portal
+   (ex.: `https://timoni-portal-xxxx.vercel.app`) e o token do passo 1.
+
+**Limitação conhecida**: em modo "Testing" no Google Cloud Console (ver seção 1), o Google
+pode expirar o `refresh_token` salvo após ~7 dias de inatividade *daquele token específico* —
+se o card do Painel Timoni passar a mostrar erro, repita os passos 2-3 para gerar um novo.
+Isso é independente do login normal do portal (que continua funcionando via
+"Entrar com Google" mesmo se esse token expirar).
+
 ## Estrutura do projeto
 
 ```
@@ -125,7 +151,9 @@ timoni-portal/
 │   ├── dashboard/        # tela principal (protegida por middleware.ts)
 │   └── api/
 │       ├── auth/         # rotas do NextAuth
-│       └── events/       # CRUD de eventos (chama a Calendar API)
+│       ├── events/       # CRUD de eventos (chama a Calendar API)
+│       ├── admin/refresh-token/   # utilitário: captura o refresh_token (ver seção 6)
+│       └── public/agenda-resumo/  # resumo de hoje para o Painel Timoni (token, sem login)
 ├── lib/
 │   ├── auth.ts           # config do NextAuth (provider Google, refresh de token)
 │   ├── auth-guard.ts     # checagem de sessão/autorização nas rotas de API

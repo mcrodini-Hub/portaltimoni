@@ -6,10 +6,13 @@
   const KEYS = Object.freeze({
     ESTOQUE_URL: 'painelTimoniEstoqueUrl',
     MOTORISTA_URL: 'painelTimoniMotoristaUrl',
-    COMPRAS_URL: 'painelTimoniComprasUrl'
+    COMPRAS_URL: 'painelTimoniComprasUrl',
+    AGENDA_URL: 'painelTimoniAgendaUrl',
+    AGENDA_TOKEN: 'painelTimoniAgendaToken'
   });
 
   const WEBAPP_URL_RE = /^https:\/\/script\.google\.com\/.*\/exec(\?.*)?$/;
+  const HTTPS_URL_RE = /^https:\/\/.+/;
 
   function get(key) {
     try {
@@ -19,10 +22,10 @@
     }
   }
 
-  function set(key, value) {
-    const limpa = (value || '').trim();
-    if (limpa && !WEBAPP_URL_RE.test(limpa)) {
-      throw new Error('URL inválida. Cole a URL do Web App terminada em /exec.');
+  function set(key, value, validate, mensagemErro) {
+    const limpa = (value || '').trim().replace(/\/$/, '');
+    if (limpa && validate && !validate.test(limpa)) {
+      throw new Error(mensagemErro);
     }
     try {
       if (limpa) localStorage.setItem(key, limpa);
@@ -35,10 +38,14 @@
 
   root.PainelConfig = {
     getEstoqueUrl: () => get(KEYS.ESTOQUE_URL),
-    setEstoqueUrl: (url) => set(KEYS.ESTOQUE_URL, url),
+    setEstoqueUrl: (url) => set(KEYS.ESTOQUE_URL, url, WEBAPP_URL_RE, 'URL inválida. Cole a URL do Web App terminada em /exec.'),
     getMotoristaUrl: () => get(KEYS.MOTORISTA_URL),
-    setMotoristaUrl: (url) => set(KEYS.MOTORISTA_URL, url),
+    setMotoristaUrl: (url) => set(KEYS.MOTORISTA_URL, url, WEBAPP_URL_RE, 'URL inválida. Cole a URL do Web App terminada em /exec.'),
     getComprasUrl: () => get(KEYS.COMPRAS_URL),
-    setComprasUrl: (url) => set(KEYS.COMPRAS_URL, url)
+    setComprasUrl: (url) => set(KEYS.COMPRAS_URL, url, WEBAPP_URL_RE, 'URL inválida. Cole a URL do Web App terminada em /exec.'),
+    getAgendaUrl: () => get(KEYS.AGENDA_URL),
+    setAgendaUrl: (url) => set(KEYS.AGENDA_URL, url, HTTPS_URL_RE, 'URL inválida. Cole a URL do Timoni Portal (https://...).'),
+    getAgendaToken: () => get(KEYS.AGENDA_TOKEN),
+    setAgendaToken: (token) => set(KEYS.AGENDA_TOKEN, token)
   };
 })(window);

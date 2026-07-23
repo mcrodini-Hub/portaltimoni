@@ -1,11 +1,19 @@
 # Pautas e Atas de Reunião — Casa Timoni
 
-Ferramenta em Python (python-docx) para gerar Pauta e Ata das reuniões
-quinzenais/mensais de equipe da Casa Timoni (Rio Claro e Araras), em
-**DOCX** — uma única página, sem elementos decorativos, pronta para Ciça
-ajustar e depois converter para PDF pelo aplicativo próprio dela
-(**não usamos ReportLab/PDF aqui** — decisão registrada em
-`assistente/registro.md`).
+Ferramenta em Python para gerar dois formatos a partir dos mesmos dados de
+cada reunião quinzenal/mensal de equipe da Casa Timoni (Rio Claro e
+Araras):
+
+- **DOCX** (python-docx) — o documento principal de Pauta/Ata, 1 página,
+  sem elementos decorativos.
+- **PPTX** (python-pptx) — deck de projeção para conduzir a reunião ao
+  vivo, 1 slide por seção, texto grande para leitura à distância.
+
+Não geramos PDF/ReportLab aqui. Ciça revisou o uso de PDF: o documento
+final passa a ser um **Google Doc** e a projeção ao vivo um **Google
+Slides** — ambos obtidos fazendo upload do DOCX/PPTX gerados aqui no
+Google Drive (ver seção "De DOCX/PPTX para Google Docs/Slides" abaixo).
+Decisão registrada em `assistente/registro.md`.
 
 ## Estrutura fixa dos documentos
 
@@ -30,21 +38,41 @@ ajustar e depois converter para PDF pelo aplicativo próprio dela
 ## Uso
 
 ```bash
-pip install python-docx
+pip install python-docx python-pptx
 
-python3 gerar_pauta.py exemplos/exemplo-pauta-rio-claro.json
+python3 gerar_pauta.py exemplos/exemplo-pauta-rio-claro.json    # documento (.docx)
+python3 gerar_slides.py exemplos/exemplo-pauta-rio-claro.json   # projeção (.pptx)
 python3 gerar_ata.py exemplos/exemplo-ata-rio-claro.json
+python3 gerar_slides.py exemplos/exemplo-ata-rio-claro.json     # detecta Pauta x Ata pelo JSON
 
 # caminho de saída customizado:
 python3 gerar_pauta.py exemplos/exemplo-pauta-araras.json --saida caminho/pauta.docx
 ```
 
 Sem `--saida`, o arquivo é gravado seguindo a convenção de nomes/pastas da
-Casa Timoni: `saida/<Local>/<Ano>/<DD_MM_AAAA>/<Local>-<Pauta|Ata>_DD_MM_AAAA.docx`
-(ex: `saida/Rio_Claro/2026/22_08_2026/Rio_Claro-Pauta_22_08_2026.docx`).
+Casa Timoni: `saida/<Local>/<Ano>/<DD_MM_AAAA>/<Local>-<Pauta|Ata>_DD_MM_AAAA.<docx|pptx>`
+(ex: `saida/Rio_Claro/2026/22_08_2026/Rio_Claro-Pauta_22_08_2026.pptx`).
 Isso espelha localmente a estrutura da pasta real do projeto
 (`Reuniões_Quinzenais_Casa_Timoni/...`), documentada em
 `assistente/registro.md`.
+
+## De DOCX/PPTX para Google Docs/Slides
+
+Este repositório gera os arquivos localmente; a conversão para os
+formatos nativos do Google acontece por upload no Drive (o Drive
+converte automaticamente quando recebe um DOCX/PPTX):
+
+- **Dentro de uma conversa com o Claude que tenha o Google Drive
+  conectado** (o caso de uso real da Ciça): peça para gerar a pauta/ata —
+  o Claude usa a mesma lógica deste módulo para montar o conteúdo e faz o
+  upload direto no Drive como Google Doc (`application/vnd.google-apps.document`)
+  e Google Slides (`application/vnd.google-apps.presentation`), sem
+  passos manuais.
+- **Manualmente**, a partir de um arquivo já gerado por este repositório:
+  no Google Drive, `Novo → Upload de arquivo` do `.docx`/`.pptx` e depois
+  `Abrir com → Google Docs/Slides` (ou simplesmente abrir o arquivo
+  enviado — o Drive oferece a conversão). O resultado é editável como
+  qualquer Doc/Slides nativo.
 
 ## Formato do arquivo de dados (JSON)
 
@@ -73,23 +101,26 @@ Isso espelha localmente a estrutura da pasta real do projeto
 Os exemplos em `exemplos/` usam **conteúdo de discussão fictício**
 (placeholder) — apenas loja, data e participantes refletem dados reais já
 confirmados no cronograma. Substitua o conteúdo pelas informações reais
-de cada reunião antes de gerar o DOCX definitivo.
+de cada reunião antes de gerar o documento/deck definitivo.
 
 ## Estrutura
 
 ```
 reunioes/
 ├── README.md
-├── gerar_pauta.py          # CLI: gera a Pauta a partir de um JSON
-├── gerar_ata.py            # CLI: gera a Ata a partir de um JSON
+├── gerar_pauta.py          # CLI: gera o DOCX da Pauta a partir de um JSON
+├── gerar_ata.py            # CLI: gera o DOCX da Ata a partir de um JSON
+├── gerar_slides.py         # CLI: gera o PPTX de projeção (Pauta ou Ata, mesmo JSON)
 ├── documentos/
-│   ├── estilos.py          # margens, fontes, espaçamento, checklist (spec fixa)
+│   ├── estilos.py          # DOCX: margens, fontes, espaçamento, checklist (spec fixa)
+│   ├── estilos_slides.py   # PPTX: slide 16:9, texto grande para projeção
 │   ├── nomes.py            # convenção de nome de arquivo/pasta
 │   ├── pauta.py            # monta o DOCX da Pauta (6 seções)
-│   └── ata.py              # monta o DOCX da Ata (7 seções, presença ✓/✗)
+│   ├── ata.py              # monta o DOCX da Ata (7 seções, presença ✓/✗)
+│   └── slides.py           # monta o PPTX de Pauta/Ata (1 slide por seção)
 ├── exemplos/
 │   ├── exemplo-pauta-rio-claro.json
 │   ├── exemplo-pauta-araras.json
 │   └── exemplo-ata-rio-claro.json
-└── saida/                  # DOCX gerados (git-ignorado, exceto .gitkeep)
+└── saida/                  # DOCX/PPTX gerados (git-ignorado, exceto .gitkeep)
 ```

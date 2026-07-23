@@ -1,3 +1,4 @@
 saida/**/*.docx
+saida/**/*.pptx
 __pycache__/
 *.pyc

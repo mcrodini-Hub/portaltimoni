@@ -21,6 +21,7 @@
 - **23/07/2026** — Ciça decidiu usar um aplicativo próprio para gerar PDF a partir dos DOCX; **não usar ReportLab** para gerar PDF de pauta/ata (os PDFs gerados anteriormente via ReportLab foram descartados; documentos passam a ser entregues em DOCX).
 - **23/07/2026** — Cronograma de reuniões confirmado até setembro/2026 (ver "Detalhes e Lembretes"); a partir de outubro, Rio Claro e Araras passam a ser mensais (primeira semana do mês), formato: resultado + pendências + feedback.
 - **23/07/2026** — Fluxo operacional fixo definido: T-7 duas mensagens de WhatsApp (gerência + equipe); T-1 lembrete "PREP" + comprar café 18h + revisar pauta; T-0 lembrete "GRAVAR ÁUDIO" + conduzir reunião com a pauta + gravar áudio; T+1 transcrever áudio, preencher ata, guardar áudio+ata na pasta do projeto.
+- **23/07/2026** — Ciça revisou o uso de PDF: em vez do aplicativo próprio para gerar PDF a partir do DOCX, o documento principal de Pauta/Ata passa a ser um **Google Doc**, e para a condução da reunião (projeção em tela) passa a existir também um **Google Slides** (1 slide por seção). O DOCX/PPTX continuam sendo gerados por este repositório como conteúdo-mestre; a conversão para Google Docs/Slides é feita via upload no Google Drive (mimeType do Office → Drive converte automaticamente para o tipo nativo do Google).
 
 ## 🔔 Detalhes e Lembretes
 
@@ -39,7 +40,9 @@
 - [ ] Gerar pauta Rio Claro 22/08/2026 (sábado) · **Responsável**: Ciça · **Prazo**: antes de 22/08/2026 · **Status**: gerar automaticamente quando o lembrete chegar, sem perguntar
 - [ ] Gerar pauta Araras 04/09/2026 (sexta) · **Responsável**: Ciça · **Prazo**: antes de 04/09/2026 · **Status**: gerar automaticamente quando o lembrete chegar, sem perguntar
 - [ ] Esclarecer com Ciça a divergência de data/dia da reunião de Araras (05/08 vs terça 04/08) · **Responsável**: Ciça · **Prazo**: a definir · **Status**: em andamento
+- [ ] Validar o fluxo Google Docs/Slides fim a fim (gerar DOCX+PPTX de exemplo e subir no Drive real da Ciça para conferir a conversão) · **Responsável**: Claude · **Prazo**: a definir · **Status**: aguardando confirmação da Ciça antes de criar arquivos reais no Drive
 
 ## 🗂️ Histórico de Atualizações
 
 - **23/07/2026** — Registrado o compilado completo do projeto "Reuniões Quinzenais Casa Timoni": cronograma até setembro, padrão de pauta/ata (DOCX, não PDF/ReportLab), participantes e presença, workflow operacional (T-7 a T+1), campanhas 2026, confraternização 01/11 e pendências abertas.
+- **23/07/2026** — Registrada a revisão do uso de PDF: passa a usar Google Docs (documento) + Google Slides (projeção) em vez do aplicativo próprio de PDF.

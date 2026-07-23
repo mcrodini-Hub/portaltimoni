@@ -1,4 +1,4 @@
-// Sidebar — única interface do Hub de Pedidos. Lê o estado diretamente do
+// Sidebar — única interface do Compras. Lê o estado diretamente do
 // chrome.storage.local (via lib/state.js) e reage a mudanças em tempo real
 // através de chrome.storage.onChanged — isso substitui o mecanismo de mensageria
 // da base v1.0.12, que não chegava a atualizar a sidebar de forma confiável.

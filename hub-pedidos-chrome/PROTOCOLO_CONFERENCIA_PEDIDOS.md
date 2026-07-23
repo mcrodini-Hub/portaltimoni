@@ -3,9 +3,9 @@
 Uso interno exclusivo — Ciça Rodini
 Casa Timoni / MCR Comércio de Plásticos e Lonas
 
-> Este documento é a fonte da Etapa 5 (Conferência do pedido) do Hub de
-> Pedidos. Foi fornecido pela usuária e incorporado ao fluxo da extensão —
-> ver `CHANGELOG.md`.
+> Este documento é a fonte da Etapa 5 (Conferência do pedido) do Compras.
+> Foi fornecido pela usuária e incorporado ao fluxo da extensão — ver
+> `CHANGELOG.md`.
 >
 > **Nota de implementação (uso real da seção 4):** na prática, divergência
 > não é motivo para travar o pedido dentro da extensão — é o resultado

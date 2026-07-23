@@ -1,4 +1,4 @@
-# Hub de Pedidos — Portal Timoni
+# Compras — Portal Timoni
 
 Extensão Chrome (Manifest V3) que assiste o fluxo de compras por etapas, abrindo
 Trello, Google Drive e Bessani **somente sob demanda**, com uma sidebar fixável

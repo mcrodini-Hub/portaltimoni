@@ -1,4 +1,4 @@
-# Testes — Hub de Pedidos v1.1.0-alpha.1
+# Testes — Compras v1.1.0-alpha.1
 
 ## O que foi validado neste ambiente (sem Chrome real / sem acesso ao Trello, Drive e Bessani reais)
 

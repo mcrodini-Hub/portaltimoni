@@ -1,4 +1,4 @@
-// Máquina de estados do Hub de Pedidos + persistência em chrome.storage.local.
+// Máquina de estados do Compras + persistência em chrome.storage.local.
 // Compartilhado entre background.js (service worker) e sidebar.js (via <script> normal),
 // por isso usa o objeto global `self` em vez de import/export de módulos ES.
 

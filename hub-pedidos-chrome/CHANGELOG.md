@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.1.0-alpha.22 — Renomeia "Hub de Pedidos" para "Compras"
+
+Renomeação de marca/exibição — sem mudança de comportamento. Faz mais
+sentido com a direção que o projeto tomou (módulo "Compras", entre outros
+módulos do Portal Timoni).
+
+- **Alterado**: nome da extensão (`manifest.json`), título/`<h1>`/marca da
+  sidebar, título do `README.md` e do `TESTES.md`, e comentários que citavam
+  "Hub de Pedidos" como nome do produto — tudo passou a "Compras".
+- **Não alterado** (de propósito, por serem detalhes internos sem impacto
+  visível): namespace interno em JS (`HubState`, `HubMessages`, `HubTabs`,
+  `HubValidators`), a chave de `chrome.storage.local`
+  (`hubPedidosState`) e o nome da pasta (`hub-pedidos-chrome/`). Renomear a
+  pasta trocaria o ID da extensão no Chrome (instalação "sem compactação"),
+  exigindo reinstalar e perdendo o estado salvo — avisar antes de fazer
+  isso, se for o caso.
+
 ## 1.1.0-alpha.21 — Divergência não trava mais a aprovação da conferência
 
 Ajuste da alpha.20 baseado em como a Etapa 5 é usada na prática: a

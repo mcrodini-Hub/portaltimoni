@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
-import { listUpcomingEvents } from "@/lib/google-calendar";
+import { listEventsInRange } from "@/lib/google-calendar";
+import { getWeekRange } from "@/lib/week";
 import { CalendarView } from "./calendar-view";
 import type { CalendarEventDTO } from "@/lib/types";
 
@@ -11,8 +12,11 @@ export default async function DashboardPage() {
 
   if (session?.accessToken && session.error !== "RefreshAccessTokenError") {
     try {
-      initialEvents = await listUpcomingEvents(session.accessToken, {
-        timeMin: new Date().toISOString(),
+      const { start, end } = getWeekRange();
+      initialEvents = await listEventsInRange(session.accessToken, {
+        timeMin: start.toISOString(),
+        timeMax: end.toISOString(),
+        maxResults: 100,
       });
     } catch {
       loadError = "Não foi possível carregar os eventos agora.";

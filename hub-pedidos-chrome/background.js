@@ -1,17 +1,18 @@
 // Service worker — orquestra abertura/reaproveitamento de abas, roteia mensagens entre a
 // sidebar e os content scripts, e é o único lugar que persiste o estado global.
 
-importScripts('lib/state.js', 'lib/tabs.js', 'lib/messages.js', 'lib/validators.js');
+importScripts('lib/state.js', 'lib/tabs.js', 'lib/messages.js', 'lib/validators.js', 'lib/regioes.js');
 
-// O board é sempre aberto já com o filtro nativo do Trello para a etiqueta "Rio Claro"
-// aplicado via URL (?filter=label:Rio Claro) — o mesmo mecanismo que o próprio Trello usa
+// O board é sempre aberto já com o filtro nativo do Trello para a etiqueta da região corrente
+// aplicado via URL (?filter=label:<etiqueta>) — o mesmo mecanismo que o próprio Trello usa
 // para compartilhar um link de board pré-filtrado. Isso elimina a necessidade de detectar
 // cor/texto de etiqueta cartão por cartão: com o filtro nativo aplicado, só precisamos ler
 // quais cartões o Trello está exibindo (ver isCardVisible em content/trello-content.js).
-const TRELLO_BOARD_URL = 'https://trello.com/b/UfPrTr1H/compras?filter=label:Rio%20Claro';
-// Segunda passada (só a etiqueta "Urgente"), usada para reordenar os fornecedores colocando
-// os urgentes primeiro — mesma técnica de filtro nativo, sem detectar cor/texto por cartão.
-const TRELLO_URGENT_URL = 'https://trello.com/b/UfPrTr1H/compras?filter=label:Urgente';
+// Qual etiqueta usar (Rio Claro, Araras, ...) vem de lib/regioes.js — ver HubRegioes.
+const TRELLO_BASE_URL = 'https://trello.com/b/UfPrTr1H/compras';
+function filterUrl(labelText) {
+  return `${TRELLO_BASE_URL}?filter=label:${encodeURIComponent(labelText)}`;
+}
 // Padrão amplo de propósito: encontrar QUALQUER aba do Trello já aberta na janela em foco,
 // só para fechá-la antes de abrir uma nova no board (ver ensureTrelloBoardTab).
 const TRELLO_URL_PATTERN = 'https://trello.com/*';
@@ -77,8 +78,13 @@ async function ensureTrelloTabAt(url) {
   return fresh;
 }
 
-async function ensureTrelloBoardTab() {
-  return ensureTrelloTabAt(TRELLO_BOARD_URL);
+async function ensureTrelloBoardTab(regiao) {
+  return ensureTrelloTabAt(filterUrl(regiao.labelFiltro));
+}
+
+async function getCurrentRegiao() {
+  const state = await HubState.getState();
+  return HubRegioes.getRegiao(state.regiao);
 }
 
 async function getActiveTab() {
@@ -94,23 +100,26 @@ async function getActiveTab() {
 // ---------------------------------------------------------------------------
 
 async function handleOpenTrello() {
-  await ensureTrelloBoardTab();
+  const regiao = await getCurrentRegiao();
+  await ensureTrelloBoardTab(regiao);
   await HubState.setState({ currentState: STATES.TRELLO_ABERTO, lastError: null });
   return handleScanTrello();
 }
 
 async function handleScanTrello() {
-  const tab = await ensureTrelloBoardTab();
+  const regiao = await getCurrentRegiao();
+  const tab = await ensureTrelloBoardTab(regiao);
   if (!tab) {
     const msg = 'Abra o Trello antes de ler os fornecedores.';
     await logError(msg);
     return { error: msg };
   }
 
+  const scanPayload = { labelText: regiao.labelFiltro, corHint: regiao.corHint, manterOrdemOriginal: !regiao.ordenarUrgentePrimeiro };
   const result = await HubTabs.sendWithInjection(
     tab.id,
     ['lib/validators.js', 'content/trello-content.js'],
-    HubMessages.makeMessage(TYPES.SCAN_TRELLO, null, 'background')
+    HubMessages.makeMessage(TYPES.SCAN_TRELLO, scanPayload, 'background')
   );
 
   if (!result || result.error) {
@@ -121,35 +130,38 @@ async function handleScanTrello() {
 
   let suppliers = result.suppliers || [];
 
-  // Segunda passada: abre o board filtrado só por "Urgente" e usa o mesmo mecanismo de
-  // filtro nativo pra saber quais desses fornecedores também têm essa etiqueta — sem
-  // detectar cor/texto por cartão. Reordena colocando os urgentes primeiro. Se essa segunda
-  // passada falhar por qualquer motivo, não é crítico: segue só com a ordem alfabética.
+  // Segunda passada (só a etiqueta "Urgente"), usada para reordenar os fornecedores colocando
+  // os urgentes primeiro — só faz sentido pras regiões que pedem essa ordenação (ver
+  // regiao.ordenarUrgentePrimeiro em lib/regioes.js; Araras explicitamente NÃO reordena, ver
+  // prompts-referencia/4-pedido-araras-enviar.txt). Se essa segunda passada falhar por
+  // qualquer motivo, não é crítico: segue só com a ordem já retornada.
   let finalTab = tab;
-  try {
-    const urgentTab = await ensureTrelloTabAt(TRELLO_URGENT_URL);
-    const urgentResult = await HubTabs.sendWithInjection(
-      urgentTab.id,
-      ['lib/validators.js', 'content/trello-content.js'],
-      HubMessages.makeMessage(TYPES.SCAN_TRELLO, null, 'background')
-    );
-    const urgentNames = (urgentResult && urgentResult.suppliers) || [];
-    if (urgentNames.length > 0) {
-      const urgentSet = new Set(urgentNames.map((s) => HubValidators.normalizeText(s.nome)));
-      suppliers = suppliers
-        .map((s) => ({ ...s, urgente: urgentSet.has(HubValidators.normalizeText(s.nome)) }))
-        .sort((a, b) => {
-          if (a.urgente !== b.urgente) return a.urgente ? -1 : 1;
-          return a.nome.localeCompare(b.nome, 'pt-BR');
-        });
+  if (regiao.ordenarUrgentePrimeiro) {
+    try {
+      const urgentTab = await ensureTrelloTabAt(filterUrl('Urgente'));
+      const urgentResult = await HubTabs.sendWithInjection(
+        urgentTab.id,
+        ['lib/validators.js', 'content/trello-content.js'],
+        HubMessages.makeMessage(TYPES.SCAN_TRELLO, { labelText: 'Urgente', corHint: null, manterOrdemOriginal: true }, 'background')
+      );
+      const urgentNames = (urgentResult && urgentResult.suppliers) || [];
+      if (urgentNames.length > 0) {
+        const urgentSet = new Set(urgentNames.map((s) => HubValidators.normalizeText(s.nome)));
+        suppliers = suppliers
+          .map((s) => ({ ...s, urgente: urgentSet.has(HubValidators.normalizeText(s.nome)) }))
+          .sort((a, b) => {
+            if (a.urgente !== b.urgente) return a.urgente ? -1 : 1;
+            return a.nome.localeCompare(b.nome, 'pt-BR');
+          });
+      }
+    } catch (e) {
+      // Segue só com a ordem alfabética da primeira passada.
+    } finally {
+      // A segunda passada deixa a aba do Trello no filtro "Urgente" — volta pro filtro
+      // primário da região antes de terminar, pra aba visível bater com o que o usuário
+      // esperava ver depois de clicar "Abrir Trello".
+      finalTab = await ensureTrelloBoardTab(regiao);
     }
-  } catch (e) {
-    // Segue só com a ordem alfabética da primeira passada.
-  } finally {
-    // A segunda passada deixa a aba do Trello no filtro "Urgente" — volta pro filtro
-    // primário (Rio Claro) antes de terminar, pra aba visível bater com o que o usuário
-    // esperava ver depois de clicar "Abrir Trello".
-    finalTab = await ensureTrelloBoardTab();
   }
 
   await HubState.setState({
@@ -183,6 +195,9 @@ async function handleSelectSupplier(payload) {
     bessaniUrl: '',
     bessaniPrint: null,
     conferencia: HubState.defaultConferencia(),
+    numeroPedido: '',
+    dataEnvio: '',
+    dataEntrega: '',
     trelloUpdateResults: [],
     lastError: null
   });
@@ -296,6 +311,46 @@ async function handleSaveConferencia(payload) {
   return { conferencia };
 }
 
+async function handleSaveRegiao(payload) {
+  const regiaoId = payload && payload.regiao;
+  if (!regiaoId || !HubRegioes.REGIOES[regiaoId]) return { error: 'Região inválida.' };
+  // Trocar de região invalida a lista de fornecedores da região anterior — mesma lógica de
+  // reset usada ao trocar de fornecedor, só que também limpa o que já tinha sido lido do
+  // Trello (currentState/trelloScanned/suppliers).
+  await HubState.setState({
+    regiao: regiaoId,
+    currentState: STATES.INICIO,
+    trelloScanned: false,
+    suppliers: [],
+    selectedSupplier: null,
+    extractedItems: [],
+    driveOpened: false,
+    sheetUrl: '',
+    bessaniUrl: '',
+    bessaniPrint: null,
+    conferencia: HubState.defaultConferencia(),
+    numeroPedido: '',
+    dataEnvio: '',
+    dataEntrega: '',
+    trelloUpdateResults: [],
+    lastError: null
+  });
+  return { regiao: regiaoId };
+}
+
+async function handleSaveNumeroPedido(payload) {
+  const numeroPedido = (payload && payload.numeroPedido) || '';
+  await HubState.setState({ numeroPedido });
+  return { numeroPedido };
+}
+
+async function handleSaveDatasEnvio(payload) {
+  const dataEnvio = (payload && payload.dataEnvio) || '';
+  const dataEntrega = (payload && payload.dataEntrega) || '';
+  await HubState.setState({ dataEnvio, dataEntrega });
+  return { dataEnvio, dataEntrega };
+}
+
 async function handleOpenBessani() {
   const state = await HubState.getState();
   if (!state.bessaniUrl) {
@@ -326,7 +381,8 @@ async function handleUpdateTrello() {
     };
   }
 
-  const tab = await ensureTrelloBoardTab();
+  const regiao = HubRegioes.getRegiao(state.regiao);
+  const tab = await ensureTrelloBoardTab(regiao);
   if (!tab) {
     const msg = 'Abra o Trello antes de atualizar os cartões.';
     await logError(msg);
@@ -340,7 +396,13 @@ async function handleUpdateTrello() {
     ['lib/validators.js', 'content/trello-content.js'],
     HubMessages.makeMessage(TYPES.UPDATE_TRELLO, {
       supplier: state.selectedSupplier,
-      items: state.extractedItems
+      items: state.extractedItems,
+      labelText: regiao.labelFiltro,
+      corHint: regiao.corHint,
+      numeroPedido: state.numeroPedido,
+      dataEnvio: state.dataEnvio,
+      dataEntrega: state.dataEntrega,
+      listaEnviados: regiao.listaEnviados
     }, 'background')
   );
 
@@ -353,10 +415,11 @@ async function handleUpdateTrello() {
   await HubState.setState({
     currentState: STATES.FINALIZADO,
     trelloUpdateResults: result.results || [],
+    trelloUpdatePronto: !!result.pronto,
     lastError: null
   });
 
-  return { results: result.results || [] };
+  return { results: result.results || [], pronto: !!result.pronto };
 }
 
 async function handleResetWorkflow() {
@@ -394,6 +457,9 @@ const HANDLERS = {
   [TYPES.SAVE_BESSANI_PRINT]: handleSaveBessaniPrint,
   [TYPES.SAVE_SHEET_URL]: handleSaveSheetUrl,
   [TYPES.SAVE_CONFERENCIA]: handleSaveConferencia,
+  [TYPES.SAVE_REGIAO]: handleSaveRegiao,
+  [TYPES.SAVE_NUMERO_PEDIDO]: handleSaveNumeroPedido,
+  [TYPES.SAVE_DATAS_ENVIO]: handleSaveDatasEnvio,
   [TYPES.OPEN_BESSANI]: handleOpenBessani,
   [TYPES.UPDATE_TRELLO]: handleUpdateTrello,
   [TYPES.RESET_WORKFLOW]: handleResetWorkflow,

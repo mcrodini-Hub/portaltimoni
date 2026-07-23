@@ -28,12 +28,18 @@ depois de carregar a extensão via `chrome://extensions/`.
 ### Teste 2 — Trello
 - [ ] "Abrir Trello" abre só o Trello (nenhuma outra aba).
 - [ ] Aba existente do Trello é reaproveitada, não duplicada.
-- [ ] Lista "RELAÇÃO DE PEDIDOS" é localizada corretamente.
+- [ ] Lista "PEDIDOS PENDENTES" é localizada corretamente.
 
-### Teste 3 — Filtro
+### Teste 3 — Filtro (região Rio Claro, padrão)
 - [ ] Só cartões com etiqueta verde "Rio Claro" aparecem na lista de fornecedores.
 - [ ] Cartões de outras etiquetas/cores são ignorados.
-- [ ] Fornecedores duplicados aparecem uma única vez, em ordem alfabética.
+- [ ] Fornecedores duplicados aparecem uma única vez, em ordem alfabética, com "Urgente" no topo.
+
+### Teste 3b — Região Araras
+- [ ] Selecionar "Araras" na Etapa 1 e clicar "Abrir Trello" filtra pela etiqueta azul "Araras".
+- [ ] A lista de fornecedores NÃO é reordenada (nem alfabética, nem Urgente-primeiro) — aparece na mesma ordem dos cartões no board filtrado.
+- [ ] Trocar de Rio Claro para Araras (ou vice-versa) com um fluxo em andamento pede confirmação antes de reiniciar; cancelar mantém tudo como estava.
+- [ ] Trocar de região sem fluxo em andamento (nada selecionado ainda) troca direto, sem confirmação.
 
 ### Teste 4 — Drive
 - [ ] Botão "Abrir Google Drive" fica bloqueado sem fornecedor selecionado.
@@ -71,16 +77,24 @@ depois de carregar a extensão via `chrome://extensions/`.
 
 ### Teste 8 — Atualização do Trello
 - [ ] Mostra resumo do fornecedor + itens antes de atualizar.
+- [ ] "Atualizar Trello" fica bloqueado sem número do pedido preenchido, com aviso visível.
 - [ ] Pede confirmação explícita.
 - [ ] Atualiza somente os cartões do fornecedor selecionado, dentro da lista/filtro.
-- [ ] Mostra resultado por cartão (atualizado/ignorado/não encontrado/erro).
+- [ ] Cartão é renomeado para "`<FORNECEDOR> <NÚMERO>MCR`" (ex: "ROMPLAS 6055MCR").
+- [ ] Se preenchidas, as datas de envio/entrega aparecem no cartão (campos "Início"/"Vencimento" do Trello).
+- [ ] Etiqueta "Enviado" (amarelo suave) é adicionada ao cartão.
+- [ ] Cartão é movido para o topo da lista de enviados da região (ex: "PEDIDOS ENVIADO RIO CLARO").
+- [ ] Cartão **permanece aberto** ao final (não fecha sozinho) — dá pra anexar o documento manualmente.
+- [ ] Ao concluir com sucesso, aparece a mensagem "Pronto!" na sidebar.
+- [ ] Mostra resultado por cartão (atualizado/ignorado/não encontrado/erro); se algum dos passos novos falhar, o detalhe do erro indica quais passos funcionaram.
+- [ ] **Atenção**: renomear/datas/etiqueta/mover são automações de DOM novas, não testadas contra o Trello real ainda (ver aviso no `CHANGELOG.md`) — validar com atenção e reportar screenshots de qualquer passo que não funcionar, para ajuste dos seletores.
 
 ### Teste 9 — Regressão
 - [ ] Leitura do Trello continua funcionando.
 - [ ] Filtro Rio Claro continua funcionando.
 - [ ] Extração de fornecedor continua funcionando.
 - [ ] Extração de itens continua funcionando (agora para todos os itens).
-- [ ] Atualização do Trello continua funcionando (agora com formato código|descrição|quantidade).
+- [ ] Atualização do Trello continua funcionando (agora com formato código|descrição|quantidade + renomear/datas/etiqueta/mover).
 
 ## Diagnóstico de limitações conhecidas
 
@@ -133,11 +147,28 @@ depois de carregar a extensão via `chrome://extensions/`.
    fato, e que está implementado, é a **restauração do estado salvo** ao
    reabrir a sidebar.
 
-6. **Anexar imagem/print ao cartão do Trello não foi implementado na V2** —
-   a nova spec não pede esse recurso (ver "Mudança de comportamento
-   importante" no `CHANGELOG.md`). Se ainda for necessário, é preciso pedir
-   explicitamente, pois a Etapa 6 (Bessani) da nova spec não inclui anexos.
+6. **Anexar arquivo ao cartão do Trello é sempre manual.** A extensão nunca
+   anexa nada sozinha (nem na Etapa 4/Bessani, nem na Etapa 6). Na Etapa 6,
+   o cartão fica aberto de propósito ao final da atualização justamente
+   para a usuária anexar o documento pela interface do próprio Trello.
 
 7. **Testes automatizados de UI (Chrome real) não foram executados** neste
    ambiente por não haver Chrome, Trello, Drive ou Bessani reais disponíveis.
    Todos os itens marcados `[ ]` acima precisam de validação manual.
+
+8. **Renomear/datas/etiqueta/mover cartão (Etapa 6) são automações de DOM
+   especulativas, escritas a partir do prompt de referência mas nunca
+   testadas contra o Trello real.** Cada passo tenta múltiplos seletores
+   (mesmo padrão do resto do arquivo) e falha isoladamente sem lançar
+   exceção — se o Trello não tiver o `data-testid` esperado (popover de
+   "Datas", "Etiquetas" ou "Mover cartão"), aquele passo especificamente
+   retorna erro, mas os outros passos e os outros fornecedores continuam
+   normalmente. É esperado precisar ajustar seletores em
+   `content/trello-content.js` depois do primeiro teste ao vivo — reportar
+   com o painel de diagnóstico e, se possível, print do popover que falhou.
+
+9. **Lista de destino de Araras não confirmada.** `lib/regioes.js` assume
+   "PEDIDOS ENVIADO ARARAS" por analogia com Rio Claro — não existe prompt
+   de referência equivalente ao `3-trello-atualizar.txt` para Araras. Se o
+   nome real da lista for diferente, ajustar `listaEnviados` em
+   `lib/regioes.js`.

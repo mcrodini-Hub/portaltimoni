@@ -49,6 +49,7 @@
     return {
       currentState: STATES.INICIO,
       pinned: false,
+      regiao: (root.HubRegioes && root.HubRegioes.DEFAULT_REGIAO_ID) || 'rio-claro',
       trelloScanned: false,
       driveOpened: false,
       selectedSupplier: null,
@@ -58,6 +59,9 @@
       bessaniUrl: '',
       bessaniPrint: null,
       conferencia: defaultConferencia(),
+      numeroPedido: '',
+      dataEnvio: '',
+      dataEntrega: '',
       lastError: null,
       diagnostics: {
         activeTabUrl: null,
@@ -67,7 +71,8 @@
         itemsExtracted: 0,
         lastUpdatedAt: null
       },
-      trelloUpdateResults: []
+      trelloUpdateResults: [],
+      trelloUpdatePronto: false
     };
   }
 
@@ -96,6 +101,9 @@
     return getState().then((current) => {
       const fresh = defaultState();
       if (keepPinned) fresh.pinned = current.pinned;
+      // Região é uma preferência de sessão (qual etiqueta/board filtrar), não dado de um
+      // pedido específico — "Reiniciar fluxo" não deve forçar a usuária a reselecionar.
+      fresh.regiao = current.regiao;
       return new Promise((resolve) => {
         chrome.storage.local.set({ [STORAGE_KEY]: fresh }, () => resolve(fresh));
       });

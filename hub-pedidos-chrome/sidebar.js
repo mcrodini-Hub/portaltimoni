@@ -36,6 +36,7 @@ const ui = {
   errorBanner: el('error-banner'),
   stateBadge: el('state-badge'),
 
+  regiaoRow: el('regiao-row'),
   trelloStatus: el('trello-status'),
   btnAbrirTrello: el('btn-abrir-trello'),
 
@@ -81,12 +82,16 @@ const ui = {
   resumoWrap: el('resumo-wrap'),
   resumoFornecedor: el('resumo-fornecedor'),
   resumoItens: el('resumo-itens'),
+  inputNumeroPedido: el('input-numero-pedido'),
+  inputDataEnvio: el('input-data-envio'),
+  inputDataEntrega: el('input-data-entrega'),
   conferenciaBloqueioHint: el('conferencia-bloqueio-hint'),
   btnAtualizarTrello: el('btn-atualizar-trello'),
   confirmWrap: el('confirm-wrap'),
   btnConfirmarUpdate: el('btn-confirmar-update'),
   btnCancelarUpdate: el('btn-cancelar-update'),
   resultadosLista: el('resultados-lista'),
+  prontoBanner: el('pronto-banner'),
 
   btnReiniciar: el('btn-reiniciar'),
 
@@ -99,6 +104,7 @@ const ui = {
 let confirmOpen = false;
 let bessaniInputFocused = false;
 let sheetUrlInputFocused = false;
+let numeroPedidoInputFocused = false;
 
 function normalize(str) {
   return (str || '').toString().trim().toLowerCase();
@@ -131,6 +137,7 @@ function render(state) {
   ui.btnPin.setAttribute('aria-pressed', state.pinned ? 'true' : 'false');
 
   // Etapa 1
+  renderRegiao(state);
   ui.trelloStatus.textContent = state.trelloScanned ? 'Trello: conectado' : 'Trello: não conectado';
 
   // Etapa 2
@@ -141,8 +148,9 @@ function render(state) {
     ui.fornecedoresCount.textContent = `Fornecedores encontrados: ${state.suppliers.length}`;
     ui.fornecedoresLista.innerHTML = '';
     if (state.suppliers.length === 0) {
+      const regiaoAtual = HubRegioes.getRegiao(state.regiao);
       const li = document.createElement('li');
-      li.textContent = 'Nenhum fornecedor com etiqueta Rio Claro encontrado.';
+      li.textContent = `Nenhum fornecedor com etiqueta ${regiaoAtual.nome} encontrado.`;
       li.style.cursor = 'default';
       ui.fornecedoresLista.appendChild(li);
     } else {
@@ -194,13 +202,25 @@ function render(state) {
 
   // Etapa 6
   const conferenciaAprovada = !!(state.conferencia && state.conferencia.aprovado === true);
-  const canUpdate = !!state.selectedSupplier && hasItems && conferenciaAprovada;
+  const temNumeroPedido = !!(state.numeroPedido && state.numeroPedido.trim());
+  const canUpdate = !!state.selectedSupplier && hasItems && conferenciaAprovada && temNumeroPedido;
   ui.resumoWrap.hidden = !(state.selectedSupplier && hasItems);
   if (state.selectedSupplier && hasItems) {
     ui.resumoFornecedor.textContent = state.selectedSupplier.nome;
     ui.resumoItens.textContent = String(state.extractedItems.length);
   }
-  ui.conferenciaBloqueioHint.hidden = !(state.selectedSupplier && hasItems && !conferenciaAprovada);
+
+  if (!numeroPedidoInputFocused) ui.inputNumeroPedido.value = state.numeroPedido || '';
+  ui.inputDataEnvio.value = state.dataEnvio || '';
+  ui.inputDataEntrega.value = state.dataEntrega || '';
+
+  let bloqueioMsg = '';
+  if (state.selectedSupplier && hasItems) {
+    if (!conferenciaAprovada) bloqueioMsg = 'Aprove a conferência do pedido (Etapa 5) antes de atualizar o Trello.';
+    else if (!temNumeroPedido) bloqueioMsg = 'Informe o número do pedido antes de atualizar o Trello.';
+  }
+  ui.conferenciaBloqueioHint.hidden = !bloqueioMsg;
+  if (bloqueioMsg) ui.conferenciaBloqueioHint.textContent = bloqueioMsg;
   ui.btnAtualizarTrello.disabled = !canUpdate;
 
   ui.resultadosLista.innerHTML = '';
@@ -211,7 +231,47 @@ function render(state) {
     ui.resultadosLista.appendChild(li);
   });
 
+  ui.prontoBanner.hidden = !(state.currentState === STATES.FINALIZADO && state.trelloUpdatePronto);
+
   renderDiagnostics(state);
+}
+
+function renderRegiao(state) {
+  if (ui.regiaoRow.children.length === 0) {
+    Object.values(HubRegioes.REGIOES).forEach((regiao) => {
+      const label = document.createElement('label');
+      label.className = 'radio-label';
+      const input = document.createElement('input');
+      input.type = 'radio';
+      input.name = 'regiao';
+      input.id = `radio-regiao-${regiao.id}`;
+      input.value = regiao.id;
+      input.addEventListener('change', () => {
+        if (input.checked) onSelectRegiao(regiao.id);
+      });
+      const span = document.createElement('span');
+      span.textContent = regiao.nome;
+      label.appendChild(input);
+      label.appendChild(span);
+      ui.regiaoRow.appendChild(label);
+    });
+  }
+  const current = document.getElementById(`radio-regiao-${state.regiao}`);
+  if (current) current.checked = true;
+}
+
+async function onSelectRegiao(regiaoId) {
+  const state = await HubState.getState();
+  if (state.regiao === regiaoId) return;
+  if (state.trelloScanned || state.selectedSupplier) {
+    const ok = window.confirm('Trocar de região reinicia o fluxo atual (fornecedor, itens, conferência). Continuar?');
+    if (!ok) {
+      refresh();
+      return;
+    }
+  }
+  await send(TYPES.SAVE_REGIAO, { regiao: regiaoId }, 'sidebar');
+  refresh();
 }
 
 function escapeHtml(value) {
@@ -223,8 +283,10 @@ function escapeHtml(value) {
 function renderDiagnostics(state) {
   const d = state.diagnostics || {};
   const c = state.conferencia || {};
+  const regiaoAtual = HubRegioes.getRegiao(state.regiao);
   const lines = [
     `Estado atual: ${state.currentState}`,
+    `Região: ${regiaoAtual.nome}`,
     `URL da aba ativa (última conhecida): ${d.activeTabUrl || '--'}`,
     `Cartões lidos no Trello: ${d.cardsRead ?? '--'}`,
     `Cartões Rio Claro: ${d.rioClaroCards ?? '--'}`,
@@ -235,6 +297,8 @@ function renderDiagnostics(state) {
     `Conferência — data: ${formatDate(c.dataConferencia)}`,
     `Conferência — divergências: ${(c.divergencias || []).length}`,
     `Conferência — aprovado: ${c.aprovado === true ? 'S' : c.aprovado === false ? 'N' : '--'}`,
+    `Número do pedido: ${state.numeroPedido || '--'}`,
+    `Atualização Trello — Pronto!: ${state.trelloUpdatePronto ? 'sim' : 'não'}`,
     `Último erro: ${state.lastError || '--'}`
   ];
   if (d.rowsRead !== undefined) {
@@ -370,6 +434,21 @@ ui.inputSheetUrl.addEventListener('blur', () => {
   const url = ui.inputSheetUrl.value.trim();
   send(TYPES.SAVE_SHEET_URL, { url }, 'sidebar').then(refresh);
 });
+
+ui.inputNumeroPedido.addEventListener('focus', () => { numeroPedidoInputFocused = true; });
+ui.inputNumeroPedido.addEventListener('blur', () => {
+  numeroPedidoInputFocused = false;
+  const numeroPedido = ui.inputNumeroPedido.value.trim();
+  send(TYPES.SAVE_NUMERO_PEDIDO, { numeroPedido }, 'sidebar').then(refresh);
+});
+
+function saveDatasEnvio() {
+  const dataEnvio = ui.inputDataEnvio.value;
+  const dataEntrega = ui.inputDataEntrega.value;
+  send(TYPES.SAVE_DATAS_ENVIO, { dataEnvio, dataEntrega }, 'sidebar').then(refresh);
+}
+ui.inputDataEnvio.addEventListener('change', saveDatasEnvio);
+ui.inputDataEntrega.addEventListener('change', saveDatasEnvio);
 
 function saveBessaniPrintFromBlob(blob) {
   const reader = new FileReader();

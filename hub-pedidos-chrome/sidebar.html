@@ -45,6 +45,8 @@
     <section class="step">
       <p class="step-label">1. Relação de pedidos</p>
       <div class="step-card">
+        <p class="conferencia-subtitle" style="margin-top: 0;">Região</p>
+        <div id="regiao-row" class="doc-tipo-row"></div>
         <p class="step-status" id="trello-status">Trello: não conectado</p>
         <button id="btn-abrir-trello" class="btn btn-primary">Abrir Trello</button>
       </div>
@@ -164,6 +166,29 @@
           <p><strong>Fornecedor:</strong> <span id="resumo-fornecedor">--</span></p>
           <p><strong>Itens a enviar:</strong> <span id="resumo-itens">0</span></p>
         </div>
+
+        <p class="conferencia-subtitle" style="margin-top: 0;">Renomeação e datas do cartão</p>
+        <input type="text" id="input-numero-pedido" class="text-input" placeholder="Número do pedido (ex: 6055)">
+        <p class="hint-text" style="margin-top: -6px; margin-bottom: 10px;">
+          Vira o novo nome do cartão: "&lt;fornecedor&gt; &lt;número&gt;MCR" — ex: ROMPLAS 6055MCR.
+        </p>
+        <div class="doc-tipo-row">
+          <div style="flex: 1;">
+            <label class="hint-text" for="input-data-envio">Data de envio</label>
+            <input type="date" id="input-data-envio" class="text-input" style="margin-bottom: 0;">
+          </div>
+          <div style="flex: 1;">
+            <label class="hint-text" for="input-data-entrega">Data de entrega</label>
+            <input type="date" id="input-data-entrega" class="text-input" style="margin-bottom: 0;">
+          </div>
+        </div>
+        <p class="hint-text">
+          Ao atualizar: renomeia o cartão, preenche as datas, adiciona a etiqueta "Enviado",
+          move para o topo de "PEDIDOS ENVIADO RIO CLARO" e deixa o cartão aberto para você
+          anexar o documento manualmente.
+        </p>
+
+        <div class="divider-line"></div>
         <p id="conferencia-bloqueio-hint" class="hint-text" hidden>Aprove a conferência do pedido (Etapa 5) antes de atualizar o Trello.</p>
         <button id="btn-atualizar-trello" class="btn btn-primary" disabled>Atualizar Trello</button>
         <!-- Confirmação proposital, mantida por decisão explícita mesmo com a Etapa 5 já
@@ -177,6 +202,7 @@
           </div>
         </div>
         <ul id="resultados-lista" class="result-list"></ul>
+        <div id="pronto-banner" class="conferencia-status status-aprovado" hidden>Pronto!</div>
       </div>
     </section>
 
@@ -194,6 +220,7 @@
     </section>
   </main>
 
+  <script src="lib/regioes.js"></script>
   <script src="lib/state.js"></script>
   <script src="lib/messages.js"></script>
   <script src="lib/xlsx-writer.js"></script>

@@ -1,5 +1,55 @@
 # Changelog
 
+## 1.1.0-alpha.25 — Etapa 6 reescrita (prompt original) + região Araras
+
+Duas mudanças grandes, decididas explicitamente pela usuária depois de reenviar
+os 4 prompts originais de referência (`prompts-referencia/`) e comparar com o
+código: a Etapa 6 não batia com o prompt `3-trello-atualizar.txt`, e faltava
+suporte à região Araras (`4-pedido-araras-enviar.txt`).
+
+### Etapa 6 (Atualização final) reescrita
+
+- **Alterado**: além de escrever os itens na descrição do cartão (mantido),
+  `atualizarFornecedor` (`content/trello-content.js`) agora também: renomeia
+  o cartão no padrão `<FORNECEDOR> <NÚMERO>MCR` (ex: "ROMPLAS 6055MCR"),
+  preenche data de envio/entrega no popover "Datas" do cartão, adiciona a
+  etiqueta "Enviado", move o cartão para o topo da lista de enviados da
+  região (ex: "PEDIDOS ENVIADO RIO CLARO") e **não fecha mais o cartão** —
+  fica aberto para a usuária anexar o documento manualmente (a extensão
+  nunca anexa nada sozinha). Ao concluir todos os passos com sucesso, o
+  resultado mostra "Pronto!" na sidebar.
+- **Adicionado**: campos "Número do pedido", "Data de envio" e "Data de
+  entrega" na Etapa 6. Número do pedido é obrigatório pra liberar
+  "Atualizar Trello" (é a base do novo nome do cartão); datas são opcionais.
+- Cada um dos 4 passos novos (renomear/datas/etiqueta/mover) é isolado e
+  best-effort: se um seletor não encontrar o elemento esperado no Trello,
+  aquele passo retorna `false` sem lançar exceção nem travar os outros — o
+  resultado do cartão vira "erro" com o detalhe de quais passos funcionaram.
+- **Aviso**: renomear/datas/etiqueta/mover são automações de DOM novas,
+  **ainda não testadas contra o Trello real** (sem acesso a Trello real
+  neste ambiente de desenvolvimento). Testado apenas com jsdom + fixture
+  mínima, confirmando que a falta dos elementos esperados não derruba o
+  fluxo. É esperado precisar ajustar seletores depois do primeiro teste ao
+  vivo — mesmo padrão iterativo do resto do histórico deste projeto.
+
+### Região Araras
+
+- **Adicionado**: `lib/regioes.js` — configuração por região (Rio Claro:
+  etiqueta verde, ordena Urgente primeiro, lista de enviados "PEDIDOS
+  ENVIADO RIO CLARO"; Araras: etiqueta azul, **não reordena** — lê os
+  cartões na ordem em que aparecem, conforme
+  `prompts-referencia/4-pedido-araras-enviar.txt`).
+- **Adicionado**: seletor de região na Etapa 1 da sidebar. Trocar de região
+  reinicia fornecedores/fluxo em andamento (com confirmação se já havia
+  progresso).
+- `content/trello-content.js` generalizado: detecção de cor agora suporta
+  verde (Rio Claro) e azul (Araras) via heurística de hex/RGB — mesma
+  limitação conhecida de detecção de cor já documentada em `TESTES.md`.
+- **Suposição não confirmada**: o nome da lista de enviados de Araras
+  ("PEDIDOS ENVIADO ARARAS") foi definido por analogia com Rio Claro — não
+  existe prompt de referência equivalente ao `3-trello-atualizar.txt` para
+  Araras. Ajustar em `lib/regioes.js` se o nome real for diferente.
+
 ## 1.1.0-alpha.24 — Corrige extração incluindo itens sem pedido no mês
 
 Revisão contra o prompt de referência original (`2-itens-pedido-rio-claro`,

@@ -18,10 +18,14 @@ Bessani (opcional) → conferência item a item → atualizar Trello**.
 
 ## Como usar
 
-1. **1. Relação de pedidos** — clique em **Abrir Trello**. A extensão abre (ou
-   reaproveita) a aba `https://trello.com/b/UfPrTr1H/compras`, localiza a lista
-   **RELAÇÃO DE PEDIDOS** e lista os fornecedores com etiqueta verde **Rio Claro**
-   (sem duplicidade, em ordem alfabética).
+1. **1. Relação de pedidos** — escolha a **região** (Rio Claro ou Araras) e clique
+   em **Abrir Trello**. A extensão abre (ou reaproveita) a aba
+   `https://trello.com/b/UfPrTr1H/compras`, localiza a lista **PEDIDOS PENDENTES**
+   e lista os fornecedores com a etiqueta da região escolhida (sem duplicidade).
+   Para **Rio Claro** (verde), em ordem alfabética com os **Urgente** no topo. Para
+   **Araras** (azul), sem reordenar — só na ordem em que os cartões aparecem no
+   board filtrado (ver `prompts-referencia/`). Trocar de região reinicia a
+   listagem e o fluxo em andamento.
 2. **2. Escolher fornecedor** — clique em um fornecedor da lista. O botão
    **Abrir Google Drive** só é liberado depois da seleção.
 3. **3. Planilha aberta** — no Drive, abra manualmente a planilha do fornecedor
@@ -46,14 +50,31 @@ Bessani (opcional) → conferência item a item → atualizar Trello**.
    o botão **Baixar Excel para o financeiro**, que gera um `.xlsx` com
    fornecedor, data, itens do pedido e as divergências encontradas — pronto
    para encaminhar.
-6. **6. Atualização final** — revise o resumo do fornecedor e a quantidade de
-   itens, clique em **Atualizar Trello**, confirme, e acompanhe o resultado por
-   cartão (atualizado / ignorado / não encontrado / erro). Só fica disponível
-   depois da conferência da Etapa 5 aprovada. A confirmação desta etapa é
-   proposital e independente da aprovação da Etapa 5: uma aprova o
-   *conteúdo* do pedido, a outra confirma a *ação* de gravar no Trello —
-   duas camadas de segurança, mantidas por decisão explícita (não é
-   redundância a remover).
+6. **6. Atualização final** — revise o resumo, informe o **número do pedido**
+   (vira o novo nome do cartão, padrão `<FORNECEDOR> <NÚMERO>MCR` — ex:
+   `ROMPLAS 6055MCR`) e, se quiser, as **datas de envio e entrega**. Clique em
+   **Atualizar Trello**, confirme, e acompanhe o resultado por cartão
+   (atualizado / ignorado / não encontrado / erro). Só fica disponível
+   depois da conferência da Etapa 5 aprovada **e** do número do pedido
+   preenchido. A confirmação desta etapa é proposital e independente da
+   aprovação da Etapa 5: uma aprova o *conteúdo* do pedido, a outra confirma
+   a *ação* de gravar no Trello — duas camadas de segurança, mantidas por
+   decisão explícita (não é redundância a remover). Ao confirmar, a
+   extensão: escreve os itens na descrição, renomeia o cartão, preenche as
+   datas informadas, adiciona a etiqueta **Enviado**, move o cartão para o
+   topo da lista de enviados da região (ex: "PEDIDOS ENVIADO RIO CLARO") e
+   **deixa o cartão aberto** para você anexar o documento manualmente — a
+   extensão nunca anexa nada sozinha. Ao concluir todos os passos, aparece
+   a confirmação **"Pronto!"**.
+   > **Interação nova, ainda não validada contra o Trello real**: renomear,
+   > preencher datas, adicionar etiqueta e mover o cartão são automações de
+   > DOM recém-escritas (ver `prompts-referencia/3-trello-atualizar.txt`).
+   > Cada passo falha isoladamente sem travar os outros — se algum seletor
+   > não bater com o Trello ao vivo, o resultado do cartão aparece como
+   > "erro" com o detalhe de quais passos funcionaram, em vez de travar a
+   > extensão. Espera-se precisar ajustar seletores depois do primeiro teste
+   > real (mesmo padrão de iteração de todo o resto do projeto — ver
+   > `CHANGELOG.md`).
 
 A opção **Fixar** (no topo) preserva o estado (fornecedor selecionado, itens
 extraídos, link do Bessani) mesmo trocando de aba ou fechando/reabrindo a
@@ -90,7 +111,8 @@ hub-pedidos-chrome/
 │   ├── tabs.js             # abrir/reaproveitar aba única
 │   ├── messages.js         # envelope de mensagens tipadas
 │   ├── validators.js       # validação de URLs e colunas da planilha
-│   └── xlsx-writer.js      # gerador mínimo de .xlsx (Etapa 5 → financeiro)
+│   ├── xlsx-writer.js      # gerador mínimo de .xlsx (Etapa 5 → financeiro)
+│   └── regioes.js          # config por região (etiqueta, cor, ordenação, lista de enviados)
 ├── PROTOCOLO_CONFERENCIA_PEDIDOS.md  # protocolo por trás da Etapa 5
 ├── prompts-referencia/     # prompts originais que especificam cada etapa (fonte de verdade)
 └── icons/

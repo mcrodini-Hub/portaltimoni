@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Estoque CT — Timoni Portal</title>
+  <link rel="stylesheet" href="sidebar.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img class="brand-logo" src="icons/icon48.png" alt="Casa Timoni">
+      <span class="brand-title">Estoque CT <span class="brand-dim">· Timoni Portal</span></span>
+    </div>
+    <div class="topbar-actions" id="role-pill-wrap" hidden>
+      <span class="role-pill" id="role-pill">--</span>
+      <button id="btn-unidade-balcao" class="unidade-toggle" hidden title="Trocar de loja">CT Rio Claro</button>
+      <button id="btn-config" class="icon-btn" title="Configurar computador" aria-label="Configurar computador">⚙</button>
+    </div>
+  </header>
+
+  <main class="content">
+
+    <!-- CONFIGURAÇÃO DA PLANILHA (Web App) -->
+    <section id="tela-config" class="step" hidden>
+      <p class="step-label">Planilha compartilhada (Web App)</p>
+      <div class="step-card">
+        <p class="hint-text" style="margin-top:0;">Cole a URL do Web App do Apps Script (termina em <code>/exec</code>). Enquanto vazio, a extensão roda em <strong>modo local</strong> — os dados ficam só neste computador. Passo a passo em <code>apps-script/Codigo.gs</code> e no README.</p>
+        <input type="text" id="input-webapp-url" class="text-input" placeholder="https://script.google.com/macros/s/.../exec">
+        <div class="pedido-form-actions">
+          <button id="btn-salvar-config" class="btn btn-primary btn-small">Salvar e testar</button>
+          <button id="btn-fechar-config" class="btn btn-secondary btn-small">Fechar</button>
+        </div>
+        <p id="config-status" class="hint-text"></p>
+        <div class="divider-config"></div>
+        <label class="check-row"><input type="checkbox" id="chk-notif"> Receber notificações neste computador</label>
+        <p class="hint-text" style="margin-top:0;">Avisa quando entra pedido de um vendedor ou o estoque responde, mesmo com o painel fechado (enquanto o Chrome estiver aberto).</p>
+        <div class="divider-config"></div>
+        <p class="hint-text" style="margin-top:0;">Perfil deste computador: <strong id="perfil-atual-config">--</strong>.</p>
+        <div id="trocar-perfil-wrap">
+          <p class="hint-text" style="margin-top:0;">No dia a dia o perfil é fixo; troque só para reconfigurar a máquina ou testar.</p>
+          <button id="btn-trocar-perfil" class="btn btn-secondary btn-small">Trocar perfil deste computador</button>
+        </div>
+        <div id="senha-cica-wrap" hidden>
+          <p class="hint-text" style="margin-top:0;">Senha para abrir seu perfil (Ciça) neste computador. Deixe em branco e salve para remover a senha.</p>
+          <input type="password" id="input-senha-cica" class="text-input" placeholder="Senha de acesso">
+          <button id="btn-salvar-senha-cica" class="btn btn-secondary btn-small">Salvar senha</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SELEÇÃO DE PAPEL (primeiro uso neste computador) -->
+    <section id="tela-papel" class="step" hidden>
+      <p class="step-label">Qual é o perfil deste computador?</p>
+      <div class="step-card role-card">
+        <p class="hint-text" style="margin-top:0;">O perfil fica fixo no dia a dia (troca só pelo ⚙). Vendedores podem alternar de loja depois.</p>
+
+        <p class="role-group g-gestao">Gestão</p>
+        <button class="btn role-btn role-gestao js-papel" data-papel="acompanhamento" data-unidade="todas" data-pessoa="cica">Ciça</button>
+        <button class="btn role-btn role-gestao js-papel" data-papel="acompanhamento" data-unidade="todas">Marcelo</button>
+        <button class="btn role-btn role-gestao js-papel" data-papel="acompanhamento" data-unidade="todas">Jeovana</button>
+        <button class="btn role-btn role-gestao js-papel" data-papel="acompanhamento" data-unidade="todas">Reginaldo</button>
+
+        <p class="role-group g-estoque">Estoque</p>
+        <button class="btn role-btn role-estoque js-papel" data-papel="estoque" data-unidade="rio_claro">Lucas EstoqueRC</button>
+        <button class="btn role-btn role-estoque js-papel" data-papel="estoque" data-unidade="araras">Lucas EstoqueAra</button>
+
+        <p class="role-group g-vendedores">Vendas</p>
+        <button class="btn role-btn role-vendedores js-papel" data-papel="balcao" data-unidade="rio_claro">Vendedores Rio Claro</button>
+        <button class="btn role-btn role-vendedores js-papel" data-papel="balcao" data-unidade="araras">Vendedores Araras</button>
+      </div>
+    </section>
+
+    <div id="error-banner" class="error-banner" hidden></div>
+    <div id="toast" class="toast" hidden></div>
+
+    <!-- ===================== VISÃO BALCÃO ===================== -->
+    <section id="view-balcao" hidden>
+      <div class="intro-row">
+        <div>
+          <h1>Consulta de Produtos</h1>
+          <p class="subtitle">Busque o produto e informe se estiver em falta.</p>
+        </div>
+        <button class="btn-link js-atualizar" title="Atualizar dados da planilha">Atualizar</button>
+      </div>
+      <p class="conn-status" id="conn-status-balcao"></p>
+
+      <section class="step">
+        <div class="step-card">
+          <label class="vendedor-row" for="select-vendedor">Vendedor</label>
+          <select id="select-vendedor" class="text-input"></select>
+          <p id="vendedor-vazio" class="hint-text" style="margin-top:0;" hidden>Nenhum vendedor cadastrado. Cadastre na aba "Vendedores" da planilha.</p>
+          <input type="text" id="input-busca" class="text-input" placeholder="Buscar por código ou palavra da descrição">
+          <ul id="lista-resultados" class="supplier-list" hidden></ul>
+          <p id="busca-vazio" class="placeholder-text" hidden>Nenhum produto encontrado.</p>
+        </div>
+      </section>
+
+      <section class="step" id="produto-selecionado-wrap" hidden>
+        <p class="step-label">Produto selecionado</p>
+        <div class="step-card">
+          <p class="summary-box">
+            <strong id="sel-codigo">--</strong> — <span id="sel-descricao">--</span>
+          </p>
+          <p id="sel-existente" class="existente-box" hidden></p>
+          <div class="qtd-row">
+            <input type="text" id="input-quantidade" class="text-input" placeholder="Quantidade (opcional)" inputmode="decimal">
+            <select id="select-unidade-medida" class="text-input" title="Unidade de medida" aria-label="Unidade de medida">
+              <option value="un">un</option>
+              <option value="pç">pç</option>
+              <option value="m">m</option>
+              <option value="cm">cm</option>
+              <option value="mm">mm</option>
+              <option value="kg">kg</option>
+              <option value="g">g</option>
+              <option value="L">L</option>
+              <option value="cx">cx</option>
+              <option value="pct">pct</option>
+              <option value="rolo">rolo</option>
+              <option value="par">par</option>
+              <option value="jogo">jogo</option>
+              <option value="barra">barra</option>
+              <option value="sc">sc</option>
+              <option value="lata">lata</option>
+            </select>
+          </div>
+          <input type="text" id="input-nota" class="text-input" placeholder="Observação p/ o estoque (opcional)">
+          <label class="check-row"><input type="checkbox" id="chk-cliente"> Tem cliente aguardando</label>
+          <button id="btn-informar-necessidade" class="btn btn-primary">Pedir ao estoque</button>
+        </div>
+      </section>
+
+      <section class="step">
+        <p class="step-label">Minhas solicitações</p>
+        <div class="step-card">
+          <p class="hint-text" style="margin-top:0;">Itens já chegados ou respondidos somem daqui depois de 7 dias — continuam guardados na planilha.</p>
+          <p id="solicitacoes-vazio" class="placeholder-text">Você ainda não pediu nada ao estoque.</p>
+          <ul id="lista-solicitacoes" class="result-list"></ul>
+        </div>
+      </section>
+    </section>
+
+    <!-- ===================== VISÃO ESTOQUE (Lucas) ===================== -->
+    <section id="view-estoque" hidden>
+      <div class="intro-row">
+        <div>
+          <h1>Central de Necessidades</h1>
+          <p class="subtitle">Casa Timoni Rio Claro</p>
+        </div>
+        <button class="btn-link js-atualizar" title="Atualizar dados da planilha">Atualizar</button>
+      </div>
+      <p class="conn-status" id="conn-status-estoque"></p>
+
+      <section class="step">
+        <div class="row-between">
+          <p class="step-label" style="margin:0;">Aguardando você</p>
+          <span class="count-text" id="pendentes-count">0</span>
+        </div>
+        <div class="step-card">
+          <p id="pendentes-vazio" class="placeholder-text">Nenhum pedido de vendedor no momento.</p>
+          <ul id="lista-pendentes" class="need-list"></ul>
+        </div>
+      </section>
+
+      <section class="step">
+        <p class="step-label">Anotados — pendente do seu retorno</p>
+        <div class="step-card">
+          <p class="hint-text" style="margin-top:0;">Itens que você anotou para levantar estoque e montar a relação de compra. Quando tiver o pedido, responda aqui para o vendedor saber.</p>
+          <p id="compra-vazio" class="placeholder-text">Nada anotado aguardando seu retorno.</p>
+          <ul id="lista-compra" class="need-list"></ul>
+        </div>
+      </section>
+
+      <section class="step">
+        <p class="step-label">A caminho — marcar chegada</p>
+        <div class="step-card">
+          <p class="hint-text" style="margin-top:0;">Pedidos já feitos. Quando o produto chegar, marque aqui para o vendedor avisar o cliente.</p>
+          <p id="acaminho-vazio" class="placeholder-text">Nenhum pedido a caminho.</p>
+          <ul id="lista-acaminho" class="need-list"></ul>
+        </div>
+      </section>
+    </section>
+
+    <!-- ===================== VISÃO ACOMPANHAMENTO (gestão) ===================== -->
+    <section id="view-acompanhamento" hidden>
+      <div class="intro-row">
+        <div>
+          <h1>Acompanhamento</h1>
+          <p class="subtitle">Toda a troca entre balcão e estoque</p>
+        </div>
+        <button class="btn-link js-atualizar" title="Atualizar dados da planilha">Atualizar</button>
+      </div>
+      <p class="conn-status" id="conn-status-acomp"></p>
+
+      <section class="step">
+        <p class="step-label">Consultar produto</p>
+        <div class="step-card">
+          <p class="hint-text" style="margin-top:0;">Busque por código ou descrição para ver a situação atual do produto (solicitações e pedidos em aberto).</p>
+          <input type="text" id="input-busca-acomp" class="text-input" placeholder="Buscar por código ou palavra da descrição">
+          <ul id="lista-resultados-acomp" class="supplier-list" hidden></ul>
+          <p id="busca-vazio-acomp" class="placeholder-text" hidden>Nenhum produto encontrado.</p>
+          <p id="sel-acomp-wrap" class="summary-box" hidden>
+            <strong id="sel-acomp-codigo">--</strong> — <span id="sel-acomp-descricao">--</span>
+          </p>
+          <p id="sel-existente-acomp" class="existente-box" hidden></p>
+        </div>
+      </section>
+
+      <section class="step" id="registrar-wrap" hidden>
+        <button id="btn-registrar-toggle" class="btn-link" style="padding-left:2px;">+ Registrar pedido em aberto</button>
+        <div id="registrar-form" class="step-card" hidden>
+          <p class="hint-text" style="margin-top:0;">Para pedidos que não vieram de uma solicitação (ex.: os que estão no Trello/PDF). Ele passa a aparecer na "situação atual" do produto.</p>
+          <input type="text" id="reg-codigo" class="text-input" placeholder="Código do produto">
+          <input type="text" id="reg-numero" class="text-input" placeholder="Nº do pedido">
+          <input type="date" id="reg-previsao" class="text-input">
+          <select id="reg-unidade" class="text-input">
+            <option value="rio_claro">Rio Claro</option>
+            <option value="araras">Araras</option>
+          </select>
+          <div class="pedido-form-actions">
+            <button id="btn-registrar-salvar" class="btn btn-primary btn-small">Registrar</button>
+            <button id="btn-registrar-cancelar" class="btn btn-secondary btn-small">Cancelar</button>
+          </div>
+        </div>
+      </section>
+
+      <div class="stat-row">
+        <div class="stat"><span class="stat-num" id="acomp-pendentes">0</span><span class="stat-lbl">Aguardando estoque</span></div>
+        <div class="stat"><span class="stat-num" id="acomp-anotados">0</span><span class="stat-lbl">Aguardando retorno</span></div>
+        <div class="stat"><span class="stat-num" id="acomp-respondidos">0</span><span class="stat-lbl">Respondidos (7 dias)</span></div>
+        <div class="stat stat-alerta"><span class="stat-num" id="acomp-clientes">0</span><span class="stat-lbl">Cliente aguardando</span></div>
+      </div>
+      <p class="resumo-periodo" id="acomp-resumo"></p>
+
+      <section class="step">
+        <p class="step-label">Aguardando o estoque</p>
+        <div class="step-card">
+          <p id="acomp-pendentes-hint" class="hint-text" style="margin-top:0;">Você pode responder aqui — útil quando o estoque não está.</p>
+          <p id="acomp-pendentes-vazio" class="placeholder-text">Nada aguardando o estoque.</p>
+          <ul id="acomp-lista-pendentes" class="need-list"></ul>
+        </div>
+      </section>
+
+      <section class="step">
+        <p class="step-label">Aguardando retorno do estoque</p>
+        <div class="step-card">
+          <p id="acomp-anotados-vazio" class="placeholder-text">Nada aguardando retorno.</p>
+          <ul id="acomp-lista-anotados" class="need-list"></ul>
+        </div>
+      </section>
+
+      <section class="step">
+        <p class="step-label">A caminho — marcar chegada</p>
+        <div class="step-card">
+          <p id="acomp-acaminho-vazio" class="placeholder-text">Nenhum pedido a caminho.</p>
+          <ul id="acomp-lista-acaminho" class="need-list"></ul>
+        </div>
+      </section>
+
+      <section class="step">
+        <p class="step-label">Respondidos</p>
+        <div class="step-card">
+          <p class="hint-text" style="margin-top:0;">Mostra só os últimos 7 dias — o histórico completo fica guardado na planilha.</p>
+          <p id="acomp-respondidos-vazio" class="placeholder-text">Nenhuma resposta ainda.</p>
+          <ul id="acomp-lista-respondidos" class="result-list"></ul>
+        </div>
+      </section>
+
+      <section class="step" id="limpar-wrap" hidden>
+        <p class="step-label">Zona de teste</p>
+        <div class="step-card">
+          <p class="hint-text" style="margin-top:0;">Apaga <strong>todas</strong> as solicitações (as duas lojas) da planilha, sem volta. Não mexe em Produtos nem Vendedores. Use só para limpar dados de teste.</p>
+          <button id="btn-limpar-necessidades" class="btn btn-danger btn-small">Limpar solicitações (teste)</button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script src="lib/mock-produtos.js"></script>
+  <script src="lib/store.js"></script>
+  <script src="sidebar.js"></script>
+</body>
+</html>

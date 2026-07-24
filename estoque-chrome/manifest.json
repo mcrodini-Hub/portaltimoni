@@ -1,0 +1,38 @@
+{
+  "manifest_version": 3,
+  "name": "Estoque CT - Timoni Portal",
+  "version": "0.2.0",
+  "version_name": "0.2.0-sheets",
+  "description": "Central de necessidades de compra: balcão informa produto em falta, estoque responde com pedido em andamento ou recebido para compra.",
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "permissions": [
+    "storage",
+    "sidePanel",
+    "alarms",
+    "notifications"
+  ],
+  "host_permissions": [
+    "https://script.google.com/*",
+    "https://script.googleusercontent.com/*"
+  ],
+  "action": {
+    "default_title": "Estoque CT - Timoni Portal",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "side_panel": {
+    "default_path": "sidebar.html"
+  },
+  "background": {
+    "service_worker": "background.js"
+  }
+}

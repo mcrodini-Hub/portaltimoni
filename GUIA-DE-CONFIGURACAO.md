@@ -25,6 +25,15 @@ configurar" hoje funciona assim, na prática:
 Agenda Ciça é a exceção: lá o controle é login Google de verdade (só a sua conta entra), porque
 é a sua agenda pessoal — não é pra compartilhar com ninguém.
 
+## Onde ficam as URLs de verdade
+
+**Este repositório é público no GitHub** — qualquer URL de Web App colada aqui fica visível pra
+qualquer pessoa na internet (e continua no histórico do git mesmo se apagada depois). Por isso
+as URLs reais de cada módulo **não ficam neste arquivo nem em nenhum outro arquivo do
+repositório** — ficam num documento Google separado, privado, só seu:
+**"Portal Timoni — URLs e Tokens (PRIVADO)"** no seu Google Drive. Esse documento não é
+compartilhado com ninguém; só ele guarda os valores reais, este guia só explica o que é cada um.
+
 ---
 
 ## 1. Painel Timoni (integração entre módulos)
@@ -162,14 +171,18 @@ no Trello?), voltamos aqui pra desenhar o mesmo padrão dos outros módulos.
 
 ## Checklist rápido pra começar a usar de verdade
 
-Pra "começar a usar e verificar erros" como você pediu, a ordem mais segura é:
+Ordem escolhida por você (23/07) pra configurar e colar as URLs reais no documento privado
+(ver seção acima "Onde ficam as URLs de verdade"):
 
-1. **Compras** e **Estoque** — já finalizados, comece por eles. Se der erro, é provável que seja
-   na Etapa de leitura do Trello/planilha (mais sensível a mudanças de interface) — me manda o
-   "Mostrar diagnóstico" (rodapé da sidebar) que eu leio.
-2. **Motorista** — termine a pendência que você mencionou antes de colocar a equipe toda pra
-   usar ao mesmo tempo (evita confusão se algo mudar no meio do caminho).
-3. **Agenda Ciça** — é só sua, pode finalizar e testar sem afetar mais ninguém.
-4. **Painel Timoni** — depois que Compras/Estoque/Motorista/Agenda estiverem com URL real
-   configurada, abra o painel e confirme que os 4 primeiros módulos mostram "ao vivo" — é o
-   jeito mais rápido de ver tudo de uma vez e pegar algo que ficou torto.
+1. **Estoque**
+2. **Compras**
+3. **Motorista**
+4. **Agenda Ciça**
+5. **Reuniões**
+6. **Marketing**
+
+Depois que Compras/Estoque/Motorista/Agenda Ciça estiverem com URL real configurada, abra o
+**Painel Timoni** e confirme que os 4 mostram "ao vivo" — é o jeito mais rápido de ver tudo de
+uma vez e pegar algo que ficou torto. Se der erro em algum, me manda o "Mostrar diagnóstico"
+(rodapé da sidebar, nas extensões) ou a mensagem de erro que aparecer — eu leio e ajudo a achar
+a causa.

@@ -9,6 +9,15 @@ Atualização) ficam agrupadas na mesma cor por serem do mesmo fluxo; os demais 
 Uso pessoal, sem login: abra `index.html` direto no navegador (arquivo local) ou hospede como
 página estática (GitHub Pages, por exemplo).
 
+## Identidade por cor
+
+Cada módulo tem uma cor fixa (`--mod-compras`, `--mod-estoque`, etc., em `app.css`), usada na
+faixa lateral dos cartões, no chip da barra de navegação e agora também no ícone ao lado do
+título de cada módulo (`icons/mod-*.png`) — o mesmo logo "Casa Timoni", só que recolorido por
+módulo. Compras, Estoque e Motorista usam essa mesma versão colorida do logo no ícone da
+extensão/página (`hub-pedidos-chrome/icons/`, `estoque-chrome/icons/`, `motorista/icons/`), para
+que a cor seja reconhecível tanto aqui quanto na barra do Chrome.
+
 ## O que é "ao vivo" e o que é exemplo
 
 Quatro módulos já publicam dados reais, todos com o mesmo espírito gratuito (Google como base,
@@ -49,6 +58,7 @@ painel-timoni/
 ├── index.html              # marcação dos 6 módulos e da barra de navegação
 ├── app.css                 # identidade visual (paleta por módulo, cards, drawer)
 ├── app.js                  # pin, filtro por status, navegação, drawer de config, render dos dados reais
+├── icons/                  # logo "Casa Timoni" recolorido na cor de cada módulo (mod-*.png)
 └── lib/
     ├── config.js            # URLs/tokens dos módulos em localStorage (com validação)
     └── sources/

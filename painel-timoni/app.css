@@ -106,7 +106,7 @@ h1 { font-family: var(--font-head); font-size: clamp(28px, 4vw, 40px); font-weig
 .module { margin-bottom: 44px; scroll-margin-top: 20px; }
 .module.is-empty { display: none; }
 .module-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 10px 14px; margin-bottom: 16px; }
-.module-swatch { width: 11px; height: 11px; border-radius: 3px; background: var(--sw); flex: none; align-self: center; }
+.module-icon { width: 28px; height: 28px; flex: none; align-self: center; }
 .module-eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sw); font-weight: 600; margin: 0; }
 .module h2.module-title { font-family: var(--font-head); font-size: 21px; font-weight: 800; letter-spacing: -0.01em; margin: 0; flex-basis: 100%; }
 .module-desc { font-size: 13.5px; color: var(--text-soft); margin: -6px 0 0; max-width: 60ch; flex-basis: 100%; }

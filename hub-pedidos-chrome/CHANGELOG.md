@@ -7,9 +7,8 @@ mesmo ícone "CASA TIMONI" em navy — igual em todo lugar, sem diferenciar qual
 módulo é qual na barra do Chrome ou entre abas abertas.
 
 - **Alterado**: `icons/icon16.png`, `icons/icon32.png`, `icons/icon48.png` e
-  `icons/icon128.png` — mesmo logo, recolorido para o azul de Compras
-  (`--mod-compras` no Painel Timoni), mantendo a mesma identidade "CASA
-  TIMONI" só que com a cor do módulo. Estoque ficou verde, Motorista ficou
+  `icons/icon128.png` — trocados por um círculo sólido na cor de Compras
+  (`--mod-compras` no Painel Timoni). Estoque ficou verde, Motorista ficou
   marrom/laranja — a mesma paleta já usada nos cartões do Painel Timoni.
 
 ## 1.1.0-alpha.25 — Espelha o estado no Painel Timoni (opcional)

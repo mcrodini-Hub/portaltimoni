@@ -12,11 +12,10 @@ página estática (GitHub Pages, por exemplo).
 ## Identidade por cor
 
 Cada módulo tem uma cor fixa (`--mod-compras`, `--mod-estoque`, etc., em `app.css`), usada na
-faixa lateral dos cartões, no chip da barra de navegação e agora também no ícone ao lado do
-título de cada módulo (`icons/mod-*.png`) — o mesmo logo "Casa Timoni", só que recolorido por
-módulo. Compras, Estoque e Motorista usam essa mesma versão colorida do logo no ícone da
-extensão/página (`hub-pedidos-chrome/icons/`, `estoque-chrome/icons/`, `motorista/icons/`), para
-que a cor seja reconhecível tanto aqui quanto na barra do Chrome.
+faixa lateral dos cartões, no chip da barra de navegação e agora também no círculo ao lado do
+título de cada módulo (`icons/mod-*.png`). Compras, Estoque e Motorista usam esse mesmo círculo
+colorido como ícone da extensão/página (`hub-pedidos-chrome/icons/`, `estoque-chrome/icons/`,
+`motorista/icons/`), para que a cor seja reconhecível tanto aqui quanto na barra do Chrome.
 
 ## O que é "ao vivo" e o que é exemplo
 

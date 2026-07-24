@@ -58,7 +58,7 @@ function toDTO(event: calendar_v3.Schema$Event, calendarKey: CalendarKey): Calen
   };
 }
 
-export async function listUpcomingEvents(
+export async function listEventsInRange(
   accessToken: string,
   opts: { timeMin: string; timeMax?: string; maxResults?: number }
 ): Promise<CalendarEventDTO[]> {

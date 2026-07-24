@@ -1,18 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuthorizedSession } from "@/lib/auth-guard";
-import { createEvent, isCalendarKey, listUpcomingEvents, toApiError } from "@/lib/google-calendar";
+import { createEvent, isCalendarKey, listEventsInRange, toApiError } from "@/lib/google-calendar";
 import type { CalendarEventInput, CalendarKey } from "@/lib/types";
+import { getWeekRange } from "@/lib/week";
 
 export async function GET(request: NextRequest) {
   const { session, errorResponse } = await requireAuthorizedSession();
   if (errorResponse) return errorResponse;
 
   const { searchParams } = new URL(request.url);
-  const timeMin = searchParams.get("timeMin") ?? new Date().toISOString();
-  const timeMax = searchParams.get("timeMax") ?? undefined;
+  const defaultWeek = getWeekRange();
+  const timeMin = searchParams.get("timeMin") ?? defaultWeek.start.toISOString();
+  const timeMax = searchParams.get("timeMax") ?? defaultWeek.end.toISOString();
 
   try {
-    const events = await listUpcomingEvents(session!.accessToken!, { timeMin, timeMax });
+    const events = await listEventsInRange(session!.accessToken!, {
+      timeMin,
+      timeMax,
+      maxResults: 100,
+    });
     return NextResponse.json({ events });
   } catch (error) {
     const { message, status } = toApiError(error);

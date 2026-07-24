@@ -1,7 +1,7 @@
 import { google, calendar_v3 } from "googleapis";
 import { CALENDAR_LABELS, type CalendarEventDTO, type CalendarEventInput, type CalendarKey } from "@/lib/types";
 
-const TIME_ZONE = "America/Sao_Paulo";
+export const TIME_ZONE = "America/Sao_Paulo";
 
 // As duas agendas do usuário que o portal mostra/gerencia. Nenhuma outra
 // agenda é acessível pela UI — a escolha é sempre entre essas duas.

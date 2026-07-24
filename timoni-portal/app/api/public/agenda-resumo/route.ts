@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getAccessTokenFromRefreshToken, listUpcomingEvents, toApiError } from "@/lib/google-calendar";
+import { fromZonedTime } from "date-fns-tz";
+import { getAccessTokenFromRefreshToken, listUpcomingEvents, toApiError, TIME_ZONE } from "@/lib/google-calendar";
+
+// "Hoje" tem que ser o dia em São Paulo, não no fuso do processo — a Vercel roda funções em
+// UTC, então usar `new Date().setHours(0, 0, 0, 0)` direto desalinharia o dia perto da
+// meia-noite (ex.: 22h em São Paulo já seria "amanhã" em UTC).
+function limitesDeHojeEmSaoPaulo(): { inicioHoje: Date; fimHoje: Date } {
+  const hojeStr = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE }); // "YYYY-MM-DD"
+  return {
+    inicioHoje: fromZonedTime(`${hojeStr}T00:00:00.000`, TIME_ZONE),
+    fimHoje: fromZonedTime(`${hojeStr}T23:59:59.999`, TIME_ZONE)
+  };
+}
 
 // Rota pública (sem sessão de navegador) para o Painel Timoni — protegida por um token
 // compartilhado simples (PAINEL_TIMONI_TOKEN), não pelo login do portal. É só leitura: nunca
@@ -37,11 +49,7 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const agora = new Date();
-    const inicioHoje = new Date(agora);
-    inicioHoje.setHours(0, 0, 0, 0);
-    const fimHoje = new Date(agora);
-    fimHoje.setHours(23, 59, 59, 999);
+    const { inicioHoje, fimHoje } = limitesDeHojeEmSaoPaulo();
 
     const eventos = await listUpcomingEvents(accessToken, {
       timeMin: inicioHoje.toISOString(),

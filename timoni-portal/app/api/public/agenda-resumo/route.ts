@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fromZonedTime } from "date-fns-tz";
-import { getAccessTokenFromRefreshToken, listUpcomingEvents, toApiError, TIME_ZONE } from "@/lib/google-calendar";
+import { getAccessTokenFromRefreshToken, listEventsInRange, toApiError, TIME_ZONE } from "@/lib/google-calendar";
 
 // "Hoje" tem que ser o dia em São Paulo, não no fuso do processo — a Vercel roda funções em
 // UTC, então usar `new Date().setHours(0, 0, 0, 0)` direto desalinharia o dia perto da
@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
   try {
     const { inicioHoje, fimHoje } = limitesDeHojeEmSaoPaulo();
 
-    const eventos = await listUpcomingEvents(accessToken, {
+    const eventos = await listEventsInRange(accessToken, {
       timeMin: inicioHoje.toISOString(),
       timeMax: fimHoje.toISOString()
     });

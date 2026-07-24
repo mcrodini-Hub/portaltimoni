@@ -1,6 +1,6 @@
 // Fonte de dados do módulo Motorista para o Painel Timoni.
-// Fala com o mesmo Web App (Apps Script) que a página agenda-motorista usa em "modo planilha"
-// (ver agenda-motorista/apps-script/Codigo.gs) — GET ?action=dia&data=YYYY-MM-DD devolve
+// Fala com o mesmo Web App (Apps Script) que a página motorista usa em "modo planilha"
+// (ver motorista/apps-script/Codigo.gs) — GET ?action=dia&data=YYYY-MM-DD devolve
 // { ok, viagens }. Este painel só LÊ (nunca cria/atualiza/exclui viagens).
 
 (function (root) {

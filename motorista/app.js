@@ -1,4 +1,4 @@
-// Agenda de Motorista — Portal Timoni
+// Motorista — Portal Timoni
 // Lógica da interface: calendário, dia, formulário de viagem, relatório e rota.
 // Dados via AgendaStore (lib/store.js — planilha compartilhada ou localStorage local).
 
@@ -710,7 +710,7 @@ function buildTripText(v, mostrarLoja) {
 function gerarTextoDia() {
   if (!viagensDia.length) return '';
   const mostrarLoja = new Set(viagensDia.map((v) => v.loja)).size > 1;
-  const titulo = `🚚 Agenda de Motorista - Casa Timoni - ${formatDataTitulo(diaAtual)}🚚`;
+  const titulo = `🚚 Motorista - Casa Timoni - ${formatDataTitulo(diaAtual)}🚚`;
   const sep = '='.repeat(47);
   return '*' + titulo + '*\n\n' + viagensDia.map((v) => buildTripText(v, mostrarLoja)).join('\n' + sep + '\n\n');
 }
@@ -825,7 +825,7 @@ function gerarExcelDia() {
   xml += '</Table></Worksheet>\n</Workbook>';
 
   const dataUrl = 'data:application/vnd.ms-excel;charset=utf-8,' + encodeURIComponent(xml);
-  const filename = `agenda-motorista-${diaAtual}.xls`;
+  const filename = `motorista-${diaAtual}.xls`;
   const win = window.open('', '_blank');
   if (!win) {
     document.getElementById('diaValidationMsg').textContent = 'Não foi possível abrir a janela para gerar o relatório. Permita pop-ups para este site e tente novamente.';

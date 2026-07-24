@@ -1,4 +1,4 @@
-// Camada de dados da Agenda de Motorista.
+// Camada de dados do módulo Motorista.
 //
 // Dois modos, escolhidos automaticamente conforme haja ou não uma URL de Web App configurada:
 //   • MODO PLANILHA (remoto): fala com o Apps Script publicado (ver apps-script/Codigo.gs) por

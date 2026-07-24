@@ -16,7 +16,7 @@ sem servidor próprio):
 
 - **Compras** — espelho do estado da extensão, via planilha (`hub-pedidos-chrome/apps-script/Codigo.gs`)
 - **Estoque** — fila de necessidades, via planilha (`estoque-chrome/apps-script/Codigo.gs`)
-- **Motorista** — viagens do dia, via planilha (`agenda-motorista/apps-script/Codigo.gs`)
+- **Motorista** — viagens do dia, via planilha (`motorista/apps-script/Codigo.gs`)
 - **Agenda Ciça** — resumo do Google Calendar de hoje, direto do `timoni-portal` (Next.js) —
   ver `timoni-portal/README.md` seção 6
 

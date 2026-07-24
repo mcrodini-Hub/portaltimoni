@@ -1,5 +1,5 @@
 /**
- * Portal Timoni — Agenda de Motorista
+ * Portal Timoni — Motorista
  * Backend (Web App) da agenda, rodando no Apps Script da própria planilha.
  *
  * COMO PUBLICAR (uma vez):

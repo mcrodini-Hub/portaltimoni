@@ -1,4 +1,4 @@
-# Agenda de Motorista — Portal Timoni
+# Motorista — Portal Timoni
 
 App de página única (HTML/CSS/JS, sem build) para planejar a agenda real do motorista: calendário do mês, viagens registradas por dia, reorganização de horários, relatório separado por Entregas/Retiradas, rota no Maps e texto pronto para o WhatsApp. Segue a identidade visual do Portal Timoni (azul `#2c4be0`, cabeçalho creme, cards brancos) usada no Hub de Pedidos e no Estoque.
 
@@ -42,7 +42,7 @@ Sem restrição por pessoa ou por loja: é um motorista só para as duas lojas (
 ## Estrutura
 
 ```
-agenda-motorista/
+motorista/
 ├── index.html            # shell da página (telas: loja, config, calendário, dia, formulário)
 ├── app.css                # identidade visual + estilos do calendário/dia/formulário
 ├── app.js                 # lógica da interface

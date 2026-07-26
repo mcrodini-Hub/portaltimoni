@@ -120,6 +120,8 @@ function statusClass(status) {
   return map[status] || 'status-ignorado';
 }
 
+let lastShownError = null;
+
 function render(state) {
   if (!state) return;
 
@@ -128,9 +130,14 @@ function render(state) {
   if (state.lastError) {
     ui.errorBanner.hidden = false;
     ui.errorBanner.textContent = state.lastError;
+    if (state.lastError !== lastShownError) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    lastShownError = state.lastError;
   } else {
     ui.errorBanner.hidden = true;
     ui.errorBanner.textContent = '';
+    lastShownError = null;
   }
 
   ui.chkFixar.checked = !!state.pinned;

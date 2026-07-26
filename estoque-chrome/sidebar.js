@@ -103,12 +103,14 @@
   function showError(msg) {
     el.errorBanner.hidden = !msg;
     el.errorBanner.textContent = msg || '';
+    if (msg) window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
   let toastTimer = null;
   function showToast(msg) {
     el.toast.textContent = msg;
     el.toast.hidden = false;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { el.toast.hidden = true; }, 2500);
   }

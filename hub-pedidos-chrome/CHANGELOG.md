@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0-alpha.27 — Rola pro topo ao mostrar erro
+
+O aviso de erro (`error-banner`) aparece sempre no topo da sidebar. Ao clicar
+numa ação com a tela rolada mais para baixo, o aviso ficava fora da vista —
+parecia que nada tinha acontecido, sem apagar nem lançar erro nenhum.
+
+- **Corrigido**: `sidebar.js` agora rola a página para o topo sempre que um
+  erro novo aparece (não rola de novo enquanto o mesmo erro continuar
+  visível, para não brigar com o scroll do usuário).
+
 ## 1.1.0-alpha.26 — Ícone colorido por módulo
 
 Os três módulos com extensão/página (Compras, Estoque, Motorista) usavam o

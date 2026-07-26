@@ -825,11 +825,11 @@ function buildRelatorioEntry(v, indice) {
   if (v.complemento) enderecoCompleto += ` - ${v.complemento}`;
 
   const linhas = [`${prefixo}${horarioTexto} ${v.tipoHorario} ${loja}${vendedor}`];
-  linhas.push(`${v.clienteFornecedor || ''}${v.clienteFornecedor ? ' ' : ''}NF${v.numeroPedido ? ' ' + v.numeroPedido : ''} Volume: ${v.volumes || ''}`);
+  linhas.push(`${v.clienteFornecedor || ''}${v.clienteFornecedor && v.numeroPedido ? ' ' : ''}${v.numeroPedido || ''} Volume: ${v.volumes || ''}`);
   linhas.push('');
   if (enderecoCompleto) linhas.push(enderecoCompleto);
   nonEmptyLines(v.itens).forEach((i) => linhas.push(i));
-  if (v.contatoNome || v.contatoWhats) linhas.push(`Contato: ${v.contatoNome || ''}${v.contatoNome && v.contatoWhats ? ' - ' : ''}${v.contatoWhats || ''}`);
+  if (v.contatoNome || v.contatoWhats) linhas.push(`${v.contatoNome || ''}${v.contatoNome && v.contatoWhats ? ' - ' : ''}${v.contatoWhats || ''}`);
   const infoLines = nonEmptyLines(v.info);
   if (infoLines.length) {
     linhas.push('Informações:');

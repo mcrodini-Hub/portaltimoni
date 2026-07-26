@@ -80,8 +80,8 @@ function formatHoraCurta(iso) {
 
 function statusPillHtml(v) {
   if (v.tipoHorario === 'Bloqueio') return '';
-  if (v.checkoutEm) return `<span class="status-pill status-concluida">✓ Concluída ${formatHoraCurta(v.checkoutEm)}</span>`;
-  if (v.checkinEm) return `<span class="status-pill status-andamento">No local desde ${formatHoraCurta(v.checkinEm)}</span>`;
+  if (v.checkoutEm) return `<span class="status-pill status-concluida">✓ Check-out ${formatHoraCurta(v.checkoutEm)}</span>`;
+  if (v.checkinEm) return `<span class="status-pill status-andamento">Check-in ${formatHoraCurta(v.checkinEm)}</span>`;
   return '<span class="status-pill status-pendente">Pendente</span>';
 }
 
@@ -1003,11 +1003,11 @@ async function renderModoMotorista() {
     if (isBloqueio) {
       statusHtml = '';
     } else if (v.checkoutEm) {
-      statusHtml = `<span class="status-pill status-concluida">✓ Concluída às ${formatHoraCurta(v.checkoutEm)}</span>`;
+      statusHtml = `<span class="status-pill status-concluida">✓ Check-out às ${formatHoraCurta(v.checkoutEm)}</span>`;
     } else if (v.checkinEm) {
-      statusHtml = `<span class="status-pill status-andamento">No local desde ${formatHoraCurta(v.checkinEm)}</span><button class="btn-primary btn-grande js-checkout" data-id="${v.id}">Concluí</button>`;
+      statusHtml = `<span class="status-pill status-andamento">Check-in às ${formatHoraCurta(v.checkinEm)}</span><button class="btn-primary btn-grande js-checkout" data-id="${v.id}">Check Out</button>`;
     } else {
-      statusHtml = `<button class="btn-primary btn-grande js-checkin" data-id="${v.id}">Cheguei</button>`;
+      statusHtml = `<button class="btn-primary btn-grande js-checkin" data-id="${v.id}">Check In</button>`;
     }
 
     const card = document.createElement('div');

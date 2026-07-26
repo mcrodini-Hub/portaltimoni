@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.0-alpha.28 — Emoji no ícone do módulo
+
+O círculo colorido do ícone (mesma cor do módulo no Painel Timoni) ficava
+igual demais entre Compras/Estoque/Motorista — só a cor diferenciava.
+
+- **Alterado**: `icons/icon16.png`, `icons/icon32.png`, `icons/icon48.png` e
+  `icons/icon128.png` — mesmo círculo azul de Compras, agora com um 🛒 no
+  meio. Estoque ganhou 📦, Motorista ganhou 🚚 — mesma ideia nos ícones do
+  Painel Timoni (todos os 6 módulos, incluindo Agenda 📅, Reuniões 🤝 e
+  Marketing 📣).
+
 ## 1.1.0-alpha.27 — Rola pro topo ao mostrar erro
 
 O aviso de erro (`error-banner`) aparece sempre no topo da sidebar. Ao clicar

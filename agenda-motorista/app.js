@@ -1097,7 +1097,9 @@ document.getElementById('btnMotoristaProximo').addEventListener('click', () => {
 });
 
 document.getElementById('btnConfig').addEventListener('click', abrirConfig);
-document.getElementById('btnFecharConfig').addEventListener('click', () => { mostrarTela('telaAgenda'); refrescarCalendario(); });
+function fecharConfig() { mostrarTela('telaAgenda'); refrescarCalendario(); }
+document.getElementById('btnFecharConfig').addEventListener('click', fecharConfig);
+document.getElementById('btnFecharConfig2').addEventListener('click', fecharConfig);
 document.getElementById('btnSalvarConfig').addEventListener('click', async () => {
   const statusEl = document.getElementById('configStatus');
   try {

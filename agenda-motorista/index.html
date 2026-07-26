@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agenda de Motorista · Portal Timoni</title>
-<link rel="stylesheet" href="app.css?v=10">
+<link rel="stylesheet" href="app.css?v=11">
 </head>
 <body>
 
@@ -40,13 +40,14 @@
 
   <!-- CONFIGURAÇÃO -->
   <section id="telaConfig" hidden>
-    <p class="step-label">Configurar</p>
+    <button class="btn-link" id="btnFecharConfig">← Voltar para a agenda</button>
+    <p class="step-label" style="margin-top:14px;">Configurar</p>
     <div class="card">
       <p class="hint-text" style="margin-top:0;">URL do Web App do Apps Script (termina em <code>/exec</code>). Enquanto vazio, a agenda roda em <strong>modo local</strong> — os dados ficam só neste navegador, sem compartilhar com outros computadores. Passo a passo em <code>apps-script/Codigo.gs</code> e no README.</p>
       <input type="text" id="inputWebAppUrl" placeholder="https://script.google.com/macros/s/.../exec">
       <div style="display:flex;gap:8px;margin-top:10px;">
         <button class="btn-primary btn-small" id="btnSalvarConfig">Salvar e testar</button>
-        <button class="btn-secondary btn-small" id="btnFecharConfig">Fechar</button>
+        <button class="btn-secondary btn-small" id="btnFecharConfig2">Voltar</button>
       </div>
       <p class="conn-status" id="configStatus"></p>
     </div>
@@ -243,7 +244,7 @@
 
 </main>
 
-<script src="lib/store.js?v=10"></script>
-<script src="app.js?v=10"></script>
+<script src="lib/store.js?v=11"></script>
+<script src="app.js?v=11"></script>
 </body>
 </html>

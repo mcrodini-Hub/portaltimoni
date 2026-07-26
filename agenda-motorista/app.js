@@ -755,7 +755,8 @@ async function buscarCep() {
 // --------------------------------------------------------------------------
 function buildTripText(v, mostrarLoja) {
   if (v.tipoHorario === 'Bloqueio') {
-    let linha = `⏸ *Bloqueio: ${v.horario || '--:--'} às ${v.horarioFim || '--:--'}*`;
+    const periodo = v.horario ? `${v.horario} às ${v.horarioFim}` : `até ${v.horarioFim}`;
+    let linha = `⏸ *Bloqueio: ${periodo}*`;
     if (mostrarLoja) linha += ` (${AgendaStore.LOJA_LABEL[v.loja] || v.loja})`;
     if (v.info) linha += `\n${v.info}`;
     return linha;
@@ -767,7 +768,11 @@ function buildTripText(v, mostrarLoja) {
 
   const boldLines = [`${formatDataLine(v.data)}${enderecoCompleto ? ' - ' + enderecoCompleto : ''}`];
   if (v.horario || v.horarioFim) {
-    boldLines.push(`${v.tipoHorario}: ${v.horario || '--:--'}${v.horarioFim ? ' às ' + v.horarioFim : ''}`);
+    let horarioTexto;
+    if (v.horario && v.horarioFim) horarioTexto = `${v.horario} às ${v.horarioFim}`;
+    else if (v.horario) horarioTexto = v.horario;
+    else horarioTexto = `até ${v.horarioFim}`;
+    boldLines.push(`${v.tipoHorario}: ${horarioTexto}`);
   }
   if (mostrarLoja) boldLines.push(`Loja: ${AgendaStore.LOJA_LABEL[v.loja] || v.loja}`);
   if (v.clienteFornecedor || v.numeroPedido) boldLines.push(`Pedido/Fornecedor: ${v.numeroPedido || ''}${v.numeroPedido && v.clienteFornecedor ? ' ' : ''}${v.clienteFornecedor || ''}`);
@@ -855,22 +860,60 @@ function printText(texto) {
   setTimeout(() => { try { printWindow.print(); } catch (e) { /* ignore */ } }, 300);
 }
 
+// Uma parada da rota, numerada na ordem do dia — formato pensado para o motorista
+// ler rápido dentro da van (endereço e contato em destaque, sem seções separadas).
+function buildRelatorioEntry(v, indice) {
+  const loja = AgendaStore.LOJA_LABEL[v.loja] || v.loja;
+
+  if (v.tipoHorario === 'Bloqueio') {
+    const periodo = v.horario ? `${v.horario} às ${v.horarioFim}` : `até ${v.horarioFim}`;
+    const linhas = [`${indice}) Loja ${loja}: Bloqueio: ${periodo}`];
+    if (v.info) linhas.push(v.info);
+    if (v.preenchidoPor) linhas.push(`Preenchido por: ${v.preenchidoPor}`);
+    return linhas.join('\n');
+  }
+
+  let horarioTexto;
+  if (v.horario && v.horarioFim) horarioTexto = `${v.horario} às ${v.horarioFim}`;
+  else if (v.horario) horarioTexto = v.horario;
+  else if (v.horarioFim) horarioTexto = `até ${v.horarioFim}`;
+  else horarioTexto = '--:--';
+
+  let enderecoCompleto = v.endereco || '';
+  if (v.numero) enderecoCompleto += `, ${v.numero}`;
+  if (v.complemento) enderecoCompleto += ` - ${v.complemento}`;
+
+  const linhas = [`${indice}) Loja ${loja}: ${v.tipoHorario}: ${horarioTexto}`];
+  linhas.push(`Pedido/Fornecedor: ${v.numeroPedido || ''}${v.numeroPedido && v.clienteFornecedor ? ' ' : ''}${v.clienteFornecedor || ''} - Volume: ${v.volumes || ''}`);
+  linhas.push('');
+  if (enderecoCompleto) linhas.push(enderecoCompleto);
+  nonEmptyLines(v.itens).forEach((i) => linhas.push(i));
+  if (v.contatoNome || v.contatoWhats) linhas.push(`Contato: ${v.contatoNome || ''}${v.contatoNome && v.contatoWhats ? ' - ' : ''}${v.contatoWhats || ''}`);
+  const infoLines = nonEmptyLines(v.info);
+  if (infoLines.length) {
+    linhas.push('Informações:');
+    infoLines.forEach((i) => linhas.push(`- ${i}`));
+  }
+  if (v.dividir && v.notas && v.notas.length) {
+    const validas = v.notas.filter((n) => n.nome || nonEmptyLines(n.itens).length);
+    if (validas.length) {
+      linhas.push('');
+      linhas.push(`Este total terá ${validas.length} notas fiscais, sendo:`);
+      validas.forEach((n) => {
+        linhas.push('');
+        linhas.push(`${n.nome || '(empresa)'}:`);
+        nonEmptyLines(n.itens).forEach((i) => linhas.push(i));
+      });
+    }
+  }
+  if (v.preenchidoPor) linhas.push(`Preenchido por: ${v.preenchidoPor}`);
+  return linhas.join('\n');
+}
+
 function relatorioTexto() {
-  const entregas = viagensDia.filter((v) => v.tipoHorario === 'Entrega');
-  const retiradas = viagensDia.filter((v) => v.tipoHorario === 'Retirada');
-  const bloqueios = viagensDia.filter((v) => v.tipoHorario === 'Bloqueio');
-  const mostrarLoja = new Set(viagensDia.map((v) => v.loja)).size > 1;
-  const sep = '-'.repeat(30);
-  const secao = (titulo, lista) => {
-    let t = `${titulo} (${lista.length})\n${sep}\n\n`;
-    t += lista.length ? lista.map((v) => buildTripText(v, mostrarLoja)).join('\n\n' + sep + '\n\n') : '(nenhuma)';
-    return t;
-  };
-  let txt = `RELATÓRIO DO MOTORISTA\n${formatDataTitulo(diaAtual).toUpperCase()}\n\n`;
-  txt += secao('ENTREGAS', entregas) + '\n\n\n';
-  txt += secao('RETIRADAS', retiradas);
-  if (bloqueios.length) txt += '\n\n\n' + secao('BLOQUEIOS', bloqueios);
-  return txt;
+  const titulo = `AGENDA MOTORISTA - DIA ${formatDataLine(diaAtual)}`;
+  const corpo = viagensDia.map((v, idx) => buildRelatorioEntry(v, idx + 1)).join('\n\n\n\n');
+  return `${titulo}\n\n\n${corpo}`;
 }
 
 function imprimirRelatorio() {

@@ -90,30 +90,33 @@ button{cursor:pointer;border:none;border-radius:10px;padding:11px 18px;font-size
 .dot-bloqueio{background:#5b3fae;}
 
 #calGridSemana[hidden], #calGrid[hidden]{display:none;}
-.cal-grid-semana{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:4px;}
+.cal-grid-semana{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:4px;}
 .week-day{
   background:var(--card-bg);border:1px solid var(--border);border-radius:10px;
-  min-height:170px;padding:10px;cursor:pointer;display:flex;flex-direction:column;gap:6px;
+  min-height:150px;padding:6px;cursor:pointer;display:flex;flex-direction:column;gap:4px;
   transition:border-color .1s ease;
 }
 .week-day:hover{border-color:var(--blue);}
 .week-day.hoje{border-color:var(--blue);border-width:2px;}
 .week-day.selecionado{background:rgba(44,75,224,0.06);}
 .week-day-header{display:flex;flex-direction:column;gap:2px;}
-.week-day-dow{font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;}
-.week-day-num{font-size:14px;font-weight:700;}
+.week-day-dow{font-size:10px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;}
+.week-day-num{font-size:12px;font-weight:700;}
 .week-day-item{
-  font-size:13px;padding:4px 7px;border-radius:6px;background:#eef0f4;color:var(--ink);
+  font-size:11px;padding:3px 5px;border-radius:5px;background:#eef0f4;color:var(--ink);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .week-day-item.retirada{background:var(--amber-bg);color:var(--amber);}
 .week-day-item.entrega{background:rgba(44,75,224,0.08);color:var(--blue-dark);}
 .week-day-item.bloqueio{background:#ece9fb;color:#5b3fae;}
-.week-day-empty{font-size:13px;color:var(--ink-soft);font-style:italic;}
-.week-day-mais{font-size:11px;color:var(--ink-soft);}
+.week-day-empty{font-size:11px;color:var(--ink-soft);font-style:italic;}
+.week-day-mais{font-size:10px;color:var(--ink-soft);}
 
+@media (max-width:900px){
+  .cal-grid-semana{grid-template-columns:repeat(4,1fr);}
+}
 @media (max-width:700px){
-  .cal-grid-semana{grid-template-columns:1fr;}
+  .cal-grid-semana{grid-template-columns:repeat(2,1fr);}
   .week-day{min-height:auto;}
 }
 
@@ -194,7 +197,7 @@ textarea{min-height:64px;}
 .validation-msg{font-size:13px;color:var(--red);margin-top:6px;}
 
 /* --------------------------- Dashboard: calendário + dia lado a lado --------------------------- */
-.dashboard-grid{display:grid;grid-template-columns:minmax(340px,460px) 1fr;gap:26px;align-items:start;}
+.dashboard-grid{display:grid;grid-template-columns:minmax(460px,640px) 1fr;gap:26px;align-items:start;}
 .dash-col-dia{
   border-left:1px solid var(--border);padding-left:26px;
   max-height:calc(100vh - 110px);overflow-y:auto;

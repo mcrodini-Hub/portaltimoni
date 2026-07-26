@@ -136,7 +136,7 @@ function mostrarTela(nome) {
 async function init() {
   const hoje = new Date();
   mesAtual = { ano: hoje.getFullYear(), mes: hoje.getMonth() + 1 };
-  semanaAtualInicio = segundaDaSemana(hoje);
+  semanaAtualInicio = domingoDaSemana(hoje);
   mostrarTela('telaAgenda');
   refrescarCalendario();
   abrirDia(toDataStr(hoje)); // já abre o dia de hoje, sem precisar clicar em nada
@@ -152,18 +152,18 @@ function refrescarCalendario() {
 // Calendário — visão Semana (padrão) e visão Mês
 // --------------------------------------------------------------------------
 const NOMES_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-const DIAS_UTEIS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
+const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
-function segundaDaSemana(data) {
+// Semana de domingo a sábado — mesmo padrão da visão Mês (que já começa em domingo).
+function domingoDaSemana(data) {
   const d = new Date(data.getFullYear(), data.getMonth(), data.getDate());
-  const dow = d.getDay(); // 0=dom..6=sáb
-  d.setDate(d.getDate() + (dow === 0 ? -6 : 1 - dow));
+  d.setDate(d.getDate() - d.getDay());
   return d;
 }
 
 function diasDaSemana() {
   const dias = [];
-  for (let i = 0; i < DIAS_UTEIS.length; i++) {
+  for (let i = 0; i < DIAS_SEMANA.length; i++) {
     const d = new Date(semanaAtualInicio);
     d.setDate(d.getDate() + i);
     dias.push(d);
@@ -215,7 +215,7 @@ async function renderSemana() {
     const maisHtml = viagens.length > 4 ? `<div class="week-day-mais">+${viagens.length - 4} mais</div>` : '';
     col.innerHTML = `
       <div class="week-day-header">
-        <span class="week-day-dow">${DIAS_UTEIS[idx]}</span>
+        <span class="week-day-dow">${DIAS_SEMANA[idx]}</span>
         <span class="week-day-num">${d.getDate()}/${String(d.getMonth() + 1).padStart(2, '0')}</span>
       </div>
       ${tag ? `<span class="cal-day-tag">${tag}</span>` : ''}
@@ -249,7 +249,7 @@ async function renderListaSemanal() {
     grupo.className = 'agenda-lista-dia';
     const titulo = document.createElement('p');
     titulo.className = 'agenda-lista-dia-titulo';
-    titulo.textContent = `${DIAS_UTEIS[idx]} ${d.getDate()}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+    titulo.textContent = `${DIAS_SEMANA[idx]} ${d.getDate()}/${String(d.getMonth() + 1).padStart(2, '0')}`;
     grupo.appendChild(titulo);
 
     viagens.forEach((v) => {
@@ -331,6 +331,12 @@ async function abrirDia(data) {
   fecharForm();
   document.getElementById('diaValidationMsg').textContent = '';
   atualizarChipsFiltro();
+  // Sempre recentraliza a semana exibida (grade + lista "Agendado esta semana") na semana
+  // do dia que acabou de ser aberto — senão dá pra abrir um dia clicando no mês e ele ficar
+  // "escondido" numa semana diferente da que a grade/lista continuam mostrando.
+  semanaAtualInicio = domingoDaSemana(dataStrParaDate(data));
+  const mesDoData = dataStrParaDate(data);
+  mesAtual = { ano: mesDoData.getFullYear(), mes: mesDoData.getMonth() + 1 };
   await carregarDia();
   refrescarCalendario();
 }
@@ -1147,10 +1153,7 @@ document.getElementById('btnProximo').addEventListener('click', () => {
   refrescarCalendario();
 });
 document.getElementById('btnHoje').addEventListener('click', () => {
-  const hoje = new Date();
-  mesAtual = { ano: hoje.getFullYear(), mes: hoje.getMonth() + 1 };
-  semanaAtualInicio = segundaDaSemana(hoje);
-  refrescarCalendario();
+  abrirDia(toDataStr(new Date()));
 });
 
 document.querySelectorAll('.js-filtro-loja').forEach((btn) => {

@@ -45,11 +45,6 @@ body{
 .brand-title{font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .brand-dim{color:var(--ink-soft);font-weight:500;}
 
-.topbar-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
-.loja-pill{
-  font-size:11px;font-weight:700;color:var(--blue);
-  background:rgba(44,75,224,0.1);padding:4px 10px;border-radius:999px;white-space:nowrap;
-}
 .icon-btn{
   border:none;background:transparent;color:var(--ink-soft);
   width:28px;height:28px;border-radius:6px;font-size:15px;line-height:1;cursor:pointer;
@@ -57,14 +52,6 @@ body{
 .icon-btn:hover{background:rgba(0,0,0,0.06);}
 
 .content{padding:20px;padding-bottom:60px;max-width:960px;margin:0 auto;}
-
-.role-card{
-  display:flex;flex-direction:column;gap:8px;max-width:420px;
-  background:var(--card-bg);border:1px solid var(--border);border-radius:14px;
-  padding:16px;box-shadow:0 1px 2px rgba(20,20,30,0.04);
-}
-.role-card .btn-loja{background:var(--blue);color:#fff;width:100%;padding:12px 16px;text-align:left;}
-.role-card .btn-loja:hover{background:var(--blue-dark);}
 
 .step-label{font-size:12px;font-weight:600;color:var(--ink-soft);margin:0 0 6px 2px;}
 
@@ -110,6 +97,7 @@ button{cursor:pointer;border:none;border-radius:10px;padding:10px 16px;font-size
 }
 .week-day:hover{border-color:var(--blue);}
 .week-day.hoje{border-color:var(--blue);border-width:2px;}
+.week-day.selecionado{background:rgba(44,75,224,0.06);}
 .week-day-header{display:flex;justify-content:space-between;align-items:baseline;}
 .week-day-dow{font-size:11px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;}
 .week-day-num{font-size:13px;font-weight:700;}
@@ -119,6 +107,7 @@ button{cursor:pointer;border:none;border-radius:10px;padding:10px 16px;font-size
 }
 .week-day-item.retirada{background:var(--amber-bg);color:var(--amber);}
 .week-day-item.entrega{background:rgba(44,75,224,0.08);color:var(--blue-dark);}
+.week-day-item.bloqueio{background:#ece9fb;color:#5b3fae;}
 .week-day-empty{font-size:11px;color:var(--ink-soft);font-style:italic;}
 .week-day-mais{font-size:10px;color:var(--ink-soft);}
 
@@ -137,6 +126,7 @@ button{cursor:pointer;border:none;border-radius:10px;padding:10px 16px;font-size
 .cal-day:hover{border-color:var(--blue);}
 .cal-day.fora-mes{opacity:0.35;}
 .cal-day.hoje{border-color:var(--blue);border-width:2px;}
+.cal-day.selecionado{background:rgba(44,75,224,0.06);}
 .cal-day-num{font-size:12px;font-weight:700;}
 .cal-day-tag{font-size:9px;font-weight:700;color:var(--amber);background:var(--amber-bg);border-radius:6px;padding:1px 5px;align-self:flex-start;}
 .cal-day-counts{display:flex;gap:6px;font-size:11px;margin-top:auto;}
@@ -160,10 +150,12 @@ button{cursor:pointer;border:none;border-radius:10px;padding:10px 16px;font-size
   background:var(--card-bg);border:1px solid var(--border);border-radius:12px;
   padding:12px 14px;margin-bottom:10px;
 }
+.viagem-card.viagem-bloqueio{border-left:3px solid #5b3fae;}
 .viagem-topo{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
 .tag{font-size:11px;font-weight:700;border-radius:6px;padding:2px 8px;}
 .tag-entrega{background:rgba(44,75,224,0.1);color:var(--blue-dark);}
 .tag-retirada{background:var(--amber-bg);color:var(--amber);}
+.tag-bloqueio{background:#ece9fb;color:#5b3fae;}
 .tag-loja{background:#eef0f4;color:var(--ink-soft);}
 .viagem-horario{font-weight:700;font-size:13px;}
 .viagem-resumo{font-size:13px;color:var(--ink);margin:2px 0;}

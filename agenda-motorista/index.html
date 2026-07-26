@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agenda de Motorista · Portal Timoni</title>
-<link rel="stylesheet" href="app.css?v=4">
+<link rel="stylesheet" href="app.css?v=5">
 </head>
 <body>
 
@@ -15,36 +15,15 @@
     <img class="brand-logo" src="icons/icon48.png" alt="Casa Timoni">
     <span class="brand-title">Agenda de Motorista <span class="brand-dim">· Portal Timoni</span></span>
   </div>
-  <div class="topbar-actions" id="lojaPillWrap" hidden>
-    <span class="loja-pill" id="lojaPill">--</span>
-    <button id="btnConfig" class="icon-btn" title="Configurar" aria-label="Configurar">⚙</button>
-  </div>
+  <button id="btnConfig" class="icon-btn" title="Configurar planilha" aria-label="Configurar planilha">⚙</button>
 </header>
 
-<main class="content">
-
-  <!-- SELEÇÃO DE LOJA (primeiro uso neste computador) -->
-  <section id="telaLoja" hidden>
-    <p class="step-label">Qual loja é este computador?</p>
-    <div class="role-card">
-      <p class="subtitle" style="margin:0 0 4px;">Fica salvo neste computador. Dá para trocar depois pelo ⚙ no topo. Serve só para marcar a loja padrão de novas viagens — qualquer um pode ver e editar a agenda das duas lojas.</p>
-      <button class="btn-loja js-loja" data-loja="rio_claro">Casa Timoni — Rio Claro</button>
-      <button class="btn-loja js-loja" data-loja="araras">Casa Timoni — Araras</button>
-    </div>
-  </section>
+<main class="content" id="topoConteudo">
 
   <!-- CONFIGURAÇÃO -->
   <section id="telaConfig" hidden>
     <p class="step-label">Configurar</p>
     <div class="card">
-      <p class="hint-text" style="margin-top:0;">Loja padrão deste computador: <strong id="configLojaLabel">--</strong></p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
-        <button class="btn-secondary btn-small js-loja" data-loja="rio_claro">Usar Rio Claro</button>
-        <button class="btn-secondary btn-small js-loja" data-loja="araras">Usar Araras</button>
-      </div>
-
-      <div class="divider"></div>
-
       <p class="hint-text" style="margin-top:0;">URL do Web App do Apps Script (termina em <code>/exec</code>). Enquanto vazio, a agenda roda em <strong>modo local</strong> — os dados ficam só neste navegador, sem compartilhar com outros computadores. Passo a passo em <code>apps-script/Codigo.gs</code> e no README.</p>
       <input type="text" id="inputWebAppUrl" placeholder="https://script.google.com/macros/s/.../exec">
       <div style="display:flex;gap:8px;margin-top:10px;">
@@ -55,8 +34,9 @@
     </div>
   </section>
 
-  <!-- CALENDÁRIO -->
-  <section id="telaCalendario" hidden>
+  <!-- AGENDA: calendário e dia selecionado, tudo na mesma tela -->
+  <section id="telaAgenda">
+
     <div class="cal-header">
       <h1 id="calLabel">--</h1>
       <div class="cal-nav">
@@ -69,7 +49,7 @@
       <button class="chip js-modo-cal ativo" data-modo="semana">Semana</button>
       <button class="chip js-modo-cal" data-modo="mes">Mês</button>
     </div>
-    <p class="subtitle">Clique num dia para ver, registrar e reorganizar as viagens.</p>
+    <p class="subtitle">Clique num dia para ver e registrar as viagens dele aqui embaixo.</p>
     <div class="cal-legend">
       <span><span class="dot dot-entrega"></span>entregas</span>
       <span><span class="dot dot-retirada"></span>retiradas</span>
@@ -78,159 +58,169 @@
     <p class="validation-msg" id="calMsg"></p>
     <div class="cal-grid-semana" id="calGridSemana"></div>
     <div class="cal-grid" id="calGrid" hidden></div>
-  </section>
 
-  <!-- DIA -->
-  <section id="telaDia" hidden>
-    <button class="btn-link" id="btnVoltarCalendario">← Calendário</button>
-    <div class="dia-header">
-      <h1 class="dia-titulo" id="diaTitulo">--</h1>
-    </div>
-    <div class="dia-banner" id="diaBanner" hidden></div>
+    <div class="divider" style="margin:28px 0;"></div>
 
-    <div class="filtro-loja">
-      <button class="chip js-filtro-loja ativo" data-loja="todas">Todas</button>
-      <button class="chip js-filtro-loja" data-loja="rio_claro">Rio Claro</button>
-      <button class="chip js-filtro-loja" data-loja="araras">Araras</button>
-    </div>
+    <!-- DIA selecionado -->
+    <div id="diaSecao">
+      <p id="diaPlaceholder" class="hint-text">↑ Selecione um dia no calendário acima para ver ou registrar viagens.</p>
 
-    <div id="listaViagens"></div>
-
-    <button class="btn-primary" id="btnNovaViagem">+ Nova viagem</button>
-
-    <!-- FORMULÁRIO (criar / editar) -->
-    <div class="form-panel" id="formPanel" hidden>
-      <h2 id="formTitulo" style="font-size:15px;margin:0 0 4px;color:var(--blue-dark);">Nova viagem</h2>
-
-      <div class="row2">
-        <div>
-          <label>Data <span class="req">*</span></label>
-          <input type="date" id="f-data">
+      <div id="diaConteudo" hidden>
+        <div class="dia-header">
+          <h1 class="dia-titulo" id="diaTitulo">--</h1>
         </div>
-        <div>
-          <label>Loja <span class="req">*</span></label>
-          <select id="f-loja">
-            <option value="rio_claro">Rio Claro</option>
-            <option value="araras">Araras</option>
-          </select>
-        </div>
-      </div>
+        <div class="dia-banner" id="diaBanner" hidden></div>
 
-      <div class="row2">
-        <div>
-          <label>Entrega ou Retirada</label>
+        <div class="filtro-loja">
+          <button class="chip js-filtro-loja ativo" data-loja="todas">Todas</button>
+          <button class="chip js-filtro-loja" data-loja="rio_claro">Rio Claro</button>
+          <button class="chip js-filtro-loja" data-loja="araras">Araras</button>
+        </div>
+
+        <div id="listaViagens"></div>
+
+        <div class="acoes-dia">
+          <button class="btn-primary" id="btnNovaViagem">+ Nova viagem</button>
+          <button class="btn-secondary" id="btnBloquearHorario">🔒 Bloquear período</button>
+        </div>
+
+        <!-- FORMULÁRIO (criar / editar) -->
+        <div class="form-panel" id="formPanel" hidden>
+          <h2 id="formTitulo" style="font-size:15px;margin:0 0 4px;color:var(--blue-dark);">Nova viagem</h2>
+
+          <div class="row2">
+            <div>
+              <label>Data <span class="req">*</span></label>
+              <input type="date" id="f-data">
+            </div>
+            <div>
+              <label>Loja <span class="req">*</span></label>
+              <select id="f-loja">
+                <option value="">Selecione...</option>
+                <option value="rio_claro">Rio Claro</option>
+                <option value="araras">Araras</option>
+              </select>
+            </div>
+          </div>
+
+          <label>Tipo</label>
           <select id="f-tipoHorario">
             <option value="Entrega">Entrega</option>
             <option value="Retirada">Retirada</option>
+            <option value="Bloqueio">Bloqueio de horário (sem entrega/retirada)</option>
           </select>
+
+          <div class="row2">
+            <div>
+              <label>De <span class="hint">(opcional)</span></label>
+              <input type="text" id="f-horario" placeholder="Ex: xx:xx">
+            </div>
+            <div>
+              <label>Até <span class="req" id="f-horarioFim-req" hidden>*</span> <span class="hint" id="f-horarioFim-hint">(opcional — define um período; outra viagem nesse horário mostra aviso de conflito)</span></label>
+              <input type="text" id="f-horarioFim" placeholder="Ex: xx:xx">
+            </div>
+          </div>
+
+          <div id="camposEntrega">
+            <label>CEP <span class="hint">(opcional, para buscar o endereço)</span></label>
+            <div class="row-cep">
+              <input type="text" id="f-cep" placeholder="Ex: 13500-000">
+              <button class="btn-secondary" id="btnBuscarCep">Buscar CEP</button>
+            </div>
+            <div class="cep-msg" id="cepMsg"></div>
+
+            <label>Endereço/Link <span class="req" id="f-endereco-req">*</span></label>
+            <input type="text" id="f-endereco" placeholder="Ex: Rua, Bairro - Cidade/UF ou link do Google Maps">
+
+            <div class="row2">
+              <div>
+                <label>Número <span class="hint">(opcional)</span></label>
+                <input type="text" id="f-numero" placeholder="Ex: 123">
+              </div>
+              <div>
+                <label>Complemento <span class="hint">(opcional)</span></label>
+                <input type="text" id="f-complemento" placeholder="Ex: Apto 4, Bloco B">
+              </div>
+            </div>
+
+            <div class="row2">
+              <div>
+                <label>Cliente/Fornecedor <span class="hint">(opcional)</span></label>
+                <input type="text" id="f-clienteFornecedor" placeholder="Ex: VILELA FIBRAS">
+              </div>
+              <div>
+                <label>NF/Pedido <span class="hint">(opcional)</span></label>
+                <input type="text" id="f-numeroPedido" placeholder="Ex: 6073MCR">
+              </div>
+            </div>
+
+            <label>Detalhamento <span class="hint">(um item por linha)</span></label>
+            <textarea id="f-itens" placeholder="Ex: 5 rolos de 100g&#10;Ex: 10 rolos de 150g"></textarea>
+
+            <div class="row2">
+              <div>
+                <label>Nome do contato <span class="hint">(opcional)</span></label>
+                <input type="text" id="f-contatoNome" placeholder="Ex: Edson">
+              </div>
+              <div>
+                <label>WhatsApp do contato <span class="hint">(opcional)</span></label>
+                <input type="text" id="f-contatoWhats" placeholder="Ex: (xx) xxxxx-xxxx">
+              </div>
+            </div>
+
+            <label>Volume <span class="hint">(opcional)</span></label>
+            <input type="text" id="f-volumes" placeholder="Ex: 3">
+
+            <label class="check">
+              <input type="checkbox" id="f-dividir"> Anexos (dividir pedido entre empresas)
+            </label>
+            <div class="notas-container" id="notasContainer" style="display:none;"></div>
+            <button class="btn-secondary" id="addNotaBtn" style="display:none;">+ Adicionar Anexo</button>
+          </div>
+
+          <label>Outras informações / Motivo <span class="hint">(opcional — horário de almoço, observações, motivo do bloqueio, etc.)</span></label>
+          <textarea id="f-info"></textarea>
+
+          <label>Preenchido por <span class="req">*</span></label>
+          <select id="f-preenchidoPor">
+            <option value="">Selecione...</option>
+            <option value="Ciça">Ciça</option>
+            <option value="Jaqueline">Jaqueline</option>
+            <option value="Jeovana">Jeovana</option>
+            <option value="Reginaldo">Reginaldo</option>
+            <option value="Thais">Thais</option>
+          </select>
+
+          <div class="validation-msg" id="formValidationMsg"></div>
+          <div class="form-actions">
+            <button class="btn-primary" id="btnSalvarViagem">Salvar</button>
+            <button class="btn-secondary" id="btnCancelarForm">Cancelar</button>
+            <button class="btn-danger" id="btnExcluirNoForm" hidden>Excluir viagem</button>
+          </div>
         </div>
-        <div>
-          <label>Horário <span class="req">*</span></label>
-          <input type="text" id="f-horario" placeholder="Ex: xx:xx">
+
+        <div class="acoes-dia">
+          <button class="btn-outline" id="btnImprimirRelatorio">Imprimir relatório (Entregas/Retiradas)</button>
+          <button class="btn-outline" id="btnGerarExcel">Gerar Excel do dia</button>
+          <button class="btn-outline" id="btnAbrirRota">Abrir rota no Maps</button>
         </div>
-      </div>
+        <div class="validation-msg" id="diaValidationMsg"></div>
 
-      <div id="bloqueioWrap" style="display:none;">
-        <label>Bloqueia entregas por quantos minutos <span class="req">*</span> <span class="hint">(a retirada "encaixada" segura a saída de entregas por esse tempo)</span></label>
-        <input type="number" id="f-bloqueioMinutos" min="0" step="5" placeholder="Ex: 30">
-      </div>
-
-      <label>CEP <span class="hint">(opcional, para buscar o endereço)</span></label>
-      <div class="row-cep">
-        <input type="text" id="f-cep" placeholder="Ex: 13500-000">
-        <button class="btn-secondary" id="btnBuscarCep">Buscar CEP</button>
-      </div>
-      <div class="cep-msg" id="cepMsg"></div>
-
-      <label>Endereço/Link <span class="req">*</span></label>
-      <input type="text" id="f-endereco" placeholder="Ex: Rua, Bairro - Cidade/UF ou link do Google Maps">
-
-      <div class="row2">
-        <div>
-          <label>Número <span class="req">*</span></label>
-          <input type="text" id="f-numero" placeholder="Ex: 123">
+        <div class="output-panel">
+          <h2>Texto do dia (pronto para o WhatsApp)</h2>
+          <textarea id="output" readonly></textarea>
+          <div class="copy-row">
+            <button class="btn-primary" id="btnCopiarTexto">Copiar texto</button>
+            <span class="copied-msg" id="copiedMsg">Copiado!</span>
+          </div>
         </div>
-        <div>
-          <label>Complemento <span class="hint">(opcional)</span></label>
-          <input type="text" id="f-complemento" placeholder="Ex: Apto 4, Bloco B">
-        </div>
-      </div>
-
-      <div class="row2">
-        <div>
-          <label>Cliente/Fornecedor <span class="req">*</span></label>
-          <input type="text" id="f-clienteFornecedor" placeholder="Ex: VILELA FIBRAS">
-        </div>
-        <div>
-          <label>NF/Pedido <span class="req">*</span></label>
-          <input type="text" id="f-numeroPedido" placeholder="Ex: 6073MCR">
-        </div>
-      </div>
-
-      <label>Detalhamento <span class="hint">(um item por linha)</span></label>
-      <textarea id="f-itens" placeholder="Ex: 5 rolos de 100g&#10;Ex: 10 rolos de 150g"></textarea>
-
-      <div class="row2">
-        <div>
-          <label>Nome do contato <span class="req">*</span></label>
-          <input type="text" id="f-contatoNome" placeholder="Ex: Edson">
-        </div>
-        <div>
-          <label>WhatsApp do contato <span class="req">*</span></label>
-          <input type="text" id="f-contatoWhats" placeholder="Ex: (xx) xxxxx-xxxx">
-        </div>
-      </div>
-
-      <label>Volume <span class="req">*</span></label>
-      <input type="text" id="f-volumes" placeholder="Ex: 3">
-
-      <label>Outras informações <span class="hint">(horário de retirada, horário de almoço, outros)</span></label>
-      <textarea id="f-info"></textarea>
-
-      <label>Preenchido por <span class="req">*</span></label>
-      <select id="f-preenchidoPor">
-        <option value="">Selecione...</option>
-        <option value="Ciça">Ciça</option>
-        <option value="Jaqueline">Jaqueline</option>
-        <option value="Jeovana">Jeovana</option>
-        <option value="Reginaldo">Reginaldo</option>
-        <option value="Thais">Thais</option>
-      </select>
-
-      <label class="check">
-        <input type="checkbox" id="f-dividir"> Anexos (dividir pedido entre empresas)
-      </label>
-      <div class="notas-container" id="notasContainer" style="display:none;"></div>
-      <button class="btn-secondary" id="addNotaBtn" style="display:none;">+ Adicionar Anexo</button>
-
-      <div class="validation-msg" id="formValidationMsg"></div>
-      <div class="form-actions">
-        <button class="btn-primary" id="btnSalvarViagem">Salvar</button>
-        <button class="btn-secondary" id="btnCancelarForm">Cancelar</button>
-        <button class="btn-danger" id="btnExcluirNoForm" hidden>Excluir viagem</button>
-      </div>
-    </div>
-
-    <div class="acoes-dia">
-      <button class="btn-outline" id="btnImprimirRelatorio">Imprimir relatório (Entregas/Retiradas)</button>
-      <button class="btn-outline" id="btnGerarExcel">Gerar Excel do dia</button>
-      <button class="btn-outline" id="btnAbrirRota">Abrir rota no Maps</button>
-    </div>
-    <div class="validation-msg" id="diaValidationMsg"></div>
-
-    <div class="output-panel">
-      <h2>Texto do dia (pronto para o WhatsApp)</h2>
-      <textarea id="output" readonly></textarea>
-      <div class="copy-row">
-        <button class="btn-primary" id="btnCopiarTexto">Copiar texto</button>
-        <span class="copied-msg" id="copiedMsg">Copiado!</span>
       </div>
     </div>
   </section>
 
 </main>
 
-<script src="lib/store.js?v=4"></script>
-<script src="app.js?v=4"></script>
+<script src="lib/store.js?v=5"></script>
+<script src="app.js?v=5"></script>
 </body>
 </html>

@@ -1,8 +1,8 @@
 // Agenda de Motorista — Portal Timoni
 // Lógica da interface: calendário, dia, formulário de viagem, relatório e rota.
 // Dados via AgendaStore (lib/store.js — planilha compartilhada ou localStorage local).
+// Tudo fica numa tela só (dashboard): calendário + viagens do dia + formulário.
 
-let lojaAtualDevice = null;
 let mesAtual = { ano: 0, mes: 0 };
 let modoCalendario = 'semana';
 let semanaAtualInicio = null;
@@ -25,7 +25,11 @@ function mostrarToast(mensagem, tipo) {
   toastTimer = setTimeout(() => {
     el.classList.remove('mostrar');
     setTimeout(() => { el.hidden = true; }, 250);
-  }, 2200);
+  }, 2600);
+}
+
+function voltarAoTopo() {
+  document.getElementById('topoConteudo').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function nonEmptyLines(text) {
@@ -76,11 +80,6 @@ function paraMinutos(horario) {
   return h * 60 + m;
 }
 
-function minutosParaHorario(min) {
-  const m = ((min % 1440) + 1440) % 1440;
-  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
-}
-
 function formatTime(raw) {
   const trimmed = (raw || '').trim();
   if (!trimmed) return '';
@@ -104,31 +103,19 @@ function formatPhone(raw) {
 }
 
 // --------------------------------------------------------------------------
-// Navegação entre telas
+// Navegação (só duas telas: a agenda em si, e a configuração da planilha)
 // --------------------------------------------------------------------------
 function mostrarTela(nome) {
-  ['telaLoja', 'telaConfig', 'telaCalendario', 'telaDia'].forEach((id) => {
+  ['telaConfig', 'telaAgenda'].forEach((id) => {
     document.getElementById(id).hidden = id !== nome;
   });
 }
 
-function atualizarLojaPill() {
-  document.getElementById('lojaPillWrap').hidden = false;
-  document.getElementById('lojaPill').textContent = `CT ${AgendaStore.LOJA_LABEL[lojaAtualDevice]}`;
-}
-
 async function init() {
-  const loja = await AgendaStore.getLoja();
-  if (!loja) {
-    mostrarTela('telaLoja');
-    return;
-  }
-  lojaAtualDevice = loja;
-  atualizarLojaPill();
   const hoje = new Date();
   mesAtual = { ano: hoje.getFullYear(), mes: hoje.getMonth() + 1 };
   semanaAtualInicio = segundaDaSemana(hoje);
-  mostrarTela('telaCalendario');
+  mostrarTela('telaAgenda');
   renderSemana();
 }
 
@@ -171,6 +158,11 @@ function labelSemana(dias) {
   return `${ini.getDate()} de ${nomeIni} a ${fim.getDate()} de ${nomeFim} de ${fim.getFullYear()}`;
 }
 
+function rotuloItemDia(v) {
+  if (v.tipoHorario === 'Bloqueio') return `${v.horario || '--:--'} · 🔒 ${v.info || 'Bloqueio'}`;
+  return `${v.horario || '--:--'} · ${v.clienteFornecedor || v.tipoHorario}`;
+}
+
 async function renderSemana() {
   const dias = diasDaSemana();
   document.getElementById('calLabel').textContent = labelSemana(dias);
@@ -185,6 +177,7 @@ async function renderSemana() {
   document.getElementById('calMsg').textContent = '';
 
   const hojeStr = toDataStr(new Date());
+  const diaSelecionado = diaAtual;
   const grid = document.getElementById('calGridSemana');
   grid.innerHTML = '';
 
@@ -193,8 +186,8 @@ async function renderSemana() {
     const viagens = listasPorDia[idx];
     const tag = padraoAraras(dataStr);
     const col = document.createElement('div');
-    col.className = 'week-day' + (dataStr === hojeStr ? ' hoje' : '');
-    const itensHtml = viagens.slice(0, 4).map((v) => `<div class="week-day-item ${v.tipoHorario === 'Retirada' ? 'retirada' : 'entrega'}">${escHtml(v.horario) || '--:--'} · ${escHtml(v.clienteFornecedor) || v.tipoHorario}</div>`).join('');
+    col.className = 'week-day' + (dataStr === hojeStr ? ' hoje' : '') + (dataStr === diaSelecionado ? ' selecionado' : '');
+    const itensHtml = viagens.slice(0, 4).map((v) => `<div class="week-day-item ${v.tipoHorario === 'Retirada' ? 'retirada' : (v.tipoHorario === 'Bloqueio' ? 'bloqueio' : 'entrega')}">${escHtml(rotuloItemDia(v))}</div>`).join('');
     const maisHtml = viagens.length > 4 ? `<div class="week-day-mais">+${viagens.length - 4} mais</div>` : '';
     col.innerHTML = `
       <div class="week-day-header">
@@ -243,7 +236,7 @@ async function renderCalendario() {
     const info = resumo[dataStr];
 
     const cel = document.createElement('div');
-    cel.className = 'cal-day' + (foraMes ? ' fora-mes' : '') + (dataStr === hojeStr ? ' hoje' : '');
+    cel.className = 'cal-day' + (foraMes ? ' fora-mes' : '') + (dataStr === hojeStr ? ' hoje' : '') + (dataStr === diaAtual ? ' selecionado' : '');
     cel.innerHTML = `
       <span class="cal-day-num">${d.getDate()}</span>
       ${tag ? `<span class="cal-day-tag">${tag}</span>` : ''}
@@ -258,7 +251,7 @@ async function renderCalendario() {
 }
 
 // --------------------------------------------------------------------------
-// Dia
+// Dia (mostrado abaixo do calendário, na mesma tela)
 // --------------------------------------------------------------------------
 async function abrirDia(data) {
   diaAtual = data;
@@ -266,8 +259,11 @@ async function abrirDia(data) {
   fecharForm();
   document.getElementById('diaValidationMsg').textContent = '';
   atualizarChipsFiltro();
-  mostrarTela('telaDia');
+  document.getElementById('diaPlaceholder').hidden = true;
+  document.getElementById('diaConteudo').hidden = false;
   await carregarDia();
+  refrescarCalendario();
+  document.getElementById('diaSecao').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function atualizarChipsFiltro() {
@@ -284,18 +280,20 @@ async function carregarDia(destacarId) {
   renderDia(destacarId);
 }
 
+// Qualquer viagem com horário final ("Até") define um período bloqueado — não só Retirada.
 function calcularConflitos(viagens) {
-  const retiradas = viagens.filter((v) => v.tipoHorario === 'Retirada' && v.horario && v.bloqueioMinutos);
+  const blocos = viagens.filter((v) => v.horario && v.horarioFim);
   return viagens.map((v) => {
-    if (v.tipoHorario === 'Retirada') return null;
     const inicioV = paraMinutos(v.horario);
     if (inicioV === null) return null;
-    for (const r of retiradas) {
-      const inicioR = paraMinutos(r.horario);
-      if (inicioR === null) continue;
-      const fimR = inicioR + Number(r.bloqueioMinutos || 0);
-      if (inicioV >= inicioR && inicioV < fimR) {
-        return `Conflita com a retirada das ${r.horario} (bloqueia entregas até ${minutosParaHorario(fimR)})`;
+    for (const b of blocos) {
+      if (b === v) continue;
+      const inicioB = paraMinutos(b.horario);
+      const fimB = paraMinutos(b.horarioFim);
+      if (inicioB === null || fimB === null) continue;
+      if (inicioV >= inicioB && inicioV < fimB) {
+        const rotulo = b.tipoHorario === 'Bloqueio' ? 'bloqueio' : b.tipoHorario.toLowerCase();
+        return `Conflita com ${rotulo} das ${b.horario} às ${b.horarioFim}${b.info ? ' (' + b.info + ')' : ''}`;
       }
     }
     return null;
@@ -324,10 +322,12 @@ function renderDia(destacarId) {
   }
 
   filtradas.forEach((v, idx) => {
+    const isBloqueio = v.tipoHorario === 'Bloqueio';
     const enderecoResumo = [v.endereco, v.numero].filter(Boolean).join(', ');
     const card = document.createElement('div');
-    card.className = 'viagem-card';
+    card.className = 'viagem-card' + (isBloqueio ? ' viagem-bloqueio' : '');
     card.id = 'viagem-' + v.id;
+    const tagTipo = v.tipoHorario === 'Retirada' ? 'tag-retirada' : (isBloqueio ? 'tag-bloqueio' : 'tag-entrega');
     card.innerHTML = `
       <div class="viagem-linha">
         <div class="viagem-mover">
@@ -337,12 +337,14 @@ function renderDia(destacarId) {
         <div style="flex:1;min-width:0;">
           <div class="viagem-topo">
             <span class="viagem-horario">${escHtml(v.horario) || '--:--'}</span>
-            <span class="tag ${v.tipoHorario === 'Retirada' ? 'tag-retirada' : 'tag-entrega'}">${escHtml(v.tipoHorario)}</span>
+            <span class="tag ${tagTipo}">${isBloqueio ? '🔒 Bloqueio' : escHtml(v.tipoHorario)}</span>
             <span class="tag tag-loja">${escHtml(AgendaStore.LOJA_LABEL[v.loja] || v.loja)}</span>
-            ${v.tipoHorario === 'Retirada' && v.bloqueioMinutos ? `<span class="tag tag-retirada">bloqueia ${escHtml(v.bloqueioMinutos)}min</span>` : ''}
+            ${v.horarioFim ? `<span class="tag tag-loja">até ${escHtml(v.horarioFim)}</span>` : ''}
           </div>
-          <p class="viagem-resumo"><strong>${escHtml(v.clienteFornecedor) || '(sem cliente/fornecedor)'}</strong>${v.numeroPedido ? ` — ${escHtml(v.numeroPedido)}` : ''}</p>
-          <p class="viagem-sub">${escHtml(enderecoResumo) || 'Endereço não informado'}</p>
+          ${isBloqueio
+            ? `<p class="viagem-resumo">${escHtml(v.info) || '(sem motivo informado)'}</p>`
+            : `<p class="viagem-resumo"><strong>${escHtml(v.clienteFornecedor) || '(sem cliente/fornecedor)'}</strong>${v.numeroPedido ? ` — ${escHtml(v.numeroPedido)}` : ''}</p>
+               <p class="viagem-sub">${escHtml(enderecoResumo) || 'Endereço não informado'}</p>`}
           ${conflitos[idx] ? `<p class="viagem-conflito">⚠ ${escHtml(conflitos[idx])}</p>` : ''}
           <div class="viagem-acoes">
             <button class="btn-outline btn-small js-editar" data-id="${v.id}">Editar</button>
@@ -368,8 +370,7 @@ function renderDia(destacarId) {
     const cardDestacado = document.getElementById('viagem-' + destacarId);
     if (cardDestacado) {
       cardDestacado.classList.add('destaque');
-      cardDestacado.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      setTimeout(() => cardDestacado.classList.remove('destaque'), 1800);
+      setTimeout(() => cardDestacado.classList.remove('destaque'), 3500);
     }
   }
 
@@ -407,9 +408,12 @@ async function excluirItem(id) {
 // --------------------------------------------------------------------------
 // Formulário (criar / editar viagem)
 // --------------------------------------------------------------------------
-function toggleBloqueio() {
-  const isRetirada = document.getElementById('f-tipoHorario').value === 'Retirada';
-  document.getElementById('bloqueioWrap').style.display = isRetirada ? 'block' : 'none';
+function toggleTipoCampos() {
+  const tipo = document.getElementById('f-tipoHorario').value;
+  document.getElementById('camposEntrega').style.display = tipo === 'Bloqueio' ? 'none' : 'block';
+  document.getElementById('f-endereco-req').hidden = tipo === 'Bloqueio';
+  const precisaAte = tipo === 'Retirada' || tipo === 'Bloqueio';
+  document.getElementById('f-horarioFim-req').hidden = !precisaAte;
 }
 
 function toggleNotas(autoAddTwo) {
@@ -441,9 +445,10 @@ function addNota(nome, itensTexto) {
 
 function resetForm() {
   document.getElementById('f-data').value = diaAtual;
-  document.getElementById('f-loja').value = lojaAtualDevice;
+  document.getElementById('f-loja').value = '';
   document.getElementById('f-tipoHorario').value = 'Entrega';
   document.getElementById('f-horario').value = '';
+  document.getElementById('f-horarioFim').value = '';
   document.getElementById('f-cep').value = '';
   document.getElementById('cepMsg').textContent = '';
   document.getElementById('f-endereco').value = '';
@@ -458,10 +463,9 @@ function resetForm() {
   document.getElementById('f-info').value = '';
   document.getElementById('f-preenchidoPor').value = '';
   document.getElementById('f-dividir').checked = false;
-  document.getElementById('f-bloqueioMinutos').value = '';
   document.getElementById('notasContainer').innerHTML = '';
   toggleNotas(false);
-  toggleBloqueio();
+  toggleTipoCampos();
   document.getElementById('formValidationMsg').textContent = '';
   document.querySelectorAll('#formPanel .field-error').forEach((el) => el.classList.remove('field-error'));
 }
@@ -471,6 +475,7 @@ function preencherCampos(viagem) {
   document.getElementById('f-loja').value = viagem.loja;
   document.getElementById('f-tipoHorario').value = viagem.tipoHorario;
   document.getElementById('f-horario').value = viagem.horario;
+  document.getElementById('f-horarioFim').value = viagem.horarioFim || '';
   document.getElementById('f-endereco').value = viagem.endereco;
   document.getElementById('f-numero').value = viagem.numero;
   document.getElementById('f-complemento').value = viagem.complemento;
@@ -482,9 +487,8 @@ function preencherCampos(viagem) {
   document.getElementById('f-volumes').value = viagem.volumes;
   document.getElementById('f-info').value = viagem.info;
   document.getElementById('f-preenchidoPor').value = viagem.preenchidoPor;
-  document.getElementById('f-bloqueioMinutos').value = viagem.bloqueioMinutos || '';
   document.getElementById('f-dividir').checked = !!viagem.dividir;
-  toggleBloqueio();
+  toggleTipoCampos();
   toggleNotas(false);
   (viagem.notas || []).forEach((n) => addNota(n.nome, n.itens));
 }
@@ -511,6 +515,7 @@ function duplicarViagem(id) {
   document.getElementById('btnExcluirNoForm').hidden = true;
   preencherCampos(v);
   document.getElementById('f-horario').value = '';
+  document.getElementById('f-horarioFim').value = '';
   document.getElementById('formPanel').hidden = false;
   document.getElementById('formPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
   document.getElementById('f-horario').focus();
@@ -544,24 +549,34 @@ function fecharForm() {
   editandoId = null;
 }
 
+// Só data, loja e preenchido por são sempre obrigatórios. Endereço só entra se não for
+// bloqueio. "Até" só é obrigatório em Retirada/Bloqueio (é o que define o período preso).
 function validarForm() {
-  const campos = ['f-data', 'f-loja', 'f-horario', 'f-endereco', 'f-numero', 'f-clienteFornecedor', 'f-numeroPedido', 'f-contatoNome', 'f-contatoWhats', 'f-volumes', 'f-preenchidoPor'];
   let primeiro = null;
-  campos.forEach((id) => {
+  const marcar = (id, invalido) => {
     const el = document.getElementById(id);
-    const invalido = !el.value.trim();
     el.classList.toggle('field-error', invalido);
     if (invalido && !primeiro) primeiro = el;
-  });
-  const tipoHorario = document.getElementById('f-tipoHorario').value;
-  const bloqueioEl = document.getElementById('f-bloqueioMinutos');
-  if (tipoHorario === 'Retirada') {
-    const invalido = !bloqueioEl.value.trim();
-    bloqueioEl.classList.toggle('field-error', invalido);
-    if (invalido && !primeiro) primeiro = bloqueioEl;
+    return el;
+  };
+
+  marcar('f-data', !document.getElementById('f-data').value.trim());
+  marcar('f-loja', !document.getElementById('f-loja').value.trim());
+  marcar('f-preenchidoPor', !document.getElementById('f-preenchidoPor').value.trim());
+
+  const tipo = document.getElementById('f-tipoHorario').value;
+  if (tipo !== 'Bloqueio') {
+    marcar('f-endereco', !document.getElementById('f-endereco').value.trim());
   } else {
-    bloqueioEl.classList.remove('field-error');
+    document.getElementById('f-endereco').classList.remove('field-error');
   }
+
+  if (tipo === 'Retirada' || tipo === 'Bloqueio') {
+    marcar('f-horarioFim', !document.getElementById('f-horarioFim').value.trim());
+  } else {
+    document.getElementById('f-horarioFim').classList.remove('field-error');
+  }
+
   return primeiro;
 }
 
@@ -585,6 +600,7 @@ async function salvarViagem() {
     loja: document.getElementById('f-loja').value,
     tipoHorario,
     horario: document.getElementById('f-horario').value.trim(),
+    horarioFim: document.getElementById('f-horarioFim').value.trim(),
     endereco: document.getElementById('f-endereco').value.trim(),
     numero: document.getElementById('f-numero').value.trim(),
     complemento: document.getElementById('f-complemento').value.trim(),
@@ -597,8 +613,7 @@ async function salvarViagem() {
     info: document.getElementById('f-info').value,
     dividir: document.getElementById('f-dividir').checked,
     notas,
-    preenchidoPor: document.getElementById('f-preenchidoPor').value.trim(),
-    bloqueioMinutos: tipoHorario === 'Retirada' ? document.getElementById('f-bloqueioMinutos').value.trim() : ''
+    preenchidoPor: document.getElementById('f-preenchidoPor').value.trim()
   };
 
   const btnSalvar = document.getElementById('btnSalvarViagem');
@@ -620,6 +635,7 @@ async function salvarViagem() {
       await carregarDia(salva.id);
     }
     refrescarCalendario();
+    voltarAoTopo();
   } catch (e) {
     document.getElementById('formValidationMsg').textContent = e.message;
     mostrarToast('Não foi possível salvar: ' + e.message, 'erro');
@@ -663,12 +679,21 @@ async function buscarCep() {
 // (o filtro de loja é só uma lente de visualização, não recorta as saídas)
 // --------------------------------------------------------------------------
 function buildTripText(v, mostrarLoja) {
+  if (v.tipoHorario === 'Bloqueio') {
+    let linha = `⏸ *Bloqueio: ${v.horario || '--:--'} às ${v.horarioFim || '--:--'}*`;
+    if (mostrarLoja) linha += ` (${AgendaStore.LOJA_LABEL[v.loja] || v.loja})`;
+    if (v.info) linha += `\n${v.info}`;
+    return linha;
+  }
+
   let enderecoCompleto = v.endereco || '';
   if (v.numero) enderecoCompleto += `, ${v.numero}`;
   if (v.complemento) enderecoCompleto += ` - ${v.complemento}`;
 
   const boldLines = [`${formatDataLine(v.data)}${enderecoCompleto ? ' - ' + enderecoCompleto : ''}`];
-  if (v.horario) boldLines.push(`${v.tipoHorario}: ${v.horario}`);
+  if (v.horario || v.horarioFim) {
+    boldLines.push(`${v.tipoHorario}: ${v.horario || '--:--'}${v.horarioFim ? ' às ' + v.horarioFim : ''}`);
+  }
   if (mostrarLoja) boldLines.push(`Loja: ${AgendaStore.LOJA_LABEL[v.loja] || v.loja}`);
   if (v.clienteFornecedor || v.numeroPedido) boldLines.push(`Pedido/Fornecedor: ${v.numeroPedido || ''}${v.numeroPedido && v.clienteFornecedor ? ' ' : ''}${v.clienteFornecedor || ''}`);
   if (v.contatoNome || v.contatoWhats) boldLines.push(`Contato: ${v.contatoNome || ''}${v.contatoNome && v.contatoWhats ? ' - ' : ''}${v.contatoWhats || ''}`);
@@ -699,9 +724,6 @@ function buildTripText(v, mostrarLoja) {
   if (v.preenchidoPor) {
     lines.push('');
     lines.push(`*Preenchido por: ${v.preenchidoPor}*`);
-  }
-  if (v.tipoHorario === 'Retirada' && v.bloqueioMinutos) {
-    lines.push(`*(bloqueia entregas por ${v.bloqueioMinutos} min a partir das ${v.horario || '--:--'})*`);
   }
 
   return lines.join('\n');
@@ -759,16 +781,20 @@ function printText(texto) {
 }
 
 function relatorioTexto() {
-  const entregas = viagensDia.filter((v) => v.tipoHorario !== 'Retirada');
+  const entregas = viagensDia.filter((v) => v.tipoHorario === 'Entrega');
   const retiradas = viagensDia.filter((v) => v.tipoHorario === 'Retirada');
+  const bloqueios = viagensDia.filter((v) => v.tipoHorario === 'Bloqueio');
   const mostrarLoja = new Set(viagensDia.map((v) => v.loja)).size > 1;
   const sep = '-'.repeat(30);
+  const secao = (titulo, lista) => {
+    let t = `${titulo} (${lista.length})\n${sep}\n\n`;
+    t += lista.length ? lista.map((v) => buildTripText(v, mostrarLoja)).join('\n\n' + sep + '\n\n') : '(nenhuma)';
+    return t;
+  };
   let txt = `RELATÓRIO DO MOTORISTA\n${formatDataTitulo(diaAtual).toUpperCase()}\n\n`;
-  txt += `ENTREGAS (${entregas.length})\n${sep}\n\n`;
-  txt += entregas.length ? entregas.map((v) => buildTripText(v, mostrarLoja)).join('\n\n' + sep + '\n\n') : '(nenhuma entrega)';
-  txt += '\n\n\n';
-  txt += `RETIRADAS (${retiradas.length})\n${sep}\n\n`;
-  txt += retiradas.length ? retiradas.map((v) => buildTripText(v, mostrarLoja)).join('\n\n' + sep + '\n\n') : '(nenhuma retirada)';
+  txt += secao('ENTREGAS', entregas) + '\n\n\n';
+  txt += secao('RETIRADAS', retiradas);
+  if (bloqueios.length) txt += '\n\n\n' + secao('BLOQUEIOS', bloqueios);
   return txt;
 }
 
@@ -792,7 +818,7 @@ function gerarExcelDia() {
   }
   document.getElementById('diaValidationMsg').textContent = '';
 
-  const headers = ['Ordem', 'Loja', 'Tipo', 'Horário', 'Endereço', 'Número', 'Complemento', 'Cliente/Fornecedor', 'NF/Pedido', 'Detalhamento', 'Contato', 'WhatsApp', 'Volume', 'Outras informações', 'Bloqueio (min)', 'Anexos', 'Preenchido por'];
+  const headers = ['Ordem', 'Loja', 'Tipo', 'De', 'Até', 'Endereço', 'Número', 'Complemento', 'Cliente/Fornecedor', 'NF/Pedido', 'Detalhamento', 'Contato', 'WhatsApp', 'Volume', 'Outras informações/Motivo', 'Anexos', 'Preenchido por'];
   const rows = viagensDia.map((v, idx) => {
     const anexosResumo = v.dividir ? (v.notas || []).map((n) => n.nome).filter(Boolean).join(' / ') || 'Sim' : '';
     return [
@@ -800,6 +826,7 @@ function gerarExcelDia() {
       AgendaStore.LOJA_LABEL[v.loja] || v.loja,
       v.tipoHorario,
       v.horario,
+      v.horarioFim || '',
       v.endereco,
       v.numero,
       v.complemento,
@@ -810,7 +837,6 @@ function gerarExcelDia() {
       v.contatoWhats,
       v.volumes,
       (v.info || '').replace(/\n/g, '; '),
-      v.bloqueioMinutos || '',
       anexosResumo,
       v.preenchidoPor
     ];
@@ -843,7 +869,7 @@ function gerarExcelDia() {
 }
 
 function abrirRota() {
-  const paradas = viagensDia.filter((v) => v.endereco).map((v) => {
+  const paradas = viagensDia.filter((v) => v.tipoHorario !== 'Bloqueio' && v.endereco).map((v) => {
     let end = v.endereco;
     if (v.numero) end += `, ${v.numero}`;
     if (v.complemento) end += ` - ${v.complemento}`;
@@ -864,11 +890,10 @@ function abrirRota() {
 }
 
 // --------------------------------------------------------------------------
-// Configuração (loja do computador + URL da planilha)
+// Configuração (só a URL da planilha — não existe mais "loja do computador")
 // --------------------------------------------------------------------------
 async function abrirConfig() {
   document.getElementById('inputWebAppUrl').value = await AgendaStore.getWebAppUrl();
-  document.getElementById('configLojaLabel').textContent = lojaAtualDevice ? AgendaStore.LOJA_LABEL[lojaAtualDevice] : '--';
   document.getElementById('configStatus').textContent = '';
   document.getElementById('configStatus').className = 'conn-status';
   mostrarTela('telaConfig');
@@ -877,30 +902,8 @@ async function abrirConfig() {
 // --------------------------------------------------------------------------
 // Wiring de eventos (roda depois que o HTML já existe, script fica no fim do body)
 // --------------------------------------------------------------------------
-document.querySelectorAll('#telaLoja .js-loja').forEach((btn) => {
-  btn.addEventListener('click', async () => {
-    await AgendaStore.setLoja(btn.dataset.loja);
-    lojaAtualDevice = btn.dataset.loja;
-    atualizarLojaPill();
-    const hoje = new Date();
-    mesAtual = { ano: hoje.getFullYear(), mes: hoje.getMonth() + 1 };
-    semanaAtualInicio = segundaDaSemana(hoje);
-    mostrarTela('telaCalendario');
-    renderSemana();
-  });
-});
-
-document.querySelectorAll('#telaConfig .js-loja').forEach((btn) => {
-  btn.addEventListener('click', async () => {
-    await AgendaStore.setLoja(btn.dataset.loja);
-    lojaAtualDevice = btn.dataset.loja;
-    atualizarLojaPill();
-    document.getElementById('configLojaLabel').textContent = AgendaStore.LOJA_LABEL[lojaAtualDevice];
-  });
-});
-
 document.getElementById('btnConfig').addEventListener('click', abrirConfig);
-document.getElementById('btnFecharConfig').addEventListener('click', () => { mostrarTela('telaCalendario'); refrescarCalendario(); });
+document.getElementById('btnFecharConfig').addEventListener('click', () => { mostrarTela('telaAgenda'); refrescarCalendario(); });
 document.getElementById('btnSalvarConfig').addEventListener('click', async () => {
   const statusEl = document.getElementById('configStatus');
   try {
@@ -954,7 +957,6 @@ document.getElementById('btnHoje').addEventListener('click', () => {
   refrescarCalendario();
 });
 
-document.getElementById('btnVoltarCalendario').addEventListener('click', () => { mostrarTela('telaCalendario'); refrescarCalendario(); });
 document.querySelectorAll('.js-filtro-loja').forEach((btn) => {
   btn.addEventListener('click', () => {
     filtroLoja = btn.dataset.loja;
@@ -964,13 +966,21 @@ document.querySelectorAll('.js-filtro-loja').forEach((btn) => {
 });
 
 document.getElementById('btnNovaViagem').addEventListener('click', () => abrirForm(null));
+document.getElementById('btnBloquearHorario').addEventListener('click', () => {
+  abrirForm(null);
+  document.getElementById('f-tipoHorario').value = 'Bloqueio';
+  toggleTipoCampos();
+  document.getElementById('formTitulo').textContent = 'Bloquear período';
+  document.getElementById('f-horario').focus();
+});
 document.getElementById('btnCancelarForm').addEventListener('click', fecharForm);
 document.getElementById('btnSalvarViagem').addEventListener('click', salvarViagem);
 document.getElementById('btnExcluirNoForm').addEventListener('click', () => { if (editandoId) excluirItem(editandoId); fecharForm(); });
-document.getElementById('f-tipoHorario').addEventListener('change', toggleBloqueio);
+document.getElementById('f-tipoHorario').addEventListener('change', toggleTipoCampos);
 document.getElementById('f-dividir').addEventListener('change', () => toggleNotas(true));
 document.getElementById('addNotaBtn').addEventListener('click', () => addNota('', ''));
 document.getElementById('f-horario').addEventListener('blur', (e) => { e.target.value = formatTime(e.target.value); });
+document.getElementById('f-horarioFim').addEventListener('blur', (e) => { e.target.value = formatTime(e.target.value); });
 document.getElementById('f-contatoWhats').addEventListener('input', (e) => { e.target.value = formatPhone(e.target.value); });
 document.getElementById('btnBuscarCep').addEventListener('click', buscarCep);
 

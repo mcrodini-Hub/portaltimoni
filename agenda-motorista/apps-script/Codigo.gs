@@ -13,26 +13,29 @@
  *
  * ESTRUTURA ESPERADA DA PLANILHA (crie uma aba com este cabeçalho na linha 1):
  *   Aba "Viagens":
- *      A: id | B: data | C: loja | D: ordem | E: tipoHorario | F: horario |
- *      G: endereco | H: numero | I: complemento | J: clienteFornecedor | K: numeroPedido |
- *      L: itens | M: contatoNome | N: contatoWhats | O: volumes | P: info |
- *      Q: dividir | R: notasJson | S: preenchidoPor | T: bloqueioMinutos |
+ *      A: id | B: data | C: loja | D: ordem | E: tipoHorario | F: horario | G: horarioFim |
+ *      H: endereco | I: numero | J: complemento | K: clienteFornecedor | L: numeroPedido |
+ *      M: itens | N: contatoNome | O: contatoWhats | P: volumes | Q: info |
+ *      R: dividir | S: notasJson | T: preenchidoPor |
  *      U: criadoEm | V: atualizadoEm
  *
- * data: "YYYY-MM-DD". loja: "rio_claro" ou "araras". tipoHorario: "Entrega" ou "Retirada".
+ * data: "YYYY-MM-DD". loja: "rio_claro" ou "araras". tipoHorario: "Entrega", "Retirada" ou
+ * "Bloqueio" (bloqueio de horário sem entrega/retirada associada).
  * ordem: posição da viagem dentro do dia (número, começa em 0), usada para reordenar.
  * itens / info: texto com uma linha por item (igual ao textarea da página).
  * dividir: "true"/"false". notasJson: JSON de [{nome, itens}] quando dividir = true.
- * bloqueioMinutos: só relevante quando tipoHorario = "Retirada".
+ * horarioFim ("Até"): opcional em Entrega, obrigatório em Retirada/Bloqueio — define o período
+ * que essa viagem ocupa; outra viagem cujo horário caia dentro desse período mostra aviso de
+ * conflito na tela.
  *
- * Dica opcional: o Sheets converte sozinho o que parece data/hora (colunas B e F) em valores
+ * Dica opcional: o Sheets converte sozinho o que parece data/hora (colunas B, F e G) em valores
  * de Data/Hora de verdade — o código já lê isso de volta corretamente, mas se quiser que a
- * planilha mostre "2026-07-24" e "09:00" em vez de datas formatadas, selecione as colunas B e F
+ * planilha mostre "2026-07-24" e "09:00" em vez de datas formatadas, selecione essas colunas
  * e troque o formato para "Texto simples" (Formatar > Número > Texto simples).
  */
 
 var ABA_VIAGENS = 'Viagens';
-var COLUNAS = ['id', 'data', 'loja', 'ordem', 'tipoHorario', 'horario', 'endereco', 'numero', 'complemento', 'clienteFornecedor', 'numeroPedido', 'itens', 'contatoNome', 'contatoWhats', 'volumes', 'info', 'dividir', 'notasJson', 'preenchidoPor', 'bloqueioMinutos', 'criadoEm', 'atualizadoEm'];
+var COLUNAS = ['id', 'data', 'loja', 'ordem', 'tipoHorario', 'horario', 'horarioFim', 'endereco', 'numero', 'complemento', 'clienteFornecedor', 'numeroPedido', 'itens', 'contatoNome', 'contatoWhats', 'volumes', 'info', 'dividir', 'notasJson', 'preenchidoPor', 'criadoEm', 'atualizadoEm'];
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
@@ -138,6 +141,7 @@ function registroDaLinha(linha) {
   }
   reg.data = formatarDataChave(reg.data);
   reg.horario = formatarHorario(reg.horario);
+  reg.horarioFim = formatarHorario(reg.horarioFim);
   reg.ordem = Number(reg.ordem || 0);
   reg.dividir = parseBool(reg.dividir);
   reg.notasJson = reg.notasJson || '[]';
@@ -192,6 +196,7 @@ function criar(p) {
     ordem: diaAtual.length,
     tipoHorario: String(p.tipoHorario || 'Entrega').trim(),
     horario: String(p.horario || '').trim(),
+    horarioFim: String(p.horarioFim || '').trim(),
     endereco: String(p.endereco || '').trim(),
     numero: String(p.numero || '').trim(),
     complemento: String(p.complemento || '').trim(),
@@ -205,7 +210,6 @@ function criar(p) {
     dividir: parseBool(p.dividir),
     notasJson: String(p.notasJson || '[]'),
     preenchidoPor: String(p.preenchidoPor || '').trim(),
-    bloqueioMinutos: String(p.bloqueioMinutos || '').trim(),
     criadoEm: new Date().toISOString(),
     atualizadoEm: new Date().toISOString()
   };
@@ -221,7 +225,7 @@ function localizarLinha(id) {
   return achado;
 }
 
-var CAMPOS_EDITAVEIS = ['data', 'loja', 'tipoHorario', 'horario', 'endereco', 'numero', 'complemento', 'clienteFornecedor', 'numeroPedido', 'itens', 'contatoNome', 'contatoWhats', 'volumes', 'info', 'dividir', 'notasJson', 'preenchidoPor', 'bloqueioMinutos'];
+var CAMPOS_EDITAVEIS = ['data', 'loja', 'tipoHorario', 'horario', 'horarioFim', 'endereco', 'numero', 'complemento', 'clienteFornecedor', 'numeroPedido', 'itens', 'contatoNome', 'contatoWhats', 'volumes', 'info', 'dividir', 'notasJson', 'preenchidoPor'];
 
 function atualizar(id, p) {
   var achado = localizarLinha(id);

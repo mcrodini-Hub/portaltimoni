@@ -29,7 +29,7 @@ Igual ao módulo Estoque:
 - **Busca de CEP**: consulta a [ViaCEP](https://viacep.com.br/) e preenche logradouro/bairro/cidade.
 - **Filtro por loja**: dentro do dia, filtra a visualização por Rio Claro/Araras/Todas (a reordenação só fica disponível em "Todas", pra não embaralhar viagens escondidas pelo filtro).
 - **Texto para WhatsApp**: gerado automaticamente a partir das viagens do dia (sempre o dia inteiro, o filtro de loja é só uma lente de visualização).
-- **Relatório de impressão**: separado em seções ENTREGAS e RETIRADAS.
+- **Relatório de impressão**: documento em HTML (não o texto do WhatsApp), separado em seções Entregas e Retiradas — endereço grande, item com quadradinho pra marcar, e o botão "Imprimir" de cada card imprime só aquela parada.
 - **Excel do dia**: gera um `.xls` (SpreadsheetML) com uma linha por viagem, na ordem da agenda.
 - **Rota no Maps**: abre o Google Maps com as paradas do dia em sequência (na ordem da agenda), pronto pro motorista seguir no celular.
 - **Preenchido por**: Ciça, Jaqueline, Jeovana, Reginaldo, Thais.

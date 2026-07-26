@@ -536,7 +536,7 @@ function copiarViagemIndividual(id) {
 function imprimirViagemIndividual(id) {
   const v = viagensDia.find((x) => x.id === id);
   if (!v) return;
-  printText(buildTripText(v, true));
+  printHtmlDoc(buildPrintDocument('Casa Timoni · Motorista', formatDataTitulo(v.data), tripToHtml(v, true)));
 }
 
 function fecharForm() {
@@ -741,11 +741,104 @@ function copiarTexto() {
   }
 }
 
-function printText(texto) {
-  const escaped = texto.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Imprimir</title>'
-    + '<style>body{font-family:"Courier New",monospace;font-size:15px;white-space:pre-wrap;padding:20px;margin:0;}</style>'
-    + '</head><body>' + escaped + '</body></html>';
+// --------------------------------------------------------------------------
+// Impressão — documento em HTML (não o texto do WhatsApp com *asteriscos*),
+// pensado para ser lido rápido em papel: parada com endereço grande,
+// itens em lista com quadradinho pra marcar, uma parada por bloco.
+// --------------------------------------------------------------------------
+const PRINT_STYLE = `
+  @page { margin: 14mm; }
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; color: #22262e; margin: 0; padding: 18px; }
+  .doc-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; border-bottom: 3px solid #A15C2E; padding-bottom: 10px; margin-bottom: 18px; }
+  .doc-head h1 { font-size: 19px; margin: 0; }
+  .doc-head .sub { font-size: 12.5px; color: #5b6270; }
+  .secao { font-size: 13px; text-transform: uppercase; letter-spacing: .05em; color: #A15C2E; font-weight: 800; border-bottom: 2px solid #A15C2E; padding-bottom: 4px; margin: 20px 0 12px; }
+  .secao:first-of-type { margin-top: 0; }
+  .vazio { font-size: 13px; color: #86807a; font-style: italic; margin: 0 0 16px; }
+  .ticket { border: 1px solid #d8d5cf; border-radius: 10px; padding: 14px 16px; margin-bottom: 14px; break-inside: avoid; }
+  .ticket-head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .tipo { font-size: 10.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; color: #fff; }
+  .tipo-entrega { background: #2c4be0; }
+  .tipo-retirada { background: #a9720a; }
+  .horario { font-size: 16px; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .data-linha, .loja { font-size: 12px; color: #5b6270; }
+  .loja { margin-left: auto; background: #eef0f4; border-radius: 6px; padding: 2px 8px; }
+  .endereco { font-size: 17px; margin: 0 0 6px; line-height: 1.3; }
+  .meta { font-size: 13px; color: #3a3d44; margin: 0 0 8px; line-height: 1.5; }
+  ul.itens { list-style: none; margin: 0 0 8px; padding: 0; }
+  ul.itens li { display: flex; align-items: flex-start; gap: 8px; font-size: 13.5px; padding: 3px 0; }
+  .chk { width: 12px; height: 12px; border: 1.5px solid #99938a; border-radius: 3px; flex: none; margin-top: 2px; }
+  .volume { font-size: 13px; margin: 0 0 8px; }
+  .info { margin: 0 0 8px; }
+  .info-label, .notas-label { font-size: 11px; text-transform: uppercase; letter-spacing: .05em; color: #5b6270; font-weight: 700; margin: 0 0 4px; }
+  .info ul { margin: 0; padding-left: 18px; font-size: 13px; }
+  .notas { border-top: 1px dashed #d8d5cf; margin-top: 8px; padding-top: 8px; }
+  .nota { margin-bottom: 6px; }
+  .nota-nome { font-size: 13px; font-weight: 700; margin: 0 0 2px; }
+  .nota ul { margin: 0; padding-left: 18px; font-size: 12.5px; }
+  .rodape { font-size: 11.5px; color: #86807a; margin: 10px 0 0; border-top: 1px dashed #d8d5cf; padding-top: 8px; }
+`;
+
+function tripToHtml(v, mostrarLoja) {
+  let enderecoCompleto = v.endereco || '';
+  if (v.numero) enderecoCompleto += `, ${v.numero}`;
+  if (v.complemento) enderecoCompleto += ` - ${v.complemento}`;
+
+  const tipoClasse = v.tipoHorario === 'Retirada' ? 'tipo-retirada' : 'tipo-entrega';
+  let html = '<section class="ticket"><div class="ticket-head">';
+  html += `<span class="tipo ${tipoClasse}">${escHtml(v.tipoHorario || '')}</span>`;
+  if (v.horario) html += `<span class="horario">${escHtml(v.horario)}</span>`;
+  html += `<span class="data-linha">${escHtml(formatDataLine(v.data))}</span>`;
+  if (mostrarLoja) html += `<span class="loja">${escHtml(AgendaStore.LOJA_LABEL[v.loja] || v.loja)}</span>`;
+  html += '</div>';
+  if (enderecoCompleto) html += `<h2 class="endereco">${escHtml(enderecoCompleto)}</h2>`;
+
+  const meta = [];
+  if (v.numeroPedido || v.clienteFornecedor) meta.push(`Pedido/Fornecedor: ${escHtml(v.numeroPedido || '')}${v.numeroPedido && v.clienteFornecedor ? ' — ' : ''}${escHtml(v.clienteFornecedor || '')}`);
+  if (v.contatoNome || v.contatoWhats) meta.push(`Contato: ${escHtml(v.contatoNome || '')}${v.contatoNome && v.contatoWhats ? ' — ' : ''}${escHtml(v.contatoWhats || '')}`);
+  if (meta.length) html += `<p class="meta">${meta.join('<br>')}</p>`;
+
+  const itens = nonEmptyLines(v.itens);
+  if (itens.length) html += '<ul class="itens">' + itens.map((i) => `<li><span class="chk"></span>${escHtml(i)}</li>`).join('') + '</ul>';
+  if (v.volumes) html += `<p class="volume">Volume: <b>${escHtml(v.volumes)}</b></p>`;
+
+  const infoLines = nonEmptyLines(v.info);
+  if (infoLines.length) {
+    html += '<div class="info"><p class="info-label">Informações</p><ul>' + infoLines.map((i) => `<li>${escHtml(i)}</li>`).join('') + '</ul></div>';
+  }
+
+  if (v.dividir && v.notas && v.notas.length) {
+    const validas = v.notas.filter((n) => n.nome || nonEmptyLines(n.itens).length);
+    if (validas.length) {
+      html += `<div class="notas"><p class="notas-label">${validas.length} notas fiscais</p>`;
+      validas.forEach((n) => {
+        const nItens = nonEmptyLines(n.itens);
+        html += `<div class="nota"><p class="nota-nome">${escHtml(n.nome || '(empresa)')}</p>`;
+        if (nItens.length) html += '<ul>' + nItens.map((i) => `<li>${escHtml(i)}</li>`).join('') + '</ul>';
+        html += '</div>';
+      });
+      html += '</div>';
+    }
+  }
+
+  const rodape = [];
+  if (v.preenchidoPor) rodape.push(`Preenchido por ${escHtml(v.preenchidoPor)}`);
+  if (v.tipoHorario === 'Retirada' && v.bloqueioMinutos) rodape.push(`Bloqueia entregas por ${escHtml(v.bloqueioMinutos)} min a partir das ${escHtml(v.horario || '--:--')}`);
+  if (rodape.length) html += `<p class="rodape">${rodape.join(' · ')}</p>`;
+
+  html += '</section>';
+  return html;
+}
+
+function buildPrintDocument(titulo, subtitulo, bodyHtml) {
+  return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>' + escHtml(titulo) + '</title>'
+    + '<style>' + PRINT_STYLE + '</style></head><body>'
+    + `<div class="doc-head"><h1>${escHtml(titulo)}</h1><span class="sub">${escHtml(subtitulo)}</span></div>`
+    + bodyHtml + '</body></html>';
+}
+
+function printHtmlDoc(html) {
   const printWindow = window.open('', '_blank');
   if (!printWindow) {
     document.getElementById('diaValidationMsg').textContent = 'Não foi possível abrir a janela de impressão. Permita pop-ups para este site e tente novamente.';
@@ -758,27 +851,20 @@ function printText(texto) {
   setTimeout(() => { try { printWindow.print(); } catch (e) { /* ignore */ } }, 300);
 }
 
-function relatorioTexto() {
-  const entregas = viagensDia.filter((v) => v.tipoHorario !== 'Retirada');
-  const retiradas = viagensDia.filter((v) => v.tipoHorario === 'Retirada');
-  const mostrarLoja = new Set(viagensDia.map((v) => v.loja)).size > 1;
-  const sep = '-'.repeat(30);
-  let txt = `RELATÓRIO DO MOTORISTA\n${formatDataTitulo(diaAtual).toUpperCase()}\n\n`;
-  txt += `ENTREGAS (${entregas.length})\n${sep}\n\n`;
-  txt += entregas.length ? entregas.map((v) => buildTripText(v, mostrarLoja)).join('\n\n' + sep + '\n\n') : '(nenhuma entrega)';
-  txt += '\n\n\n';
-  txt += `RETIRADAS (${retiradas.length})\n${sep}\n\n`;
-  txt += retiradas.length ? retiradas.map((v) => buildTripText(v, mostrarLoja)).join('\n\n' + sep + '\n\n') : '(nenhuma retirada)';
-  return txt;
-}
-
 function imprimirRelatorio() {
   if (!viagensDia.length) {
     document.getElementById('diaValidationMsg').textContent = 'Não há viagens cadastradas neste dia.';
     return;
   }
   document.getElementById('diaValidationMsg').textContent = '';
-  printText(relatorioTexto());
+  const entregas = viagensDia.filter((v) => v.tipoHorario !== 'Retirada');
+  const retiradas = viagensDia.filter((v) => v.tipoHorario === 'Retirada');
+  const mostrarLoja = new Set(viagensDia.map((v) => v.loja)).size > 1;
+  let body = `<h2 class="secao">Entregas (${entregas.length})</h2>`;
+  body += entregas.length ? entregas.map((v) => tripToHtml(v, mostrarLoja)).join('') : '<p class="vazio">Nenhuma entrega.</p>';
+  body += `<h2 class="secao">Retiradas (${retiradas.length})</h2>`;
+  body += retiradas.length ? retiradas.map((v) => tripToHtml(v, mostrarLoja)).join('') : '<p class="vazio">Nenhuma retirada.</p>';
+  printHtmlDoc(buildPrintDocument('Relatório do Motorista', formatDataTitulo(diaAtual), body));
 }
 
 function escXml(v) {

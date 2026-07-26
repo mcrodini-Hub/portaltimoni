@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agenda de Motorista · Portal Timoni</title>
-<link rel="stylesheet" href="app.css?v=5">
+<link rel="stylesheet" href="app.css?v=6">
 </head>
 <body>
 
@@ -15,10 +15,28 @@
     <img class="brand-logo" src="icons/icon48.png" alt="Casa Timoni">
     <span class="brand-title">Agenda de Motorista <span class="brand-dim">· Portal Timoni</span></span>
   </div>
-  <button id="btnConfig" class="icon-btn" title="Configurar planilha" aria-label="Configurar planilha">⚙</button>
+  <div class="topbar-actions">
+    <button id="btnModoMotorista" class="icon-btn" title="Modo motorista" aria-label="Modo motorista">🚚</button>
+    <button id="btnConfig" class="icon-btn" title="Configurar planilha" aria-label="Configurar planilha">⚙</button>
+  </div>
 </header>
 
 <main class="content" id="topoConteudo">
+
+  <!-- MODO MOTORISTA: lista simples do dia, check-in/check-out e observação -->
+  <section id="telaMotorista" hidden>
+    <div class="cal-header">
+      <h1 id="motoristaDataLabel">--</h1>
+      <div class="cal-nav">
+        <button class="btn-secondary btn-small" id="btnMotoristaHoje">Hoje</button>
+        <button class="icon-btn" id="btnMotoristaAnterior" title="Dia anterior">‹</button>
+        <button class="icon-btn" id="btnMotoristaProximo" title="Próximo dia">›</button>
+      </div>
+    </div>
+    <p class="conn-status err" id="motoristaModoLocal" hidden>⚠ Sem planilha configurada — as marcações ficam só neste celular, outros computadores não vão ver.</p>
+    <div id="listaMotorista"></div>
+    <button class="btn-secondary" id="btnSairMotorista" style="margin-top:16px;">← Sair do modo motorista</button>
+  </section>
 
   <!-- CONFIGURAÇÃO -->
   <section id="telaConfig" hidden>
@@ -220,7 +238,7 @@
 
 </main>
 
-<script src="lib/store.js?v=5"></script>
-<script src="app.js?v=5"></script>
+<script src="lib/store.js?v=6"></script>
+<script src="app.js?v=6"></script>
 </body>
 </html>

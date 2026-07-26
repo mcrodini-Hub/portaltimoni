@@ -17,7 +17,7 @@
  *      H: endereco | I: numero | J: complemento | K: clienteFornecedor | L: numeroPedido |
  *      M: itens | N: contatoNome | O: contatoWhats | P: volumes | Q: info |
  *      R: dividir | S: notasJson | T: preenchidoPor |
- *      U: criadoEm | V: atualizadoEm
+ *      U: criadoEm | V: atualizadoEm | W: checkinEm | X: checkoutEm | Y: observacaoMotorista
  *
  * data: "YYYY-MM-DD". loja: "rio_claro" ou "araras". tipoHorario: "Entrega", "Retirada" ou
  * "Bloqueio" (bloqueio de horário sem entrega/retirada associada).
@@ -27,6 +27,8 @@
  * horarioFim ("Até"): opcional em Entrega, obrigatório em Retirada/Bloqueio — define o período
  * que essa viagem ocupa; outra viagem cujo horário caia dentro desse período mostra aviso de
  * conflito na tela.
+ * checkinEm / checkoutEm: preenchidos pelo Modo Motorista (chegou / concluiu), ISO datetime.
+ * observacaoMotorista: texto livre que o motorista deixa na parada.
  *
  * Dica opcional: o Sheets converte sozinho o que parece data/hora (colunas B, F e G) em valores
  * de Data/Hora de verdade — o código já lê isso de volta corretamente, mas se quiser que a
@@ -35,7 +37,7 @@
  */
 
 var ABA_VIAGENS = 'Viagens';
-var COLUNAS = ['id', 'data', 'loja', 'ordem', 'tipoHorario', 'horario', 'horarioFim', 'endereco', 'numero', 'complemento', 'clienteFornecedor', 'numeroPedido', 'itens', 'contatoNome', 'contatoWhats', 'volumes', 'info', 'dividir', 'notasJson', 'preenchidoPor', 'criadoEm', 'atualizadoEm'];
+var COLUNAS = ['id', 'data', 'loja', 'ordem', 'tipoHorario', 'horario', 'horarioFim', 'endereco', 'numero', 'complemento', 'clienteFornecedor', 'numeroPedido', 'itens', 'contatoNome', 'contatoWhats', 'volumes', 'info', 'dividir', 'notasJson', 'preenchidoPor', 'criadoEm', 'atualizadoEm', 'checkinEm', 'checkoutEm', 'observacaoMotorista'];
 
 function doGet(e) {
   var p = (e && e.parameter) || {};
@@ -147,6 +149,8 @@ function registroDaLinha(linha) {
   reg.notasJson = reg.notasJson || '[]';
   reg.criadoEm = normalizarData(reg.criadoEm);
   reg.atualizadoEm = normalizarData(reg.atualizadoEm);
+  reg.checkinEm = normalizarData(reg.checkinEm);
+  reg.checkoutEm = normalizarData(reg.checkoutEm);
   return reg;
 }
 
@@ -211,7 +215,10 @@ function criar(p) {
     notasJson: String(p.notasJson || '[]'),
     preenchidoPor: String(p.preenchidoPor || '').trim(),
     criadoEm: new Date().toISOString(),
-    atualizadoEm: new Date().toISOString()
+    atualizadoEm: new Date().toISOString(),
+    checkinEm: '',
+    checkoutEm: '',
+    observacaoMotorista: ''
   };
   sheet.appendRow(COLUNAS.map(function (c) { return registro[c] === null ? '' : registro[c]; }));
   return registro;
@@ -225,7 +232,7 @@ function localizarLinha(id) {
   return achado;
 }
 
-var CAMPOS_EDITAVEIS = ['data', 'loja', 'tipoHorario', 'horario', 'horarioFim', 'endereco', 'numero', 'complemento', 'clienteFornecedor', 'numeroPedido', 'itens', 'contatoNome', 'contatoWhats', 'volumes', 'info', 'dividir', 'notasJson', 'preenchidoPor'];
+var CAMPOS_EDITAVEIS = ['data', 'loja', 'tipoHorario', 'horario', 'horarioFim', 'endereco', 'numero', 'complemento', 'clienteFornecedor', 'numeroPedido', 'itens', 'contatoNome', 'contatoWhats', 'volumes', 'info', 'dividir', 'notasJson', 'preenchidoPor', 'checkinEm', 'checkoutEm', 'observacaoMotorista'];
 
 function atualizar(id, p) {
   var achado = localizarLinha(id);

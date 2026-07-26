@@ -230,3 +230,20 @@ textarea{min-height:56px;}
 
 .viagem-acoes .btn-small{padding:5px 9px;font-size:11px;}
 button:disabled{opacity:0.6;cursor:not-allowed;}
+
+/* --------------------------- Status (check-in/check-out) --------------------------- */
+.status-pill{font-size:10px;font-weight:700;padding:3px 9px;border-radius:999px;white-space:nowrap;}
+.status-pendente{background:#eef0f4;color:var(--ink-soft);}
+.status-andamento{background:var(--amber-bg);color:var(--amber);}
+.status-concluida{background:#e3f5ea;color:var(--green);}
+
+/* --------------------------- Modo Motorista --------------------------- */
+.motorista-card{
+  background:var(--card-bg);border:1px solid var(--border);border-radius:14px;
+  padding:16px;margin-bottom:14px;
+}
+.motorista-topo{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:8px;}
+.motorista-status{margin:12px 0;}
+.btn-grande{width:100%;padding:16px;font-size:16px;}
+.motorista-card .viagem-sub a{color:var(--blue);font-weight:600;}
+.motorista-obs{min-height:44px;}

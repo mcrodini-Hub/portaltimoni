@@ -12,6 +12,7 @@ let filtroLoja = 'todas';
 let editandoId = null;
 let notaCount = 0;
 let toastTimer = null;
+let diaMotorista = null;
 
 // --------------------------------------------------------------------------
 // Utilidades
@@ -63,6 +64,27 @@ function formatDataTitulo(dataStr) {
   return `${dias[dt.getDay()]}, ${String(d).padStart(2, '0')}/${String(m).padStart(2, '0')}/${y}`;
 }
 
+// Parse local (não usar `new Date("YYYY-MM-DD")` direto — isso é interpretado como UTC e pode
+// virar o dia errado dependendo do fuso do navegador).
+function dataStrParaDate(dataStr) {
+  const [y, m, d] = dataStr.split('-').map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function formatHoraCurta(iso) {
+  if (!iso) return '--:--';
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '--:--';
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+}
+
+function statusPillHtml(v) {
+  if (v.tipoHorario === 'Bloqueio') return '';
+  if (v.checkoutEm) return `<span class="status-pill status-concluida">✓ Concluída ${formatHoraCurta(v.checkoutEm)}</span>`;
+  if (v.checkinEm) return `<span class="status-pill status-andamento">No local desde ${formatHoraCurta(v.checkinEm)}</span>`;
+  return '<span class="status-pill status-pendente">Pendente</span>';
+}
+
 // Padrão fixo: segunda à tarde, quarta e sexta o motorista vai para Araras (entregas maiores).
 // É só um lembrete visual — não bloqueia nem impede registrar outra coisa nesses dias.
 function padraoAraras(dataStr) {
@@ -106,7 +128,7 @@ function formatPhone(raw) {
 // Navegação (só duas telas: a agenda em si, e a configuração da planilha)
 // --------------------------------------------------------------------------
 function mostrarTela(nome) {
-  ['telaConfig', 'telaAgenda'].forEach((id) => {
+  ['telaConfig', 'telaAgenda', 'telaMotorista'].forEach((id) => {
     document.getElementById(id).hidden = id !== nome;
   });
 }
@@ -340,6 +362,7 @@ function renderDia(destacarId) {
             <span class="tag ${tagTipo}">${isBloqueio ? '🔒 Bloqueio' : escHtml(v.tipoHorario)}</span>
             <span class="tag tag-loja">${escHtml(AgendaStore.LOJA_LABEL[v.loja] || v.loja)}</span>
             ${v.horarioFim ? `<span class="tag tag-loja">até ${escHtml(v.horarioFim)}</span>` : ''}
+            ${statusPillHtml(v)}
           </div>
           ${isBloqueio
             ? `<p class="viagem-resumo">${escHtml(v.info) || '(sem motivo informado)'}</p>`
@@ -890,6 +913,117 @@ function abrirRota() {
 }
 
 // --------------------------------------------------------------------------
+// Modo Motorista — lista simples do dia com check-in/check-out e observação.
+// As marcações gravam na mesma viagem (via AgendaStore.atualizarViagem), então em modo
+// planilha aparecem também pra quem organiza a agenda, quase em tempo real.
+// --------------------------------------------------------------------------
+async function abrirModoMotorista() {
+  diaMotorista = diaMotorista || toDataStr(new Date());
+  mostrarTela('telaMotorista');
+  await renderModoMotorista();
+}
+
+async function renderModoMotorista() {
+  document.getElementById('motoristaDataLabel').textContent = formatDataTitulo(diaMotorista);
+  document.getElementById('motoristaModoLocal').hidden = await AgendaStore.isRemote();
+
+  const lista = document.getElementById('listaMotorista');
+  let viagens;
+  try {
+    viagens = await AgendaStore.listarDia(diaMotorista);
+  } catch (e) {
+    lista.innerHTML = `<p class="validation-msg">${escHtml(e.message)}</p>`;
+    return;
+  }
+
+  lista.innerHTML = '';
+  if (!viagens.length) {
+    lista.innerHTML = '<p class="hint-text">Nenhuma viagem cadastrada para este dia.</p>';
+    return;
+  }
+
+  viagens.forEach((v) => {
+    const isBloqueio = v.tipoHorario === 'Bloqueio';
+    const enderecoResumo = [v.endereco, v.numero].filter(Boolean).join(', ');
+    const mapsUrl = enderecoResumo ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoResumo)}` : null;
+
+    let statusHtml;
+    if (isBloqueio) {
+      statusHtml = '';
+    } else if (v.checkoutEm) {
+      statusHtml = `<span class="status-pill status-concluida">✓ Concluída às ${formatHoraCurta(v.checkoutEm)}</span>`;
+    } else if (v.checkinEm) {
+      statusHtml = `<span class="status-pill status-andamento">No local desde ${formatHoraCurta(v.checkinEm)}</span><button class="btn-primary btn-grande js-checkout" data-id="${v.id}">Concluí</button>`;
+    } else {
+      statusHtml = `<button class="btn-primary btn-grande js-checkin" data-id="${v.id}">Cheguei</button>`;
+    }
+
+    const card = document.createElement('div');
+    card.className = 'motorista-card';
+    card.innerHTML = `
+      <div class="motorista-topo">
+        <span class="viagem-horario">${escHtml(v.horario) || '--:--'}</span>
+        <span class="tag ${v.tipoHorario === 'Retirada' ? 'tag-retirada' : (isBloqueio ? 'tag-bloqueio' : 'tag-entrega')}">${isBloqueio ? '🔒 Bloqueio' : escHtml(v.tipoHorario)}</span>
+        <span class="tag tag-loja">${escHtml(AgendaStore.LOJA_LABEL[v.loja] || v.loja)}</span>
+        ${v.horarioFim ? `<span class="tag tag-loja">até ${escHtml(v.horarioFim)}</span>` : ''}
+      </div>
+      ${isBloqueio
+        ? `<p class="viagem-resumo">${escHtml(v.info) || '(sem motivo informado)'}</p>`
+        : `<p class="viagem-resumo"><strong>${escHtml(v.clienteFornecedor) || '(sem cliente/fornecedor)'}</strong></p>
+           <p class="viagem-sub">${escHtml(enderecoResumo) || 'Endereço não informado'}${mapsUrl ? ` — <a href="${mapsUrl}" target="_blank" rel="noopener">abrir no Maps</a>` : ''}</p>
+           ${(v.contatoNome || v.contatoWhats) ? `<p class="viagem-sub">Contato: ${escHtml(v.contatoNome)}${v.contatoWhats ? ' - ' + escHtml(v.contatoWhats) : ''}</p>` : ''}`}
+      <div class="motorista-status">${statusHtml}</div>
+      ${!isBloqueio ? `
+        <label>Observação</label>
+        <textarea class="motorista-obs" data-id="${v.id}">${escHtml(v.observacaoMotorista || '')}</textarea>
+        <button class="btn-secondary btn-small js-salvar-obs" data-id="${v.id}">Salvar observação</button>
+      ` : ''}
+    `;
+    lista.appendChild(card);
+  });
+
+  lista.querySelectorAll('.js-checkin').forEach((btn) => btn.addEventListener('click', () => marcarCheckin(btn.dataset.id)));
+  lista.querySelectorAll('.js-checkout').forEach((btn) => btn.addEventListener('click', () => marcarCheckout(btn.dataset.id)));
+  lista.querySelectorAll('.js-salvar-obs').forEach((btn) => btn.addEventListener('click', () => salvarObservacaoMotorista(btn.dataset.id, btn)));
+}
+
+async function marcarCheckin(id) {
+  try {
+    await AgendaStore.atualizarViagem(id, { checkinEm: new Date().toISOString() });
+    mostrarToast('Check-in registrado ✓');
+    await renderModoMotorista();
+  } catch (e) {
+    mostrarToast('Não foi possível registrar: ' + e.message, 'erro');
+  }
+}
+
+async function marcarCheckout(id) {
+  try {
+    await AgendaStore.atualizarViagem(id, { checkoutEm: new Date().toISOString() });
+    mostrarToast('Check-out registrado ✓');
+    await renderModoMotorista();
+  } catch (e) {
+    mostrarToast('Não foi possível registrar: ' + e.message, 'erro');
+  }
+}
+
+async function salvarObservacaoMotorista(id, btn) {
+  const textarea = document.querySelector(`.motorista-obs[data-id="${id}"]`);
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Salvando...';
+  try {
+    await AgendaStore.atualizarViagem(id, { observacaoMotorista: textarea.value });
+    mostrarToast('Observação salva ✓');
+  } catch (e) {
+    mostrarToast('Não foi possível salvar: ' + e.message, 'erro');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
+  }
+}
+
+// --------------------------------------------------------------------------
 // Configuração (só a URL da planilha — não existe mais "loja do computador")
 // --------------------------------------------------------------------------
 async function abrirConfig() {
@@ -902,6 +1036,20 @@ async function abrirConfig() {
 // --------------------------------------------------------------------------
 // Wiring de eventos (roda depois que o HTML já existe, script fica no fim do body)
 // --------------------------------------------------------------------------
+document.getElementById('btnModoMotorista').addEventListener('click', abrirModoMotorista);
+document.getElementById('btnSairMotorista').addEventListener('click', () => {
+  mostrarTela('telaAgenda');
+  refrescarCalendario();
+  if (diaAtual) carregarDia();
+});
+document.getElementById('btnMotoristaHoje').addEventListener('click', () => { diaMotorista = toDataStr(new Date()); renderModoMotorista(); });
+document.getElementById('btnMotoristaAnterior').addEventListener('click', () => {
+  const d = dataStrParaDate(diaMotorista); d.setDate(d.getDate() - 1); diaMotorista = toDataStr(d); renderModoMotorista();
+});
+document.getElementById('btnMotoristaProximo').addEventListener('click', () => {
+  const d = dataStrParaDate(diaMotorista); d.setDate(d.getDate() + 1); diaMotorista = toDataStr(d); renderModoMotorista();
+});
+
 document.getElementById('btnConfig').addEventListener('click', abrirConfig);
 document.getElementById('btnFecharConfig').addEventListener('click', () => { mostrarTela('telaAgenda'); refrescarCalendario(); });
 document.getElementById('btnSalvarConfig').addEventListener('click', async () => {

@@ -616,7 +616,7 @@ function copiarViagemIndividual(id) {
 function imprimirViagemIndividual(id) {
   const v = viagensDia.find((x) => x.id === id);
   if (!v) return;
-  printText(buildTripText(v, true));
+  printText(buildRelatorioEntry(v, null));
 }
 
 function fecharForm() {
@@ -864,10 +864,11 @@ function printText(texto) {
 // ler rápido dentro da van (endereço e contato em destaque, sem seções separadas).
 function buildRelatorioEntry(v, indice) {
   const loja = AgendaStore.LOJA_LABEL[v.loja] || v.loja;
+  const prefixo = indice ? `${indice}) ` : '';
 
   if (v.tipoHorario === 'Bloqueio') {
     const periodo = v.horario ? `${v.horario} às ${v.horarioFim}` : `até ${v.horarioFim}`;
-    const linhas = [`${indice}) Loja ${loja}: Bloqueio: ${periodo}`];
+    const linhas = [`${prefixo}Loja ${loja}: Bloqueio: ${periodo}`];
     if (v.info) linhas.push(v.info);
     if (v.preenchidoPor) linhas.push(`Preenchido por: ${v.preenchidoPor}`);
     return linhas.join('\n');
@@ -883,7 +884,7 @@ function buildRelatorioEntry(v, indice) {
   if (v.numero) enderecoCompleto += `, ${v.numero}`;
   if (v.complemento) enderecoCompleto += ` - ${v.complemento}`;
 
-  const linhas = [`${indice}) Loja ${loja}: ${v.tipoHorario}: ${horarioTexto}`];
+  const linhas = [`${prefixo}Loja ${loja}: ${v.tipoHorario}: ${horarioTexto}`];
   linhas.push(`Pedido/Fornecedor: ${v.numeroPedido || ''}${v.numeroPedido && v.clienteFornecedor ? ' ' : ''}${v.clienteFornecedor || ''} - Volume: ${v.volumes || ''}`);
   linhas.push('');
   if (enderecoCompleto) linhas.push(enderecoCompleto);
@@ -1077,28 +1078,41 @@ async function renderModoMotorista() {
     lista.appendChild(card);
   });
 
-  lista.querySelectorAll('.js-checkin').forEach((btn) => btn.addEventListener('click', () => marcarCheckin(btn.dataset.id)));
-  lista.querySelectorAll('.js-checkout').forEach((btn) => btn.addEventListener('click', () => marcarCheckout(btn.dataset.id)));
+  lista.querySelectorAll('.js-checkin').forEach((btn) => btn.addEventListener('click', () => marcarCheckin(btn.dataset.id, btn)));
+  lista.querySelectorAll('.js-checkout').forEach((btn) => btn.addEventListener('click', () => marcarCheckout(btn.dataset.id, btn)));
   lista.querySelectorAll('.js-salvar-obs').forEach((btn) => btn.addEventListener('click', () => salvarObservacaoMotorista(btn.dataset.id, btn)));
 }
 
-async function marcarCheckin(id) {
+// Desabilita e muda o texto do botão assim que é tocado — sem isso, numa conexão lenta
+// (planilha remota pode levar alguns segundos pra responder) o motorista não vê nada
+// acontecer entre o toque e o toast, e acha que não funcionou.
+async function marcarCheckin(id, btn) {
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Registrando...';
   try {
     await AgendaStore.atualizarViagem(id, { checkinEm: new Date().toISOString() });
     mostrarToast('Check-in registrado ✓');
     await renderModoMotorista();
   } catch (e) {
     mostrarToast('Não foi possível registrar: ' + e.message, 'erro');
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
   }
 }
 
-async function marcarCheckout(id) {
+async function marcarCheckout(id, btn) {
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = 'Registrando...';
   try {
     await AgendaStore.atualizarViagem(id, { checkoutEm: new Date().toISOString() });
     mostrarToast('Check-out registrado ✓');
     await renderModoMotorista();
   } catch (e) {
     mostrarToast('Não foi possível registrar: ' + e.message, 'erro');
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
   }
 }
 

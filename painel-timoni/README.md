@@ -13,10 +13,11 @@ página estática (GitHub Pages, por exemplo).
 
 Cada módulo tem uma cor fixa (`--mod-compras`, `--mod-estoque`, etc., em `app.css`), usada na
 faixa lateral dos cartões, no chip da barra de navegação e agora também no círculo ao lado do
-título de cada módulo (`icons/mod-*.png`) — um desenho simples em branco, silhueta só, sobre a
-cor do módulo: carrinho (Compras), caixa (Estoque), caminhão (Motorista), calendário (Agenda
-Ciça), prancheta (Reuniões), megafone (Marketing). Compras, Estoque e Motorista usam esse mesmo
-círculo como ícone da extensão/página (`hub-pedidos-chrome/icons/`, `estoque-chrome/icons/`,
+título de cada módulo (`icons/mod-*.png`) — ícone de linha fina (biblioteca
+[Lucide](https://lucide.dev), traço branco) sobre a cor do módulo: `shopping-cart` (Compras),
+`package` (Estoque), `truck` (Motorista), `calendar-days` (Agenda Ciça), `clipboard-list`
+(Reuniões), `megaphone` (Marketing). Compras, Estoque e Motorista usam esse mesmo círculo como
+ícone da extensão/página (`hub-pedidos-chrome/icons/`, `estoque-chrome/icons/`,
 `motorista/icons/`), para que o módulo seja reconhecível de relance tanto aqui quanto na barra
 do Chrome.
 

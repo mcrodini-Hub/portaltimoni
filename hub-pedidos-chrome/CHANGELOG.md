@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.0-alpha.30 — Ícone de linha fina (estilo profissional)
+
+O glifo desenhado à mão (silhueta grossa) ainda não agradou — pedido foi
+um estilo mais próximo de bancos de ícone profissionais (linha fina,
+traço único), como o exemplo mostrado pela usuária.
+
+- **Alterado**: ícone trocado pelo carrinho de compras da biblioteca
+  [Lucide](https://lucide.dev) (`shopping-cart`, licença ISC), traço
+  branco fino sobre o mesmo círculo azul do módulo.
+
 ## 1.1.0-alpha.29 — Ícone em glifo branco (era emoji colorido)
 
 O emoji colorido (🛒) ficava "sujo"/carregado no círculo pequeno da barra

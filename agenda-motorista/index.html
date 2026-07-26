@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agenda de Motorista · Portal Timoni</title>
-<link rel="stylesheet" href="app.css?v=6">
+<link rel="stylesheet" href="app.css?v=9">
 </head>
 <body>
 
@@ -52,58 +52,71 @@
     </div>
   </section>
 
-  <!-- AGENDA: calendário e dia selecionado, tudo na mesma tela -->
+  <!-- AGENDA: calendário e dia selecionado, lado a lado, sem precisar rolar -->
   <section id="telaAgenda">
+    <div class="dashboard-grid">
 
-    <div class="cal-header">
-      <h1 id="calLabel">--</h1>
-      <div class="cal-nav">
-        <button class="btn-secondary btn-small" id="btnHoje">Hoje</button>
-        <button class="icon-btn" id="btnAnterior" title="Anterior">‹</button>
-        <button class="icon-btn" id="btnProximo" title="Próximo">›</button>
+      <!-- Coluna esquerda: calendário -->
+      <div class="dash-col dash-col-cal">
+        <div class="cal-header">
+          <h1 id="calLabel">--</h1>
+          <div class="cal-nav">
+            <button class="btn-secondary btn-small" id="btnHoje">Hoje</button>
+            <button class="icon-btn" id="btnAnterior" title="Anterior">‹</button>
+            <button class="icon-btn" id="btnProximo" title="Próximo">›</button>
+          </div>
+        </div>
+        <div class="filtro-loja">
+          <button class="chip js-modo-cal ativo" data-modo="semana">Semana</button>
+          <button class="chip js-modo-cal" data-modo="mes">Mês</button>
+        </div>
+        <div class="cal-legend">
+          <span><span class="dot dot-entrega"></span>entregas</span>
+          <span><span class="dot dot-retirada"></span>retiradas</span>
+          <span><span class="cal-day-tag" style="margin-right:4px;">Araras</span>dia padrão de Araras</span>
+        </div>
+        <p class="validation-msg" id="calMsg"></p>
+        <div class="cal-grid-semana" id="calGridSemana"></div>
+        <div class="cal-grid" id="calGrid" hidden></div>
       </div>
-    </div>
-    <div class="filtro-loja">
-      <button class="chip js-modo-cal ativo" data-modo="semana">Semana</button>
-      <button class="chip js-modo-cal" data-modo="mes">Mês</button>
-    </div>
-    <p class="subtitle">Clique num dia para ver e registrar as viagens dele aqui embaixo.</p>
-    <div class="cal-legend">
-      <span><span class="dot dot-entrega"></span>entregas</span>
-      <span><span class="dot dot-retirada"></span>retiradas</span>
-      <span><span class="cal-day-tag" style="margin-right:4px;">Araras</span>dia padrão de Araras (seg. tarde, qua e sex)</span>
-    </div>
-    <p class="validation-msg" id="calMsg"></p>
-    <div class="cal-grid-semana" id="calGridSemana"></div>
-    <div class="cal-grid" id="calGrid" hidden></div>
 
-    <div class="divider" style="margin:28px 0;"></div>
-
-    <!-- DIA selecionado -->
-    <div id="diaSecao">
-      <p id="diaPlaceholder" class="hint-text">↑ Selecione um dia no calendário acima para ver ou registrar viagens.</p>
-
-      <div id="diaConteudo" hidden>
+      <!-- Coluna direita: viagens do dia selecionado -->
+      <div class="dash-col dash-col-dia" id="diaSecao">
         <div class="dia-header">
           <h1 class="dia-titulo" id="diaTitulo">--</h1>
+          <div class="filtro-loja" style="margin:0;">
+            <button class="chip js-filtro-loja ativo" data-loja="todas">Todas</button>
+            <button class="chip js-filtro-loja" data-loja="rio_claro">Rio Claro</button>
+            <button class="chip js-filtro-loja" data-loja="araras">Araras</button>
+          </div>
         </div>
         <div class="dia-banner" id="diaBanner" hidden></div>
 
-        <div class="filtro-loja">
-          <button class="chip js-filtro-loja ativo" data-loja="todas">Todas</button>
-          <button class="chip js-filtro-loja" data-loja="rio_claro">Rio Claro</button>
-          <button class="chip js-filtro-loja" data-loja="araras">Araras</button>
+        <div class="acoes-dia acoes-dia-compact">
+          <button class="btn-primary btn-small" id="btnNovaViagem">+ Nova viagem</button>
+          <button class="btn-secondary btn-small" id="btnBloquearHorario">🔒 Bloquear</button>
+          <button class="btn-outline btn-small" id="btnImprimirRelatorio">Imprimir</button>
+          <button class="btn-outline btn-small" id="btnGerarExcel">Excel</button>
+          <button class="btn-outline btn-small" id="btnAbrirRota">Rota</button>
         </div>
 
-        <div id="listaViagens"></div>
+        <div id="listaViagens" class="lista-viagens-scroll"></div>
+        <div class="validation-msg" id="diaValidationMsg"></div>
 
-        <div class="acoes-dia">
-          <button class="btn-primary" id="btnNovaViagem">+ Nova viagem</button>
-          <button class="btn-secondary" id="btnBloquearHorario">🔒 Bloquear período</button>
-        </div>
+        <details class="output-details">
+          <summary>Texto do dia (pronto para o WhatsApp)</summary>
+          <textarea id="output" readonly></textarea>
+          <div class="copy-row">
+            <button class="btn-primary btn-small" id="btnCopiarTexto">Copiar texto</button>
+            <span class="copied-msg" id="copiedMsg">Copiado!</span>
+          </div>
+        </details>
+      </div>
+    </div>
 
-        <!-- FORMULÁRIO (criar / editar) -->
-        <div class="form-panel" id="formPanel" hidden>
+    <!-- FORMULÁRIO (criar / editar) — modal por cima, não empurra o resto da tela -->
+    <div class="modal-overlay" id="formOverlay" hidden>
+      <div class="form-panel modal-panel" id="formPanel">
           <h2 id="formTitulo" style="font-size:15px;margin:0 0 4px;color:var(--blue-dark);">Nova viagem</h2>
 
           <div class="row2">
@@ -215,30 +228,13 @@
             <button class="btn-secondary" id="btnCancelarForm">Cancelar</button>
             <button class="btn-danger" id="btnExcluirNoForm" hidden>Excluir viagem</button>
           </div>
-        </div>
-
-        <div class="acoes-dia">
-          <button class="btn-outline" id="btnImprimirRelatorio">Imprimir relatório (Entregas/Retiradas)</button>
-          <button class="btn-outline" id="btnGerarExcel">Gerar Excel do dia</button>
-          <button class="btn-outline" id="btnAbrirRota">Abrir rota no Maps</button>
-        </div>
-        <div class="validation-msg" id="diaValidationMsg"></div>
-
-        <div class="output-panel">
-          <h2>Texto do dia (pronto para o WhatsApp)</h2>
-          <textarea id="output" readonly></textarea>
-          <div class="copy-row">
-            <button class="btn-primary" id="btnCopiarTexto">Copiar texto</button>
-            <span class="copied-msg" id="copiedMsg">Copiado!</span>
-          </div>
-        </div>
       </div>
     </div>
   </section>
 
 </main>
 
-<script src="lib/store.js?v=6"></script>
-<script src="app.js?v=6"></script>
+<script src="lib/store.js?v=9"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

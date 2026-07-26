@@ -139,6 +139,7 @@ async function init() {
   semanaAtualInicio = segundaDaSemana(hoje);
   mostrarTela('telaAgenda');
   renderSemana();
+  abrirDia(toDataStr(hoje)); // já abre o dia de hoje, sem precisar clicar em nada
 }
 
 function refrescarCalendario() {
@@ -150,7 +151,7 @@ function refrescarCalendario() {
 // Calendário — visão Semana (padrão) e visão Mês
 // --------------------------------------------------------------------------
 const NOMES_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-const DIAS_UTEIS = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
+const DIAS_UTEIS = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex'];
 
 function segundaDaSemana(data) {
   const d = new Date(data.getFullYear(), data.getMonth(), data.getDate());
@@ -281,11 +282,8 @@ async function abrirDia(data) {
   fecharForm();
   document.getElementById('diaValidationMsg').textContent = '';
   atualizarChipsFiltro();
-  document.getElementById('diaPlaceholder').hidden = true;
-  document.getElementById('diaConteudo').hidden = false;
   await carregarDia();
   refrescarCalendario();
-  document.getElementById('diaSecao').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
 function atualizarChipsFiltro() {
@@ -393,6 +391,7 @@ function renderDia(destacarId) {
     const cardDestacado = document.getElementById('viagem-' + destacarId);
     if (cardDestacado) {
       cardDestacado.classList.add('destaque');
+      cardDestacado.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       setTimeout(() => cardDestacado.classList.remove('destaque'), 3500);
     }
   }
@@ -522,8 +521,7 @@ function abrirForm(viagem) {
   document.getElementById('formTitulo').textContent = viagem ? 'Editar viagem' : 'Nova viagem';
   document.getElementById('btnExcluirNoForm').hidden = !viagem;
   if (viagem) preencherCampos(viagem);
-  document.getElementById('formPanel').hidden = false;
-  document.getElementById('formPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('formOverlay').hidden = false;
 }
 
 // Copia os dados de uma viagem existente para um formulário de viagem NOVA — agiliza
@@ -539,8 +537,7 @@ function duplicarViagem(id) {
   preencherCampos(v);
   document.getElementById('f-horario').value = '';
   document.getElementById('f-horarioFim').value = '';
-  document.getElementById('formPanel').hidden = false;
-  document.getElementById('formPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  document.getElementById('formOverlay').hidden = false;
   document.getElementById('f-horario').focus();
 }
 
@@ -568,7 +565,7 @@ function imprimirViagemIndividual(id) {
 }
 
 function fecharForm() {
-  document.getElementById('formPanel').hidden = true;
+  document.getElementById('formOverlay').hidden = true;
   editandoId = null;
 }
 
@@ -1122,6 +1119,9 @@ document.getElementById('btnBloquearHorario').addEventListener('click', () => {
   document.getElementById('f-horario').focus();
 });
 document.getElementById('btnCancelarForm').addEventListener('click', fecharForm);
+document.getElementById('formOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'formOverlay') fecharForm();
+});
 document.getElementById('btnSalvarViagem').addEventListener('click', salvarViagem);
 document.getElementById('btnExcluirNoForm').addEventListener('click', () => { if (editandoId) excluirItem(editandoId); fecharForm(); });
 document.getElementById('f-tipoHorario').addEventListener('change', toggleTipoCampos);

@@ -599,7 +599,7 @@ function duplicarViagem(id) {
 function copiarViagemIndividual(id) {
   const v = viagensDia.find((x) => x.id === id);
   if (!v) return;
-  const texto = buildTripText(v, true);
+  const texto = buildRelatorioEntry(v, null);
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(texto).then(() => mostrarToast('Texto da viagem copiado ✓')).catch(() => mostrarToast('Não foi possível copiar.', 'erro'));
   } else {
@@ -750,71 +750,12 @@ async function buscarCep() {
 }
 
 // --------------------------------------------------------------------------
-// Texto WhatsApp / Relatório / Excel / Rota — sempre sobre o dia inteiro
+// Texto do dia / Relatório / Excel / Rota — sempre sobre o dia inteiro
 // (o filtro de loja é só uma lente de visualização, não recorta as saídas)
 // --------------------------------------------------------------------------
-function buildTripText(v, mostrarLoja) {
-  if (v.tipoHorario === 'Bloqueio') {
-    const periodo = v.horario ? `${v.horario} às ${v.horarioFim}` : `até ${v.horarioFim}`;
-    let linha = `⏸ *Bloqueio: ${periodo}*`;
-    if (mostrarLoja) linha += ` (${AgendaStore.LOJA_LABEL[v.loja] || v.loja})`;
-    if (v.info) linha += `\n${v.info}`;
-    return linha;
-  }
-
-  let enderecoCompleto = v.endereco || '';
-  if (v.numero) enderecoCompleto += `, ${v.numero}`;
-  if (v.complemento) enderecoCompleto += ` - ${v.complemento}`;
-
-  const boldLines = [`${formatDataLine(v.data)}${enderecoCompleto ? ' - ' + enderecoCompleto : ''}`];
-  if (v.horario || v.horarioFim) {
-    let horarioTexto;
-    if (v.horario && v.horarioFim) horarioTexto = `${v.horario} às ${v.horarioFim}`;
-    else if (v.horario) horarioTexto = v.horario;
-    else horarioTexto = `até ${v.horarioFim}`;
-    boldLines.push(`${v.tipoHorario}: ${horarioTexto}`);
-  }
-  if (mostrarLoja) boldLines.push(`Loja: ${AgendaStore.LOJA_LABEL[v.loja] || v.loja}`);
-  if (v.clienteFornecedor || v.numeroPedido) boldLines.push(`Pedido/Fornecedor: ${v.numeroPedido || ''}${v.numeroPedido && v.clienteFornecedor ? ' ' : ''}${v.clienteFornecedor || ''}`);
-  if (v.contatoNome || v.contatoWhats) boldLines.push(`Contato: ${v.contatoNome || ''}${v.contatoNome && v.contatoWhats ? ' - ' : ''}${v.contatoWhats || ''}`);
-
-  const lines = ['*' + boldLines.join('\n') + '*'];
-  nonEmptyLines(v.itens).forEach((i) => lines.push(i));
-  if (v.volumes) lines.push(`*Volume: ${v.volumes}*`);
-  const infoLines = nonEmptyLines(v.info);
-  if (infoLines.length) {
-    lines.push('*Informações:*');
-    lines.push('');
-    infoLines.forEach((i) => lines.push(`- ${i}`));
-  }
-
-  if (v.dividir && v.notas && v.notas.length) {
-    const validas = v.notas.filter((n) => n.nome || nonEmptyLines(n.itens).length);
-    if (validas.length) {
-      lines.push('');
-      lines.push(`*Este total terá ${validas.length} notas fiscais, sendo:*`);
-      validas.forEach((n) => {
-        lines.push('');
-        lines.push(`*${n.nome || '(empresa)'}*:`);
-        nonEmptyLines(n.itens).forEach((i) => lines.push(i));
-      });
-    }
-  }
-
-  if (v.preenchidoPor) {
-    lines.push('');
-    lines.push(`*Preenchido por: ${v.preenchidoPor}*`);
-  }
-
-  return lines.join('\n');
-}
-
 function gerarTextoDia() {
   if (!viagensDia.length) return '';
-  const mostrarLoja = new Set(viagensDia.map((v) => v.loja)).size > 1;
-  const titulo = `🚚 Agenda de Motorista - Casa Timoni - ${formatDataTitulo(diaAtual)}🚚`;
-  const sep = '='.repeat(47);
-  return '*' + titulo + '*\n\n' + viagensDia.map((v) => buildTripText(v, mostrarLoja)).join('\n' + sep + '\n\n');
+  return relatorioTexto();
 }
 
 function renderOutput() {
@@ -865,14 +806,7 @@ function printText(texto) {
 function buildRelatorioEntry(v, indice) {
   const loja = AgendaStore.LOJA_LABEL[v.loja] || v.loja;
   const prefixo = indice ? `${indice}) ` : '';
-
-  if (v.tipoHorario === 'Bloqueio') {
-    const periodo = v.horario ? `${v.horario} às ${v.horarioFim}` : `até ${v.horarioFim}`;
-    const linhas = [`${prefixo}Loja ${loja}: Bloqueio: ${periodo}`];
-    if (v.info) linhas.push(v.info);
-    if (v.preenchidoPor) linhas.push(`Preenchido por: ${v.preenchidoPor}`);
-    return linhas.join('\n');
-  }
+  const vendedor = v.preenchidoPor ? ` - Vendedor: ${v.preenchidoPor}` : '';
 
   let horarioTexto;
   if (v.horario && v.horarioFim) horarioTexto = `${v.horario} às ${v.horarioFim}`;
@@ -880,12 +814,18 @@ function buildRelatorioEntry(v, indice) {
   else if (v.horarioFim) horarioTexto = `até ${v.horarioFim}`;
   else horarioTexto = '--:--';
 
+  if (v.tipoHorario === 'Bloqueio') {
+    const linhas = [`${prefixo}${horarioTexto} Bloqueio ${loja}${vendedor}`];
+    if (v.info) linhas.push(v.info);
+    return linhas.join('\n');
+  }
+
   let enderecoCompleto = v.endereco || '';
   if (v.numero) enderecoCompleto += `, ${v.numero}`;
   if (v.complemento) enderecoCompleto += ` - ${v.complemento}`;
 
-  const linhas = [`${prefixo}Loja ${loja}: ${v.tipoHorario}: ${horarioTexto}`];
-  linhas.push(`Pedido/Fornecedor: ${v.numeroPedido || ''}${v.numeroPedido && v.clienteFornecedor ? ' ' : ''}${v.clienteFornecedor || ''} - Volume: ${v.volumes || ''}`);
+  const linhas = [`${prefixo}${horarioTexto} ${v.tipoHorario} ${loja}${vendedor}`];
+  linhas.push(`${v.clienteFornecedor || ''}${v.clienteFornecedor ? ' ' : ''}NF${v.numeroPedido ? ' ' + v.numeroPedido : ''} Volume: ${v.volumes || ''}`);
   linhas.push('');
   if (enderecoCompleto) linhas.push(enderecoCompleto);
   nonEmptyLines(v.itens).forEach((i) => linhas.push(i));
@@ -907,14 +847,13 @@ function buildRelatorioEntry(v, indice) {
       });
     }
   }
-  if (v.preenchidoPor) linhas.push(`Preenchido por: ${v.preenchidoPor}`);
   return linhas.join('\n');
 }
 
 function relatorioTexto() {
   const titulo = `AGENDA MOTORISTA - DIA ${formatDataLine(diaAtual)}`;
-  const corpo = viagensDia.map((v, idx) => buildRelatorioEntry(v, idx + 1)).join('\n\n\n\n');
-  return `${titulo}\n\n\n${corpo}`;
+  const corpo = viagensDia.map((v, idx) => buildRelatorioEntry(v, idx + 1)).join('\n\n');
+  return `${titulo}\n\n${corpo}`;
 }
 
 function imprimirRelatorio() {

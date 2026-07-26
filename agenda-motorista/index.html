@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agenda de Motorista · Portal Timoni</title>
-<link rel="stylesheet" href="app.css?v=16">
+<link rel="stylesheet" href="app.css?v=17">
 </head>
 <body>
 
@@ -105,14 +105,11 @@
         <div id="listaViagens" class="lista-viagens-scroll"></div>
         <div class="validation-msg" id="diaValidationMsg"></div>
 
-        <details class="output-details">
-          <summary>Texto do dia (pronto para o WhatsApp)</summary>
-          <textarea id="output" readonly></textarea>
-          <div class="copy-row">
-            <button class="btn-primary btn-small" id="btnCopiarTexto">Copiar texto</button>
-            <span class="copied-msg" id="copiedMsg">Copiado!</span>
-          </div>
-        </details>
+        <textarea id="output" readonly hidden></textarea>
+        <div class="copy-row">
+          <button class="btn-primary btn-small" id="btnCopiarTexto">Copiar texto do dia</button>
+          <span class="copied-msg" id="copiedMsg">Copiado!</span>
+        </div>
       </div>
     </div>
 
@@ -244,7 +241,7 @@
 
 </main>
 
-<script src="lib/store.js?v=16"></script>
-<script src="app.js?v=16"></script>
+<script src="lib/store.js?v=17"></script>
+<script src="app.js?v=17"></script>
 </body>
 </html>

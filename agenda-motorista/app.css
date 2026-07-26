@@ -216,14 +216,7 @@ textarea{min-height:64px;}
 }
 
 /* --------------------------- Output (recolhido por padrão) --------------------------- */
-.output-details{background:var(--card-bg);border:1px solid var(--border);border-radius:14px;padding:14px 18px;margin-top:14px;}
-.output-details summary{font-size:15px;font-weight:700;color:var(--blue-dark);cursor:pointer;}
-.output-details[open] summary{margin-bottom:12px;}
-#output{
-  width:100%;min-height:180px;font-family:"Courier New",monospace;font-size:15px;
-  white-space:pre-wrap;padding:14px;border:1px solid var(--border);border-radius:10px;background:#fafafa;color:var(--ink);
-}
-.copy-row{margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.copy-row{margin-top:14px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .copied-msg{font-size:13px;color:var(--green);font-weight:600;opacity:0;transition:opacity .3s;}
 
 /* --------------------------- Lista "Agendado esta semana" --------------------------- */

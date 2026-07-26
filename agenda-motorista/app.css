@@ -87,6 +87,7 @@ button{cursor:pointer;border:none;border-radius:10px;padding:11px 18px;font-size
 .cal-legend .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;}
 .dot-entrega{background:var(--blue);}
 .dot-retirada{background:var(--amber);}
+.dot-bloqueio{background:#5b3fae;}
 
 #calGridSemana[hidden], #calGrid[hidden]{display:none;}
 .cal-grid-semana{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-top:4px;}
@@ -221,6 +222,19 @@ textarea{min-height:64px;}
 }
 .copy-row{margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
 .copied-msg{font-size:13px;color:var(--green);font-weight:600;opacity:0;transition:opacity .3s;}
+
+/* --------------------------- Lista "Agendado esta semana" --------------------------- */
+.agenda-lista-semana-titulo{font-size:17px;margin:0 0 12px;}
+#agendaListaSemana{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;align-items:start;}
+.agenda-lista-dia{background:var(--card-bg);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+.agenda-lista-dia-titulo{font-size:13px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;margin:0 0 10px;}
+.agenda-lista-item{
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:8px 0;
+  border-top:1px solid var(--border);cursor:pointer;
+}
+.agenda-lista-item:first-of-type{border-top:none;padding-top:0;}
+.agenda-lista-item:hover{background:rgba(44,75,224,0.04);}
+.agenda-lista-desc{font-size:14px;color:var(--ink);}
 
 /* --------------------------- Modal do formulário --------------------------- */
 #formOverlay[hidden]{display:none;}

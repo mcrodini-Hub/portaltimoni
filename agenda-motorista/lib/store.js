@@ -129,8 +129,9 @@
       if (!dia.startsWith(prefixo)) return;
       const viagens = mapa[dia] || [];
       resumo[dia] = {
-        entregas: viagens.filter((v) => v.tipoHorario !== 'Retirada').length,
-        retiradas: viagens.filter((v) => v.tipoHorario === 'Retirada').length
+        entregas: viagens.filter((v) => v.tipoHorario === 'Entrega').length,
+        retiradas: viagens.filter((v) => v.tipoHorario === 'Retirada').length,
+        bloqueios: viagens.filter((v) => v.tipoHorario === 'Bloqueio').length
       };
     });
     return resumo;

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agenda de Motorista · Portal Timoni</title>
-<link rel="stylesheet" href="app.css?v=9">
+<link rel="stylesheet" href="app.css?v=10">
 </head>
 <body>
 
@@ -73,6 +73,7 @@
         <div class="cal-legend">
           <span><span class="dot dot-entrega"></span>entregas</span>
           <span><span class="dot dot-retirada"></span>retiradas</span>
+          <span><span class="dot dot-bloqueio"></span>bloqueios</span>
           <span><span class="cal-day-tag" style="margin-right:4px;">Araras</span>dia padrão de Araras</span>
         </div>
         <p class="validation-msg" id="calMsg"></p>
@@ -112,6 +113,14 @@
           </div>
         </details>
       </div>
+    </div>
+
+    <div class="divider" style="margin:24px 0;"></div>
+
+    <!-- Lista de tudo que está agendado na semana, embaixo do calendário -->
+    <div class="agenda-lista-semana-wrap">
+      <h2 class="agenda-lista-semana-titulo">Agendado esta semana</h2>
+      <div id="agendaListaSemana"></div>
     </div>
 
     <!-- FORMULÁRIO (criar / editar) — modal por cima, não empurra o resto da tela -->
@@ -234,7 +243,7 @@
 
 </main>
 
-<script src="lib/store.js?v=9"></script>
-<script src="app.js?v=9"></script>
+<script src="lib/store.js?v=10"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>

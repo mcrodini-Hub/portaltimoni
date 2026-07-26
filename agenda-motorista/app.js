@@ -138,13 +138,14 @@ async function init() {
   mesAtual = { ano: hoje.getFullYear(), mes: hoje.getMonth() + 1 };
   semanaAtualInicio = segundaDaSemana(hoje);
   mostrarTela('telaAgenda');
-  renderSemana();
+  refrescarCalendario();
   abrirDia(toDataStr(hoje)); // já abre o dia de hoje, sem precisar clicar em nada
 }
 
 function refrescarCalendario() {
   if (modoCalendario === 'semana') renderSemana();
   else renderCalendario();
+  renderListaSemanal();
 }
 
 // --------------------------------------------------------------------------
@@ -225,6 +226,53 @@ async function renderSemana() {
   });
 }
 
+async function renderListaSemanal() {
+  const dias = diasDaSemana();
+  let listasPorDia;
+  try {
+    listasPorDia = await Promise.all(dias.map((d) => AgendaStore.listarDia(toDataStr(d))));
+  } catch (e) {
+    return;
+  }
+
+  const container = document.getElementById('agendaListaSemana');
+  container.innerHTML = '';
+  let algumaViagem = false;
+
+  dias.forEach((d, idx) => {
+    const viagens = listasPorDia[idx];
+    if (!viagens.length) return;
+    algumaViagem = true;
+    const dataStr = toDataStr(d);
+
+    const grupo = document.createElement('div');
+    grupo.className = 'agenda-lista-dia';
+    const titulo = document.createElement('p');
+    titulo.className = 'agenda-lista-dia-titulo';
+    titulo.textContent = `${DIAS_UTEIS[idx]} ${d.getDate()}/${String(d.getMonth() + 1).padStart(2, '0')}`;
+    grupo.appendChild(titulo);
+
+    viagens.forEach((v) => {
+      const isBloqueio = v.tipoHorario === 'Bloqueio';
+      const item = document.createElement('div');
+      item.className = 'agenda-lista-item';
+      item.innerHTML = `
+        <span class="viagem-horario">${escHtml(v.horario) || '--:--'}</span>
+        <span class="tag ${v.tipoHorario === 'Retirada' ? 'tag-retirada' : (isBloqueio ? 'tag-bloqueio' : 'tag-entrega')}">${isBloqueio ? '🔒' : escHtml(v.tipoHorario)}</span>
+        <span class="tag tag-loja">${escHtml(AgendaStore.LOJA_LABEL[v.loja] || v.loja)}</span>
+        <span class="agenda-lista-desc">${isBloqueio ? escHtml(v.info) || 'Bloqueio' : escHtml(v.clienteFornecedor) || '(sem cliente/fornecedor)'}</span>
+      `;
+      item.addEventListener('click', () => abrirDia(dataStr));
+      grupo.appendChild(item);
+    });
+    container.appendChild(grupo);
+  });
+
+  if (!algumaViagem) {
+    container.innerHTML = '<p class="hint-text">Nenhuma viagem agendada nesta semana.</p>';
+  }
+}
+
 async function renderCalendario() {
   document.getElementById('calLabel').textContent = `${NOMES_MES[mesAtual.mes - 1]} ${mesAtual.ano}`;
   let resumo = {};
@@ -266,6 +314,7 @@ async function renderCalendario() {
       ${info ? `<div class="cal-day-counts">
         ${info.entregas ? `<span class="cal-count"><span class="dot dot-entrega"></span>${info.entregas}</span>` : ''}
         ${info.retiradas ? `<span class="cal-count"><span class="dot dot-retirada"></span>${info.retiradas}</span>` : ''}
+        ${info.bloqueios ? `<span class="cal-count"><span class="dot dot-bloqueio"></span>${info.bloqueios}</span>` : ''}
       </div>` : ''}
     `;
     cel.addEventListener('click', () => abrirDia(dataStr));

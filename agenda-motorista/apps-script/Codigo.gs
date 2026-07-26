@@ -172,8 +172,9 @@ function resumoMes(ano, mes) {
   var resumo = {};
   lerTudo().forEach(function (item) {
     if (item.reg.data.indexOf(prefixo) !== 0) return;
-    if (!resumo[item.reg.data]) resumo[item.reg.data] = { entregas: 0, retiradas: 0 };
+    if (!resumo[item.reg.data]) resumo[item.reg.data] = { entregas: 0, retiradas: 0, bloqueios: 0 };
     if (item.reg.tipoHorario === 'Retirada') resumo[item.reg.data].retiradas++;
+    else if (item.reg.tipoHorario === 'Bloqueio') resumo[item.reg.data].bloqueios++;
     else resumo[item.reg.data].entregas++;
   });
   return resumo;

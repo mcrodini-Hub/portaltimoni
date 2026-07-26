@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.0-alpha.29 — Ícone em glifo branco (era emoji colorido)
+
+O emoji colorido (🛒) ficava "sujo"/carregado no círculo pequeno da barra
+do Chrome — cores demais competindo com a cor do próprio módulo.
+
+- **Alterado**: ícone trocado por um desenho simples em branco (carrinho
+  de compras), só a silhueta, sobre o mesmo círculo azul de sempre —
+  mesma ideia usada agora nos 6 módulos do Painel Timoni.
+
 ## 1.1.0-alpha.28 — Emoji no ícone do módulo
 
 O círculo colorido do ícone (mesma cor do módulo no Painel Timoni) ficava

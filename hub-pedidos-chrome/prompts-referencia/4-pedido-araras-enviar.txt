@@ -1,3 +1,22 @@
 4-pedido-araras-enviar
 
-Navigate to https://trello.com/b/UfPrTr1H/compras?filter=label:Araras to view the Trello board with the Araras (blue) label filter already applied. Locate the "PEDIDOS PENDENTES" list in the board. Read and extract all card names displayed in that list. The cards should be displayed in their current order as shown on the filtered board. Return the complete list of card names from the PEDIDOS PENDENTES list. Note: Do NOT attempt to sort the list or open list menus - simply read the cards as they appear in the filtered view. The filter for Araras label is already applied in the URL, so the list will only show cards with that label.
+Acesse o Trello em:
+https://trello.com/b/UfPrTr1H/compras?filter=label:Araras
+
+Na lista PEDIDOS PENDENTES:
+
+1. Considere somente os cards com a etiqueta Araras.
+2. Leia os cards na ordem real em que aparecem no Trello.
+3. Não reorganize, não classifique e não altere a ordem.
+4. Enumere todos os cards.
+5. Confira se o total informado corresponde exatamente à quantidade de cards enumerados.
+6. Não abra, não mova e não altere nenhum card.
+
+Formato da resposta:
+
+Total: X
+
+1. NOME DO CARD
+2. NOME DO CARD
+
+Não explique os filtros e não inclua observações.

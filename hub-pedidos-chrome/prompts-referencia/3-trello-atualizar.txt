@@ -1,11 +1,34 @@
 3-trello-atualizar
 
-No link https://trello.com/b/UfPrTr1H/compras?filter=label:Rio%20Claro,label:Urgente
+Formato do comando:
 
-localizar na Lista PEDIDOS PENDENTES o card do fornecedor, conforme print, atualizar nome, data de envio e entrega, adicionar a etiqueta Enviado amarelo suave. Mover para o topo da Lista PEDIDOS ENVIADO RIO CLARO.
+/3-trello-atualizar FORNECEDOR | PEDIDO NOSSA EMPRESA | DATA DE ENVIO
 
-Abrir para adicionar o anexo e fim.
+Exemplo:
 
-por padrão: ex: ROMPLAS 6055MCR
+/3-trello-atualizar TECNOCAL | 6055MCR | 25/07/2026
 
-finalizar com "Pronto!"
+Ao executar:
+
+1. Limpe todos os filtros ativos do Trello antes de localizar ou mover o card.
+2. Localize o card do fornecedor na lista PEDIDOS PENDENTES.
+3. Atualize o título do card para:
+
+FORNECEDOR PEDIDOMCR
+
+4. Não duplique a sigla MCR caso ela já esteja no número do pedido.
+5. Registre a data de envio informada no comando.
+6. Mantenha a data de entrega já existente.
+7. Não invente, não altere e não apague a data de entrega.
+8. Mantenha a etiqueta Rio Claro.
+9. Adicione a etiqueta Enviado, na cor amarelo suave.
+10. Adicione ao card o anexo disponível.
+11. Mova o card para o topo da lista PEDIDOS ENVIADO RIO CLARO.
+12. Depois da movimentação, confirme em qual lista o card realmente ficou.
+13. Confira o título, a data de envio, a data de entrega, as etiquetas, o anexo e a posição do card.
+
+Responda somente:
+
+Pronto!
+
+Só responda “Pronto!” depois de confirmar que todas as etapas foram concluídas corretamente.

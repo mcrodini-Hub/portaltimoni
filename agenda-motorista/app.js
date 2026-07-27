@@ -531,6 +531,7 @@ function resetForm() {
   document.getElementById('f-endereco').value = '';
   document.getElementById('f-numero').value = '';
   document.getElementById('f-complemento').value = '';
+  document.getElementById('f-vendedor').value = '';
   document.getElementById('f-clienteFornecedor').value = '';
   document.getElementById('f-numeroPedido').value = '';
   document.getElementById('f-itens').value = '';
@@ -556,6 +557,7 @@ function preencherCampos(viagem) {
   document.getElementById('f-endereco').value = viagem.endereco;
   document.getElementById('f-numero').value = viagem.numero;
   document.getElementById('f-complemento').value = viagem.complemento;
+  document.getElementById('f-vendedor').value = viagem.vendedor || '';
   document.getElementById('f-clienteFornecedor').value = viagem.clienteFornecedor;
   document.getElementById('f-numeroPedido').value = viagem.numeroPedido;
   document.getElementById('f-itens').value = viagem.itens;
@@ -679,6 +681,7 @@ async function salvarViagem() {
     endereco: document.getElementById('f-endereco').value.trim(),
     numero: document.getElementById('f-numero').value.trim(),
     complemento: document.getElementById('f-complemento').value.trim(),
+    vendedor: document.getElementById('f-vendedor').value.trim(),
     clienteFornecedor: document.getElementById('f-clienteFornecedor').value.trim(),
     numeroPedido: document.getElementById('f-numeroPedido').value.trim(),
     itens: document.getElementById('f-itens').value,
@@ -806,7 +809,8 @@ function printText(texto) {
 function buildRelatorioEntry(v, indice) {
   const loja = AgendaStore.LOJA_LABEL[v.loja] || v.loja;
   const prefixo = indice ? `${indice}) ` : '';
-  const vendedor = v.preenchidoPor ? ` - Vendedor: ${v.preenchidoPor}` : '';
+  const vendedor = v.vendedor ? ` - Vendedor: ${v.vendedor}` : '';
+  const por = v.preenchidoPor ? ` - Por: ${v.preenchidoPor}` : '';
 
   let horarioTexto;
   if (v.horario && v.horarioFim) horarioTexto = `${v.horario} às ${v.horarioFim}`;
@@ -815,7 +819,7 @@ function buildRelatorioEntry(v, indice) {
   else horarioTexto = '--:--';
 
   if (v.tipoHorario === 'Bloqueio') {
-    const linhas = [`${prefixo}${horarioTexto} Bloqueio ${loja}${vendedor}`];
+    const linhas = [`${prefixo}${horarioTexto} Bloqueio ${loja}${vendedor}${por}`];
     if (v.info) linhas.push(v.info);
     return linhas.join('\n');
   }
@@ -829,7 +833,11 @@ function buildRelatorioEntry(v, indice) {
   linhas.push('');
   if (enderecoCompleto) linhas.push(enderecoCompleto);
   nonEmptyLines(v.itens).forEach((i) => linhas.push(i));
-  if (v.contatoNome || v.contatoWhats) linhas.push(`${v.contatoNome || ''}${v.contatoNome && v.contatoWhats ? ' - ' : ''}${v.contatoWhats || ''}`);
+  if (v.contatoNome || v.contatoWhats) {
+    linhas.push(`${v.contatoNome || ''}${v.contatoNome && v.contatoWhats ? ' - ' : ''}${v.contatoWhats || ''}${por}`);
+  } else if (v.preenchidoPor) {
+    linhas.push(`Por: ${v.preenchidoPor}`);
+  }
   const infoLines = nonEmptyLines(v.info);
   if (infoLines.length) {
     linhas.push('Informações:');
@@ -876,7 +884,7 @@ function gerarExcelDia() {
   }
   document.getElementById('diaValidationMsg').textContent = '';
 
-  const headers = ['Ordem', 'Loja', 'Tipo', 'De', 'Até', 'Endereço', 'Número', 'Complemento', 'Cliente/Fornecedor', 'NF/Pedido', 'Detalhamento', 'Contato', 'WhatsApp', 'Volume', 'Outras informações/Motivo', 'Anexos', 'Preenchido por'];
+  const headers = ['Ordem', 'Loja', 'Tipo', 'De', 'Até', 'Endereço', 'Número', 'Complemento', 'Vendedor', 'Cliente/Fornecedor', 'NF/Pedido', 'Detalhamento', 'Contato', 'WhatsApp', 'Volume', 'Outras informações/Motivo', 'Anexos', 'Preenchido por'];
   const rows = viagensDia.map((v, idx) => {
     const anexosResumo = v.dividir ? (v.notas || []).map((n) => n.nome).filter(Boolean).join(' / ') || 'Sim' : '';
     return [
@@ -888,6 +896,7 @@ function gerarExcelDia() {
       v.endereco,
       v.numero,
       v.complemento,
+      v.vendedor,
       v.clienteFornecedor,
       v.numeroPedido,
       (v.itens || '').replace(/\n/g, '; '),

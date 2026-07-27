@@ -183,14 +183,24 @@
 
             <div class="row2">
               <div>
+                <label>Vendedor <span class="hint">(opcional)</span></label>
+                <select id="f-vendedor">
+                  <option value="">Selecione...</option>
+                  <option value="Ciça">Ciça</option>
+                  <option value="Jaqueline">Jaqueline</option>
+                  <option value="Jeovana">Jeovana</option>
+                  <option value="Reginaldo">Reginaldo</option>
+                  <option value="Thais">Thais</option>
+                </select>
+              </div>
+              <div>
                 <label>Cliente/Fornecedor <span class="hint">(opcional)</span></label>
                 <input type="text" id="f-clienteFornecedor" placeholder="Ex: VILELA FIBRAS">
               </div>
-              <div>
-                <label>NF/Pedido <span class="hint">(opcional)</span></label>
-                <input type="text" id="f-numeroPedido" placeholder="Ex: 6073MCR">
-              </div>
             </div>
+
+            <label>NF/Pedido <span class="hint">(opcional)</span></label>
+            <input type="text" id="f-numeroPedido" placeholder="Ex: 6073MCR">
 
             <label>Detalhamento <span class="hint">(um item por linha)</span></label>
             <textarea id="f-itens" placeholder="Ex: 5 rolos de 100g&#10;Ex: 10 rolos de 150g"></textarea>

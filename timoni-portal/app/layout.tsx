@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Portal Timoni — Agenda",
+  title: "Portal Timoni",
   description: "Agenda Google integrada ao Portal Timoni",
 };
 

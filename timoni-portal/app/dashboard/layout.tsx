@@ -1,5 +1,6 @@
 import { auth, signOut } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
@@ -7,10 +8,17 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <div>
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-6 py-4">
-        <span className="font-semibold">Timoni Portal</span>
+      <header className="border-b border-slate-200 bg-white px-4 py-4 sm:px-6">
+        <div className="mx-auto flex max-w-6xl items-center justify-between">
+        <div className="flex items-center gap-6">
+          <Link href="/dashboard" className="font-semibold">Portal Timoni</Link>
+          <nav className="hidden items-center gap-4 text-sm text-slate-500 sm:flex">
+            <Link href="/dashboard" className="hover:text-slate-900">Início</Link>
+            <Link href="/agenda" className="hover:text-slate-900">Agenda</Link>
+          </nav>
+        </div>
         <div className="flex items-center gap-3 text-sm text-slate-500">
-          <span>{session.user.email}</span>
+          <span className="hidden sm:inline">{session.user.email}</span>
           <form
             action={async () => {
               "use server";
@@ -22,8 +30,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
             </button>
           </form>
         </div>
+        </div>
       </header>
-      <main className="mx-auto max-w-2xl px-4 py-8">{children}</main>
+      <main className="mx-auto max-w-6xl px-4 py-8 sm:px-6">{children}</main>
     </div>
   );
 }

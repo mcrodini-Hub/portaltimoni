@@ -1,7 +1,7 @@
 import { signIn } from "@/lib/auth";
 
 const ERROR_MESSAGES: Record<string, string> = {
-  AccessDenied: "Essa conta Google não tem acesso ao Timoni Portal.",
+  AccessDenied: "Essa conta Google não tem acesso ao Portal Timoni.",
 };
 
 export default async function LoginPage({
@@ -15,7 +15,7 @@ export default async function LoginPage({
   return (
     <main className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
-        <h1 className="text-xl font-semibold">Timoni Portal</h1>
+        <h1 className="text-xl font-semibold">Portal Timoni — Agenda</h1>
         <p className="mt-2 text-sm text-slate-500">
           Entre com a conta Google autorizada para ver e gerenciar sua agenda.
         </p>

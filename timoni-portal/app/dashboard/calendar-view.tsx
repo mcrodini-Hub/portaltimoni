@@ -69,7 +69,7 @@ export function CalendarView({
   );
 
   useEffect(() => {
-    document.title = urgentCount > 0 ? `(${urgentCount}) Timoni Portal` : "Timoni Portal";
+    document.title = urgentCount > 0 ? `(${urgentCount}) Portal Timoni — Agenda` : "Portal Timoni — Agenda";
   }, [urgentCount]);
 
   const todayIndex = saoPauloDayIndex(new Date(now).toISOString());

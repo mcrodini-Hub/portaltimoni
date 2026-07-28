@@ -1,22 +1,24 @@
-1-fornecedores-pedido-enviar
+2-itens-pedido-rio-claro
 
-Acesse o Trello em:
-https://trello.com/b/UfPrTr1H/compras?filter=label:Rio%20Claro
+Abra o link da planilha informado pelo usuário.
 
-Na lista PEDIDOS PENDENTES:
+Na planilha:
 
-1. Considere somente os cards com a etiqueta Rio Claro.
-2. Identifique quais desses cards também possuem a etiqueta Urgente.
-3. Mostre primeiro os cards urgentes.
-4. Preserve a ordem original do Trello entre os urgentes e, depois, entre os demais.
-5. Enumere todos os cards.
-6. Confira se o total informado corresponde exatamente à quantidade de cards enumerados.
+1. Identifique a coluna de código.
+2. Identifique a coluna de descrição.
+3. Identifique a coluna de quantidade correspondente ao mês atual.
+4. Considere somente as linhas em que a quantidade do mês atual esteja preenchida.
+5. Ignore linhas com a célula de quantidade vazia.
+6. Preserve a mesma ordem dos itens na planilha.
 
-Formato da resposta:
+Retorne cada item no formato:
 
-Total: X
+código | descrição | quantidade
 
-1. NOME DO CARD
-2. NOME DO CARD
+Ao final, informe:
 
-Não explique os filtros, não inclua observações e não altere nenhum card.
+Total: X itens
+
+Confira se o total informado corresponde exatamente à quantidade de itens listados.
+
+Não reorganize os itens, não inclua explicações e não altere a planilha.

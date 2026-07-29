@@ -1,10 +1,24 @@
--itens-pedido-rio-claro
+2-itens-pedido-rio-claro
 
-1. No link Identify the columns in the spreadsheet:
-   - Column for código (code) - labeled as "CODIGO" or "cod compra" or "compra"
-   - Column for descrição (description)
-   - Column for the current month's quantity
+Abra o link da planilha informado pelo usuário.
 
-2. Extract all rows where the current month quantity column has a non-empty value.
+Na planilha:
 
-3. Ignore any rows with empty cells in the quantity column.
+1. Identifique a coluna de código.
+2. Identifique a coluna de descrição.
+3. Identifique a coluna de quantidade correspondente ao mês atual.
+4. Considere somente as linhas em que a quantidade do mês atual esteja preenchida.
+5. Ignore linhas com a célula de quantidade vazia.
+6. Preserve a mesma ordem dos itens na planilha.
+
+Retorne cada item no formato:
+
+código | descrição | quantidade
+
+Ao final, informe:
+
+Total: X itens
+
+Confira se o total informado corresponde exatamente à quantidade de itens listados.
+
+Não reorganize os itens, não inclua explicações e não altere a planilha.

@@ -1,3 +1,22 @@
 1-fornecedores-pedido-enviar
 
-No link https://trello.com/b/UfPrTr1H/compras?filter=label:Rio%20Claro,label:Urgente, na lista PEDIDOS PENDENTES, retornar com a lista de cards, colocando os com etiqueta Urgente acima.
+Acesse o Trello em:
+https://trello.com/b/UfPrTr1H/compras?filter=label:Rio%20Claro
+
+Na lista PEDIDOS PENDENTES:
+
+1. Considere somente os cards com a etiqueta Rio Claro.
+2. Identifique quais desses cards também possuem a etiqueta Urgente.
+3. Mostre primeiro os cards urgentes.
+4. Preserve a ordem original do Trello entre os urgentes e, depois, entre os demais.
+5. Enumere todos os cards.
+6. Confira se o total informado corresponde exatamente à quantidade de cards enumerados.
+
+Formato da resposta:
+
+Total: X
+
+1. NOME DO CARD
+2. NOME DO CARD
+
+Não explique os filtros, não inclua observações e não altere nenhum card.

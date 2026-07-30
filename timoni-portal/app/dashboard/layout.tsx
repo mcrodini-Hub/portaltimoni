@@ -16,10 +16,10 @@ export default async function DashboardLayout({
     redirect("/login");
   }
   const comprasUrl =
-    "https://script.google.com/macros/s/AKfycbze807SxqAJEkbYcNS1VYc-aZzWdAHatjk7fY3nbrV6hl5QsaXd9bJfKkAZaGPAxgFq4g/exec";
+    "https://docs.google.com/spreadsheets/d/1otcIcZLfsIByBGjHddE1MqXvnApP97e_Ct9j4Yfoim4/edit";
 
   const estoqueUrl =
-    "https://script.google.com/macros/s/AKfycbyDkQIwe3cb6JYVj-9jjt-pHLQa7e9XK0k8IHGGjhONuTC_8AM8M-L_4Dacb9Ji5wD3Yg/exec";
+    "https://docs.google.com/spreadsheets/d/1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo/edit";
 
   const linkClass =
     "whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900";

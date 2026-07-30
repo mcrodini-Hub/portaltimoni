@@ -15,8 +15,8 @@ export default async function DashboardLayout({
   if (!session?.user) {
     redirect("/login");
   }
-  const comprasUrl =
-    "https://docs.google.com/spreadsheets/d/1otcIcZLfsIByBGjHddE1MqXvnApP97e_Ct9j4Yfoim4/edit";
+const comprasUrl =
+  "https://trello.com/b/UfPrTr1H/compras";
 
   const estoqueUrl =
     "https://docs.google.com/spreadsheets/d/1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo/edit";

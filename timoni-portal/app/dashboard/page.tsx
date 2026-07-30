@@ -169,52 +169,9 @@ export default async function DashboardPage() {
     }
   }
 
-  const todayLabel = new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-  }).format(new Date());
-
   return (
     <div className="pb-10">
-      <section className="overflow-hidden rounded-2xl bg-gradient-to-r from-slate-950 via-blue-950 to-blue-700 px-5 py-4 text-white shadow-lg shadow-blue-950/10 sm:px-6 sm:py-5">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <div className="mb-3 flex items-center gap-2.5">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-sm font-black text-blue-800 shadow">
-                T
-              </span>
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-blue-100">
-                  Portal Timoni
-                </p>
-                <p className="text-xs font-medium text-blue-100/90">
-                  Central de gestão da Ciça
-                </p>
-              </div>
-            </div>
-
-            <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">
-              Olá, Ciça.
-            </h1>
-            <p className="mt-1 text-xs leading-5 text-blue-50/90 sm:text-sm">
-              O essencial da sua operação em uma tela simples, rápida e organizada.
-            </p>
-          </div>
-
-          <div className="rounded-xl border border-white/20 bg-white/15 px-4 py-3 backdrop-blur">
-            <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-100">
-              Hoje
-            </p>
-            <p className="mt-0.5 capitalize text-xs font-semibold text-white sm:text-sm">
-              {todayLabel}
-            </p>
-          </div>
-        </div>
-      </section>
-
-      <section className="mt-6 grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+      <section className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
         <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex items-center justify-between">
             <div>

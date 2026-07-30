@@ -15,9 +15,11 @@ export default async function DashboardLayout({
   if (!session?.user) {
     redirect("/login");
   }
+  const comprasUrl =
+  "https://script.google.com/macros/s/AKfycby-x-5EQ-iRxN2bf4x5Kpm14QJN0sfH4XSJwpAvNeuhdi-ygcod1e12_jdbEoAHlnbt7Q/exec";
 
-  const comprasUrl = process.env.COMPRAS_WEBAPP_URL;
-  const estoqueUrl = process.env.ESTOQUE_WEBAPP_URL;
+const estoqueUrl =
+  "https://script.google.com/macros/s/AKfycbzqPsH9RNsGPb5PJu_VvJSUcDZPf3IBhCzAGk09LA2_SHbISihdPhlPUF4SLhVMc4_8Cg/exec";
 
   const linkClass =
     "whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900";

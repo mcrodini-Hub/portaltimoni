@@ -18,8 +18,8 @@ export default async function DashboardLayout({
 const comprasUrl =
   "https://trello.com/b/UfPrTr1H/compras";
 
-  const estoqueUrl =
-    "https://docs.google.com/spreadsheets/d/1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo/edit";
+const estoqueUrl =
+  "https://docs.google.com/spreadsheets/d/1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo/edit";
 
   const linkClass =
     "whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900";

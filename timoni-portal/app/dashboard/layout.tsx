@@ -20,16 +20,8 @@ export default async function DashboardLayout({
   const estoqueUrl =
     "https://docs.google.com/spreadsheets/d/1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo/edit";
 
-  const todayLabel = new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    weekday: "long",
-    day: "2-digit",
-    month: "long",
-  }).format(new Date());
-
   const linkClass =
     "whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 hover:text-slate-950";
-
   const disabledClass =
     "whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-slate-400";
 
@@ -37,29 +29,12 @@ export default async function DashboardLayout({
     <div>
       <header className="sticky top-0 z-40 bg-white/95 shadow-sm backdrop-blur">
         <div className="bg-gradient-to-r from-slate-950 via-blue-950 to-blue-700 text-white">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
-            <div className="flex min-w-0 items-center gap-3">
-              <img
-                src="/casa-timoni-logo.svg"
-                alt="Casa Timoni"
-                className="h-11 w-auto rounded-lg bg-[#f7efe3] px-2 py-1"
-              />
-              <div className="min-w-0">
-                <p className="truncate text-base font-semibold sm:text-lg">Olá, Ciça.</p>
-                <p className="truncate text-xs text-blue-100/90 sm:text-sm">
-                  Central de gestão
-                </p>
-              </div>
-            </div>
-
-            <div className="hidden text-right sm:block">
-              <p className="text-[10px] font-semibold uppercase tracking-wider text-blue-100">
-                Hoje
-              </p>
-              <p className="mt-0.5 capitalize text-xs font-semibold text-white sm:text-sm">
-                {todayLabel}
-              </p>
-            </div>
+          <div className="mx-auto flex max-w-6xl items-center px-4 py-3 sm:px-6">
+            <img
+              src="/casa-timoni-logo.svg"
+              alt="Casa Timoni"
+              className="h-12 w-auto object-contain"
+            />
           </div>
         </div>
 

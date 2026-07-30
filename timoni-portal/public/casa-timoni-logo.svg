@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 150" role="img" aria-label="Casa Timoni">
+  <rect width="520" height="150" rx="24" fill="#f7efe3"/>
+  <g fill="#111111" font-family="Georgia, 'Times New Roman', serif" text-anchor="middle">
+    <text x="260" y="48" font-size="28" font-style="italic" letter-spacing="6">CASA</text>
+    <text x="260" y="102" font-size="58" font-style="italic" letter-spacing="4">TIMONI</text>
+  </g>
+  <path d="M50 39c28-27 58-21 74-8-7 2-12 7-16 14 15-8 30-8 44-1-11 4-19 10-23 18 17-5 31-2 43 7-24-2-46 5-64 20-18 15-34 34-48 55-8-28-4-55 10-77 8-12 18-21 31-28-18 1-35 8-51 20 4-8 10-15 20-20z" fill="#111111"/>
+  <path d="M338 116c20 8 42 8 65 1-15 13-33 22-54 26 29 7 57 3 84-12-12 15-26 26-43 33" fill="none" stroke="#111111" stroke-width="5" stroke-linecap="round"/>
+</svg>

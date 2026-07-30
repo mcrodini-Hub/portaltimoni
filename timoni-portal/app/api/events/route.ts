@@ -4,15 +4,24 @@ import { createEvent, isCalendarKey, listEventsInRange, toApiError } from "@/lib
 import type { CalendarEventInput, CalendarKey } from "@/lib/types";
 import { getWeekRange } from "@/lib/week";
 
+function isValidRecurrence(value: unknown): value is string[] | undefined {
+  if (value === undefined) return true;
+  return (
+    Array.isArray(value) &&
+    value.length <= 1 &&
+    value.every((rule) =>
+      typeof rule === "string" && /^RRULE:FREQ=(DAILY|WEEKLY|MONTHLY|YEARLY)(;INTERVAL=[1-9][0-9]?)?$/.test(rule)
+    )
+  );
+}
+
 export async function GET(request: NextRequest) {
   const { session, errorResponse } = await requireAuthorizedSession();
   if (errorResponse) return errorResponse;
-
   const { searchParams } = new URL(request.url);
   const defaultWeek = getWeekRange();
   const timeMin = searchParams.get("timeMin") ?? defaultWeek.start.toISOString();
   const timeMax = searchParams.get("timeMax") ?? defaultWeek.end.toISOString();
-
   try {
     const events = await listEventsInRange(session!.accessToken!, {
       timeMin,
@@ -29,7 +38,6 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const { session, errorResponse } = await requireAuthorizedSession();
   if (errorResponse) return errorResponse;
-
   const body = (await request.json().catch(() => null)) as
     | (Partial<CalendarEventInput> & { calendarKey?: CalendarKey })
     | null;
@@ -46,6 +54,9 @@ export async function POST(request: NextRequest) {
   if (!isCalendarKey(body.calendarKey)) {
     return NextResponse.json({ error: "Escolha em qual agenda criar o evento." }, { status: 400 });
   }
+  if (!isValidRecurrence(body.recurrence)) {
+    return NextResponse.json({ error: "Repetição inválida." }, { status: 400 });
+  }
 
   try {
     const event = await createEvent(session!.accessToken!, body.calendarKey, {
@@ -54,6 +65,7 @@ export async function POST(request: NextRequest) {
       location: body.location,
       start: body.start,
       end: body.end,
+      recurrence: body.recurrence,
     });
     return NextResponse.json({ event }, { status: 201 });
   } catch (error) {

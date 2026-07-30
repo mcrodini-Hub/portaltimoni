@@ -3,8 +3,6 @@ import { CALENDAR_LABELS, type CalendarEventDTO, type CalendarEventInput, type C
 
 export const TIME_ZONE = "America/Sao_Paulo";
 
-// As duas agendas do usuário que o portal mostra/gerencia. Nenhuma outra
-// agenda é acessível pela UI — a escolha é sempre entre essas duas.
 export const CALENDARS: Record<CalendarKey, { id: string; label: string }> = {
   principal: { id: "primary", label: CALENDAR_LABELS.principal },
   timoni: {
@@ -21,21 +19,13 @@ function getCalendarClient(accessToken: string) {
   return google.calendar({ version: "v3", auth });
 }
 
-// Troca o refresh_token de longa duração (guardado em GOOGLE_REFRESH_TOKEN, capturado uma
-// vez via /api/admin/refresh-token) por um access_token novo — usado pela rota pública
-// /api/public/agenda-resumo, que não tem uma sessão de navegador (cookie) para reaproveitar,
-// diferente das rotas de /api/events (protegidas por requireAuthorizedSession).
 export async function getAccessTokenFromRefreshToken(): Promise<string> {
   const refreshToken = process.env.GOOGLE_REFRESH_TOKEN;
-  if (!refreshToken) {
-    throw new Error("GOOGLE_REFRESH_TOKEN não configurado no servidor.");
-  }
+  if (!refreshToken) throw new Error("GOOGLE_REFRESH_TOKEN não configurado no servidor.");
   const auth = new google.auth.OAuth2(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
   auth.setCredentials({ refresh_token: refreshToken });
   const { token } = await auth.getAccessToken();
-  if (!token) {
-    throw new Error("Não foi possível renovar o access_token a partir do refresh_token salvo.");
-  }
+  if (!token) throw new Error("Não foi possível renovar o access_token a partir do refresh_token salvo.");
   return token;
 }
 
@@ -44,7 +34,6 @@ function toDTO(event: calendar_v3.Schema$Event, calendarKey: CalendarKey): Calen
   const start = event.start.dateTime ?? event.start.date;
   const end = event.end.dateTime ?? event.end.date;
   if (!start || !end) return null;
-
   return {
     id: event.id,
     summary: event.summary || "(sem título)",
@@ -64,7 +53,6 @@ export async function listEventsInRange(
 ): Promise<CalendarEventDTO[]> {
   const calendar = getCalendarClient(accessToken);
   const calendarKeys = Object.keys(CALENDARS) as CalendarKey[];
-
   const results = await Promise.all(
     calendarKeys.map((key) =>
       calendar.events.list({
@@ -77,13 +65,11 @@ export async function listEventsInRange(
       })
     )
   );
-
   const events = calendarKeys.flatMap((key, i) =>
     (results[i].data.items ?? [])
       .map((event) => toDTO(event, key))
-      .filter((e): e is CalendarEventDTO => e !== null)
+      .filter((event): event is CalendarEventDTO => event !== null)
   );
-
   return events.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());
 }
 
@@ -101,9 +87,9 @@ export async function createEvent(
       location: input.location,
       start: { dateTime: input.start, timeZone: TIME_ZONE },
       end: { dateTime: input.end, timeZone: TIME_ZONE },
+      recurrence: input.recurrence,
     },
   });
-
   const dto = toDTO(res.data, calendarKey);
   if (!dto) throw new Error("Resposta inesperada do Google Calendar ao criar evento.");
   return dto;
@@ -127,7 +113,6 @@ export async function updateEvent(
       ...(input.end ? { end: { dateTime: input.end, timeZone: TIME_ZONE } } : {}),
     },
   });
-
   const dto = toDTO(res.data, calendarKey);
   if (!dto) throw new Error("Resposta inesperada do Google Calendar ao editar evento.");
   return dto;
@@ -142,8 +127,6 @@ export async function deleteEvent(
   await calendar.events.delete({ calendarId: CALENDARS[calendarKey].id, eventId });
 }
 
-// Traduz erros da Calendar API para uma mensagem segura de expor ao client
-// (nunca vaza stacktrace/detalhes internos do Google).
 export function toApiError(error: unknown): { message: string; status: number } {
   const status = (error as { code?: number })?.code ?? 500;
   if (status === 401) return { message: "Sessão expirada. Faça login novamente.", status: 401 };

@@ -2,8 +2,11 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Portal Timoni",
-  description: "Agenda Google integrada ao Portal Timoni",
+  title: {
+    default: "Portal Timoni",
+    template: "%s | Portal Timoni",
+  },
+  description: "Central de gestão da Casa Timoni",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

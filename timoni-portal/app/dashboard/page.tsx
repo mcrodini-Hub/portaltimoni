@@ -171,8 +171,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="pb-10">
-      <section className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
-        <div className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      <section className="grid gap-3 lg:grid-cols-[1.4fr_1fr]">
+        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-violet-600">
@@ -195,11 +195,11 @@ export default async function DashboardPage() {
             </Link>
           </div>
 
-          <div className="mt-5 space-y-2">
+          <div className="mt-3 space-y-2">
             {todayEvents.slice(0, 3).map((event) => (
               <div
                 key={`${event.calendarKey}-${event.id}`}
-                className="flex items-center gap-3 rounded-2xl bg-slate-50 px-4 py-3"
+                className="flex items-center gap-3 rounded-xl bg-slate-50 px-4 py-2.5"
               >
                 <span className="w-14 text-sm font-semibold text-violet-700">
                   {formatEventTime(event)}
@@ -223,17 +223,17 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-blue-100 bg-blue-50 p-6">
+        <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4">
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">
             Foco atual
           </p>
-          <h2 className="mt-2 text-xl font-semibold text-slate-900">
+          <h2 className="mt-1 text-xl font-semibold text-slate-900">
             Estratégia de Compras
           </h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
+          <p className="mt-1 text-sm leading-5 text-slate-600">
             Compras é o primeiro módulo a ser conectado aos dados reais do Portal Timoni.
           </p>
-          <div className="mt-5 rounded-2xl bg-white px-4 py-3 shadow-sm">
+          <div className="mt-3 rounded-xl bg-white px-4 py-2.5 shadow-sm">
             <p className="text-xs text-slate-400">Próxima integração</p>
             <p className="mt-1 text-sm font-medium text-slate-800">
               Pendências, pedidos e conferências
@@ -242,7 +242,7 @@ export default async function DashboardPage() {
         </div>
       </section>
 
-      <section className="mt-8">
+      <section className="mt-4">
         <div className="flex items-end justify-between">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">

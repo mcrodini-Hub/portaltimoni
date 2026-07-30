@@ -1,7 +1,5 @@
 export type CalendarKey = "principal" | "timoni";
 
-// Rótulos exibidos na UI — mantidos aqui (sem depender de "googleapis") para
-// poderem ser importados por componentes client.
 export const CALENDAR_LABELS: Record<CalendarKey, string> = {
   principal: "Principal",
   timoni: "TIMONI AGENDA",
@@ -11,8 +9,9 @@ export interface CalendarEventInput {
   summary: string;
   description?: string;
   location?: string;
-  start: string; // ISO 8601
-  end: string; // ISO 8601
+  start: string;
+  end: string;
+  recurrence?: string[];
 }
 
 export interface CalendarEventDTO {

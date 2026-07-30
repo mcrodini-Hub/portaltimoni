@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 import { CALENDAR_LABELS, type CalendarEventDTO, type CalendarKey } from "@/lib/types";
 
 const CALENDAR_OPTIONS = Object.entries(CALENDAR_LABELS) as [CalendarKey, string][];
+type RecurrencePreset = "none" | "biweekly" | "monthly" | "yearly" | "custom";
+type RecurrenceFrequency = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
 
 function toDatetimeLocal(iso: string) {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(
-    d.getMinutes()
-  )}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
 function defaultTimes() {
@@ -21,6 +21,18 @@ function defaultTimes() {
   start.setHours(start.getHours() + 1);
   const end = new Date(start.getTime() + 60 * 60 * 1000);
   return { start: toDatetimeLocal(start.toISOString()), end: toDatetimeLocal(end.toISOString()) };
+}
+
+function buildRecurrence(
+  preset: RecurrencePreset,
+  interval: number,
+  frequency: RecurrenceFrequency
+): string[] | undefined {
+  if (preset === "none") return undefined;
+  if (preset === "biweekly") return ["RRULE:FREQ=WEEKLY;INTERVAL=2"];
+  if (preset === "monthly") return ["RRULE:FREQ=MONTHLY"];
+  if (preset === "yearly") return ["RRULE:FREQ=YEARLY"];
+  return [`RRULE:FREQ=${frequency};INTERVAL=${interval}`];
 }
 
 export function EventForm({
@@ -34,25 +46,29 @@ export function EventForm({
 }) {
   const isEditing = !!event;
   const defaults = defaultTimes();
-
   const [summary, setSummary] = useState(event?.summary ?? "");
   const [location, setLocation] = useState(event?.location ?? "");
   const [description, setDescription] = useState(event?.description ?? "");
   const [start, setStart] = useState(event ? toDatetimeLocal(event.start) : defaults.start);
   const [end, setEnd] = useState(event ? toDatetimeLocal(event.end) : defaults.end);
   const [calendarKey, setCalendarKey] = useState<CalendarKey>(event?.calendarKey ?? "principal");
+  const [recurrencePreset, setRecurrencePreset] = useState<RecurrencePreset>("none");
+  const [customInterval, setCustomInterval] = useState(1);
+  const [customFrequency, setCustomFrequency] = useState<RecurrenceFrequency>("WEEKLY");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setError(null);
-
     if (!summary.trim()) {
       setError("Título é obrigatório.");
       return;
     }
-
+    if (customInterval < 1 || customInterval > 99) {
+      setError("O intervalo deve ser de 1 a 99.");
+      return;
+    }
     const startIso = new Date(start).toISOString();
     const endIso = new Date(end).toISOString();
     if (new Date(endIso) <= new Date(startIso)) {
@@ -74,7 +90,12 @@ export function EventForm({
           description: description.trim() || undefined,
           start: startIso,
           end: endIso,
-          ...(isEditing ? {} : { calendarKey }),
+          ...(isEditing
+            ? {}
+            : {
+                calendarKey,
+                recurrence: buildRecurrence(recurrencePreset, customInterval, customFrequency),
+              }),
         }),
       });
       const data = await res.json().catch(() => ({}));
@@ -103,9 +124,7 @@ export function EventForm({
             className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
           >
             {CALENDAR_OPTIONS.map(([key, label]) => (
-              <option key={key} value={key}>
-                {label}
-              </option>
+              <option key={key} value={key}>{label}</option>
             ))}
           </select>
         </div>
@@ -121,50 +140,67 @@ export function EventForm({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-slate-700">Início</label>
-            <input
-              type="datetime-local"
-              value={start}
-              onChange={(e) => setStart(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
+            <input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">Fim</label>
-            <input
-              type="datetime-local"
-              value={end}
-              onChange={(e) => setEnd(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
+            <input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
           </div>
         </div>
+
+        {!isEditing && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Repetição</label>
+            <select
+              value={recurrencePreset}
+              onChange={(e) => setRecurrencePreset(e.target.value as RecurrencePreset)}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            >
+              <option value="none">Não repetir</option>
+              <option value="biweekly">Quinzenal</option>
+              <option value="monthly">Mensal</option>
+              <option value="yearly">Anual</option>
+              <option value="custom">Personalizado</option>
+            </select>
+            {recurrencePreset === "custom" && (
+              <div className="mt-2 grid grid-cols-[90px_1fr] gap-2">
+                <input
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={customInterval}
+                  onChange={(e) => setCustomInterval(Number(e.target.value))}
+                  aria-label="Intervalo da repetição"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                />
+                <select
+                  value={customFrequency}
+                  onChange={(e) => setCustomFrequency(e.target.value as RecurrenceFrequency)}
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                >
+                  <option value="DAILY">dia(s)</option>
+                  <option value="WEEKLY">semana(s)</option>
+                  <option value="MONTHLY">mês(es)</option>
+                  <option value="YEARLY">ano(s)</option>
+                </select>
+              </div>
+            )}
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium text-slate-700">Local (opcional)</label>
-          <input
-            value={location}
-            onChange={(e) => setLocation(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-          />
+          <input value={location} onChange={(e) => setLocation(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
         </div>
         <div>
           <label className="block text-sm font-medium text-slate-700">Descrição (opcional)</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={3}
-            className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-          />
+          <textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
         </div>
 
         {error && <p className="rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>}
-
         <div className="flex justify-end gap-2 pt-2">
-          <Button type="button" variant="secondary" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={saving}>
-            {saving ? "Salvando…" : "Salvar"}
-          </Button>
+          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" disabled={saving}>{saving ? "Salvando…" : "Salvar"}</Button>
         </div>
       </form>
     </Modal>

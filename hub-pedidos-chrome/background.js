@@ -3,9 +3,9 @@
 
 importScripts('lib/state.js', 'lib/tabs.js', 'lib/messages.js', 'lib/validators.js');
 
-// O board abre uma única vez, já filtrado pela etiqueta "Urgente". A extensão lê apenas
-// os cartões visíveis da lista PEDIDOS PENDENTES, sem abrir cada cartão individualmente.
-const TRELLO_BOARD_URL = 'https://trello.com/b/UfPrTr1H/compras?filter=label:Urgente';
+// O board abre uma única vez e os dados são lidos diretamente do quadro. A listagem reúne
+// Urgente + Rio Claro, com Urgente primeiro, sem abrir cartões individualmente.
+const TRELLO_BOARD_URL = 'https://trello.com/b/UfPrTr1H/compras';
 // Padrão amplo de propósito: encontrar QUALQUER aba do Trello já aberta na janela em foco,
 // só para fechá-la antes de abrir uma nova no board (ver ensureTrelloBoardTab).
 const TRELLO_URL_PATTERN = 'https://trello.com/*';
@@ -102,7 +102,7 @@ function removeTab(tabId) {
 }
 
 // Garante uma aba do Trello pronta para ler/escrever no board de Compras, sempre na URL
-// exata TRELLO_BOARD_URL (board + filtro nativo "Urgente"). Fecha qualquer aba do Trello
+// exata TRELLO_BOARD_URL (quadro Compras). Fecha qualquer aba do Trello
 // já aberta (na janela em foco) e abre uma nova, em vez de tentar reaproveitar/navegar a
 // mesma aba — duas lições aprendidas em versões anteriores:
 //   1. Se um cartão está aberto, a URL da aba vira trello.com/c/... e o Trello trata mudanças
@@ -172,8 +172,8 @@ async function handleScanTrello() {
 
   let suppliers = result.suppliers || [];
 
-  // A URL já mostra somente os cartões urgentes; o content script preserva a ordem
-  // cronológica, do cartão mais antigo para o mais novo.
+  // O content script reúne Urgente + Rio Claro e preserva a ordem cronológica,
+  // com todos os urgentes antes dos demais cartões Rio Claro.
 
   const newState = await HubState.setState({
     currentState: STATES.FORNECEDORES_CARREGADOS,

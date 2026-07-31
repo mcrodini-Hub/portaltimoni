@@ -264,8 +264,12 @@ async function handleFetchSheetCsv(payload) {
   return { csv };
 }
 
-async function handleExtractItems() {
+async function handleExtractItems(payload) {
   const state = await HubState.getState();
+  const sheetColumns = (payload && payload.columns) || state.sheetColumns || {};
+  if (!sheetColumns.codigo || !sheetColumns.descricao || !sheetColumns.quantidade) {
+    return { error: 'Informe as colunas de Código/Compra, Descrição e Quantidade antes de extrair.' };
+  }
   let activeTab = await getActiveTab();
 
   // Se o usuário colou o link da planilha, abre/reaproveita essa aba específica em vez de
@@ -296,7 +300,7 @@ async function handleExtractItems() {
   const result = await HubTabs.sendWithInjection(
     activeTab.id,
     ['lib/validators.js', 'content/sheets-content.js'],
-    HubMessages.makeMessage(TYPES.EXTRACT_ITEMS, null, 'background')
+    HubMessages.makeMessage(TYPES.EXTRACT_ITEMS, { columns: sheetColumns }, 'background')
   );
 
   if (!result || result.error) {
@@ -339,6 +343,12 @@ async function handleSaveBessaniPrint(payload) {
   // dataUrl === null é usado para remover o print salvo.
   await HubState.setState({ bessaniPrint: dataUrl || null });
   return { ok: true };
+}
+
+async function handleSaveSheetColumns(payload) {
+  const columns = Object.assign({ codigo: '', descricao: '', quantidade: '' }, (payload && payload.columns) || {});
+  await HubState.setState({ sheetColumns: columns });
+  return { sheetColumns: columns };
 }
 
 async function handleSaveSheetUrl(payload) {
@@ -457,6 +467,7 @@ const HANDLERS = {
   [TYPES.SAVE_BESSANI_URL]: handleSaveBessaniUrl,
   [TYPES.SAVE_BESSANI_PRINT]: handleSaveBessaniPrint,
   [TYPES.SAVE_SHEET_URL]: handleSaveSheetUrl,
+  [TYPES.SAVE_SHEET_COLUMNS]: handleSaveSheetColumns,
   [TYPES.SAVE_CONFERENCIA]: handleSaveConferencia,
   [TYPES.SAVE_PAINEL_URL]: handleSavePainelUrl,
   [TYPES.OPEN_BESSANI]: handleOpenBessani,

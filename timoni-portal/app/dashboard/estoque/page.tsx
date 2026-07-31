@@ -4,6 +4,9 @@ export const metadata: Metadata = {
   title: "Estoque",
 };
 
+const DOWNLOAD_URL =
+  "https://drive.google.com/uc?export=download&id=1AM0XXO7fIuMdVw-7YJVMjPbuIEV2XKqn";
+
 const PLANILHA_URL =
   "https://docs.google.com/spreadsheets/d/1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo/edit";
 
@@ -31,7 +34,9 @@ export default function EstoquePage() {
 
         <div className="mt-6 flex flex-col gap-3 sm:flex-row">
           <a
-            href="/api/estoque/download"
+            href={DOWNLOAD_URL}
+            target="_blank"
+            rel="noreferrer"
             className="rounded-xl bg-emerald-700 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-emerald-800"
           >
             Baixar módulo do Estoque

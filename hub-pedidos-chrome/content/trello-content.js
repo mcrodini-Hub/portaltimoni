@@ -10,6 +10,8 @@
   const LIST_NAME_TOKENS = ['pedidos', 'pendentes'];
   const TARGET_LABEL_TEXT = 'urgente';
   const URGENT_LABEL_TEXT = 'urgente';
+  const RIO_CLARO_LABEL_TEXT = 'rio claro';
+  const BOARD_SHORT_LINK = 'UfPrTr1H';
   const GREEN_HEX = ['#61bd4f', '#4bce97', '#216e4e', '#7bc86c', '#94c748', '#2f8132', '#1f845a', '#0f5132', '#519839'];
 
   // ---------------------------------------------------------------------
@@ -199,6 +201,95 @@
     );
   }
 
+  function isRioClaroCardByText(card) {
+    return getCardLabels(card).some((label) =>
+      normalizeText(label.text).includes(RIO_CLARO_LABEL_TEXT)
+    );
+  }
+
+  function cardCreatedAtFromId(id) {
+    const value = String(id || '');
+    return /^[0-9a-f]{24}$/i.test(value)
+      ? parseInt(value.slice(0, 8), 16) * 1000
+      : Number.MAX_SAFE_INTEGER;
+  }
+
+  function cardHasLabel(card, target) {
+    return (card.labels || []).some((label) =>
+      normalizeText(label.name || label.text || '') === target
+    );
+  }
+
+  async function listarFornecedoresViaJson() {
+    const urls = [
+      `${location.origin}/b/${BOARD_SHORT_LINK}/compras.json`,
+      `${location.origin}/b/${BOARD_SHORT_LINK}.json`
+    ];
+    let data = null;
+    let lastError = null;
+
+    for (const url of urls) {
+      try {
+        const response = await fetch(url, {
+          credentials: 'include',
+          cache: 'no-store',
+          headers: { Accept: 'application/json' }
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const candidate = await response.json();
+        if (!Array.isArray(candidate.lists) || !Array.isArray(candidate.cards)) {
+          throw new Error('Resposta do quadro sem listas/cartões.');
+        }
+        data = candidate;
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+
+    if (!data) throw lastError || new Error('Não foi possível ler os dados do quadro.');
+
+    const targetList = data.lists.find((list) => {
+      const name = normalizeText(list.name);
+      return !list.closed && LIST_NAME_TOKENS.every((token) => name.includes(token));
+    });
+    if (!targetList) throw new Error('Lista PEDIDOS PENDENTES não encontrada.');
+
+    const eligible = data.cards
+      .filter((card) => !card.closed && card.idList === targetList.id)
+      .map((card) => ({
+        card,
+        urgente: cardHasLabel(card, URGENT_LABEL_TEXT),
+        rioClaro: cardHasLabel(card, RIO_CLARO_LABEL_TEXT),
+        createdAt: cardCreatedAtFromId(card.id)
+      }))
+      .filter((entry) => entry.urgente || entry.rioClaro)
+      .sort((a, b) => {
+        if (a.urgente !== b.urgente) return a.urgente ? -1 : 1;
+        return a.createdAt - b.createdAt;
+      });
+
+    const seen = new Set();
+    const suppliers = [];
+    eligible.forEach(({ card, urgente }) => {
+      const nome = String(card.name || '').trim();
+      const key = normalizeText(nome);
+      if (!nome || seen.has(key)) return;
+      seen.add(key);
+      suppliers.push({ nome, urgente });
+    });
+
+    return {
+      suppliers,
+      diagnostics: {
+        cardsRead: data.cards.filter((card) => !card.closed && card.idList === targetList.id).length,
+        rioClaroCards: eligible.length,
+        usedDeepScan: false,
+        source: 'trello-json'
+      }
+    };
+  }
+
   // ---------------------------------------------------------------------
   // Verificação profunda (fallback): abre cada cartão e lê a seção de
   // etiquetas no painel de detalhes, onde o Trello sempre mostra o nome por
@@ -301,45 +392,65 @@
   // Etapa 2 — listar fornecedores
   // ---------------------------------------------------------------------
   async function listarFornecedores() {
-    const listEl = await waitFor(findListElement, { timeout: 8000 });
-    if (!listEl) {
-      return { error: 'Lista de pedidos não encontrada no Trello. Verifique se o board carregou totalmente.' };
-    }
-
-    await waitFor(() => {
-      const found = getCardsFromList(listEl);
-      return found.length > 0 ? found : null;
-    }, { timeout: 5000 });
-
-    const { cards, rioClaroCards, usedDeepScan } = await getRioClaroCards(listEl);
-
-    const orderedCards = rioClaroCards
-      .map((card, visualIndex) => ({
-        card,
-        visualIndex,
-        createdAt: getCardCreationTime(card, visualIndex)
-      }))
-      .sort((a, b) => (a.createdAt - b.createdAt) || (a.visualIndex - b.visualIndex));
-
-    const seen = new Set();
-    const suppliers = [];
-    orderedCards.forEach(({ card }) => {
-      const nome = getCardName(card);
-      if (!nome) return;
-      const key = normalizeText(nome);
-      if (seen.has(key)) return;
-      seen.add(key);
-      suppliers.push({ nome, urgente: true });
-    });
-
-    return {
-      suppliers,
-      diagnostics: {
-        cardsRead: cards.length,
-        rioClaroCards: rioClaroCards.length,
-        usedDeepScan
+    // Caminho principal: lê o JSON do quadro com a sessão já autenticada no Trello.
+    // É rápido, não abre cartões e permite combinar Urgente + Rio Claro com ordem correta.
+    try {
+      return await listarFornecedoresViaJson();
+    } catch (jsonError) {
+      // Fallback sem abrir cartões: usa somente etiquetas já legíveis na frente do cartão.
+      const listEl = await waitFor(findListElement, { timeout: 8000 });
+      if (!listEl) {
+        return { error: 'Lista PEDIDOS PENDENTES não encontrada no Trello.' };
       }
-    };
+
+      await waitFor(() => {
+        const found = getCardsFromList(listEl);
+        return found.length > 0 ? found : null;
+      }, { timeout: 5000 });
+
+      const cards = getCardsFromList(listEl);
+      const orderedCards = cards
+        .map((card, visualIndex) => ({
+          card,
+          visualIndex,
+          urgente: isUrgentCard(card),
+          rioClaro: isRioClaroCardByText(card),
+          createdAt: getCardCreationTime(card, visualIndex)
+        }))
+        .filter((entry) => entry.urgente || entry.rioClaro)
+        .sort((a, b) => {
+          if (a.urgente !== b.urgente) return a.urgente ? -1 : 1;
+          return (a.createdAt - b.createdAt) || (a.visualIndex - b.visualIndex);
+        });
+
+      const seen = new Set();
+      const suppliers = [];
+      orderedCards.forEach(({ card, urgente }) => {
+        const nome = getCardName(card);
+        const key = normalizeText(nome);
+        if (!nome || seen.has(key)) return;
+        seen.add(key);
+        suppliers.push({ nome, urgente });
+      });
+
+      if (suppliers.length === 0) {
+        return {
+          error: 'Não foi possível ler as etiquetas Urgente/Rio Claro. Atualize o Trello e tente novamente.',
+          diagnostics: { cardsRead: cards.length, source: 'dom-fallback', jsonError: jsonError.message }
+        };
+      }
+
+      return {
+        suppliers,
+        diagnostics: {
+          cardsRead: cards.length,
+          rioClaroCards: orderedCards.length,
+          usedDeepScan: false,
+          source: 'dom-fallback',
+          jsonError: jsonError.message
+        }
+      };
+    }
   }
 
   // ---------------------------------------------------------------------
@@ -399,9 +510,11 @@
       return { error: 'Lista de pedidos não encontrada no Trello.' };
     }
 
-    const { rioClaroCards } = await getRioClaroCards(listEl);
+    // O fornecedor já foi validado na listagem Urgente/Rio Claro. Na atualização,
+    // procura o nome somente dentro de PEDIDOS PENDENTES, sem depender do filtro visual.
+    const cards = getCardsFromList(listEl);
     const targetKey = normalizeText(supplierName);
-    const matches = rioClaroCards.filter((card) => normalizeText(getCardName(card)) === targetKey);
+    const matches = cards.filter((card) => normalizeText(getCardName(card)) === targetKey);
 
     if (matches.length === 0) {
       return { results: [{ card: supplierName, status: 'não encontrado' }] };

@@ -3,12 +3,9 @@
 
 importScripts('lib/state.js', 'lib/tabs.js', 'lib/messages.js', 'lib/validators.js');
 
-// O board é sempre aberto já com o filtro nativo do Trello para a etiqueta "Rio Claro"
-// aplicado via URL (?filter=label:Rio Claro) — o mesmo mecanismo que o próprio Trello usa
-// para compartilhar um link de board pré-filtrado. Isso elimina a necessidade de detectar
-// cor/texto de etiqueta cartão por cartão: com o filtro nativo aplicado, só precisamos ler
-// quais cartões o Trello está exibindo (ver isCardVisible em content/trello-content.js).
-const TRELLO_BOARD_URL = 'https://trello.com/b/UfPrTr1H/compras?filter=label:Rio%20Claro';
+// O board abre uma única vez, já filtrado pela etiqueta "Urgente". A extensão lê apenas
+// os cartões visíveis da lista PEDIDOS PENDENTES, sem abrir cada cartão individualmente.
+const TRELLO_BOARD_URL = 'https://trello.com/b/UfPrTr1H/compras?filter=label:Urgente';
 // Padrão amplo de propósito: encontrar QUALQUER aba do Trello já aberta na janela em foco,
 // só para fechá-la antes de abrir uma nova no board (ver ensureTrelloBoardTab).
 const TRELLO_URL_PATTERN = 'https://trello.com/*';
@@ -105,7 +102,7 @@ function removeTab(tabId) {
 }
 
 // Garante uma aba do Trello pronta para ler/escrever no board de Compras, sempre na URL
-// exata TRELLO_BOARD_URL (board + filtro nativo "Rio Claro"). Fecha qualquer aba do Trello
+// exata TRELLO_BOARD_URL (board + filtro nativo "Urgente"). Fecha qualquer aba do Trello
 // já aberta (na janela em foco) e abre uma nova, em vez de tentar reaproveitar/navegar a
 // mesma aba — duas lições aprendidas em versões anteriores:
 //   1. Se um cartão está aberto, a URL da aba vira trello.com/c/... e o Trello trata mudanças
@@ -175,8 +172,8 @@ async function handleScanTrello() {
 
   let suppliers = result.suppliers || [];
 
-  // A prioridade "Urgente" já é lida na mesma tela pelo content script.
-  // Assim o Trello abre uma única vez por atualização.
+  // A URL já mostra somente os cartões urgentes; o content script preserva a ordem
+  // cronológica, do cartão mais antigo para o mais novo.
 
   const newState = await HubState.setState({
     currentState: STATES.FORNECEDORES_CARREGADOS,

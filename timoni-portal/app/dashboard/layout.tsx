@@ -5,9 +5,6 @@ import Link from "next/link";
 const MOTORISTA_URL =
   "https://mcrodini-hub.github.io/portaltimoni/agenda-motorista/";
 
-const LOGO_URL =
-  "https://drive.google.com/uc?export=view&id=1hIiaUGm3llhylfWJK1vXCLwuuCOoeplp";
-
 export default async function DashboardLayout({
   children,
 }: {
@@ -34,7 +31,7 @@ export default async function DashboardLayout({
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link href="/dashboard" className="shrink-0 py-1.5" aria-label="Casa Timoni">
             <img
-              src={LOGO_URL}
+              src="/logotipo.jpeg"
               alt="Casa Timoni"
               className="h-10 w-10 rounded-full object-cover"
             />

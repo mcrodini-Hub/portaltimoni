@@ -27,44 +27,32 @@ export default async function DashboardLayout({
 
   return (
     <div>
-      <header className="sticky top-0 z-40 bg-white/95 shadow-sm backdrop-blur">
-        <div className="bg-gradient-to-r from-slate-950 via-blue-950 to-blue-700 text-white">
-          <div className="mx-auto flex max-w-6xl items-center px-4 py-3 sm:px-6">
-            <img
-              src="/casa-timoni-logo.svg"
-              alt="Casa Timoni"
-              className="h-12 w-auto object-contain"
-            />
-          </div>
-        </div>
+      <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
+          <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto py-2">
+            <Link href="/dashboard" className={linkClass}>Início</Link>
+            <Link href="/agenda" className={linkClass}>Agenda Ciça</Link>
+            <a href={comprasUrl} target="_blank" rel="noreferrer" className={linkClass}>Compras</a>
+            <a href={estoqueUrl} target="_blank" rel="noreferrer" className={linkClass}>Estoque</a>
+            <a href={MOTORISTA_URL} target="_blank" rel="noreferrer" className={linkClass}>Motorista</a>
+            <span className={disabledClass}>Reuniões</span>
+            <span className={disabledClass}>Marketing</span>
+          </nav>
 
-        <div className="border-b border-slate-200 bg-white">
-          <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-            <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto py-2">
-              <Link href="/dashboard" className={linkClass}>Início</Link>
-              <Link href="/agenda" className={linkClass}>Agenda Ciça</Link>
-              <a href={comprasUrl} target="_blank" rel="noreferrer" className={linkClass}>Compras</a>
-              <a href={estoqueUrl} target="_blank" rel="noreferrer" className={linkClass}>Estoque</a>
-              <a href={MOTORISTA_URL} target="_blank" rel="noreferrer" className={linkClass}>Motorista</a>
-              <span className={disabledClass}>Reuniões</span>
-              <span className={disabledClass}>Marketing</span>
-            </nav>
-
-            <form
-              action={async () => {
-                "use server";
-                await signOut({ redirectTo: "/login" });
-              }}
-              className="shrink-0"
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/login" });
+            }}
+            className="shrink-0"
+          >
+            <button
+              type="submit"
+              className="rounded-lg px-2 py-1.5 text-sm text-slate-400 hover:bg-slate-100 hover:text-slate-700"
             >
-              <button
-                type="submit"
-                className="rounded-lg px-2 py-1.5 text-sm text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-              >
-                Sair
-              </button>
-            </form>
-          </div>
+              Sair
+            </button>
+          </form>
         </div>
       </header>
 

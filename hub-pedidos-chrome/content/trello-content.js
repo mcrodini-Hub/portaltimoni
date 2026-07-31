@@ -8,7 +8,7 @@
   // Procura pelos tokens "pedidos" E "pendentes" — essa combinação acha especificamente
   // "PEDIDOS PENDENTES" sem pegar outras listas que possam ter "pedidos" no nome.
   const LIST_NAME_TOKENS = ['pedidos', 'pendentes'];
-  const TARGET_LABEL_TEXT = 'rio claro';
+  const TARGET_LABEL_TEXT = 'urgente';
   const URGENT_LABEL_TEXT = 'urgente';
   const GREEN_HEX = ['#61bd4f', '#4bce97', '#216e4e', '#7bc86c', '#94c748', '#2f8132', '#1f845a', '#0f5132', '#519839'];
 
@@ -116,6 +116,28 @@
     return text.split('\n')[0].trim();
   }
 
+  // IDs completos do Trello começam com 8 dígitos hexadecimais que representam a data de
+  // criação (ObjectId). Quando o DOM não expõe o ID, mantém a ordem visual como fallback.
+  function getCardCreationTime(card, visualIndex) {
+    const candidates = [
+      card.getAttribute('data-card-id'),
+      card.getAttribute('data-id'),
+      card.id,
+      card.querySelector('[data-card-id]')?.getAttribute('data-card-id'),
+      card.querySelector('[data-id]')?.getAttribute('data-id'),
+      card.querySelector('time[datetime]')?.getAttribute('datetime')
+    ].filter(Boolean);
+
+    for (const value of candidates) {
+      const objectId = String(value).match(/\b[0-9a-f]{24}\b/i);
+      if (objectId) return parseInt(objectId[0].slice(0, 8), 16) * 1000;
+      const parsedDate = Date.parse(value);
+      if (!Number.isNaN(parsedDate)) return parsedDate;
+    }
+
+    return Number.MAX_SAFE_INTEGER - 100000 + visualIndex;
+  }
+
   function colorLooksGreen(el) {
     const dataColor = (el.getAttribute('data-color') || '').toLowerCase();
     if (dataColor) return dataColor.includes('green') || dataColor.includes('lime');
@@ -167,13 +189,8 @@
   }
 
   function isRioClaroCard(card) {
-    const labels = getCardLabels(card);
-    return labels.some((label) => {
-      // Se a cor não puder ser determinada pelo DOM, aceita pelo texto (limitação conhecida:
-      // ver TESTES.md / limitações). Se a cor for determinável, ela precisa ser verde.
-      const colorOk = label.isGreen === null ? true : label.isGreen === true;
-      return labelTextMatches(label.text) && colorOk;
-    });
+    // Fallback para a etiqueta Urgente quando o filtro nativo não estiver na URL.
+    return getCardLabels(card).some((label) => labelTextMatches(label.text));
   }
 
   function isUrgentCard(card) {
@@ -251,10 +268,10 @@
     const cards = getCardsFromList(listEl);
     let usedDeepScan = false;
 
-    // Quando a URL já contém o filtro Rio Claro, os cartões visíveis são exatamente o
-    // resultado desejado. Não tenta validar novamente nem abre cartões individualmente.
+    // Quando a URL já contém o filtro Urgente, os cartões visíveis são exatamente o
+    // resultado desejado. Não valida novamente nem abre cartões individualmente.
     const filtroRioClaroAtivo = normalizeText(decodeURIComponent(location.search || ''))
-      .includes('filter=label:rio claro');
+      .includes('filter=label:urgente');
     let rioClaroCards = cards.filter(isCardVisible);
 
     // Fallback somente quando o quadro não foi aberto com o filtro nativo.
@@ -296,20 +313,23 @@
 
     const { cards, rioClaroCards, usedDeepScan } = await getRioClaroCards(listEl);
 
+    const orderedCards = rioClaroCards
+      .map((card, visualIndex) => ({
+        card,
+        visualIndex,
+        createdAt: getCardCreationTime(card, visualIndex)
+      }))
+      .sort((a, b) => (a.createdAt - b.createdAt) || (a.visualIndex - b.visualIndex));
+
     const seen = new Set();
     const suppliers = [];
-    rioClaroCards.forEach((card) => {
+    orderedCards.forEach(({ card }) => {
       const nome = getCardName(card);
       if (!nome) return;
       const key = normalizeText(nome);
       if (seen.has(key)) return;
       seen.add(key);
-      suppliers.push({ nome, urgente: isUrgentCard(card) });
-    });
-
-    suppliers.sort((a, b) => {
-      if (a.urgente !== b.urgente) return a.urgente ? -1 : 1;
-      return a.nome.localeCompare(b.nome, 'pt-BR');
+      suppliers.push({ nome, urgente: true });
     });
 
     return {

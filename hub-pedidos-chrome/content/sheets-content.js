@@ -198,75 +198,130 @@
     return null;
   }
 
-  async function extrairItens() {
-    if (!/^https:\/\/docs\.google\.com\/spreadsheets\//.test(window.location.href)) {
-      return { error: 'A aba ativa não é uma planilha do Google Sheets.' };
-    }
+  function parseCsv(text) {
+    const rows = [];
+    let row = [];
+    let field = '';
+    let quoted = false;
+    const input = String(text || '').replace(/^\uFEFF/, '');
 
-    let rows = await waitFor(readGridRows, { timeout: 6000 });
-    let usedFallbackTable = false;
-    let triedAutoEnable = false;
-    if (!rows || rows.length === 0) {
-      // Se não apareceu NENHUMA célula com role="gridcell" mesmo depois de esperar, a
-      // planilha provavelmente está renderizando a grade só em canvas (modo visual padrão do
-      // Google Sheets), sem texto acessível no HTML. Tenta ativar "Suporte a leitor de tela"
-      // pelo próprio menu (clique real de UI, não eval/API) e ler de novo antes de desistir.
-      if (document.querySelectorAll('[role="gridcell"]').length === 0) {
-        triedAutoEnable = await tryEnableScreenReaderSupport();
-        if (triedAutoEnable) {
-          rows = await waitFor(readGridRows, { timeout: 6000 });
+    for (let i = 0; i < input.length; i++) {
+      const char = input[i];
+      if (quoted) {
+        if (char === '"' && input[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else if (char === '"') {
+          quoted = false;
+        } else {
+          field += char;
         }
-      }
-
-      if (!rows || rows.length === 0) {
-        if (document.querySelectorAll('[role="gridcell"]').length === 0) {
-          // O fallback de <tr>/<td> pega lixo de outras partes da página (abas da planilha,
-          // avisos, etc.) quando não há grade acessível nenhuma — nem tenta; orienta o passo
-          // manual (a tentativa automática acima já pode ter funcionado silenciosamente numa
-          // próxima extração, já que o modo fica ativo na planilha depois de ligado uma vez).
-          return {
-            error: triedAutoEnable
-              ? 'A planilha ainda está sendo desenhada em modo visual (sem texto no HTML) mesmo após tentar ativar automaticamente o suporte a leitor de tela pelo menu. No Google Sheets, ative manualmente em "Ferramentas > Acessibilidade > Ativar suporte a leitor de tela", espere recarregar e tente de novo.'
-              : 'Não foi possível ler o conteúdo da planilha porque ela está sendo desenhada em modo visual (sem texto no HTML da página) — a extensão nunca usa captura de tela/OCR, só lê texto real. No Google Sheets, ative uma vez em "Ferramentas > Acessibilidade > Ativar suporte a leitor de tela", espere a planilha recarregar e tente extrair de novo.',
-            diagnostics: { rowsRead: 0, usedFallbackTable: false, rowsPreview: '', triedAutoEnable }
-          };
-        }
-        rows = readTableRows();
-        usedFallbackTable = true;
+      } else if (char === '"') {
+        quoted = true;
+      } else if (char === ',') {
+        row.push(field);
+        field = '';
+      } else if (char === '\n') {
+        row.push(field.replace(/\r$/, ''));
+        rows.push(row);
+        row = [];
+        field = '';
+      } else {
+        field += char;
       }
     }
 
+    if (field.length > 0 || row.length > 0) {
+      row.push(field.replace(/\r$/, ''));
+      rows.push(row);
+    }
+    return rows;
+  }
+
+  function spreadsheetIdentity() {
+    const match = location.pathname.match(/\/spreadsheets\/d\/([^/]+)/);
+    if (!match) throw new Error('ID da planilha não encontrado.');
+    const url = new URL(location.href);
+    const hashGid = (url.hash.match(/gid=(\d+)/) || [])[1];
+    return {
+      id: match[1],
+      gid: url.searchParams.get('gid') || hashGid || '0'
+    };
+  }
+
+  function requestCsvFromBackground(url) {
+    return new Promise((resolve) => {
+      chrome.runtime.sendMessage(
+        { type: 'FETCH_SHEET_CSV', payload: { url }, source: 'sheets-content', timestamp: Date.now() },
+        (response) => {
+          if (chrome.runtime.lastError) {
+            resolve({ error: chrome.runtime.lastError.message });
+            return;
+          }
+          resolve(response || { error: 'Sem resposta ao ler a planilha.' });
+        }
+      );
+    });
+  }
+
+  async function readCsvRows() {
+    const { id, gid } = spreadsheetIdentity();
+    const encodedGid = encodeURIComponent(gid);
+    const urls = [
+      `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${encodedGid}`,
+      `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${encodedGid}`
+    ];
+    let lastError = 'Falha desconhecida ao ler a planilha.';
+
+    for (const url of urls) {
+      const result = await requestCsvFromBackground(url);
+      if (result && result.csv) {
+        const rows = parseCsv(result.csv);
+        if (rows.length >= 2) return rows;
+        lastError = 'A planilha retornou menos de duas linhas.';
+      } else {
+        lastError = (result && result.error) || lastError;
+      }
+    }
+    throw new Error(lastError);
+  }
+
+  function extractItemsFromRows(rows, diagnostics) {
     if (!rows || rows.length < 2) {
-      return { error: 'Não foi possível ler dados visíveis na planilha. Verifique se ela carregou e role a tela se necessário.' };
+      return { error: 'A planilha não possui linhas suficientes para extrair o pedido.' };
     }
 
     const found = findHeaderRow(rows);
     if (!found) {
       return {
-        error: `Não foi possível identificar com segurança as colunas Código/Compra, Descrição do produto e ${currentMonthKeys()[0]}. A extração foi interrompida para evitar quantidade incorreta.`,
-        diagnostics: {
+        error: `Não foi possível identificar com segurança Código/Compra, Descrição do produto e ${currentMonthKeys()[0]}. A extração foi interrompida para evitar quantidade incorreta.`,
+        diagnostics: Object.assign({}, diagnostics, {
           rowsRead: rows.length,
-          usedFallbackTable,
           rowsPreview: summarizeRowsForDiagnostics(rows)
-        }
+        })
       };
     }
-    const { headerIdx, columns } = found;
 
+    const { headerIdx, columns } = found;
     const items = [];
     for (let i = headerIdx + 1; i < rows.length; i++) {
-      const row = rows[i];
+      const row = rows[i] || [];
       const codigo = String(row[columns.idxCodigo] ?? '').trim();
       const descricao = String(row[columns.idxDescricao] ?? '').trim();
       const quantidade = String(row[columns.idxQuantidade] ?? '').trim();
-
-      // Regra fechada: só entra quando as três células necessárias estão preenchidas.
       if (!codigo || !descricao || !quantidade) continue;
       items.push({ codigo, descricao, quantidade });
     }
 
     if (items.length === 0) {
-      return { error: 'Nenhum item válido encontrado nas linhas da planilha.' };
+      return {
+        error: `Nenhum item com quantidade preenchida foi encontrado em ${columns.quantidadeCabecalho || columns.mesVigente}.`,
+        diagnostics: Object.assign({}, diagnostics, {
+          rowsRead: rows.length,
+          mesVigente: columns.mesVigente,
+          quantidadeCabecalho: columns.quantidadeCabecalho
+        })
+      };
     }
 
     return {
@@ -274,12 +329,68 @@
       totalItens: items.length,
       mesVigente: columns.mesVigente,
       quantidadeCabecalho: columns.quantidadeCabecalho,
-      diagnostics: {
+      diagnostics: Object.assign({}, diagnostics, {
+        rowsRead: rows.length,
         itemsExtracted: items.length,
         mesVigente: columns.mesVigente,
         quantidadeCabecalho: columns.quantidadeCabecalho
-      }
+      })
     };
+  }
+
+  async function extrairItens() {
+    if (!/^https:\/\/docs\.google\.com\/spreadsheets\//.test(window.location.href)) {
+      return { error: 'A aba ativa não é uma planilha do Google Sheets.' };
+    }
+
+    // Caminho principal: lê a aba como CSV usando a sessão Google já autenticada.
+    // Não depende do canvas, da acessibilidade nem das células visíveis na tela.
+    let csvError = null;
+    try {
+      const csvRows = await readCsvRows();
+      return extractItemsFromRows(csvRows, {
+        source: 'csv',
+        usedFallbackTable: false,
+        triedAutoEnable: false
+      });
+    } catch (error) {
+      csvError = error;
+    }
+
+    // Fallback local, sem OCR, apenas se a leitura CSV estiver indisponível.
+    let rows = await waitFor(readGridRows, { timeout: 4000 });
+    let usedFallbackTable = false;
+    let triedAutoEnable = false;
+
+    if (!rows || rows.length === 0) {
+      if (document.querySelectorAll('[role="gridcell"]').length === 0) {
+        triedAutoEnable = await tryEnableScreenReaderSupport();
+        if (triedAutoEnable) rows = await waitFor(readGridRows, { timeout: 4000 });
+      }
+      if (!rows || rows.length === 0) {
+        rows = readTableRows();
+        usedFallbackTable = true;
+      }
+    }
+
+    if (!rows || rows.length === 0) {
+      return {
+        error: `Não foi possível ler os dados da planilha diretamente. ${csvError ? csvError.message : ''}`.trim(),
+        diagnostics: {
+          source: 'failed',
+          rowsRead: 0,
+          csvError: csvError ? csvError.message : '',
+          triedAutoEnable
+        }
+      };
+    }
+
+    return extractItemsFromRows(rows, {
+      source: 'dom-fallback',
+      usedFallbackTable,
+      triedAutoEnable,
+      csvError: csvError ? csvError.message : ''
+    });
   }
 
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

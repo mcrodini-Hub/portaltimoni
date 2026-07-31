@@ -9,6 +9,7 @@
   // "PEDIDOS PENDENTES" sem pegar outras listas que possam ter "pedidos" no nome.
   const LIST_NAME_TOKENS = ['pedidos', 'pendentes'];
   const TARGET_LABEL_TEXT = 'rio claro';
+  const URGENT_LABEL_TEXT = 'urgente';
   const GREEN_HEX = ['#61bd4f', '#4bce97', '#216e4e', '#7bc86c', '#94c748', '#2f8132', '#1f845a', '#0f5132', '#519839'];
 
   // ---------------------------------------------------------------------
@@ -175,6 +176,12 @@
     });
   }
 
+  function isUrgentCard(card) {
+    return getCardLabels(card).some((label) =>
+      normalizeText(label.text).includes(URGENT_LABEL_TEXT)
+    );
+  }
+
   // ---------------------------------------------------------------------
   // Verificação profunda (fallback): abre cada cartão e lê a seção de
   // etiquetas no painel de detalhes, onde o Trello sempre mostra o nome por
@@ -244,18 +251,18 @@
     const cards = getCardsFromList(listEl);
     let usedDeepScan = false;
 
-    // Preferência 1: filtro nativo do Trello (via URL) já escondeu os cartões que não têm a
-    // etiqueta — só ler quais estão visíveis.
+    // Quando a URL já contém o filtro Rio Claro, os cartões visíveis são exatamente o
+    // resultado desejado. Não tenta validar novamente nem abre cartões individualmente.
+    const filtroRioClaroAtivo = normalizeText(decodeURIComponent(location.search || ''))
+      .includes('filter=label:rio claro');
     let rioClaroCards = cards.filter(isCardVisible);
 
-    // Se "todos" ou "nenhum" cartão está visível, o filtro nativo provavelmente não foi
-    // aplicado (aba aberta sem o parâmetro, ou Trello mudou de comportamento) — cai para a
-    // detecção por cor/texto de etiqueta, como nas versões anteriores.
-    if (cards.length > 0 && (rioClaroCards.length === 0 || rioClaroCards.length === cards.length)) {
+    // Fallback somente quando o quadro não foi aberto com o filtro nativo.
+    if (!filtroRioClaroAtivo) {
       rioClaroCards = cards.filter(isRioClaroCard);
     }
 
-    if (rioClaroCards.length === 0 && cards.length > 0) {
+    if (!filtroRioClaroAtivo && rioClaroCards.length === 0 && cards.length > 0) {
       // Antes de abrir cartão por cartão, tenta o atalho nativo do Trello que mostra o nome
       // das etiquetas na frente de todos os cartões (tecla "L" com o board em foco). Se o
       // Trello aceitar o evento sintético, os cartões passam a ter texto legível e a
@@ -266,7 +273,7 @@
       rioClaroCards = cards.filter(isRioClaroCard);
     }
 
-    if (rioClaroCards.length === 0 && cards.length > 0) {
+    if (!filtroRioClaroAtivo && rioClaroCards.length === 0 && cards.length > 0) {
       usedDeepScan = true;
       rioClaroCards = await filterRioClaroDeep(cards);
     }
@@ -297,10 +304,13 @@
       const key = normalizeText(nome);
       if (seen.has(key)) return;
       seen.add(key);
-      suppliers.push({ nome });
+      suppliers.push({ nome, urgente: isUrgentCard(card) });
     });
 
-    suppliers.sort((a, b) => a.nome.localeCompare(b.nome, 'pt-BR'));
+    suppliers.sort((a, b) => {
+      if (a.urgente !== b.urgente) return a.urgente ? -1 : 1;
+      return a.nome.localeCompare(b.nome, 'pt-BR');
+    });
 
     return {
       suppliers,

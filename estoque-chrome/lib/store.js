@@ -201,10 +201,27 @@
   async function buscarProdutos(termo) {
     const alvo = normalize(termo);
     if (!alvo) return [];
+
     const produtos = await carregarProdutos(false);
+    const temEspaco = /\s/.test(String(termo).trim());
+    const palavras = alvo.split(/\s+/).filter(Boolean);
+
     return produtos
-      .filter((p) => normalize(p.codigo).includes(alvo) || normalize(p.descricao).includes(alvo))
-      .sort((a, b) => normalize(a.descricao).localeCompare(normalize(b.descricao)));
+      .filter((p) => {
+        const codigo = normalize(p.codigo);
+        const descricao = normalize(p.descricao);
+
+        if (codigo.startsWith(alvo)) return true;
+        if (!temEspaco) return descricao.startsWith(alvo);
+        return palavras.every((palavra) => descricao.includes(palavra));
+      })
+      .sort((a, b) =>
+        normalize(a.descricao).localeCompare(
+          normalize(b.descricao),
+          'pt-BR',
+          { sensitivity: 'base' }
+        )
+      );
   }
 
   // -------------------------------------------------------------------------

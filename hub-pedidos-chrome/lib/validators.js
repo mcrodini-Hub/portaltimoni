@@ -32,84 +32,75 @@
     }
   }
 
-  // Tenta localizar as colunas de código, descrição e quantidade a partir da linha de
-  // cabeçalho da planilha, usando palavras-chave. Retorna null se não conseguir identificar
-  // as três colunas — quem chama deve exibir um erro claro nesse caso (regra da Etapa 5).
-  //
-  // "strong": palavras que só aparecem em cabeçalhos de código/quantidade de verdade.
-  // "weak": palavras genéricas demais (ex.: "item" pode ser só um número de linha) — só
-  // usadas se nenhuma coluna "strong" for encontrada em nenhuma coluna.
-  const KEYWORDS = {
-    codigo: {
-      strong: ['codigo', 'código', 'cod.', 'sku', 'compra', 'referencia', 'ref.'],
-      weak: ['cod', 'item']
-    },
-    descricao: {
-      strong: ['descricao', 'descrição', 'produto', 'desc'],
-      weak: []
-    },
-    quantidade: {
-      strong: ['quantidade', 'qtd', 'qtde', 'quant'],
-      weak: []
-    }
-  };
+  // Regra de extração das planilhas de compra:
+  // - código: Código de compra / Cod / Compra / Código;
+  // - descrição: Descrição do produto;
+  // - quantidade: exclusivamente a coluna do mês vigente (ex.: jul26).
+  // Não usa coluna genérica "Quantidade" nem a última coluna preenchida como fallback.
+  function headerKey(value) {
+    return normalizeText(value).replace(/[^a-z0-9]/g, '');
+  }
 
-  function findIndexTiered(normalizedRow, keywordSet, exclude) {
-    const tryTier = (list) => {
-      for (let i = 0; i < normalizedRow.length; i++) {
-        if (exclude && exclude.has(i)) continue;
-        if (list.some((k) => normalizedRow[i].includes(k))) return i;
-      }
-      return -1;
-    };
-    const strongHit = tryTier(keywordSet.strong);
-    if (strongHit !== -1) return strongHit;
-    return tryTier(keywordSet.weak);
+  function currentMonthKeys(date = new Date()) {
+    const shortMonths = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+    const longMonths = ['janeiro', 'fevereiro', 'marco', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+    const year4 = String(date.getFullYear());
+    const year2 = year4.slice(-2);
+    const month = date.getMonth();
+    return [
+      shortMonths[month] + year2,
+      shortMonths[month] + year4,
+      longMonths[month] + year2,
+      longMonths[month] + year4
+    ];
+  }
+
+  function findExactHeader(keys, accepted) {
+    for (const target of accepted) {
+      const index = keys.findIndex((key) => key === target);
+      if (index !== -1) return index;
+    }
+    return -1;
   }
 
   function detectColumns(headerRow) {
     if (!Array.isArray(headerRow) || headerRow.length === 0) return null;
-    const normalized = headerRow.map(normalizeText);
 
-    const used = new Set();
-    const idxDescricao = findIndexTiered(normalized, KEYWORDS.descricao, used);
-    if (idxDescricao !== -1) used.add(idxDescricao);
+    const keys = headerRow.map(headerKey);
+    const idxCodigo = findExactHeader(keys, [
+      'codigodecompra',
+      'codigocompra',
+      'codcompra',
+      'codigo',
+      'cod',
+      'compra'
+    ]);
+    const idxDescricao = findExactHeader(keys, [
+      'descricaodoproduto',
+      'descricaoproduto',
+      'descricao',
+      'produto'
+    ]);
 
-    const idxCodigo = findIndexTiered(normalized, KEYWORDS.codigo, used);
-    if (idxCodigo !== -1) used.add(idxCodigo);
-
-    // Quantidade: tenta por palavra-chave primeiro. Nas planilhas reais, porém, não existe
-    // uma coluna "quantidade" — existe uma coluna por mês (ex.: nov25, dez25, mar26, jul26) e
-    // o pedido do mês corrente é digitado na coluna mais à direita entre essas. Por isso, se
-    // a palavra-chave não bater, procura colunas nesse formato (3 letras + 2 dígitos) e usa a
-    // mais à direita; só na ausência total disso cai para a última coluna não vazia.
-    const MONTH_COLUMN_RE = /^[a-z]{3}\.?\/?\d{2}$/;
-    let idxQuantidade = findIndexTiered(normalized, KEYWORDS.quantidade, used);
-    if (idxQuantidade === -1) {
-      for (let i = normalized.length - 1; i >= 0; i--) {
-        if (!used.has(i) && MONTH_COLUMN_RE.test(normalized[i])) {
-          idxQuantidade = i;
-          break;
-        }
-      }
-    }
-    if (idxQuantidade === -1) {
-      for (let i = normalized.length - 1; i >= 0; i--) {
-        if (normalized[i] && !used.has(i)) {
-          idxQuantidade = i;
-          break;
-        }
+    const monthKeys = currentMonthKeys();
+    let idxQuantidade = -1;
+    for (let i = keys.length - 1; i >= 0; i--) {
+      if (monthKeys.some((monthKey) => keys[i] === monthKey || keys[i].includes(monthKey))) {
+        idxQuantidade = i;
+        break;
       }
     }
 
-    if (idxCodigo === -1 || idxDescricao === -1 || idxQuantidade === -1) {
-      return null;
-    }
-    if (idxCodigo === idxDescricao || idxCodigo === idxQuantidade || idxDescricao === idxQuantidade) {
-      return null;
-    }
+    if (idxCodigo === -1 || idxDescricao === -1 || idxQuantidade === -1) return null;
+    if (new Set([idxCodigo, idxDescricao, idxQuantidade]).size !== 3) return null;
 
-    return { idxCodigo, idxDescricao, idxQuantidade };
+    return {
+      idxCodigo,
+      idxDescricao,
+      idxQuantidade,
+      quantidadeCabecalho: headerRow[idxQuantidade],
+      mesVigente: monthKeys[0]
+    };
   }
 
   root.HubValidators = {
@@ -118,6 +109,7 @@
     isSpreadsheetUrl,
     isDriveFolderUrl,
     isValidHttpUrl,
-    detectColumns
+    detectColumns,
+    currentMonthKeys
   };
 })(self);

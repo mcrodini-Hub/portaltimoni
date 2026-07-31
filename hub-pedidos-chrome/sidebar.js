@@ -47,6 +47,9 @@ const ui = {
   btnAbrirDrive: el('btn-abrir-drive'),
 
   inputSheetUrl: el('input-sheet-url'),
+  inputColCodigo: el('input-col-codigo'),
+  inputColDescricao: el('input-col-descricao'),
+  inputColQuantidade: el('input-col-quantidade'),
   btnExtrairItens: el('btn-extrair-itens'),
   itensWrap: el('itens-wrap'),
   itensTotal: el('itens-total'),
@@ -85,6 +88,7 @@ const ui = {
 let confirmOpen = false;
 let bessaniInputFocused = false;
 let sheetUrlInputFocused = false;
+let sheetColumnsInputFocused = false;
 let painelUrlInputFocused = false;
 
 function normalize(str) {
@@ -157,7 +161,14 @@ function render(state) {
   if (!sheetUrlInputFocused) {
     ui.inputSheetUrl.value = state.sheetUrl || '';
   }
-  ui.btnExtrairItens.disabled = !state.driveOpened && !state.sheetUrl;
+  const sheetColumns = state.sheetColumns || {};
+  if (!sheetColumnsInputFocused) {
+    ui.inputColCodigo.value = sheetColumns.codigo || '';
+    ui.inputColDescricao.value = sheetColumns.descricao || '';
+    ui.inputColQuantidade.value = sheetColumns.quantidade || '';
+  }
+  const hasManualColumns = !!(sheetColumns.codigo && sheetColumns.descricao && sheetColumns.quantidade);
+  ui.btnExtrairItens.disabled = !state.sheetUrl || !hasManualColumns;
   const hasItems = state.extractedItems && state.extractedItems.length > 0;
   ui.itensWrap.hidden = !hasItems;
   if (hasItems) {
@@ -268,7 +279,16 @@ async function withBusy(button, fn) {
 ui.btnAbrirTrello.addEventListener('click', () => withBusy(ui.btnAbrirTrello, () => send(TYPES.OPEN_TRELLO, null, 'sidebar')));
 ui.btnAtualizarFornecedores.addEventListener('click', () => withBusy(ui.btnAtualizarFornecedores, () => send(TYPES.SCAN_TRELLO, null, 'sidebar')));
 ui.btnAbrirDrive.addEventListener('click', () => withBusy(ui.btnAbrirDrive, () => send(TYPES.OPEN_DRIVE, null, 'sidebar')));
-ui.btnExtrairItens.addEventListener('click', () => withBusy(ui.btnExtrairItens, () => send(TYPES.EXTRACT_ITEMS, null, 'sidebar')));
+ui.btnExtrairItens.addEventListener('click', () => withBusy(ui.btnExtrairItens, async () => {
+  const columns = {
+    codigo: ui.inputColCodigo.value.trim(),
+    descricao: ui.inputColDescricao.value.trim(),
+    quantidade: ui.inputColQuantidade.value.trim()
+  };
+  const saved = await send(TYPES.SAVE_SHEET_COLUMNS, { columns }, 'sidebar');
+  if (saved && saved.error) return saved;
+  return send(TYPES.EXTRACT_ITEMS, { columns }, 'sidebar');
+}));
 ui.btnAbrirBessani.addEventListener('click', () => withBusy(ui.btnAbrirBessani, () => send(TYPES.OPEN_BESSANI, null, 'sidebar')));
 
 function onSelectSupplier(supplier) {
@@ -287,6 +307,19 @@ ui.inputSheetUrl.addEventListener('blur', () => {
   sheetUrlInputFocused = false;
   const url = ui.inputSheetUrl.value.trim();
   send(TYPES.SAVE_SHEET_URL, { url }, 'sidebar').then(refresh);
+});
+
+[ui.inputColCodigo, ui.inputColDescricao, ui.inputColQuantidade].forEach((input) => {
+  input.addEventListener('focus', () => { sheetColumnsInputFocused = true; });
+  input.addEventListener('blur', () => {
+    sheetColumnsInputFocused = false;
+    const columns = {
+      codigo: ui.inputColCodigo.value.trim(),
+      descricao: ui.inputColDescricao.value.trim(),
+      quantidade: ui.inputColQuantidade.value.trim()
+    };
+    send(TYPES.SAVE_SHEET_COLUMNS, { columns }, 'sidebar').then(refresh);
+  });
 });
 
 ui.inputPainelUrl.addEventListener('focus', () => { painelUrlInputFocused = true; });

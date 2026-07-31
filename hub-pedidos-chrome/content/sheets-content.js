@@ -3,7 +3,7 @@
 // nem escreve na planilha (nenhum evento de edição é disparado).
 
 (function () {
-  const { detectColumns, normalizeText } = self.HubValidators;
+  const { detectColumns, normalizeText, currentMonthKeys } = self.HubValidators;
 
   function clickByText(root, text, selector) {
     const normalized = normalizeText(text);
@@ -122,22 +122,45 @@
     const cells = document.querySelectorAll('[role="gridcell"]');
     if (!cells || cells.length === 0) return null;
 
-    const hasRowAncestor = Array.from(cells).some((c) => c.closest('[role="row"]'));
-
+    const hasRowAncestor = Array.from(cells).some((cell) => cell.closest('[role="row"]'));
     const rowsMap = new Map();
     const order = [];
+
     cells.forEach((cell) => {
       const rowEl = hasRowAncestor ? cell.closest('[role="row"]') : null;
       const key = rowEl || Math.round(cell.getBoundingClientRect().top / 4) * 4;
       if (!rowsMap.has(key)) {
-        rowsMap.set(key, { texts: [], top: cell.getBoundingClientRect().top });
+        rowsMap.set(key, { cells: [], top: cell.getBoundingClientRect().top });
         order.push(key);
       }
-      rowsMap.get(key).texts.push((cell.textContent || '').trim());
+
+      const ariaCol = Number(
+        cell.getAttribute('aria-colindex') ||
+        cell.getAttribute('data-col-index') ||
+        cell.getAttribute('data-column-index')
+      );
+      rowsMap.get(key).cells.push({
+        text: (cell.textContent || '').trim(),
+        colIndex: Number.isInteger(ariaCol) && ariaCol > 0 ? ariaCol - 1 : null
+      });
     });
 
     order.sort((a, b) => rowsMap.get(a).top - rowsMap.get(b).top);
-    return order.map((k) => rowsMap.get(k).texts);
+    return order.map((key) => {
+      const rowCells = rowsMap.get(key).cells;
+      const hasColumnIndexes = rowCells.some((cell) => cell.colIndex !== null);
+      if (!hasColumnIndexes) return rowCells.map((cell) => cell.text);
+
+      const texts = [];
+      rowCells.forEach((cell) => {
+        if (cell.colIndex !== null) texts[cell.colIndex] = cell.text;
+        else texts.push(cell.text);
+      });
+      for (let i = 0; i < texts.length; i++) {
+        if (texts[i] === undefined) texts[i] = '';
+      }
+      return texts;
+    });
   }
 
   // Alternativa: tabela HTML simples (algumas visualizações do Sheets renderizam <tr>/<td>).
@@ -220,7 +243,7 @@
     const found = findHeaderRow(rows);
     if (!found) {
       return {
-        error: 'Não foi possível identificar automaticamente as colunas de código, descrição e quantidade em nenhuma das primeiras linhas. Confira o cabeçalho da planilha.',
+        error: `Não foi possível identificar com segurança as colunas Código/Compra, Descrição do produto e ${currentMonthKeys()[0]}. A extração foi interrompida para evitar quantidade incorreta.`,
         diagnostics: {
           rowsRead: rows.length,
           usedFallbackTable,
@@ -233,12 +256,12 @@
     const items = [];
     for (let i = headerIdx + 1; i < rows.length; i++) {
       const row = rows[i];
-      const codigo = (row[columns.idxCodigo] || '').trim();
-      const descricao = (row[columns.idxDescricao] || '').trim();
-      const quantidade = (row[columns.idxQuantidade] || '').trim();
-      if (!codigo && !descricao) continue; // linha vazia
-      if (!codigo || !descricao) continue; // linha incompleta, ignora
-      if (!quantidade) continue; // sem pedido no mês corrente, ignora (ver 2-itens-pedido-rio-claro)
+      const codigo = String(row[columns.idxCodigo] ?? '').trim();
+      const descricao = String(row[columns.idxDescricao] ?? '').trim();
+      const quantidade = String(row[columns.idxQuantidade] ?? '').trim();
+
+      // Regra fechada: só entra quando as três células necessárias estão preenchidas.
+      if (!codigo || !descricao || !quantidade) continue;
       items.push({ codigo, descricao, quantidade });
     }
 
@@ -246,7 +269,17 @@
       return { error: 'Nenhum item válido encontrado nas linhas da planilha.' };
     }
 
-    return { items, diagnostics: { itemsExtracted: items.length } };
+    return {
+      items,
+      totalItens: items.length,
+      mesVigente: columns.mesVigente,
+      quantidadeCabecalho: columns.quantidadeCabecalho,
+      diagnostics: {
+        itemsExtracted: items.length,
+        mesVigente: columns.mesVigente,
+        quantidadeCabecalho: columns.quantidadeCabecalho
+      }
+    };
   }
 
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {

@@ -509,3 +509,9 @@ h1 { font-size: 18px; margin: 0 0 4px; }
   max-height: 220px;
   overflow-y: auto;
 }
+
+/* O painel já preserva o estado automaticamente; controles de fixação removidos da interface. */
+.pin-checkbox,
+#btn-pin {
+  display: none !important;
+}

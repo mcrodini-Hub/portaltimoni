@@ -232,6 +232,38 @@ function spreadsheetTabPattern(url) {
   return match ? `https://docs.google.com/spreadsheets/d/${match[1]}/*` : `${parsed.origin}${parsed.pathname}*`;
 }
 
+async function handleFetchSheetCsv(payload) {
+  const value = payload && payload.url;
+  let url;
+  try {
+    url = new URL(value);
+  } catch (error) {
+    return { error: 'URL de leitura da planilha inválida.' };
+  }
+
+  const allowedPath = /^\/spreadsheets\/d\/[^/]+\/(gviz\/tq|export)$/.test(url.pathname);
+  if (url.protocol !== 'https:' || url.hostname !== 'docs.google.com' || !allowedPath) {
+    return { error: 'URL de leitura da planilha não autorizada.' };
+  }
+
+  const response = await fetch(url.toString(), {
+    method: 'GET',
+    credentials: 'include',
+    cache: 'no-store',
+    redirect: 'follow'
+  });
+  if (!response.ok) {
+    return { error: `Google Sheets respondeu HTTP ${response.status}.` };
+  }
+
+  const csv = await response.text();
+  const trimmed = csv.trimStart().toLowerCase();
+  if (!csv.trim() || trimmed.startsWith('<!doctype html') || trimmed.startsWith('<html')) {
+    return { error: 'O Google Sheets não retornou os dados da planilha.' };
+  }
+  return { csv };
+}
+
 async function handleExtractItems() {
   const state = await HubState.getState();
   let activeTab = await getActiveTab();
@@ -428,6 +460,7 @@ const HANDLERS = {
   [TYPES.SELECT_SUPPLIER]: handleSelectSupplier,
   [TYPES.OPEN_DRIVE]: handleOpenDrive,
   [TYPES.EXTRACT_ITEMS]: handleExtractItems,
+  [TYPES.FETCH_SHEET_CSV]: handleFetchSheetCsv,
   [TYPES.SAVE_BESSANI_URL]: handleSaveBessaniUrl,
   [TYPES.SAVE_BESSANI_PRINT]: handleSaveBessaniPrint,
   [TYPES.SAVE_SHEET_URL]: handleSaveSheetUrl,

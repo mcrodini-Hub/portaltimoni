@@ -71,8 +71,11 @@
     <section class="step">
       <p class="step-label">3. Planilha aberta</p>
       <div class="step-card">
-        <input type="text" id="input-sheet-url" class="text-input" placeholder="Cole aqui o link da planilha (opcional)">
-        <p class="hint-text" style="margin-top: -6px; margin-bottom: 10px;">Se preencher, a aba abre sozinha ao clicar em extrair. Se deixar em branco, usa a aba do Sheets que já estiver ativa.</p>
+        <input type="text" id="input-sheet-url" class="text-input" placeholder="Cole aqui o link da planilha">
+        <input type="text" id="input-col-codigo" class="text-input" placeholder="Coluna do código: COMPRA, Código ou letra">
+        <input type="text" id="input-col-descricao" class="text-input" placeholder="Coluna da descrição: nome ou letra">
+        <input type="text" id="input-col-quantidade" class="text-input" placeholder="Coluna da quantidade: jul26 ou letra">
+        <p class="hint-text" style="margin-top: -6px; margin-bottom: 10px;">Informe o nome do cabeçalho ou a letra de cada coluna. Ex.: COMPRA, Descrição do produto e jul26.</p>
         <button id="btn-extrair-itens" class="btn btn-primary" disabled>Extrair itens da planilha</button>
         <div id="itens-wrap" hidden>
           <p class="count-text" id="itens-total">Total de itens: 0</p>

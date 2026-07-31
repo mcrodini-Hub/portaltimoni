@@ -17,8 +17,6 @@ export default async function DashboardLayout({
   }
 
   const comprasUrl = "https://trello.com/b/UfPrTr1H/compras";
-  const estoqueUrl =
-    "https://docs.google.com/spreadsheets/d/1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo/edit";
 
   const linkClass =
     "whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-white/90 transition hover:bg-white/10 hover:text-white";
@@ -55,14 +53,9 @@ export default async function DashboardLayout({
               Compras
             </a>
 
-            <a
-              href={estoqueUrl}
-              target="_blank"
-              rel="noreferrer"
-              className={linkClass}
-            >
+            <Link href="/dashboard/estoque" className={linkClass}>
               Estoque
-            </a>
+            </Link>
 
             <a
               href={MOTORISTA_URL}

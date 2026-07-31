@@ -29,12 +29,11 @@ export default async function DashboardLayout({
     <div>
       <header className="sticky top-0 z-40 border-b border-slate-200 bg-white/95 shadow-sm backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-          <Link href="/dashboard" className="shrink-0 py-1.5" aria-label="Casa Timoni">
-            <img
-              src="/logotipo.jpeg"
-              alt="Casa Timoni"
-              className="h-10 w-10 rounded-full object-cover"
-            />
+          <Link
+            href="/dashboard"
+            className="shrink-0 py-2 text-base font-semibold tracking-tight text-slate-950"
+          >
+            Casa Timoni
           </Link>
 
           <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto py-2">

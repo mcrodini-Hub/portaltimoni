@@ -3,7 +3,7 @@
 // através de chrome.storage.onChanged — isso substitui o mecanismo de mensageria
 // da base v1.0.12, que não chegava a atualizar a sidebar de forma confiável.
 
-const { STATES, CONFERENCIA_CHECKLIST_ITEMS } = HubState;
+const { STATES } = HubState;
 const { TYPES, send } = HubMessages;
 
 const STATE_LABELS = {
@@ -60,28 +60,9 @@ const ui = {
   printPreviewImg: el('print-preview-img'),
   btnRemoverPrint: el('btn-remover-print'),
 
-  radioDocOrcamento: el('radio-doc-orcamento'),
-  radioDocNfe: el('radio-doc-nfe'),
-  docOrcamentoHint: el('doc-orcamento-hint'),
-  conferenciaChecklist: el('conferencia-checklist'),
-  divergenciasLista: el('divergencias-lista'),
-  inputDivItem: el('input-div-item'),
-  inputDivPedido: el('input-div-pedido'),
-  inputDivRecebido: el('input-div-recebido'),
-  inputDivObs: el('input-div-obs'),
-  btnAddDivergencia: el('btn-add-divergencia'),
-  conferenciaStatus: el('conferencia-status'),
-  btnAprovarConferencia: el('btn-aprovar-conferencia'),
-  conferenciaConfirmWrap: el('conferencia-confirm-wrap'),
-  conferenciaConfirmText: el('conferencia-confirm-text'),
-  btnConfirmarAprovarConferencia: el('btn-confirmar-aprovar-conferencia'),
-  btnCancelarAprovarConferencia: el('btn-cancelar-aprovar-conferencia'),
-  btnBaixarExcelConferencia: el('btn-baixar-excel-conferencia'),
-
   resumoWrap: el('resumo-wrap'),
   resumoFornecedor: el('resumo-fornecedor'),
   resumoItens: el('resumo-itens'),
-  conferenciaBloqueioHint: el('conferencia-bloqueio-hint'),
   btnAtualizarTrello: el('btn-atualizar-trello'),
   confirmWrap: el('confirm-wrap'),
   btnConfirmarUpdate: el('btn-confirmar-update'),
@@ -202,18 +183,13 @@ function render(state) {
     ui.printPreviewImg.src = state.bessaniPrint;
   }
 
-  // Etapa 5 (Conferência)
-  renderConferencia(state);
-
-  // Etapa 6
-  const conferenciaAprovada = !!(state.conferencia && state.conferencia.aprovado === true);
-  const canUpdate = !!state.selectedSupplier && hasItems && conferenciaAprovada;
+  // Etapa 5 — atualização final
+  const canUpdate = !!state.selectedSupplier && hasItems;
   ui.resumoWrap.hidden = !(state.selectedSupplier && hasItems);
   if (state.selectedSupplier && hasItems) {
     ui.resumoFornecedor.textContent = state.selectedSupplier.nome;
     ui.resumoItens.textContent = String(state.extractedItems.length);
   }
-  ui.conferenciaBloqueioHint.hidden = !(state.selectedSupplier && hasItems && !conferenciaAprovada);
   ui.btnAtualizarTrello.disabled = !canUpdate;
 
   ui.resultadosLista.innerHTML = '';
@@ -242,7 +218,6 @@ function escapeHtml(value) {
 
 function renderDiagnostics(state) {
   const d = state.diagnostics || {};
-  const c = state.conferencia || {};
   const lines = [
     `Estado atual: ${state.currentState}`,
     `URL da aba ativa (última conhecida): ${d.activeTabUrl || '--'}`,
@@ -252,9 +227,6 @@ function renderDiagnostics(state) {
     `Fornecedores encontrados: ${d.suppliersFound ?? state.suppliers.length}`,
     `Fornecedor selecionado: ${state.selectedSupplier ? state.selectedSupplier.nome : '--'}`,
     `Itens extraídos: ${d.itemsExtracted ?? state.extractedItems.length}`,
-    `Conferência — data: ${formatDate(c.dataConferencia)}`,
-    `Conferência — divergências: ${(c.divergencias || []).length}`,
-    `Conferência — aprovado: ${c.aprovado === true ? 'S' : c.aprovado === false ? 'N' : '--'}`,
     `Último erro: ${state.lastError || '--'}`
   ];
   if (d.rowsRead !== undefined) {
@@ -272,80 +244,6 @@ function formatDate(timestamp) {
     return new Date(timestamp).toLocaleString('pt-BR');
   } catch (e) {
     return '--';
-  }
-}
-
-function renderConferencia(state) {
-  const conferencia = state.conferencia || HubState.defaultConferencia();
-
-  ui.radioDocOrcamento.checked = conferencia.tipoDocumento === 'orcamento';
-  ui.radioDocNfe.checked = conferencia.tipoDocumento === 'nfe';
-  ui.docOrcamentoHint.hidden = conferencia.tipoDocumento !== 'orcamento';
-
-  ui.conferenciaChecklist.innerHTML = '';
-  CONFERENCIA_CHECKLIST_ITEMS.forEach((item) => {
-    const checked = !!conferencia.checklist[item.key];
-    const li = document.createElement('li');
-    const inputId = `chk-conf-${item.key}`;
-    const input = document.createElement('input');
-    input.type = 'checkbox';
-    input.id = inputId;
-    input.checked = checked;
-    input.addEventListener('change', (e) => onChecklistChange(item.key, e.target.checked));
-    const label = document.createElement('label');
-    label.setAttribute('for', inputId);
-    label.textContent = item.label;
-    li.appendChild(input);
-    li.appendChild(label);
-    ui.conferenciaChecklist.appendChild(li);
-  });
-
-  const divergencias = conferencia.divergencias || [];
-  ui.divergenciasLista.innerHTML = '';
-  if (divergencias.length === 0) {
-    const li = document.createElement('li');
-    li.className = 'divergencia-empty';
-    li.textContent = 'Nenhuma divergência registrada.';
-    ui.divergenciasLista.appendChild(li);
-  } else {
-    divergencias.forEach((dvg, idx) => {
-      const li = document.createElement('li');
-      const parts = [dvg.item || '(item não informado)', `pedido: ${dvg.valorPedido || '--'}`, `recebido: ${dvg.valorRecebido || '--'}`];
-      if (dvg.observacao) parts.push(dvg.observacao);
-      const span = document.createElement('span');
-      span.textContent = parts.join(' · ');
-      const btn = document.createElement('button');
-      btn.className = 'divergencia-remove';
-      btn.title = 'Remover';
-      btn.textContent = '×';
-      btn.addEventListener('click', () => onRemoveDivergencia(idx));
-      li.appendChild(span);
-      li.appendChild(btn);
-      ui.divergenciasLista.appendChild(li);
-    });
-  }
-
-  const allChecked = CONFERENCIA_CHECKLIST_ITEMS.every((item) => !!conferencia.checklist[item.key]);
-  const hasDivergencias = divergencias.length > 0;
-
-  ui.btnAprovarConferencia.disabled = !allChecked || conferencia.aprovado === true;
-  ui.btnBaixarExcelConferencia.hidden = conferencia.aprovado !== true;
-
-  ui.conferenciaStatus.className = 'conferencia-status';
-  if (conferencia.aprovado === true) {
-    ui.conferenciaStatus.classList.add('status-aprovado');
-    ui.conferenciaStatus.textContent = hasDivergencias
-      ? `Conferência aprovada em ${formatDate(conferencia.dataConferencia)} — ${divergencias.length} divergência(s) registrada(s) para repassar ao financeiro.`
-      : `Conferência aprovada em ${formatDate(conferencia.dataConferencia)}.`;
-  } else {
-    ui.conferenciaStatus.classList.add('status-pendente');
-    if (!allChecked) {
-      ui.conferenciaStatus.textContent = 'Conferência pendente.';
-    } else {
-      ui.conferenciaStatus.textContent = hasDivergencias
-        ? 'Checklist completo, com divergência(s) registrada(s) — pronto para aprovar.'
-        : 'Checklist completo — pronto para aprovar.';
-    }
   }
 }
 
@@ -426,159 +324,6 @@ ui.inputPrintUpload.addEventListener('change', (e) => {
 
 ui.btnRemoverPrint.addEventListener('click', () => {
   send(TYPES.SAVE_BESSANI_PRINT, { dataUrl: null }, 'sidebar').then(refresh);
-});
-
-async function updateConferencia(mutator) {
-  const state = await HubState.getState();
-  const conferencia = JSON.parse(JSON.stringify(state.conferencia || HubState.defaultConferencia()));
-  mutator(conferencia);
-  await send(TYPES.SAVE_CONFERENCIA, { conferencia }, 'sidebar');
-  refresh();
-}
-
-function onChecklistChange(key, checked) {
-  updateConferencia((c) => {
-    c.checklist[key] = checked;
-    c.aprovado = null;
-  });
-}
-
-ui.radioDocOrcamento.addEventListener('change', () => {
-  if (ui.radioDocOrcamento.checked) updateConferencia((c) => { c.tipoDocumento = 'orcamento'; });
-});
-ui.radioDocNfe.addEventListener('change', () => {
-  if (ui.radioDocNfe.checked) updateConferencia((c) => { c.tipoDocumento = 'nfe'; });
-});
-
-ui.btnAddDivergencia.addEventListener('click', () => {
-  const item = ui.inputDivItem.value.trim();
-  const valorPedido = ui.inputDivPedido.value.trim();
-  const valorRecebido = ui.inputDivRecebido.value.trim();
-  const observacao = ui.inputDivObs.value.trim();
-  if (!item) {
-    ui.inputDivItem.focus();
-    return;
-  }
-  const pedidoNum = parseFloat(valorPedido.replace(',', '.'));
-  const recebidoNum = parseFloat(valorRecebido.replace(',', '.'));
-  const diferenca = !isNaN(pedidoNum) && !isNaN(recebidoNum) ? (recebidoNum - pedidoNum).toFixed(2) : '';
-  updateConferencia((c) => {
-    c.divergencias.push({ item, valorPedido, valorRecebido, diferenca, observacao });
-    c.aprovado = null;
-  });
-  ui.inputDivItem.value = '';
-  ui.inputDivPedido.value = '';
-  ui.inputDivRecebido.value = '';
-  ui.inputDivObs.value = '';
-});
-
-function onRemoveDivergencia(idx) {
-  updateConferencia((c) => {
-    c.divergencias.splice(idx, 1);
-    c.aprovado = null;
-  });
-}
-
-function aprovarConferencia() {
-  updateConferencia((c) => {
-    c.aprovado = true;
-    c.dataConferencia = Date.now();
-  });
-}
-
-ui.btnAprovarConferencia.addEventListener('click', async () => {
-  const state = await HubState.getState();
-  const divergencias = (state.conferencia && state.conferencia.divergencias) || [];
-  if (divergencias.length > 0) {
-    ui.conferenciaConfirmText.textContent =
-      `Há ${divergencias.length} divergência(s) registrada(s). Confirma aprovar o pedido mesmo assim? ` +
-      'As divergências continuam registradas aqui para repassar ao financeiro.';
-    ui.conferenciaConfirmWrap.hidden = false;
-    ui.btnAprovarConferencia.hidden = true;
-    return;
-  }
-  aprovarConferencia();
-});
-
-ui.btnConfirmarAprovarConferencia.addEventListener('click', () => {
-  ui.conferenciaConfirmWrap.hidden = true;
-  ui.btnAprovarConferencia.hidden = false;
-  aprovarConferencia();
-});
-
-ui.btnCancelarAprovarConferencia.addEventListener('click', () => {
-  ui.conferenciaConfirmWrap.hidden = true;
-  ui.btnAprovarConferencia.hidden = false;
-});
-
-function slugify(text) {
-  return (text || '')
-    .toString()
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '') || 'fornecedor';
-}
-
-function dateForFilename(timestamp) {
-  const d = timestamp ? new Date(timestamp) : new Date();
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-}
-
-// Tenta ler "18,50" / "18.50" como número (pra a coluna virar número de verdade na
-// planilha, que o financeiro pode somar); mantém como texto se não for um valor puro.
-function parseValorNumerico(value) {
-  if (value === undefined || value === null || value === '') return '';
-  const normalized = String(value).trim().replace(',', '.');
-  if (/^-?\d+(\.\d+)?$/.test(normalized)) return parseFloat(normalized);
-  return value;
-}
-
-function buildConferenciaExportRows(state) {
-  const c = state.conferencia || HubState.defaultConferencia();
-  const tipoDocLabel = c.tipoDocumento === 'nfe' ? 'NF-e' : c.tipoDocumento === 'orcamento' ? 'Orçamento' : '--';
-  const rows = [
-    ['Conferência de pedido de compra — Portal Timoni'],
-    [],
-    ['Fornecedor:', state.selectedSupplier ? state.selectedSupplier.nome : '--'],
-    ['Data da conferência:', formatDate(c.dataConferencia)],
-    ['Documento de retorno:', tipoDocLabel],
-    ['Aprovado:', c.aprovado === true ? 'Sim' : 'Não'],
-    [],
-    ['Itens do pedido'],
-    ['Código', 'Descrição', 'Quantidade']
-  ];
-  (state.extractedItems || []).forEach((it) => {
-    rows.push([it.codigo, it.descricao, parseValorNumerico(it.quantidade)]);
-  });
-  rows.push([]);
-  rows.push(['Divergências encontradas']);
-  const divergencias = c.divergencias || [];
-  if (divergencias.length === 0) {
-    rows.push(['Nenhuma divergência registrada.']);
-  } else {
-    rows.push(['Item', 'Valor pedido', 'Valor recebido', 'Diferença (R$)', 'Observação']);
-    divergencias.forEach((d) => {
-      rows.push([
-        d.item || '',
-        parseValorNumerico(d.valorPedido),
-        parseValorNumerico(d.valorRecebido),
-        parseValorNumerico(d.diferenca),
-        d.observacao || ''
-      ]);
-    });
-  }
-  return rows;
-}
-
-ui.btnBaixarExcelConferencia.addEventListener('click', async () => {
-  const state = await HubState.getState();
-  const rows = buildConferenciaExportRows(state);
-  const fornecedorSlug = slugify(state.selectedSupplier ? state.selectedSupplier.nome : '');
-  const filename = `conferencia-${fornecedorSlug}-${dateForFilename(state.conferencia && state.conferencia.dataConferencia)}.xlsx`;
-  HubXlsx.downloadXlsx(filename, 'Conferência', rows);
 });
 
 ui.btnAtualizarTrello.addEventListener('click', () => {

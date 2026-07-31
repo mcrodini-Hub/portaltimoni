@@ -184,6 +184,74 @@
   // testadas, o cabeçalho fica sempre na linha 3 (índice 2) — tenta essa linha primeiro
   // (rápido e evita falso-positivo em linhas de ruído que por acaso batam com alguma
   // palavra-chave fraca) e só cai para varrer as primeiras 30 linhas se a linha 3 não bater.
+  function canonical(value) {
+    return normalizeText(value || '').replace(/[^a-z0-9]/g, '');
+  }
+
+  function columnLetterToIndex(value) {
+    const text = String(value || '').trim().toUpperCase();
+    if (!/^[A-Z]{1,3}$/.test(text)) return null;
+    let number = 0;
+    for (const char of text) number = number * 26 + char.charCodeAt(0) - 64;
+    return number - 1;
+  }
+
+  function resolveColumn(header, specification) {
+    const byLetter = columnLetterToIndex(specification);
+    if (byLetter !== null) return byLetter;
+    const wanted = canonical(specification);
+    if (!wanted) return null;
+    let exact = -1;
+    let partial = -1;
+    header.forEach((cell, index) => {
+      const current = canonical(cell);
+      if (current === wanted && exact < 0) exact = index;
+      else if (current && (current.includes(wanted) || wanted.includes(current)) && partial < 0) partial = index;
+    });
+    return exact >= 0 ? exact : partial >= 0 ? partial : null;
+  }
+
+  function findManualHeaderRow(rows, mapping) {
+    const specs = [mapping.codigo, mapping.descricao, mapping.quantidade];
+    const allLetters = specs.every((spec) => columnLetterToIndex(spec) !== null);
+    if (allLetters) {
+      const headerIdx = rows[2] ? 2 : 0;
+      return {
+        headerIdx,
+        columns: {
+          idxCodigo: columnLetterToIndex(mapping.codigo),
+          idxDescricao: columnLetterToIndex(mapping.descricao),
+          idxQuantidade: columnLetterToIndex(mapping.quantidade),
+          mesVigente: mapping.quantidade,
+          quantidadeCabecalho: rows[headerIdx][columnLetterToIndex(mapping.quantidade)] || mapping.quantidade
+        }
+      };
+    }
+
+    const order = rows[2] ? [2] : [];
+    for (let i = 0; i < Math.min(rows.length, 30); i++) if (i !== 2) order.push(i);
+    for (const headerIdx of order) {
+      const header = rows[headerIdx] || [];
+      const idxCodigo = resolveColumn(header, mapping.codigo);
+      const idxDescricao = resolveColumn(header, mapping.descricao);
+      const idxQuantidade = resolveColumn(header, mapping.quantidade);
+      if ([idxCodigo, idxDescricao, idxQuantidade].every((idx) => idx !== null) &&
+          new Set([idxCodigo, idxDescricao, idxQuantidade]).size === 3) {
+        return {
+          headerIdx,
+          columns: {
+            idxCodigo,
+            idxDescricao,
+            idxQuantidade,
+            mesVigente: mapping.quantidade,
+            quantidadeCabecalho: header[idxQuantidade] || mapping.quantidade
+          }
+        };
+      }
+    }
+    return null;
+  }
+
   function findHeaderRow(rows) {
     const preferredIdx = 2; // linha 3 (1-indexado)
     if (rows[preferredIdx]) {
@@ -286,15 +354,18 @@
     throw new Error(lastError);
   }
 
-  function extractItemsFromRows(rows, diagnostics) {
+  function extractItemsFromRows(rows, diagnostics, mapping) {
     if (!rows || rows.length < 2) {
       return { error: 'A planilha não possui linhas suficientes para extrair o pedido.' };
     }
 
-    const found = findHeaderRow(rows);
+    const hasManualMapping = mapping && mapping.codigo && mapping.descricao && mapping.quantidade;
+    const found = hasManualMapping ? findManualHeaderRow(rows, mapping) : findHeaderRow(rows);
     if (!found) {
       return {
-        error: `Não foi possível identificar com segurança Código/Compra, Descrição do produto e ${currentMonthKeys()[0]}. A extração foi interrompida para evitar quantidade incorreta.`,
+        error: hasManualMapping
+          ? 'Não encontrei na planilha uma ou mais colunas informadas. Confira os nomes ou use as letras das colunas (ex.: A, B, F).'
+          : `Não foi possível identificar com segurança Código/Compra, Descrição do produto e ${currentMonthKeys()[0]}. A extração foi interrompida para evitar quantidade incorreta.`,
         diagnostics: Object.assign({}, diagnostics, {
           rowsRead: rows.length,
           rowsPreview: summarizeRowsForDiagnostics(rows)
@@ -338,7 +409,8 @@
     };
   }
 
-  async function extrairItens() {
+  async function extrairItens(payload) {
+    const mapping = (payload && payload.columns) || null;
     if (!/^https:\/\/docs\.google\.com\/spreadsheets\//.test(window.location.href)) {
       return { error: 'A aba ativa não é uma planilha do Google Sheets.' };
     }
@@ -352,7 +424,7 @@
         source: 'csv',
         usedFallbackTable: false,
         triedAutoEnable: false
-      });
+      }, mapping);
     } catch (error) {
       csvError = error;
     }
@@ -390,12 +462,12 @@
       usedFallbackTable,
       triedAutoEnable,
       csvError: csvError ? csvError.message : ''
-    });
+    }, mapping);
   }
 
   chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'EXTRACT_ITEMS') {
-      extrairItens().then(sendResponse).catch((e) => sendResponse({ error: e.message }));
+      extrairItens(request.payload).then(sendResponse).catch((e) => sendResponse({ error: e.message }));
       return true;
     }
     return false;

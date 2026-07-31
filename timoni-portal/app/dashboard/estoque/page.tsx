@@ -28,7 +28,7 @@ export default function EstoquePage() {
           </div>
 
           <span className="w-fit rounded-full bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">
-            Versão 1.0.0
+            Versão 1.0.1
           </span>
         </div>
 

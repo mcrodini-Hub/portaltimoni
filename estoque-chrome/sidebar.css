@@ -434,3 +434,57 @@ select.text-input { appearance: auto; background: #fff; cursor: pointer; }
 .pedido-form .text-input { margin-bottom: 8px; }
 .pedido-form-actions { display: flex; gap: 8px; }
 .pedido-form-actions .btn { margin-top: 0; }
+
+/* Remove o título interno repetido; o Chrome já mostra o nome do painel acima. */
+.brand-title,
+.brand-dim {
+  display: none !important;
+}
+
+.brand {
+  gap: 0;
+}
+
+/* Fonte maior para melhor leitura em todos os computadores. */
+html,
+body {
+  font-size: 16px;
+}
+
+.subtitle,
+.step-label,
+.placeholder-text,
+.conn-status,
+.hint-text,
+.vendedor-row,
+.stat-lbl,
+.resumo-periodo {
+  font-size: 13px;
+}
+
+.text-input,
+.supplier-list li,
+.summary-box,
+.check-row,
+.existente-box,
+.result-list,
+.need-list {
+  font-size: 14px;
+}
+
+.btn {
+  font-size: 15px;
+}
+
+.btn-small,
+.btn-link {
+  font-size: 13px;
+}
+
+.role-pill,
+.role-group,
+.chip-unidade,
+.chip-vendedor,
+.chip-atrasado {
+  font-size: 12px;
+}

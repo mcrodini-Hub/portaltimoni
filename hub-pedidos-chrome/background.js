@@ -9,9 +9,6 @@ importScripts('lib/state.js', 'lib/tabs.js', 'lib/messages.js', 'lib/validators.
 // cor/texto de etiqueta cartão por cartão: com o filtro nativo aplicado, só precisamos ler
 // quais cartões o Trello está exibindo (ver isCardVisible em content/trello-content.js).
 const TRELLO_BOARD_URL = 'https://trello.com/b/UfPrTr1H/compras?filter=label:Rio%20Claro';
-// Segunda passada (só a etiqueta "Urgente"), usada para reordenar os fornecedores colocando
-// os urgentes primeiro — mesma técnica de filtro nativo, sem detectar cor/texto por cartão.
-const TRELLO_URGENT_URL = 'https://trello.com/b/UfPrTr1H/compras?filter=label:Urgente';
 // Padrão amplo de propósito: encontrar QUALQUER aba do Trello já aberta na janela em foco,
 // só para fechá-la antes de abrir uma nova no board (ver ensureTrelloBoardTab).
 const TRELLO_URL_PATTERN = 'https://trello.com/*';
@@ -152,8 +149,7 @@ async function getActiveTab() {
 // ---------------------------------------------------------------------------
 
 async function handleOpenTrello() {
-  await ensureTrelloBoardTab();
-  await HubState.setState({ currentState: STATES.TRELLO_ABERTO, lastError: null });
+  // handleScanTrello já abre o quadro; não abrir uma segunda vez aqui.
   return handleScanTrello();
 }
 
@@ -179,36 +175,8 @@ async function handleScanTrello() {
 
   let suppliers = result.suppliers || [];
 
-  // Segunda passada: abre o board filtrado só por "Urgente" e usa o mesmo mecanismo de
-  // filtro nativo pra saber quais desses fornecedores também têm essa etiqueta — sem
-  // detectar cor/texto por cartão. Reordena colocando os urgentes primeiro. Se essa segunda
-  // passada falhar por qualquer motivo, não é crítico: segue só com a ordem alfabética.
-  let finalTab = tab;
-  try {
-    const urgentTab = await ensureTrelloTabAt(TRELLO_URGENT_URL);
-    const urgentResult = await HubTabs.sendWithInjection(
-      urgentTab.id,
-      ['lib/validators.js', 'content/trello-content.js'],
-      HubMessages.makeMessage(TYPES.SCAN_TRELLO, null, 'background')
-    );
-    const urgentNames = (urgentResult && urgentResult.suppliers) || [];
-    if (urgentNames.length > 0) {
-      const urgentSet = new Set(urgentNames.map((s) => HubValidators.normalizeText(s.nome)));
-      suppliers = suppliers
-        .map((s) => ({ ...s, urgente: urgentSet.has(HubValidators.normalizeText(s.nome)) }))
-        .sort((a, b) => {
-          if (a.urgente !== b.urgente) return a.urgente ? -1 : 1;
-          return a.nome.localeCompare(b.nome, 'pt-BR');
-        });
-    }
-  } catch (e) {
-    // Segue só com a ordem alfabética da primeira passada.
-  } finally {
-    // A segunda passada deixa a aba do Trello no filtro "Urgente" — volta pro filtro
-    // primário (Rio Claro) antes de terminar, pra aba visível bater com o que o usuário
-    // esperava ver depois de clicar "Abrir Trello".
-    finalTab = await ensureTrelloBoardTab();
-  }
+  // A prioridade "Urgente" já é lida na mesma tela pelo content script.
+  // Assim o Trello abre uma única vez por atualização.
 
   const newState = await HubState.setState({
     currentState: STATES.FORNECEDORES_CARREGADOS,
@@ -216,7 +184,7 @@ async function handleScanTrello() {
     trelloScanned: true,
     lastError: null,
     diagnostics: {
-      activeTabUrl: (finalTab || tab).url,
+      activeTabUrl: tab.url,
       cardsRead: result.diagnostics ? result.diagnostics.cardsRead : 0,
       rioClaroCards: result.diagnostics ? result.diagnostics.rioClaroCards : 0,
       usedDeepScan: result.diagnostics ? !!result.diagnostics.usedDeepScan : false,

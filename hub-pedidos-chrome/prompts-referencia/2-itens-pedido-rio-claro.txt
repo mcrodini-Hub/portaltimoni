@@ -4,21 +4,27 @@ Abra o link da planilha informado pelo usuário.
 
 Na planilha:
 
-1. Identifique a coluna de código.
-2. Identifique a coluna de descrição.
-3. Identifique a coluna de quantidade correspondente ao mês atual.
-4. Considere somente as linhas em que a quantidade do mês atual esteja preenchida.
-5. Ignore linhas com a célula de quantidade vazia.
-6. Preserve a mesma ordem dos itens na planilha.
+1. Localize a coluna de código usando somente estas variações de cabeçalho:
+   - Código de compra
+   - Cod
+   - Compra
+   - Código
+2. Localize a coluna “Descrição do produto”.
+3. Localize exclusivamente a coluna correspondente ao mês vigente, incluindo variações como jul26, jul.26, jul/26 ou julho 2026.
+4. Não use uma coluna genérica “Quantidade” e não presuma que a última coluna seja a correta.
+5. Considere somente as linhas em que código, descrição e quantidade do mês vigente estejam preenchidos.
+6. Ignore qualquer linha cuja célula de quantidade do mês vigente esteja vazia.
+7. Preserve a mesma ordem dos itens na planilha.
+8. Se alguma das três colunas não puder ser identificada com segurança, interrompa e informe o erro. Não tente adivinhar.
 
-Retorne cada item no formato:
+Retorne obrigatoriamente em português, sem explicações, neste formato:
 
+Total de itens: X
+
+Código | Descrição | Quantidade (mês vigente)
+código | descrição | quantidade
 código | descrição | quantidade
 
-Ao final, informe:
+O total deve aparecer antes dos itens e corresponder exatamente à quantidade de linhas listadas.
 
-Total: X itens
-
-Confira se o total informado corresponde exatamente à quantidade de itens listados.
-
-Não reorganize os itens, não inclua explicações e não altere a planilha.
+Não reorganize os itens e não altere a planilha.

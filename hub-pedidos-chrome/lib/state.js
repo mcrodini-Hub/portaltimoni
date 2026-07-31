@@ -56,6 +56,11 @@
       suppliers: [],
       extractedItems: [],
       sheetUrl: '',
+      sheetColumns: {
+        codigo: '',
+        descricao: '',
+        quantidade: ''
+      },
       bessaniUrl: '',
       bessaniPrint: null,
       conferencia: defaultConferencia(),

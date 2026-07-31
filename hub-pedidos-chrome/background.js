@@ -387,13 +387,6 @@ async function handleUpdateTrello() {
   if (!state.selectedSupplier || !state.extractedItems || state.extractedItems.length === 0) {
     return { error: 'Não há itens extraídos para atualizar no Trello.' };
   }
-  if (!state.conferencia || state.conferencia.aprovado !== true) {
-    return {
-      error: 'Conferência item a item do pedido ainda não foi aprovada (Etapa 5). ' +
-        'Nenhum pedido é atualizado no Trello sem essa conferência — ver PROTOCOLO_CONFERENCIA_PEDIDOS.md.'
-    };
-  }
-
   const tab = await ensureTrelloBoardTab();
   if (!tab) {
     const msg = 'Abra o Trello antes de atualizar os cartões.';

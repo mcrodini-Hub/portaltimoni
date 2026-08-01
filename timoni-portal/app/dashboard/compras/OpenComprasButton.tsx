@@ -16,7 +16,7 @@ export default function OpenComprasButton() {
   const [status, setStatus] = useState<BridgeStatus>("checking");
   const [version, setVersion] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const openingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openingTimer = useRef<number | null>(null);
 
   useEffect(() => {
     function receiveMessage(event: MessageEvent) {
@@ -32,8 +32,8 @@ export default function OpenComprasButton() {
 
       if (event.data.type !== "OPEN_RESULT") return;
 
-      if (openingTimer.current) {
-        clearTimeout(openingTimer.current);
+      if (openingTimer.current !== null) {
+        window.clearTimeout(openingTimer.current);
         openingTimer.current = null;
       }
 
@@ -57,7 +57,7 @@ export default function OpenComprasButton() {
     return () => {
       window.removeEventListener("message", receiveMessage);
       window.clearTimeout(detectionTimer);
-      if (openingTimer.current) clearTimeout(openingTimer.current);
+      if (openingTimer.current !== null) window.clearTimeout(openingTimer.current);
     };
   }, []);
 

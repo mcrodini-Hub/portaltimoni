@@ -89,7 +89,8 @@ button{cursor:pointer;border:none;border-radius:10px;padding:11px 18px;font-size
 .dot-retirada{background:var(--amber);}
 .dot-bloqueio{background:#5b3fae;}
 
-#calGridSemana[hidden], #calGrid[hidden]{display:none;}
+#calGridSemana[hidden], #calGrid[hidden], #calGridAno[hidden]{display:none;}
+#agendaListaSemanaWrap[hidden]{display:none;}
 .cal-grid-semana{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;margin-top:4px;}
 .week-day{
   background:var(--card-bg);border:1px solid var(--border);border-radius:10px;
@@ -135,6 +136,27 @@ button{cursor:pointer;border:none;border-radius:10px;padding:11px 18px;font-size
 .cal-day-tag{font-size:10px;font-weight:700;color:var(--amber);background:var(--amber-bg);border-radius:6px;padding:1px 6px;align-self:flex-start;}
 .cal-day-counts{display:flex;gap:8px;font-size:13px;margin-top:auto;}
 .cal-count{display:flex;align-items:center;gap:3px;}
+
+.cal-grid-ano{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;}
+.dashboard-grid.modo-ano{grid-template-columns:1fr;}
+.dashboard-grid.modo-ano .dash-col-dia{display:none;}
+.year-month{background:#fff;border:1px solid var(--border);border-radius:12px;padding:12px;}
+.year-month h3{font-size:16px;margin:0 0 9px;color:var(--ink);text-transform:capitalize;}
+.year-month-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;}
+.year-weekday{font-size:11px;font-weight:700;color:var(--ink-soft);text-align:center;padding:3px 0;}
+.year-day{min-width:0;width:100%;padding:6px 2px;border-radius:6px;background:transparent;color:var(--ink);font-size:12px;font-weight:500;text-align:center;}
+.year-day:hover{background:#eef0f4;}
+.year-day.vazio{display:block;}
+.year-day.com-evento{background:rgba(44,75,224,0.11);color:var(--blue-dark);font-weight:800;}
+.year-day.hoje{box-shadow:inset 0 0 0 2px var(--blue);}
+.year-day.selecionado{background:var(--blue);color:#fff;}
+
+@media (max-width:1050px){
+  .cal-grid-ano{grid-template-columns:repeat(2,minmax(0,1fr));}
+}
+@media (max-width:700px){
+  .cal-grid-ano{grid-template-columns:1fr;}
+}
 
 /* --------------------------- Dia --------------------------- */
 .dia-header{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin-bottom:10px;flex-wrap:wrap;}

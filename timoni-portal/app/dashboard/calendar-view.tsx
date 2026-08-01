@@ -7,12 +7,11 @@ import clsx from "clsx";
 import { Button } from "@/components/ui/button";
 import { EventCard, getUrgency } from "@/components/event-card";
 import { EventForm } from "./event-form";
-import { getWeekRange, type WeekDay } from "@/lib/week";
+import type { WeekDay } from "@/lib/week";
 import type { CalendarEventDTO } from "@/lib/types";
 
 const POLL_INTERVAL_MS = 60_000;
 const TICK_INTERVAL_MS = 30_000;
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const SAO_PAULO_OFFSET_MS = -3 * 60 * 60 * 1000;
 
 const DAY_LABELS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
@@ -104,7 +103,7 @@ export function CalendarView({
   initialError: string | null;
 }) {
   const [events, setEvents] = useState(initialEvents);
-  const [weekDays, setWeekDays] = useState<WeekDay[]>(() => getWeekRange().days);
+  const [weekDays, setWeekDays] = useState<WeekDay[]>(() => periodRange("week", 0).days);
   const [view, setView] = useState<ViewMode>("week");
   const [periodOffset, setPeriodOffset] = useState(0);
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);

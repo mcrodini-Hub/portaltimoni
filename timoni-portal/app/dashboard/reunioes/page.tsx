@@ -10,6 +10,7 @@ const meetings = [
     frequency: "Mensal",
     leaders: "Ciça e Marcelo",
     url: "https://docs.google.com/document/d/1w7e7LBLT754XtYQiPjRz0NI5LuYcfFMpiGmfI2x2Itw",
+    slidesUrl: "https://docs.google.com/presentation/d/1dRmYvgEoV4abGKK79q7JWuuQ0rsJKvoBL5elbEV9qaE",
     style: "border-amber-200 bg-amber-50",
   },
   {
@@ -20,6 +21,7 @@ const meetings = [
     frequency: "Quinzenal",
     leaders: "Ciça, Marcelo e Jeovana",
     url: "https://docs.google.com/document/d/19bIC0RwR1XXP-noPjB3Yumj5F-PlFDhYq7bTa_uKakI",
+    slidesUrl: "https://docs.google.com/presentation/d/1zkCOz5zlxQR0-IE4x7UTZfgEkorlda8I7kjVtljqkhs",
     style: "border-blue-200 bg-blue-50",
   },
 ];
@@ -74,9 +76,10 @@ export default function ReunioesPage() {
                 </div>
               </div>
               <p className="mt-4 text-sm text-slate-600">Condução: <strong>{meeting.leaders}</strong></p>
-              <a href={meeting.url} target="_blank" rel="noreferrer" className="mt-4 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-900">
-                Abrir ata preparada →
-              </a>
+              <div className="mt-4 flex flex-wrap gap-4">
+                <a href={meeting.url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-700 hover:text-blue-900">Abrir pauta e ata →</a>
+                <a href={meeting.slidesUrl} target="_blank" rel="noreferrer" className="text-sm font-semibold text-rose-700 hover:text-rose-900">Abrir apresentação →</a>
+              </div>
             </article>
           ))}
         </div>

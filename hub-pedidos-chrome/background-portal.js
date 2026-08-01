@@ -3,6 +3,7 @@
 importScripts('background.js');
 
 const PORTAL_TIMONI_ORIGIN = 'https://portaltimoni.vercel.app';
+const PORTAL_TIMONI_PATTERN = `${PORTAL_TIMONI_ORIGIN}/*`;
 const TRELLO_PATTERN_PORTAL = 'https://trello.com/*';
 
 // Acrescenta o resumo operacional em todos os espelhamentos, sem apagar os demais campos.
@@ -60,6 +61,37 @@ async function executarComResumo(handler, payload) {
   const originalHandler = HANDLERS[type];
   HANDLERS[type] = (payload) => executarComResumo(originalHandler, payload);
 });
+
+function injectPortalBridge(tabId) {
+  return new Promise((resolve) => {
+    chrome.scripting.executeScript(
+      {
+        target: { tabId },
+        files: ['content/portal-content.js']
+      },
+      () => {
+        // Uma aba ainda carregando pode recusar a injeção; o content script do manifest
+        // será aplicado normalmente assim que a navegação terminar.
+        void chrome.runtime.lastError;
+        resolve();
+      }
+    );
+  });
+}
+
+function ensureBridgeInOpenPortalTabs() {
+  chrome.tabs.query({ url: PORTAL_TIMONI_PATTERN }, (tabs) => {
+    if (chrome.runtime.lastError) return;
+    (tabs || []).forEach((tab) => {
+      if (Number.isInteger(tab.id)) injectPortalBridge(tab.id);
+    });
+  });
+}
+
+// Resolve o caso em que o Portal já estava aberto quando a extensão foi instalada/recarregada.
+chrome.runtime.onInstalled.addListener(ensureBridgeInOpenPortalTabs);
+chrome.runtime.onStartup.addListener(ensureBridgeInOpenPortalTabs);
+ensureBridgeInOpenPortalTabs();
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.source !== 'portal-timoni' || message?.action !== 'OPEN_COMPRAS') {

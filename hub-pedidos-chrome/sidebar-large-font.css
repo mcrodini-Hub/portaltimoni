@@ -1,0 +1,36 @@
+/* Ajuste de legibilidade para o painel lateral do módulo Compras. */
+html,
+body {
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.brand-title { font-size: 16px; }
+h1 { font-size: 22px; }
+.subtitle { font-size: 14px; }
+.pin-checkbox { font-size: 15px; }
+.state-badge { font-size: 13px; }
+.error-banner { font-size: 14px; }
+.step-label { font-size: 14px; }
+.step-status { font-size: 15px; }
+.btn { font-size: 16px; }
+.btn-link { font-size: 14px; }
+.hint-text { font-size: 13px; line-height: 1.45; }
+.placeholder-text { font-size: 14px; }
+.count-text { font-size: 14px; }
+.supplier-list li { font-size: 15px; }
+.tag-urgente { font-size: 13px; }
+.item-list { font-size: 14px; line-height: 1.4; }
+.text-input { font-size: 15px; }
+.print-dropzone { font-size: 14px; }
+.print-dropzone input[type="file"] { font-size: 13px; }
+.summary-box,
+.confirm-box,
+.result-list,
+.conferencia-rule,
+.conferencia-subtitle,
+.radio-label,
+.checklist li,
+.divergencia-list li,
+.conferencia-status { font-size: 14px; }
+.diag-box pre { font-size: 13px; }

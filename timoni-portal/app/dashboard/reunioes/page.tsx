@@ -11,7 +11,7 @@ const meetings = [
     frequency: "Mensal",
     leaders: "Ciça e Marcelo",
     url: "https://docs.google.com/document/d/1w7e7LBLT754XtYQiPjRz0NI5LuYcfFMpiGmfI2x2Itw",
-    slidesUrl: "https://docs.google.com/presentation/d/1dRmYvgEoV4abGKK79q7JWuuQ0rsJKvoBL5elbEV9qaE",
+    slidesUrl: "https://docs.google.com/presentation/d/1AK7mw2-ifR-ChlRuun_4O9FIr3ThmZvzfVMA_ryZgXA",
     style: "border-amber-200 bg-amber-50",
   },
   {
@@ -23,7 +23,7 @@ const meetings = [
     frequency: "Quinzenal",
     leaders: "Ciça, Marcelo e Jeovana",
     url: "https://docs.google.com/document/d/19bIC0RwR1XXP-noPjB3Yumj5F-PlFDhYq7bTa_uKakI",
-    slidesUrl: "https://docs.google.com/presentation/d/1zkCOz5zlxQR0-IE4x7UTZfgEkorlda8I7kjVtljqkhs",
+    slidesUrl: "https://docs.google.com/presentation/d/1TPXlD4tIng7g0FozlQkzkpz7MiiRyz_5pcToiVs-gMM",
     style: "border-blue-200 bg-blue-50",
   },
 ];

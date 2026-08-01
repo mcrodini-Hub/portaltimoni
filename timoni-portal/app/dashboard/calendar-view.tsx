@@ -7,7 +7,6 @@ import clsx from "clsx";
 import { Button } from "@/components/ui/button";
 import { EventCard, getUrgency } from "@/components/event-card";
 import { EventForm } from "./event-form";
-import type { WeekDay } from "@/lib/week";
 import type { CalendarEventDTO } from "@/lib/types";
 
 const POLL_INTERVAL_MS = 60_000;
@@ -45,27 +44,21 @@ function dateKey(year: number, month: number, day: number) {
 function periodRange(view: ViewMode, offset: number) {
   if (view === "week") {
     const current = saoPauloParts(new Date());
-    const start = new Date(
-      Date.UTC(current.year, current.month, current.day, 3) + offset * 8 * 24 * 60 * 60 * 1000
-    );
-    const end = new Date(start.getTime() + 8 * 24 * 60 * 60 * 1000);
-    const days: WeekDay[] = Array.from({ length: 8 }, (_, index) => {
-      const date = new Date(start.getTime() + index * 24 * 60 * 60 * 1000);
-      return { date, dayIndex: date.getUTCDay() };
-    });
-    return { start, end, days };
+    const start = new Date(Date.UTC(current.year, current.month, current.day, 3));
+    const end = new Date(Date.UTC(current.year + 1, current.month, current.day, 3));
+    return { start, end };
   }
 
   const current = saoPauloParts(new Date());
   if (view === "month") {
     const start = new Date(Date.UTC(current.year, current.month + offset, 1, 3));
     const end = new Date(Date.UTC(current.year, current.month + offset + 1, 1, 3));
-    return { start, end, days: [] as WeekDay[] };
+    return { start, end };
   }
 
   const start = new Date(Date.UTC(current.year + offset, 0, 1, 3));
   const end = new Date(Date.UTC(current.year + offset + 1, 0, 1, 3));
-  return { start, end, days: [] as WeekDay[] };
+  return { start, end };
 }
 
 function eventDateKey(iso: string) {
@@ -103,7 +96,6 @@ export function CalendarView({
   initialError: string | null;
 }) {
   const [events, setEvents] = useState(initialEvents);
-  const [weekDays, setWeekDays] = useState<WeekDay[]>(() => periodRange("week", 0).days);
   const [view, setView] = useState<ViewMode>("week");
   const [periodOffset, setPeriodOffset] = useState(0);
   const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
@@ -114,7 +106,7 @@ export function CalendarView({
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   async function refreshEvents(currentView: ViewMode, offset: number) {
-    const { start, end, days } = periodRange(currentView, offset);
+    const { start, end } = periodRange(currentView, offset);
     try {
       const res = await fetch(
         `/api/events?timeMin=${encodeURIComponent(start.toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}`
@@ -125,7 +117,6 @@ export function CalendarView({
         return;
       }
       setEvents(data.events ?? []);
-      if (currentView === "week") setWeekDays(days);
       setError(null);
     } catch {
       setError("Falha de conexão ao atualizar os eventos.");
@@ -202,21 +193,37 @@ export function CalendarView({
     }
   }
 
+  const upcomingEvents = useMemo(
+    () => events.slice(periodOffset * 7, periodOffset * 7 + 7),
+    [events, periodOffset]
+  );
+
+  const upcomingGroups = useMemo(() => {
+    const grouped = new Map<string, CalendarEventDTO[]>();
+    for (const event of upcomingEvents) {
+      const key = eventDateKey(event.start);
+      grouped.set(key, [...(grouped.get(key) ?? []), event]);
+    }
+    return Array.from(grouped.entries());
+  }, [upcomingEvents]);
+
   const rangeLabel =
     view === "week"
-      ? `${format(range.start, "dd/MM", { locale: ptBR })} – ${format(
-          new Date(range.end.getTime() - 1),
-          "dd/MM",
-          { locale: ptBR }
-        )}`
+      ? upcomingEvents.length > 0
+        ? `${format(dateFromKey(eventDateKey(upcomingEvents[0].start)), "dd/MM", { locale: ptBR })} – ${format(
+            dateFromKey(eventDateKey(upcomingEvents[upcomingEvents.length - 1].start)),
+            "dd/MM",
+            { locale: ptBR }
+          )}`
+        : "Nenhum compromisso futuro"
       : view === "month"
         ? format(range.start, "MMMM 'de' yyyy", { locale: ptBR })
         : format(range.start, "yyyy", { locale: ptBR });
 
   const previousLabel =
-    view === "week" ? "← Período anterior" : view === "month" ? "← Mês anterior" : "← Ano anterior";
+    view === "week" ? "← 7 eventos anteriores" : view === "month" ? "← Mês anterior" : "← Ano anterior";
   const nextLabel =
-    view === "week" ? "Próximos 7 dias →" : view === "month" ? "Mês seguinte →" : "Ano seguinte →";
+    view === "week" ? "Próximos 7 eventos →" : view === "month" ? "Mês seguinte →" : "Ano seguinte →";
 
   function changeView(nextView: ViewMode) {
     setView(nextView);
@@ -294,19 +301,27 @@ export function CalendarView({
             variant={view === mode ? "primary" : "secondary"}
             onClick={() => changeView(mode)}
           >
-            {mode === "week" ? "Próximos 7 dias" : mode === "month" ? "Mês" : "Ano"}
+            {mode === "week" ? "Próximos 7 eventos" : mode === "month" ? "Mês" : "Ano"}
           </Button>
         ))}
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <Button variant="secondary" onClick={() => setPeriodOffset((offset) => offset - 1)}>
+        <Button
+          variant="secondary"
+          disabled={view === "week" && periodOffset === 0}
+          onClick={() => setPeriodOffset((offset) => Math.max(0, offset - 1))}
+        >
           {previousLabel}
         </Button>
         <Button variant="secondary" onClick={() => setPeriodOffset(0)}>
           Hoje
         </Button>
-        <Button variant="secondary" onClick={() => setPeriodOffset((offset) => offset + 1)}>
+        <Button
+          variant="secondary"
+          disabled={view === "week" && events.length <= (periodOffset + 1) * 7}
+          onClick={() => setPeriodOffset((offset) => offset + 1)}
+        >
           {nextLabel}
         </Button>
       </div>
@@ -316,32 +331,32 @@ export function CalendarView({
       )}
 
       {view === "week" && (
-        weekDays.map((day) => {
-          const dayKey = eventDateKey(day.date.toISOString());
-          const dayEvents = eventsByDate.get(dayKey) ?? [];
-          const isToday = dayKey === todayKey;
-          return (
-            <section key={day.date.toISOString()} className="mt-6">
-              <h2
-                className={clsx(
-                  "flex items-center gap-2 text-xs font-semibold uppercase tracking-wide",
-                  isToday ? "text-slate-900" : "text-slate-400"
-                )}
-              >
-                {DAY_LABELS[day.dayIndex]} {format(day.date, "dd/MM", { locale: ptBR })}
-                {isToday && (
-                  <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] text-white">
-                    Hoje
-                  </span>
-                )}
-              </h2>
-              <div className="mt-2 space-y-3">
-                {dayEvents.length === 0 && <p className="text-sm text-slate-400">Nenhum evento.</p>}
-                {dayEvents.map(renderEvent)}
-              </div>
-            </section>
-          );
-        })
+        upcomingGroups.length > 0 ? (
+          upcomingGroups.map(([dayKey, dayEvents]) => {
+            const day = dateFromKey(dayKey);
+            const isToday = dayKey === todayKey;
+            return (
+              <section key={dayKey} className="mt-6">
+                <h2
+                  className={clsx(
+                    "flex items-center gap-2 text-xs font-semibold uppercase tracking-wide",
+                    isToday ? "text-slate-900" : "text-slate-400"
+                  )}
+                >
+                  {DAY_LABELS[day.getDay()]} {format(day, "dd/MM", { locale: ptBR })}
+                  {isToday && (
+                    <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] text-white">
+                      Hoje
+                    </span>
+                  )}
+                </h2>
+                <div className="mt-2 space-y-3">{dayEvents.map(renderEvent)}</div>
+              </section>
+            );
+          })
+        ) : (
+          <p className="mt-6 text-sm text-slate-400">Nenhum compromisso futuro.</p>
+        )
       )}
 
       {view === "month" && (

@@ -16,7 +16,7 @@ const meetings = [
   },
   {
     unit: "Rio Claro",
-    pautaUrl: "https://docs.google.com/document/d/15XROnr2nS-S9UwVjBfzBp43B8YDPHoCuLS1id-dvjgc",
+    pautaUrl: "https://docs.google.com/document/d/1M6jya2u-u_iqHMGd3cvH-p_YjbJbK2BzP4I0HlJxZEs",
     date: "08/08/2026",
     day: "Sábado",
     time: "7h30",

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agenda de Motorista · Portal Timoni</title>
-<link rel="stylesheet" href="app.css?v=18">
+<link rel="stylesheet" href="app.css?v=19">
 </head>
 <body>
 
@@ -62,12 +62,12 @@
         <div class="cal-header">
           <h1 id="calLabel">--</h1>
           <div class="cal-nav">
+            <button class="btn-secondary btn-small" id="btnAnterior" title="Anterior">← Anterior</button>
             <button class="btn-secondary btn-small" id="btnHoje">Hoje</button>
-            <button class="icon-btn" id="btnAnterior" title="Anterior">‹</button>
-            <button class="icon-btn" id="btnProximo" title="Próximo">›</button>
+            <button class="btn-secondary btn-small" id="btnProximo" title="Próximo">Próximo →</button>
           </div>
         </div>
-        <div class="filtro-loja">
+        <div class="filtro-loja view-switcher">
           <button class="chip js-modo-cal ativo" data-modo="semana">Semana</button>
           <button class="chip js-modo-cal" data-modo="mes">Mês</button>
         </div>
@@ -216,8 +216,8 @@
               </div>
             </div>
 
-            <label>Volume <span class="hint">(opcional)</span></label>
-            <input type="text" id="f-volumes" placeholder="Ex: 3">
+            <label>Número de volumes <span class="req">*</span></label>
+            <input type="number" id="f-volumes" min="1" step="1" inputmode="numeric" placeholder="Ex: 3">
 
             <label class="check">
               <input type="checkbox" id="f-dividir"> Anexos (dividir pedido entre empresas)
@@ -251,7 +251,7 @@
 
 </main>
 
-<script src="lib/store.js?v=18"></script>
-<script src="app.js?v=18"></script>
+<script src="lib/store.js?v=19"></script>
+<script src="app.js?v=19"></script>
 </body>
 </html>

@@ -144,8 +144,9 @@ async function init() {
 
 function refrescarCalendario() {
   if (modoCalendario === 'semana') renderSemana();
-  else renderCalendario();
-  renderListaSemanal();
+  else if (modoCalendario === 'mes') renderCalendario();
+  else renderAno();
+  if (modoCalendario === 'semana') renderListaSemanal();
 }
 
 // --------------------------------------------------------------------------
@@ -320,6 +321,68 @@ async function renderCalendario() {
     `;
     cel.addEventListener('click', () => abrirDia(dataStr));
     grid.appendChild(cel);
+  }
+}
+
+async function renderAno() {
+  document.getElementById('calLabel').textContent = String(mesAtual.ano);
+  const grid = document.getElementById('calGridAno');
+  grid.innerHTML = '';
+
+  let resumos;
+  try {
+    resumos = await Promise.all(
+      Array.from({ length: 12 }, (_, idx) => AgendaStore.listarMes(mesAtual.ano, idx + 1))
+    );
+  } catch (e) {
+    document.getElementById('calMsg').textContent = e.message;
+    return;
+  }
+  document.getElementById('calMsg').textContent = '';
+
+  const hojeStr = toDataStr(new Date());
+  const cabecalho = ['S', 'T', 'Q', 'Q', 'S', 'S', 'D'];
+
+  for (let mes = 1; mes <= 12; mes++) {
+    const card = document.createElement('section');
+    card.className = 'year-month';
+    const titulo = document.createElement('h3');
+    titulo.textContent = NOMES_MES[mes - 1];
+    card.appendChild(titulo);
+
+    const diasGrid = document.createElement('div');
+    diasGrid.className = 'year-month-grid';
+    cabecalho.forEach((rotulo) => {
+      const el = document.createElement('span');
+      el.className = 'year-weekday';
+      el.textContent = rotulo;
+      diasGrid.appendChild(el);
+    });
+
+    const primeiro = new Date(mesAtual.ano, mes - 1, 1);
+    const deslocamento = (primeiro.getDay() + 6) % 7; // segunda = primeira coluna
+    for (let i = 0; i < deslocamento; i++) {
+      const vazio = document.createElement('span');
+      vazio.className = 'year-day vazio';
+      diasGrid.appendChild(vazio);
+    }
+
+    const totalDias = new Date(mesAtual.ano, mes, 0).getDate();
+    for (let dia = 1; dia <= totalDias; dia++) {
+      const dataStr = `${mesAtual.ano}-${String(mes).padStart(2, '0')}-${String(dia).padStart(2, '0')}`;
+      const info = resumos[mes - 1][dataStr];
+      const total = info ? (info.entregas || 0) + (info.retiradas || 0) + (info.bloqueios || 0) : 0;
+      const botao = document.createElement('button');
+      botao.type = 'button';
+      botao.className = 'year-day' + (total ? ' com-evento' : '') + (dataStr === hojeStr ? ' hoje' : '') + (dataStr === diaAtual ? ' selecionado' : '');
+      botao.textContent = String(dia);
+      botao.title = total ? `${total} agendamento${total === 1 ? '' : 's'}` : 'Sem agendamentos';
+      botao.addEventListener('click', () => abrirDia(dataStr));
+      diasGrid.appendChild(botao);
+    }
+
+    card.appendChild(diasGrid);
+    grid.appendChild(card);
   }
 }
 
@@ -1141,6 +1204,9 @@ document.querySelectorAll('.js-modo-cal').forEach((btn) => {
     document.querySelectorAll('.js-modo-cal').forEach((b) => b.classList.toggle('ativo', b.dataset.modo === modoCalendario));
     document.getElementById('calGridSemana').hidden = modoCalendario !== 'semana';
     document.getElementById('calGrid').hidden = modoCalendario !== 'mes';
+    document.getElementById('calGridAno').hidden = modoCalendario !== 'ano';
+    document.querySelector('.dashboard-grid').classList.toggle('modo-ano', modoCalendario === 'ano');
+    document.getElementById('agendaListaSemanaWrap').hidden = modoCalendario !== 'semana';
     refrescarCalendario();
   });
 });
@@ -1148,16 +1214,20 @@ document.querySelectorAll('.js-modo-cal').forEach((btn) => {
 document.getElementById('btnAnterior').addEventListener('click', () => {
   if (modoCalendario === 'semana') {
     semanaAtualInicio.setDate(semanaAtualInicio.getDate() - 7);
-  } else {
+  } else if (modoCalendario === 'mes') {
     mesAtual.mes--; if (mesAtual.mes < 1) { mesAtual.mes = 12; mesAtual.ano--; }
+  } else {
+    mesAtual.ano--;
   }
   refrescarCalendario();
 });
 document.getElementById('btnProximo').addEventListener('click', () => {
   if (modoCalendario === 'semana') {
     semanaAtualInicio.setDate(semanaAtualInicio.getDate() + 7);
-  } else {
+  } else if (modoCalendario === 'mes') {
     mesAtual.mes++; if (mesAtual.mes > 12) { mesAtual.mes = 1; mesAtual.ano++; }
+  } else {
+    mesAtual.ano++;
   }
   refrescarCalendario();
 });

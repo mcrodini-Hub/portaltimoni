@@ -1,27 +1,7 @@
 /**
  * Compras — Painel Timoni
- * Backend (Web App) que espelha o estado do Compras (extensão hub-pedidos-chrome) numa
- * planilha, para o Painel Timoni conseguir mostrar os 5 cartões de Compras com dados reais.
- * Mesmo padrão gratuito já usado pelos módulos Estoque e Motorista: Google Sheets + Apps
- * Script publicado como Web App, sem servidor próprio.
- *
- * IMPORTANTE: o Compras (extensão) continua sendo a fonte de verdade — o storage local da
- * extensão (chrome.storage.local) não muda. Esta planilha é só um espelho, alimentado pela
- * própria extensão a cada etapa, para leitura externa (painel e, de brinde, um histórico
- * permanente que a extensão sozinha não guarda, já que "Reiniciar fluxo" apaga o estado local).
- *
- * COMO PUBLICAR (uma vez):
- *   1. Crie uma planilha Google nova (ex.: "Compras — Painel Timoni").
- *   2. Menu Extensões > Apps Script. Apague o conteúdo padrão e cole este arquivo.
- *   3. Salve. Depois: Implantar > Nova implantação.
- *        - Tipo: App da Web
- *        - Executar como: Eu (dono da planilha)
- *        - Quem tem acesso: Qualquer pessoa
- *   4. Copie a URL terminada em /exec e cole na extensão (seção "Painel Timoni" no rodapé da
- *      sidebar) e no Painel Timoni (⚙ Planilhas > Compras).
- *
- * As abas "Estado" e "Historico" são criadas sozinhas (com cabeçalho) no primeiro registro,
- * não precisa criar nada manualmente antes de publicar.
+ * Backend (Web App) que espelha o estado do Compras numa planilha Google.
+ * A extensão continua sendo a fonte de verdade; esta planilha serve ao Portal Timoni.
  */
 
 var ABA_ESTADO = 'Estado';
@@ -31,7 +11,8 @@ var COLUNAS_ESTADO = [
   'atualizadoEm', 'currentState', 'selectedSupplierNome', 'selectedSupplierUrgente',
   'fornecedoresJson', 'itensJson', 'bessaniUrl', 'bessaniPrintAnexado',
   'conferenciaTipoDocumento', 'conferenciaAprovado', 'conferenciaChecklistJson',
-  'conferenciaDivergenciasJson', 'trelloResultadosJson', 'diagnosticsJson'
+  'conferenciaDivergenciasJson', 'trelloResultadosJson', 'diagnosticsJson',
+  'resumoComprasJson'
 ];
 
 var COLUNAS_HISTORICO = [
@@ -44,12 +25,10 @@ function doGet(e) {
   var action = p.action || 'estado';
   try {
     switch (action) {
-      // Leituras não travam (mesmo raciocínio dos módulos Estoque e Motorista).
       case 'estado':
         return json({ ok: true, estado: lerEstado() });
       case 'historico':
         return json({ ok: true, historico: lerHistorico(Number(p.limite) || 20) });
-      // Escritas travam (comLock) para não haver duas gravando ao mesmo tempo.
       case 'registrar':
         return comLock(function () { gravarEstado(p); return json({ ok: true }); });
       case 'finalizar':
@@ -62,10 +41,6 @@ function doGet(e) {
   }
 }
 
-// Aceita POST também (registrar/finalizar usam POST para não esbarrar em limite de tamanho
-// de URL — os campos JSON de itens/fornecedores/divergências podem ficar longos). GAS
-// preenche e.parameter também no POST application/x-www-form-urlencoded, então o mesmo
-// roteamento serve para os dois.
 function doPost(e) {
   return doGet(e);
 }
@@ -94,8 +69,13 @@ function abaOuCriar(nome, colunas) {
   var sheet = planilha().getSheetByName(nome);
   if (!sheet) {
     sheet = planilha().insertSheet(nome);
-    sheet.appendRow(colunas);
   }
+
+  if (sheet.getMaxColumns() < colunas.length) {
+    sheet.insertColumnsAfter(sheet.getMaxColumns(), colunas.length - sheet.getMaxColumns());
+  }
+
+  sheet.getRange(1, 1, 1, colunas.length).setValues([colunas]);
   return sheet;
 }
 
@@ -109,13 +89,11 @@ function registroDaLinha(colunas, linha) {
 
 function lerEstado() {
   var sheet = abaOuCriar(ABA_ESTADO, COLUNAS_ESTADO);
-  if (sheet.getLastRow() < 2) return null; // ainda não há nenhum registro
+  if (sheet.getLastRow() < 2) return null;
   var linha = sheet.getRange(2, 1, 1, COLUNAS_ESTADO.length).getValues()[0];
   return registroDaLinha(COLUNAS_ESTADO, linha);
 }
 
-// A aba Estado guarda sempre UM snapshot (linha 2) — cada "registrar" sobrescreve, não
-// acumula. O histórico permanente fica na aba Historico (ver adicionarHistorico).
 function gravarEstado(p) {
   var sheet = abaOuCriar(ABA_ESTADO, COLUNAS_ESTADO);
   var registro = { atualizadoEm: new Date().toISOString() };

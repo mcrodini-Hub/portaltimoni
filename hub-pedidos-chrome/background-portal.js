@@ -1,8 +1,65 @@
 // Service worker principal da extensão Compras.
-// Carrega o fluxo existente e acrescenta somente a ponte segura com o Portal Timoni.
+// Carrega o fluxo existente e acrescenta a ponte segura com o Portal Timoni.
 importScripts('background.js');
 
 const PORTAL_TIMONI_ORIGIN = 'https://portaltimoni.vercel.app';
+const TRELLO_PATTERN_PORTAL = 'https://trello.com/*';
+
+// Acrescenta o resumo operacional em todos os espelhamentos, sem apagar os demais campos.
+const buildEstadoParamsBase = buildEstadoParams;
+buildEstadoParams = function buildEstadoParamsComResumo(state) {
+  const params = buildEstadoParamsBase(state);
+  params.resumoComprasJson = JSON.stringify(
+    state.resumoCompras || HubState.defaultResumoCompras()
+  );
+  return params;
+};
+
+async function lerResumoDoTrello() {
+  const tab = await HubTabs.findTab(TRELLO_PATTERN_PORTAL);
+  if (!tab?.id) throw new Error('Aba do Trello não encontrada para calcular o resumo.');
+
+  const result = await HubTabs.sendWithInjection(
+    tab.id,
+    ['content/trello-resumo.js'],
+    { type: 'SCAN_TRELLO_RESUMO' }
+  );
+
+  if (!result || result.error || !result.resumo) {
+    throw new Error(result?.error || 'Não foi possível calcular o resumo do Trello.');
+  }
+
+  const state = await HubState.setState({
+    resumoCompras: result.resumo,
+    diagnostics: {
+      resumoAtualizadoEm: result.resumo.atualizadoEm,
+      listasResumo: result.resumo.listasEncontradas || null
+    }
+  });
+
+  await pushEstadoAoPainel(state);
+  return result.resumo;
+}
+
+async function executarComResumo(handler, payload) {
+  const result = await handler(payload);
+  if (result?.error) return result;
+
+  try {
+    const resumo = await lerResumoDoTrello();
+    return { ...result, resumo };
+  } catch (error) {
+    // A listagem principal continua funcionando mesmo que o espelho falhe.
+    console.warn('Portal Timoni: não foi possível atualizar o resumo de Compras:', error);
+    return result;
+  }
+}
+
+// Tanto "Abrir Trello" quanto "Atualizar fornecedores" passam a atualizar os totais.
+[TYPES.OPEN_TRELLO, TYPES.SCAN_TRELLO].forEach((type) => {
+  const originalHandler = HANDLERS[type];
+  HANDLERS[type] = (payload) => executarComResumo(originalHandler, payload);
+});
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message?.source !== 'portal-timoni' || message?.action !== 'OPEN_COMPRAS') {

@@ -194,8 +194,11 @@ export function CalendarView({
   }
 
   const upcomingEvents = useMemo(
-    () => events.slice(periodOffset * 7, periodOffset * 7 + 7),
-    [events, periodOffset]
+    () =>
+      events
+        .filter((event) => eventDateKey(event.start) >= todayKey)
+        .slice(periodOffset * 7, periodOffset * 7 + 7),
+    [events, periodOffset, todayKey]
   );
 
   const upcomingGroups = useMemo(() => {

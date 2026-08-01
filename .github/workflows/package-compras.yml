@@ -1,0 +1,41 @@
+name: Validar e empacotar Compras
+
+on:
+  pull_request:
+    paths:
+      - "hub-pedidos-chrome/**"
+      - ".github/workflows/package-compras.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "hub-pedidos-chrome/**"
+      - ".github/workflows/package-compras.yml"
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Validar manifest
+        run: node -e "JSON.parse(require('fs').readFileSync('hub-pedidos-chrome/manifest.json', 'utf8'))"
+
+      - name: Validar JavaScript
+        run: |
+          find hub-pedidos-chrome -name '*.js' -print0 | xargs -0 -n1 node --check
+
+      - name: Gerar ZIP da extensão
+        run: |
+          cd hub-pedidos-chrome
+          zip -r ../compras-portal-timoni-v1.1.1.zip . \
+            -x '*.DS_Store' '*/.DS_Store' '*.map'
+
+      - name: Publicar pacote
+        uses: actions/upload-artifact@v4
+        with:
+          name: compras-portal-timoni-v1.1.1
+          path: compras-portal-timoni-v1.1.1.zip
+          if-no-files-found: error
+          retention-days: 30

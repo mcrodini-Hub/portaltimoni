@@ -116,10 +116,7 @@ export function CalendarView({
 
   const todayIndex = saoPauloDayIndex(new Date(now).toISOString());
   const todayKey = eventDateKey(new Date(now).toISOString());
-  const visibleWeekDays =
-    view === "week" && periodOffset === 0
-      ? weekDays.filter((day) => day.dayIndex >= todayIndex)
-      : weekDays;
+  const visibleWeekDays = weekDays;
 
   const eventsByWeekDay = useMemo(() => {
     const grouped: CalendarEventDTO[][] = Array.from({ length: 7 }, () => []);

@@ -66,7 +66,7 @@ export default async function DashboardLayout({
               Motorista
             </a>
 
-            <span className={disabledClass}>Reuniões</span>
+            <Link href="/dashboard/reunioes" className={linkClass}>Reuniões</Link>
             <span className={disabledClass}>Marketing</span>
           </nav>
 

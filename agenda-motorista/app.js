@@ -136,7 +136,7 @@ function mostrarTela(nome) {
 async function init() {
   const hoje = new Date();
   mesAtual = { ano: hoje.getFullYear(), mes: hoje.getMonth() + 1 };
-  semanaAtualInicio = domingoDaSemana(hoje);
+  semanaAtualInicio = segundaDaSemana(hoje);
   mostrarTela('telaAgenda');
   refrescarCalendario();
   abrirDia(toDataStr(hoje)); // já abre o dia de hoje, sem precisar clicar em nada
@@ -152,12 +152,13 @@ function refrescarCalendario() {
 // Calendário — visão Semana (padrão) e visão Mês
 // --------------------------------------------------------------------------
 const NOMES_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
-const DIAS_SEMANA = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+const DIAS_SEMANA = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
 
-// Semana de domingo a sábado — mesmo padrão da visão Mês (que já começa em domingo).
-function domingoDaSemana(data) {
+// Semana operacional normal: segunda-feira a domingo.
+function segundaDaSemana(data) {
   const d = new Date(data.getFullYear(), data.getMonth(), data.getDate());
-  d.setDate(d.getDate() - d.getDay());
+  const dia = d.getDay();
+  d.setDate(d.getDate() + (dia === 0 ? -6 : 1 - dia));
   return d;
 }
 
@@ -334,7 +335,7 @@ async function abrirDia(data) {
   // Sempre recentraliza a semana exibida (grade + lista "Agendado esta semana") na semana
   // do dia que acabou de ser aberto — senão dá pra abrir um dia clicando no mês e ele ficar
   // "escondido" numa semana diferente da que a grade/lista continuam mostrando.
-  semanaAtualInicio = domingoDaSemana(dataStrParaDate(data));
+  semanaAtualInicio = segundaDaSemana(dataStrParaDate(data));
   const mesDoData = dataStrParaDate(data);
   mesAtual = { ano: mesDoData.getFullYear(), mes: mesDoData.getMonth() + 1 };
   await carregarDia();
@@ -626,8 +627,8 @@ function fecharForm() {
   editandoId = null;
 }
 
-// Só data, loja e preenchido por são sempre obrigatórios. Endereço só entra se não for
-// bloqueio. "Até" só é obrigatório em Retirada/Bloqueio (é o que define o período preso).
+// Data, loja e preenchido por são sempre obrigatórios. Em viagens, endereço e número
+// de volumes também são obrigatórios. "Até" é obrigatório em Retirada/Bloqueio.
 function validarForm() {
   let primeiro = null;
   const marcar = (id, invalido) => {
@@ -644,8 +645,11 @@ function validarForm() {
   const tipo = document.getElementById('f-tipoHorario').value;
   if (tipo !== 'Bloqueio') {
     marcar('f-endereco', !document.getElementById('f-endereco').value.trim());
+    const volumes = Number(document.getElementById('f-volumes').value);
+    marcar('f-volumes', !Number.isInteger(volumes) || volumes < 1);
   } else {
     document.getElementById('f-endereco').classList.remove('field-error');
+    document.getElementById('f-volumes').classList.remove('field-error');
   }
 
   if (tipo === 'Retirada' || tipo === 'Bloqueio') {

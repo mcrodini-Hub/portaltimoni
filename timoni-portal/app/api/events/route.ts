@@ -26,7 +26,7 @@ export async function GET(request: NextRequest) {
     const events = await listEventsInRange(session!.accessToken!, {
       timeMin,
       timeMax,
-      maxResults: 100,
+      maxResults: 500,
     });
     return NextResponse.json({ events });
   } catch (error) {

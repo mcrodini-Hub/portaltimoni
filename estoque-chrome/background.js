@@ -6,23 +6,20 @@
 // Reaproveita a mesma camada de dados da sidebar (EstoqueStore), então funciona tanto no modo
 // planilha (fetch ao Web App) quanto no modo local.
 
-importScripts('lib/mock-produtos.js', 'lib/store.js');
+importScripts('lib/mock-produtos.js', 'lib/store.js', 'portal-integration.js');
 
 const POLL_ALARM = 'estoque-poll';
-const SNAP_KEY = 'estoqueSnapshot';        // último estado conhecido (id -> {status,...})
-const NOTIF_KEY = 'estoqueNotificacoes';   // notificações ligadas neste computador?
-const UNIDADE_KEY = 'estoqueUnidade';      // unidade deste computador (filtra as notificações)
+const SNAP_KEY = 'estoqueSnapshot';
+const NOTIF_KEY = 'estoqueNotificacoes';
+const UNIDADE_KEY = 'estoqueUnidade';
 const UNIDADE_LABEL = { rio_claro: 'Rio Claro', araras: 'Araras', todas: 'geral' };
 
-// Considera só as necessidades da unidade deste computador ('todas' vê as duas).
 function filtrarUnidade(lista, unidade) {
   if (!unidade || unidade === 'todas') return lista;
   return lista.filter((n) => (n.unidade || 'rio_claro') === unidade);
 }
 
 chrome.runtime.onInstalled.addListener(() => {
-  // chrome.sidePanel só existe em Chrome 114+; em versões mais antigas o painel ainda abre
-  // pelo manifest.side_panel, só não abre automaticamente ao clicar no ícone.
   if (chrome.sidePanel && chrome.sidePanel.setPanelBehavior) {
     chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
   }
@@ -37,8 +34,6 @@ chrome.alarms.onAlarm.addListener((alarm) => {
   if (alarm.name === POLL_ALARM) verificarNovidades();
 });
 
-// A sidebar avisa quando as notificações são ligadas, para o snapshot começar do estado atual
-// (sem disparar um monte de avisos retroativos dos itens que já existiam).
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg && msg.type === 'ESTOQUE_SNAPSHOT_RESET') {
     resetSnapshot().then(() => sendResponse({ ok: true }));
@@ -82,19 +77,17 @@ async function verificarNovidades() {
   try {
     lista = filtrarUnidade(await EstoqueStore.getNecessidades(), unidade);
   } catch (e) {
-    return; // sem conexão; tenta no próximo ciclo
+    return;
   }
 
   const anterior = await getLocal(SNAP_KEY, null);
   const atual = snapshotDaLista(lista);
 
-  // Primeira verificação após ligar: só grava a linha de base, sem avisar retroativamente.
   if (!anterior) {
     await setLocal(SNAP_KEY, atual);
     return;
   }
 
-  // Quando o computador vê as duas lojas (gestão), inclui a loja na mensagem.
   const sufixoUnidade = (n) => (unidade === 'todas' ? ` [${UNIDADE_LABEL[n.unidade || 'rio_claro']}]` : '');
 
   lista.forEach((n) => {

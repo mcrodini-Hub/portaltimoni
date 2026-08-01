@@ -219,7 +219,7 @@ export function CalendarView({
         {(["week", "month", "year"] as ViewMode[]).map((mode) => (
           <Button
             key={mode}
-            variant={view === mode ? "default" : "secondary"}
+            variant={view === mode ? "primary" : "secondary"}
             onClick={() => changeView(mode)}
           >
             {mode === "week" ? "Semana" : mode === "month" ? "Mês" : "Ano"}

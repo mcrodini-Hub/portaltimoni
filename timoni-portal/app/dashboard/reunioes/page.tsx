@@ -4,6 +4,7 @@ const MODEL_URL = "https://docs.google.com/document/d/1D5W1Yu-8Ic54YQSNpOM6y2bly
 const meetings = [
   {
     unit: "Araras",
+    pautaUrl: "https://docs.google.com/document/d/1NoZASmMc-ptrqFy8zbvtGgCJjLJxX8GsORM-F4N799k",
     date: "07/08/2026",
     day: "Sexta-feira",
     time: "7h30",
@@ -15,6 +16,7 @@ const meetings = [
   },
   {
     unit: "Rio Claro",
+    pautaUrl: "https://docs.google.com/document/d/15XROnr2nS-S9UwVjBfzBp43B8YDPHoCuLS1id-dvjgc",
     date: "08/08/2026",
     day: "Sábado",
     time: "7h30",
@@ -77,7 +79,8 @@ export default function ReunioesPage() {
               </div>
               <p className="mt-4 text-sm text-slate-600">Condução: <strong>{meeting.leaders}</strong></p>
               <div className="mt-4 flex flex-wrap gap-4">
-                <a href={meeting.url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-700 hover:text-blue-900">Abrir pauta e ata →</a>
+                <a href={meeting.pautaUrl} target="_blank" rel="noreferrer" className="text-sm font-semibold text-emerald-700 hover:text-emerald-900">Abrir pauta →</a>
+                <a href={meeting.url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-700 hover:text-blue-900">Abrir ata →</a>
                 <a href={meeting.slidesUrl} target="_blank" rel="noreferrer" className="text-sm font-semibold text-rose-700 hover:text-rose-900">Abrir apresentação →</a>
               </div>
             </article>
@@ -106,25 +109,7 @@ export default function ReunioesPage() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-rose-100 bg-rose-50 p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-rose-700">Pendências</p>
-          <h2 className="mt-1 text-xl font-semibold text-slate-900">Controle consolidado</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Cada ação terá unidade, responsável, prazo, situação e reunião de origem.
-          </p>
-          <div className="mt-4 rounded-2xl bg-white p-4 shadow-sm">
-            <p className="text-xs text-slate-400">Situações utilizadas</p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {["Pendente", "Em andamento", "Concluída"].map((status) => (
-                <span key={status} className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-600">{status}</span>
-              ))}
-            </div>
-          </div>
-          <a href={DRIVE_URL} target="_blank" rel="noreferrer" className="mt-4 inline-flex text-sm font-semibold text-rose-700 hover:text-rose-900">
-            Consultar arquivos →
-          </a>
-        </div>
-      </section>
+        <div className="rounded-3xl border border-blue-100 bg-blue-50 p-5">\n          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Arquivos oficiais</p>\n          <h2 className="mt-1 text-xl font-semibold text-slate-900">Tudo organizado por unidade</h2>\n          <p className="mt-2 text-sm leading-6 text-slate-600">Pauta para impressão, apresentação e ata ficam disponíveis nas pastas de Araras e Rio Claro.</p>\n          <a href={DRIVE_URL} target="_blank" rel="noreferrer" className="mt-4 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-900">Abrir Google Drive →</a>\n        </div>\n      </section>
     </div>
   );
 }

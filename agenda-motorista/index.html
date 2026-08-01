@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agenda de Motorista · Portal Timoni</title>
-<link rel="stylesheet" href="app.css?v=19">
+<link rel="stylesheet" href="app.css?v=20">
 </head>
 <body>
 
@@ -70,6 +70,7 @@
         <div class="filtro-loja view-switcher">
           <button class="chip js-modo-cal ativo" data-modo="semana">Semana</button>
           <button class="chip js-modo-cal" data-modo="mes">Mês</button>
+          <button class="chip js-modo-cal" data-modo="ano">Ano</button>
         </div>
         <div class="cal-legend">
           <span><span class="dot dot-entrega"></span>entregas</span>
@@ -80,6 +81,7 @@
         <p class="validation-msg" id="calMsg"></p>
         <div class="cal-grid-semana" id="calGridSemana"></div>
         <div class="cal-grid" id="calGrid" hidden></div>
+        <div class="cal-grid-ano" id="calGridAno" hidden></div>
       </div>
 
       <!-- Coluna direita: viagens do dia selecionado -->
@@ -116,7 +118,7 @@
     <div class="divider" style="margin:24px 0;"></div>
 
     <!-- Lista de tudo que está agendado na semana, embaixo do calendário -->
-    <div class="agenda-lista-semana-wrap">
+    <div class="agenda-lista-semana-wrap" id="agendaListaSemanaWrap">
       <h2 class="agenda-lista-semana-titulo">Agendado esta semana</h2>
       <div id="agendaListaSemana"></div>
     </div>
@@ -251,7 +253,7 @@
 
 </main>
 
-<script src="lib/store.js?v=19"></script>
-<script src="app.js?v=19"></script>
+<script src="lib/store.js?v=20"></script>
+<script src="app.js?v=20"></script>
 </body>
 </html>

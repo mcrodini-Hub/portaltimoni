@@ -29,13 +29,13 @@ jobs:
       - name: Gerar ZIP da extensão
         run: |
           cd hub-pedidos-chrome
-          zip -r ../compras-portal-timoni-v1.1.2.zip . \
+          zip -r ../compras-portal-timoni-v1.1.3.zip . \
             -x '*.DS_Store' '*/.DS_Store' '*.map'
 
       - name: Publicar pacote
         uses: actions/upload-artifact@v4
         with:
-          name: compras-portal-timoni-v1.1.2
-          path: compras-portal-timoni-v1.1.2.zip
+          name: compras-portal-timoni-v1.1.3
+          path: compras-portal-timoni-v1.1.3.zip
           if-no-files-found: error
           retention-days: 30

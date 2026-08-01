@@ -16,14 +16,31 @@ const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 const SAO_PAULO_OFFSET_MS = -3 * 60 * 60 * 1000;
 
 const DAY_LABELS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
+const CALENDAR_DAY_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+const MINI_DAY_LABELS = ["S", "T", "Q", "Q", "S", "S", "D"];
 type ViewMode = "week" | "month" | "year";
+
+interface CalendarDay {
+  key: string;
+  day: number;
+  inMonth: boolean;
+}
 
 function saoPauloParts(date: Date) {
   const shifted = new Date(date.getTime() + SAO_PAULO_OFFSET_MS);
   return {
     year: shifted.getUTCFullYear(),
     month: shifted.getUTCMonth(),
+    day: shifted.getUTCDate(),
   };
+}
+
+function dateKey(year: number, month: number, day: number) {
+  return [
+    year,
+    String(month + 1).padStart(2, "0"),
+    String(day).padStart(2, "0"),
+  ].join("-");
 }
 
 function periodRange(view: ViewMode, offset: number) {
@@ -47,15 +64,28 @@ function periodRange(view: ViewMode, offset: number) {
 function eventDateKey(iso: string) {
   if (!iso.includes("T")) return iso.slice(0, 10);
   const shifted = new Date(new Date(iso).getTime() + SAO_PAULO_OFFSET_MS);
-  return [
-    shifted.getUTCFullYear(),
-    String(shifted.getUTCMonth() + 1).padStart(2, "0"),
-    String(shifted.getUTCDate()).padStart(2, "0"),
-  ].join("-");
+  return dateKey(shifted.getUTCFullYear(), shifted.getUTCMonth(), shifted.getUTCDate());
 }
 
 function dateFromKey(key: string) {
   return new Date(`${key}T12:00:00-03:00`);
+}
+
+function monthGrid(year: number, month: number): CalendarDay[] {
+  const firstWeekDay = new Date(Date.UTC(year, month, 1)).getUTCDay();
+  const daysBefore = (firstWeekDay + 6) % 7;
+
+  return Array.from({ length: 42 }, (_, index) => {
+    const value = new Date(Date.UTC(year, month, 1 - daysBefore + index));
+    const cellYear = value.getUTCFullYear();
+    const cellMonth = value.getUTCMonth();
+    const day = value.getUTCDate();
+    return {
+      key: dateKey(cellYear, cellMonth, day),
+      day,
+      inMonth: cellYear === year && cellMonth === month,
+    };
+  });
 }
 
 export function CalendarView({
@@ -69,6 +99,7 @@ export function CalendarView({
   const [weekDays, setWeekDays] = useState<WeekDay[]>(() => getWeekRange().days);
   const [view, setView] = useState<ViewMode>("week");
   const [periodOffset, setPeriodOffset] = useState(0);
+  const [selectedDateKey, setSelectedDateKey] = useState<string | null>(null);
   const [error, setError] = useState(initialError);
   const [now, setNow] = useState(() => Date.now());
   const [formOpen, setFormOpen] = useState(false);
@@ -115,8 +146,8 @@ export function CalendarView({
   }, [urgentCount]);
 
   const todayIndex = saoPauloDayIndex(new Date(now).toISOString());
-  const todayKey = eventDateKey(new Date(now).toISOString());
-  const visibleWeekDays = weekDays;
+  const todayParts = saoPauloParts(new Date(now));
+  const todayKey = dateKey(todayParts.year, todayParts.month, todayParts.day);
 
   const eventsByWeekDay = useMemo(() => {
     const grouped: CalendarEventDTO[][] = Array.from({ length: 7 }, () => []);
@@ -127,7 +158,7 @@ export function CalendarView({
     return grouped;
   }, [events]);
 
-  const eventGroups = useMemo(() => {
+  const eventsByDate = useMemo(() => {
     const grouped = new Map<string, CalendarEventDTO[]>();
     for (const event of events) {
       const key = eventDateKey(event.start);
@@ -135,8 +166,24 @@ export function CalendarView({
       current.push(event);
       grouped.set(key, current);
     }
-    return Array.from(grouped.entries()).sort(([a], [b]) => a.localeCompare(b));
+    return grouped;
   }, [events]);
+
+  const range = periodRange(view, periodOffset);
+  const rangeStartKey = eventDateKey(range.start.toISOString());
+  const rangeEndKey = eventDateKey(range.end.toISOString());
+
+  useEffect(() => {
+    if (view !== "month") return;
+    if (
+      selectedDateKey &&
+      selectedDateKey >= rangeStartKey &&
+      selectedDateKey < rangeEndKey
+    ) {
+      return;
+    }
+    setSelectedDateKey(periodOffset === 0 ? todayKey : rangeStartKey);
+  }, [view, periodOffset, rangeStartKey, rangeEndKey, selectedDateKey, todayKey]);
 
   async function handleDelete(event: CalendarEventDTO) {
     if (!window.confirm(`Cancelar o evento "${event.summary}"?`)) return;
@@ -158,7 +205,6 @@ export function CalendarView({
     }
   }
 
-  const range = periodRange(view, periodOffset);
   const rangeLabel =
     view === "week"
       ? `${format(range.start, "dd/MM", { locale: ptBR })} – ${format(
@@ -180,6 +226,23 @@ export function CalendarView({
     setPeriodOffset(0);
   }
 
+  function openYearDate(year: number, month: number, day: CalendarDay) {
+    if (!day.inMonth) return;
+    const current = saoPauloParts(new Date());
+    setSelectedDateKey(day.key);
+    setPeriodOffset((year - current.year) * 12 + (month - current.month));
+    setView("month");
+  }
+
+  function openMonthDate(day: CalendarDay, year: number, month: number) {
+    setSelectedDateKey(day.key);
+    if (day.inMonth) return;
+
+    const selected = saoPauloParts(dateFromKey(day.key));
+    const current = saoPauloParts(new Date());
+    setPeriodOffset((selected.year - current.year) * 12 + (selected.month - current.month));
+  }
+
   function renderEvent(event: CalendarEventDTO) {
     return (
       <EventCard
@@ -194,6 +257,21 @@ export function CalendarView({
       />
     );
   }
+
+  function renderEventDots(key: string, compact = false) {
+    const count = eventsByDate.get(key)?.length ?? 0;
+    if (count === 0) return null;
+    return compact ? (
+      <span className="mt-0.5 h-1 w-1 rounded-full bg-blue-600" aria-label={`${count} evento(s)`} />
+    ) : (
+      <span className="mt-1 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
+        {count} {count === 1 ? "evento" : "eventos"}
+      </span>
+    );
+  }
+
+  const monthParts = saoPauloParts(range.start);
+  const selectedEvents = selectedDateKey ? eventsByDate.get(selectedDateKey) ?? [] : [];
 
   return (
     <div>
@@ -240,8 +318,8 @@ export function CalendarView({
         <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
 
-      {view === "week" ? (
-        visibleWeekDays.map((day) => {
+      {view === "week" && (
+        weekDays.map((day) => {
           const dayEvents = eventsByWeekDay[day.dayIndex] ?? [];
           const isToday = day.dayIndex === todayIndex && periodOffset === 0;
           return (
@@ -266,31 +344,99 @@ export function CalendarView({
             </section>
           );
         })
-      ) : eventGroups.length === 0 ? (
-        <p className="mt-6 text-sm text-slate-400">Nenhum evento neste período.</p>
-      ) : (
-        eventGroups.map(([dateKey, dayEvents]) => {
-          const date = dateFromKey(dateKey);
-          const isToday = dateKey === todayKey;
-          return (
-            <section key={dateKey} className="mt-6">
-              <h2
-                className={clsx(
-                  "flex items-center gap-2 text-xs font-semibold uppercase tracking-wide",
-                  isToday ? "text-slate-900" : "text-slate-400"
-                )}
-              >
-                {format(date, "EEEE, dd 'de' MMMM", { locale: ptBR })}
-                {isToday && (
-                  <span className="rounded-full bg-slate-900 px-2 py-0.5 text-[10px] text-white">
-                    Hoje
-                  </span>
-                )}
+      )}
+
+      {view === "month" && (
+        <>
+          <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
+            <div className="grid grid-cols-7 bg-slate-800 text-center text-xs font-semibold text-white">
+              {CALENDAR_DAY_LABELS.map((label) => (
+                <div key={label} className="px-1 py-2">{label}</div>
+              ))}
+            </div>
+            <div className="grid grid-cols-7">
+              {monthGrid(monthParts.year, monthParts.month).map((day) => {
+                const isToday = day.key === todayKey;
+                const isSelected = day.key === selectedDateKey;
+                return (
+                  <button
+                    key={day.key}
+                    type="button"
+                    onClick={() => openMonthDate(day, monthParts.year, monthParts.month)}
+                    className={clsx(
+                      "flex min-h-20 flex-col items-center border-b border-r border-slate-200 px-1 py-2 text-sm transition hover:bg-blue-50",
+                      !day.inMonth && "bg-slate-50 text-slate-300",
+                      day.inMonth && "text-slate-700",
+                      isSelected && "bg-blue-100",
+                      isToday && "font-bold text-blue-700"
+                    )}
+                  >
+                    <span
+                      className={clsx(
+                        "flex h-7 w-7 items-center justify-center rounded-full",
+                        isToday && "bg-blue-600 text-white"
+                      )}
+                    >
+                      {day.day}
+                    </span>
+                    {renderEventDots(day.key)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {selectedDateKey && (
+            <section className="mt-6">
+              <h2 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                {format(dateFromKey(selectedDateKey), "EEEE, dd 'de' MMMM", { locale: ptBR })}
               </h2>
-              <div className="mt-2 space-y-3">{dayEvents.map(renderEvent)}</div>
+              <div className="mt-2 space-y-3">
+                {selectedEvents.length === 0 && (
+                  <p className="text-sm text-slate-400">Nenhum evento.</p>
+                )}
+                {selectedEvents.map(renderEvent)}
+              </div>
             </section>
-          );
-        })
+          )}
+        </>
+      )}
+
+      {view === "year" && (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {Array.from({ length: 12 }, (_, month) => (
+            <section key={month} className="rounded-xl border border-slate-200 bg-white p-3">
+              <h2 className="mb-2 text-center text-sm font-semibold capitalize text-slate-800">
+                {format(new Date(Date.UTC(monthParts.year, month, 1, 12)), "MMMM", { locale: ptBR })}
+              </h2>
+              <div className="grid grid-cols-7 text-center text-[9px] font-semibold text-slate-400">
+                {MINI_DAY_LABELS.map((label, index) => (
+                  <div key={`${label}-${index}`} className="py-1">{label}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7">
+                {monthGrid(monthParts.year, month).map((day) =>
+                  day.inMonth ? (
+                    <button
+                      key={day.key}
+                      type="button"
+                      onClick={() => openYearDate(monthParts.year, month, day)}
+                      className={clsx(
+                        "flex aspect-square flex-col items-center justify-center rounded text-[10px] text-slate-600 hover:bg-blue-50",
+                        day.key === todayKey && "bg-blue-600 font-bold text-white"
+                      )}
+                    >
+                      <span>{day.day}</span>
+                      {renderEventDots(day.key, true)}
+                    </button>
+                  ) : (
+                    <span key={day.key} className="aspect-square" />
+                  )
+                )}
+              </div>
+            </section>
+          ))}
+        </div>
       )}
 
       {formOpen && (

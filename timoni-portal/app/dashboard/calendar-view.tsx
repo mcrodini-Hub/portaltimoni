@@ -310,7 +310,7 @@ export function CalendarView({
         <Button
           variant="secondary"
           disabled={view === "week" && periodOffset === 0}
-          onClick={() => setPeriodOffset((offset) => Math.max(0, offset - 1))}
+          onClick={() => setPeriodOffset((offset) => view === "week" ? Math.max(0, offset - 1) : offset - 1)}
         >
           {previousLabel}
         </Button>

@@ -21,9 +21,6 @@ export default async function DashboardLayout({
   const linkClass =
     "whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-white/90 transition hover:bg-white/10 hover:text-white";
 
-  const disabledClass =
-    "whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-white/40";
-
   return (
     <div>
       <header className="sticky top-0 z-40 border-b border-blue-950/50 bg-[#0b1f5e] text-white shadow-sm">
@@ -36,38 +33,13 @@ export default async function DashboardLayout({
           </Link>
 
           <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto py-2">
-            <Link href="/dashboard" className={linkClass}>
-              Início
-            </Link>
-
-            <Link href="/agenda" className={linkClass}>
-              Agenda Ciça
-            </Link>
-
-            <a
-              href={comprasUrl}
-              target="_blank"
-              rel="noreferrer"
-              className={linkClass}
-            >
-              Compras
-            </a>
-
-            <Link href="/dashboard/estoque" className={linkClass}>
-              Estoque
-            </Link>
-
-            <a
-              href={MOTORISTA_URL}
-              target="_blank"
-              rel="noreferrer"
-              className={linkClass}
-            >
-              Motorista
-            </a>
-
+            <Link href="/dashboard" className={linkClass}>Início</Link>
+            <Link href="/agenda" className={linkClass}>Agenda Ciça</Link>
+            <a href={comprasUrl} target="_blank" rel="noreferrer" className={linkClass}>Compras</a>
+            <Link href="/dashboard/estoque" className={linkClass}>Estoque</Link>
+            <a href={MOTORISTA_URL} target="_blank" rel="noreferrer" className={linkClass}>Motorista</a>
             <Link href="/dashboard/reunioes" className={linkClass}>Reuniões</Link>
-            <span className={disabledClass}>Marketing</span>
+            <Link href="/dashboard/marketing" className={linkClass}>Marketing</Link>
           </nav>
 
           <form

@@ -109,7 +109,13 @@ export default function ReunioesPage() {
           </div>
         </div>
 
-        <div className="rounded-3xl border border-blue-100 bg-blue-50 p-5">\n          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Arquivos oficiais</p>\n          <h2 className="mt-1 text-xl font-semibold text-slate-900">Tudo organizado por unidade</h2>\n          <p className="mt-2 text-sm leading-6 text-slate-600">Pauta para impressão, apresentação e ata ficam disponíveis nas pastas de Araras e Rio Claro.</p>\n          <a href={DRIVE_URL} target="_blank" rel="noreferrer" className="mt-4 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-900">Abrir Google Drive →</a>\n        </div>\n      </section>
+        <div className="rounded-3xl border border-blue-100 bg-blue-50 p-5">
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Arquivos oficiais</p>
+          <h2 className="mt-1 text-xl font-semibold text-slate-900">Tudo organizado por unidade</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Pauta para impressão, apresentação e ata ficam disponíveis nas pastas de Araras e Rio Claro.</p>
+          <a href={DRIVE_URL} target="_blank" rel="noreferrer" className="mt-4 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-900">Abrir Google Drive →</a>
+        </div>
+      </section>
     </div>
   );
 }

@@ -22,11 +22,17 @@ const modules: Module[] = [
   },
   {
     name: "Compras",
-    description: "Pedidos, fornecedores, conferências e pendências.",
+    description: "Pendências, pedidos enviados e acesso ao módulo de compras.",
     status: "Disponível",
-    href: "https://trello.com/b/UfPrTr1H/compras",
-    external: true,
+    href: "/dashboard/compras",
     accent: "border-blue-200 bg-blue-50",
+  },
+  {
+    name: "Conferência de pedidos",
+    description: "Comparação de documentos e geração da planilha Excel.",
+    status: "Em integração",
+    href: "/dashboard/conferencia-pedidos",
+    accent: "border-cyan-200 bg-cyan-50",
   },
   {
     name: "Estoque",
@@ -163,7 +169,7 @@ export default async function DashboardPage() {
             Módulos disponíveis
           </h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            Estoque e Marketing já estão acessíveis pelo menu e pelos cartões abaixo.
+            Compras agora possui página própria; Trello e extensão ficam como ações internas.
           </p>
           <div className="mt-5 grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-white p-4 shadow-sm">

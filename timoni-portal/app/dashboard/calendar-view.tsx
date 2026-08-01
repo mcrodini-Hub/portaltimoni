@@ -7,7 +7,7 @@ import clsx from "clsx";
 import { Button } from "@/components/ui/button";
 import { EventCard, getUrgency } from "@/components/event-card";
 import { EventForm } from "./event-form";
-import { getWeekRange, saoPauloDayIndex, type WeekDay } from "@/lib/week";
+import { getWeekRange, type WeekDay } from "@/lib/week";
 import type { CalendarEventDTO } from "@/lib/types";
 
 const POLL_INTERVAL_MS = 60_000;
@@ -45,8 +45,16 @@ function dateKey(year: number, month: number, day: number) {
 
 function periodRange(view: ViewMode, offset: number) {
   if (view === "week") {
-    const reference = new Date(Date.now() + offset * WEEK_MS);
-    return getWeekRange(reference);
+    const current = saoPauloParts(new Date());
+    const start = new Date(
+      Date.UTC(current.year, current.month, current.day, 3) + offset * 8 * 24 * 60 * 60 * 1000
+    );
+    const end = new Date(start.getTime() + 8 * 24 * 60 * 60 * 1000);
+    const days: WeekDay[] = Array.from({ length: 8 }, (_, index) => {
+      const date = new Date(start.getTime() + index * 24 * 60 * 60 * 1000);
+      return { date, dayIndex: date.getUTCDay() };
+    });
+    return { start, end, days };
   }
 
   const current = saoPauloParts(new Date());
@@ -145,18 +153,8 @@ export function CalendarView({
     document.title = urgentCount > 0 ? `(${urgentCount}) Portal Timoni` : "Portal Timoni";
   }, [urgentCount]);
 
-  const todayIndex = saoPauloDayIndex(new Date(now).toISOString());
   const todayParts = saoPauloParts(new Date(now));
   const todayKey = dateKey(todayParts.year, todayParts.month, todayParts.day);
-
-  const eventsByWeekDay = useMemo(() => {
-    const grouped: CalendarEventDTO[][] = Array.from({ length: 7 }, () => []);
-    for (const event of events) {
-      const dayIndex = saoPauloDayIndex(event.start);
-      if (dayIndex >= 0 && dayIndex < 7) grouped[dayIndex].push(event);
-    }
-    return grouped;
-  }, [events]);
 
   const eventsByDate = useMemo(() => {
     const grouped = new Map<string, CalendarEventDTO[]>();
@@ -217,9 +215,9 @@ export function CalendarView({
         : format(range.start, "yyyy", { locale: ptBR });
 
   const previousLabel =
-    view === "week" ? "← Semana anterior" : view === "month" ? "← Mês anterior" : "← Ano anterior";
+    view === "week" ? "← Período anterior" : view === "month" ? "← Mês anterior" : "← Ano anterior";
   const nextLabel =
-    view === "week" ? "Semana seguinte →" : view === "month" ? "Mês seguinte →" : "Ano seguinte →";
+    view === "week" ? "Próximos 7 dias →" : view === "month" ? "Mês seguinte →" : "Ano seguinte →";
 
   function changeView(nextView: ViewMode) {
     setView(nextView);
@@ -297,7 +295,7 @@ export function CalendarView({
             variant={view === mode ? "primary" : "secondary"}
             onClick={() => changeView(mode)}
           >
-            {mode === "week" ? "Semana" : mode === "month" ? "Mês" : "Ano"}
+            {mode === "week" ? "Próximos 7 dias" : mode === "month" ? "Mês" : "Ano"}
           </Button>
         ))}
       </div>
@@ -320,8 +318,9 @@ export function CalendarView({
 
       {view === "week" && (
         weekDays.map((day) => {
-          const dayEvents = eventsByWeekDay[day.dayIndex] ?? [];
-          const isToday = day.dayIndex === todayIndex && periodOffset === 0;
+          const dayKey = eventDateKey(day.date.toISOString());
+          const dayEvents = eventsByDate.get(dayKey) ?? [];
+          const isToday = dayKey === todayKey;
           return (
             <section key={day.date.toISOString()} className="mt-6">
               <h2

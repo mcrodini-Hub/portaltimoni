@@ -50,7 +50,8 @@ const modules: Array<{
   {
     name: "Reuniões",
     description: "Decisões, registros e pendências de acompanhamento.",
-    status: "Próxima etapa",
+    status: "Disponível",
+    href: "/dashboard/reunioes",
     icon: "users",
     iconClass: "bg-rose-100 text-rose-700",
     accentClass: "group-hover:border-rose-200",

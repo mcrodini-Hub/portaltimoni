@@ -19,7 +19,7 @@ body{
   font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
   background:var(--page-bg);
   color:var(--ink);
-  font-size:16px;
+  font-size:18px;
 }
 .topbar{
   display:flex;
@@ -42,7 +42,7 @@ body{
   background:#fff;
   box-shadow:0 0 0 1px rgba(44,75,224,0.15);
 }
-.brand-title{font-weight:600;font-size:16px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.brand-title{font-weight:600;font-size:18px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .brand-dim{color:var(--ink-soft);font-weight:500;}
 
 .icon-btn{
@@ -55,7 +55,7 @@ body{
 
 .step-label{font-size:14px;font-weight:600;color:var(--ink-soft);margin:0 0 8px 2px;}
 
-h1{font-size:21px;margin:0 0 4px;}
+h1{font-size:23px;margin:0 0 4px;}
 .subtitle{margin:0 0 16px;font-size:14px;color:var(--ink-soft);}
 
 button{cursor:pointer;border:none;border-radius:10px;padding:11px 18px;font-size:15px;font-weight:600;font-family:inherit;transition:background .15s ease, transform .05s ease;}
@@ -82,7 +82,7 @@ button{cursor:pointer;border:none;border-radius:10px;padding:11px 18px;font-size
 /* --------------------------- Calendário --------------------------- */
 .cal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
 .cal-header h1{margin:0;}
-.cal-nav{display:flex;align-items:center;gap:6px;}
+.cal-nav{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
 .cal-legend{display:flex;gap:16px;flex-wrap:wrap;font-size:13px;color:var(--ink-soft);margin-bottom:14px;}
 .cal-legend .dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;}
 .dot-entrega{background:var(--blue);}
@@ -100,17 +100,17 @@ button{cursor:pointer;border:none;border-radius:10px;padding:11px 18px;font-size
 .week-day.hoje{border-color:var(--blue);border-width:2px;}
 .week-day.selecionado{background:rgba(44,75,224,0.06);}
 .week-day-header{display:flex;flex-direction:column;gap:2px;}
-.week-day-dow{font-size:10px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;}
-.week-day-num{font-size:12px;font-weight:700;}
+.week-day-dow{font-size:12px;font-weight:700;color:var(--ink-soft);text-transform:uppercase;}
+.week-day-num{font-size:14px;font-weight:700;}
 .week-day-item{
-  font-size:11px;padding:3px 5px;border-radius:5px;background:#eef0f4;color:var(--ink);
+  font-size:13px;padding:4px 6px;border-radius:5px;background:#eef0f4;color:var(--ink);
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
 }
 .week-day-item.retirada{background:var(--amber-bg);color:var(--amber);}
 .week-day-item.entrega{background:rgba(44,75,224,0.08);color:var(--blue-dark);}
 .week-day-item.bloqueio{background:#ece9fb;color:#5b3fae;}
-.week-day-empty{font-size:11px;color:var(--ink-soft);font-style:italic;}
-.week-day-mais{font-size:10px;color:var(--ink-soft);}
+.week-day-empty{font-size:13px;color:var(--ink-soft);font-style:italic;}
+.week-day-mais{font-size:12px;color:var(--ink-soft);}
 
 @media (max-width:900px){
   .cal-grid-semana{grid-template-columns:repeat(4,1fr);}
@@ -149,6 +149,9 @@ button{cursor:pointer;border:none;border-radius:10px;padding:11px 18px;font-size
   border:none;border-radius:999px;padding:7px 14px;cursor:pointer;
 }
 .chip.ativo{background:var(--blue);color:#fff;}
+.view-switcher{gap:8px;}
+.view-switcher .chip{border-radius:9px;padding:9px 15px;background:#f1f4f8;color:#25334a;}
+.view-switcher .chip.ativo{background:#111b30;color:#fff;}
 
 .viagem-card{
   background:var(--card-bg);border:1px solid var(--border);border-radius:12px;

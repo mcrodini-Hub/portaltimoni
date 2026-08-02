@@ -32,6 +32,7 @@ export default async function DashboardLayout({
 
           <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto py-2">
             <Link href="/dashboard" className={linkClass}>Início</Link>
+            <Link href="/colaboradores" className={linkClass}>Painel da equipe</Link>
             <Link href="/agenda" className={linkClass}>Agenda Ciça</Link>
             <Link href="/dashboard/compras" className={linkClass}>Compras</Link>
             <Link href="/dashboard/conferencia-pedidos" className={linkClass}>Conferência</Link>

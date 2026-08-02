@@ -85,13 +85,12 @@ function statusPillHtml(v) {
   return '<span class="status-pill status-pendente">Pendente</span>';
 }
 
-// Padrão fixo: segunda à tarde, quarta e sexta o motorista vai para Araras (entregas maiores).
+// Padrão fixo: segunda, quarta e sexta o motorista vai para Araras.
 // É só um lembrete visual — não bloqueia nem impede registrar outra coisa nesses dias.
 function padraoAraras(dataStr) {
   const [y, m, d] = dataStr.split('-').map(Number);
   const dow = new Date(y, m - 1, d).getDay();
-  if (dow === 1) return 'Araras (tarde)';
-  if (dow === 3 || dow === 5) return 'Araras';
+  if (dow === 1 || dow === 3 || dow === 5) return 'Araras';
   return null;
 }
 

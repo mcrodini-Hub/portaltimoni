@@ -44,6 +44,12 @@ body{
 }
 .brand-title{font-weight:600;font-size:18px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .brand-dim{color:var(--ink-soft);font-weight:500;}
+.topbar-actions{display:flex;align-items:center;gap:8px;}
+.portal-back{
+  display:inline-flex;align-items:center;min-height:34px;padding:7px 12px;border-radius:9px;
+  background:#eef0f4;color:var(--ink);font-size:14px;font-weight:700;text-decoration:none;
+}
+.portal-back:hover{background:#e2e5eb;}
 
 .icon-btn{
   border:none;background:transparent;color:var(--ink-soft);

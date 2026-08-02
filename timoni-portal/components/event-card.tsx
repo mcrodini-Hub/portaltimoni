@@ -48,7 +48,7 @@ export function EventCard({
   const isAllDay = !event.start.includes("T");
 
   const timeLabel = isAllDay
-    ? format(new Date(event.start), "dd/MM", { locale: ptBR })
+    ? `${event.start.slice(8, 10)}/${event.start.slice(5, 7)}`
     : `${format(new Date(event.start), "dd/MM HH:mm", { locale: ptBR })}–${format(
         new Date(event.end),
         "HH:mm",

@@ -207,12 +207,44 @@ export default async function ColaboradoresPage() {
             Férias
           </p>
           <h2 className="mt-3 text-xl font-semibold text-slate-950">
-            {nextVacation ? vacationName(nextVacation.summary) : "Nenhuma férias programada"}
+            {nextVacation ? vacationName(nextVacation.summary) : "Nenhum período programado"}
           </h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">
             {nextVacation
               ? formatVacationPeriod(nextVacation)
               : "Os próximos períodos de férias da equipe aparecerão aqui."}
+          </p>
+        </article>
+      </section>
+
+      <section className="mt-4 grid gap-4 md:grid-cols-2">
+        <article
+          id="processos"
+          className="rounded-3xl border border-amber-200 bg-amber-50 p-5 shadow-sm"
+        >
+          <p className="text-xs font-semibold uppercase tracking-wider text-amber-800">
+            Processos
+          </p>
+          <h2 className="mt-2 text-lg font-semibold text-slate-950">
+            Regras e orientações internas
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Os processos oficiais serão publicados de forma resumida e atualizada.
+          </p>
+        </article>
+
+        <article
+          id="boas-vindas"
+          className="rounded-3xl border border-cyan-200 bg-cyan-50 p-5 shadow-sm"
+        >
+          <p className="text-xs font-semibold uppercase tracking-wider text-cyan-800">
+            Boas-vindas
+          </p>
+          <h2 className="mt-2 text-lg font-semibold text-slate-950">
+            Nenhum novo colaborador informado
+          </h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            Novos integrantes serão apresentados aqui com nome, função e unidade.
           </p>
         </article>
       </section>

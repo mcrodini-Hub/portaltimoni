@@ -25,7 +25,6 @@ const processos = [
   { nome: "Compras", sigla: "CO", status: "Em organização" },
   { nome: "Motorista e Entregas", sigla: "ME", status: "Em organização" },
   { nome: "Caixa e Administrativo", sigla: "AD", status: "Em organização" },
-  { nome: "Marketing", sigla: "MK", status: "Em organização" },
 ];
 
 function todayLabel() {
@@ -102,7 +101,7 @@ export default function ColaboradoresPage() {
             </h2>
           </div>
           <div className="flex gap-2 overflow-x-auto">
-            {['Todos', 'Rio Claro', 'Araras'].map((item) => (
+            {["Todos", "Rio Claro", "Araras"].map((item) => (
               <span
                 key={item}
                 className="whitespace-nowrap rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600"
@@ -230,16 +229,10 @@ export default function ColaboradoresPage() {
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">
               Links úteis
             </p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
-              <Link
-                href="/dashboard"
-                className="rounded-2xl bg-white p-4 text-sm font-semibold text-slate-900 shadow-sm transition hover:shadow-md"
-              >
-                Portal Timoni →
-              </Link>
+            <div className="mt-4">
               <Link
                 href="/dashboard/reunioes"
-                className="rounded-2xl bg-white p-4 text-sm font-semibold text-slate-900 shadow-sm transition hover:shadow-md"
+                className="block rounded-2xl bg-white p-4 text-sm font-semibold text-slate-900 shadow-sm transition hover:shadow-md"
               >
                 Reuniões →
               </Link>

@@ -184,6 +184,18 @@ export default async function DashboardPage() {
         </article>
       </section>
 
+      <section className="mt-6 overflow-hidden rounded-3xl bg-[#0b1f5e] px-6 py-7 text-white shadow-lg sm:px-8">
+        <p className="text-xs font-semibold uppercase tracking-[0.22em] text-blue-200">
+          Marco da implantação · Agosto de 2026
+        </p>
+        <blockquote className="mt-3 max-w-4xl text-xl font-semibold leading-relaxed tracking-tight sm:text-2xl">
+          “A Casa Timoni inicia uma nova etapa: mais integrada, mais organizada e preparada para crescer com processos próprios.”
+        </blockquote>
+        <p className="mt-4 text-sm text-blue-100">
+          Portal Timoni · Idealizado e conduzido por Ciça Rodini
+        </p>
+      </section>
+
       <section className="mt-6">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">

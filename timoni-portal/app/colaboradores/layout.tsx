@@ -13,6 +13,7 @@ export default async function ColaboradoresLayout({
     redirect("/login");
   }
 
+  const isPortalOwner = session.user.email === process.env.AUTHORIZED_EMAIL;
   const navClass =
     "whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-white/85 transition hover:bg-white/10 hover:text-white";
 
@@ -34,12 +35,14 @@ export default async function ColaboradoresLayout({
             <a href="#pessoas" className={navClass}>Pessoas</a>
           </nav>
 
-          <Link
-            href="/dashboard"
-            className="shrink-0 rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-          >
-            Portal Timoni
-          </Link>
+          {isPortalOwner && (
+            <Link
+              href="/dashboard"
+              className="shrink-0 rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
+            >
+              Portal Timoni
+            </Link>
+          )}
 
           <form
             action={async () => {

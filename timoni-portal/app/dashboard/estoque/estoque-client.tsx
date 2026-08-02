@@ -76,7 +76,7 @@ export default function EstoqueClient(){
   async function order(n:Need){ const number=window.prompt("Número do pedido:",n.numeroPedido||""); if(number===null)return; const forecast=window.prompt("Previsão (AAAA-MM-DD):",n.previsaoEntrega||""); if(forecast===null)return; await post({action:"pedido",id:n.id,numeroPedido:number,previsao:forecast},n.id); }
   async function observe(n:Need){ const text=window.prompt("Resposta ao vendedor:",n.observacao||""); if(text!==null)await post({action:"observacao",id:n.id,texto:text},n.id); }
   async function arrived(n:Need){ if(window.confirm(`Confirmar chegada de ${n.codigo}?`))await post({action:"chegou",id:n.id},n.id); }
-  async function create(){ if(!selected)return setError("Selecione um produto."); if(!seller)return setError("Selecione o vendedor."); await post({action:"criar",codigo:selected,unidade:newUnit,vendedor:seller,quantidade:quantity,nota,clienteAguardando:waiting}); setSearch("");setSelected("");setQuantity("");setNote("");setWaiting(false); }
+  async function create(){ if(!selected)return setError("Selecione um produto."); if(!seller)return setError("Selecione o vendedor."); await post({action:"criar",codigo:selected,unidade:newUnit,vendedor:seller,quantidade:quantity,nota:note,clienteAguardando:waiting}); setSearch("");setSelected("");setQuantity("");setNote("");setWaiting(false); }
 
   const filtered=useMemo(()=>needs.filter(n=>unit==="todas"||n.unidade===unit),[needs,unit]);
   const openNeeds=filtered.filter(n=>["pendente","em_compra","observacao"].includes(n.status));

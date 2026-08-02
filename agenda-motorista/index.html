@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agenda de Motorista · Portal Timoni</title>
-<link rel="stylesheet" href="app.css?v=22">
+<link rel="stylesheet" href="app.css?v=23">
 </head>
 <body>
 
@@ -62,13 +62,13 @@
         <div class="cal-header">
           <h1 id="calLabel">--</h1>
           <div class="cal-nav">
-            <button class="btn-secondary btn-small" id="btnAnterior" title="Anterior">← Anterior</button>
+            <button class="btn-secondary btn-small" id="btnAnterior" title="7 dias anteriores">← 7 dias anteriores</button>
             <button class="btn-secondary btn-small" id="btnHoje">Hoje</button>
-            <button class="btn-secondary btn-small" id="btnProximo" title="Próximo">Próximo →</button>
+            <button class="btn-secondary btn-small" id="btnProximo" title="Próximos 7 dias">Próximos 7 dias →</button>
           </div>
         </div>
         <div class="filtro-loja view-switcher">
-          <button class="chip js-modo-cal ativo" data-modo="semana">Semana</button>
+          <button class="chip js-modo-cal ativo" data-modo="semana">Próximos 7 dias</button>
           <button class="chip js-modo-cal" data-modo="mes">Mês</button>
           <button class="chip js-modo-cal" data-modo="ano">Ano</button>
         </div>
@@ -119,7 +119,7 @@
 
     <!-- Lista de tudo que está agendado na semana, embaixo do calendário -->
     <div class="agenda-lista-semana-wrap" id="agendaListaSemanaWrap">
-      <h2 class="agenda-lista-semana-titulo">Agendado esta semana</h2>
+      <h2 class="agenda-lista-semana-titulo">Agendado nos próximos 7 dias</h2>
       <div id="agendaListaSemana"></div>
     </div>
 
@@ -253,7 +253,7 @@
 
 </main>
 
-<script src="lib/store.js?v=22"></script>
-<script src="app.js?v=22"></script>
+<script src="lib/store.js?v=23"></script>
+<script src="app.js?v=23"></script>
 </body>
 </html>

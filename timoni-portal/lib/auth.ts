@@ -18,8 +18,6 @@ declare module "next-auth/jwt" {
   }
 }
 
-// O access_token do Google expira em ~1h. Troca o refresh_token por um novo
-// access_token antes que qualquer rota de API use um token vencido.
 async function refreshAccessToken(token: JWT): Promise<JWT> {
   try {
     if (!token.refreshToken) throw new Error("Sem refresh_token disponível.");
@@ -57,7 +55,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
       authorization: {
         params: {
-          scope: "openid email profile https://www.googleapis.com/auth/calendar.events",
+          scope: [
+            "openid",
+            "email",
+            "profile",
+            "https://www.googleapis.com/auth/calendar.events",
+            "https://www.googleapis.com/auth/spreadsheets",
+          ].join(" "),
           access_type: "offline",
           prompt: "consent",
         },
@@ -71,7 +75,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     strategy: "jwt",
   },
   callbacks: {
-    // Único ponto de entrada: só o dono do portal pode logar.
     async signIn({ user }) {
       return user.email === process.env.AUTHORIZED_EMAIL;
     },

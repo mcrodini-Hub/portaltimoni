@@ -21,6 +21,13 @@ const modules: Module[] = [
     accent: "border-violet-200 bg-violet-50",
   },
   {
+    name: "Painel Timoni",
+    description: "Comunicados, reuniões, regras internas e informações da equipe.",
+    status: "Disponível",
+    href: "/colaboradores",
+    accent: "border-indigo-200 bg-indigo-50",
+  },
+  {
     name: "Compras",
     description: "Pendências, pedidos enviados e acesso ao módulo de compras.",
     status: "Disponível",
@@ -173,7 +180,7 @@ export default async function DashboardPage() {
           </p>
           <div className="mt-5 grid grid-cols-2 gap-3">
             <div className="rounded-xl bg-white p-4 shadow-sm">
-              <p className="text-2xl font-semibold text-slate-950">6</p>
+              <p className="text-2xl font-semibold text-slate-950">8</p>
               <p className="mt-1 text-xs text-slate-500">módulos ativos</p>
             </div>
             <div className="rounded-xl bg-white p-4 shadow-sm">

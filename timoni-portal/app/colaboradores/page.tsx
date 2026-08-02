@@ -13,7 +13,7 @@ export default function ColaboradoresPage() {
         </p>
       </header>
 
-      <section className="grid gap-4 lg:grid-cols-3">
+      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <article
           id="comunicados"
           className="rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm"
@@ -62,6 +62,21 @@ export default function ColaboradoresPage() {
           </h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">
             O próximo aniversariante da equipe aparecerá aqui.
+          </p>
+        </article>
+
+        <article
+          id="ferias"
+          className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm"
+        >
+          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">
+            Férias
+          </p>
+          <h2 className="mt-3 text-xl font-semibold text-slate-950">
+            Nenhuma férias programada
+          </h2>
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            Os próximos períodos de férias da equipe aparecerão aqui.
           </p>
         </article>
       </section>

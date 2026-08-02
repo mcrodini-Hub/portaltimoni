@@ -1,4 +1,129 @@
-export default function ColaboradoresPage() {
+import { auth } from "@/lib/auth";
+import { listEventsInRange } from "@/lib/google-calendar";
+import type { CalendarEventDTO } from "@/lib/types";
+
+function normalizeText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+}
+
+function parseEventDate(value: string) {
+  return new Date(value.includes("T") ? value : `${value}T12:00:00-03:00`);
+}
+
+function startOfToday() {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+
+  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return new Date(`${values.year}-${values.month}-${values.day}T00:00:00-03:00`);
+}
+
+function formatDate(value: string | Date) {
+  const date = typeof value === "string" ? parseEventDate(value) : value;
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(date);
+}
+
+function formatDateTime(event: CalendarEventDTO) {
+  const date = formatDate(event.start);
+  if (!event.start.includes("T")) return date;
+
+  const time = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parseEventDate(event.start));
+
+  return `${date} às ${time}`;
+}
+
+function formatVacationPeriod(event: CalendarEventDTO) {
+  const end = parseEventDate(event.end);
+  if (!event.end.includes("T")) end.setDate(end.getDate() - 1);
+  return `${formatDate(event.start)} a ${formatDate(end)}`;
+}
+
+function birthdayName(summary: string) {
+  return summary
+    .replace(/^anivers[aá]rio\s*/i, "")
+    .replace(/^aivers[aá]rio\s*/i, "")
+    .trim();
+}
+
+function vacationName(summary: string) {
+  return summary.replace(/\s*-\s*f[eé]rias\s*$/i, "").trim();
+}
+
+function nextEvent(
+  events: CalendarEventDTO[],
+  predicate: (event: CalendarEventDTO) => boolean,
+) {
+  return events
+    .filter(predicate)
+    .sort((a, b) => parseEventDate(a.start).getTime() - parseEventDate(b.start).getTime())[0];
+}
+
+export default async function ColaboradoresPage() {
+  const session = await auth();
+  const now = new Date();
+  const today = startOfToday();
+  let timoniEvents: CalendarEventDTO[] = [];
+
+  if (session?.accessToken && session.error !== "RefreshAccessTokenError") {
+    try {
+      const timeMin = new Date(now);
+      timeMin.setDate(timeMin.getDate() - 45);
+
+      const timeMax = new Date(now);
+      timeMax.setFullYear(timeMax.getFullYear() + 1);
+      timeMax.setDate(timeMax.getDate() + 10);
+
+      const events = await listEventsInRange(session.accessToken, {
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+        maxResults: 500,
+      });
+
+      timoniEvents = events.filter((event) => event.calendarKey === "timoni");
+    } catch {
+      timoniEvents = [];
+    }
+  }
+
+  const nextMeeting = nextEvent(
+    timoniEvents,
+    (event) =>
+      normalizeText(event.summary).includes("reuniao") &&
+      parseEventDate(event.start).getTime() >= now.getTime(),
+  );
+
+  const nextBirthday = nextEvent(timoniEvents, (event) => {
+    const title = normalizeText(event.summary);
+    return (
+      (title.includes("aniversario") || title.includes("aiversario")) &&
+      !title.includes("loja") &&
+      parseEventDate(event.start).getTime() >= today.getTime()
+    );
+  });
+
+  const nextVacation = nextEvent(
+    timoniEvents,
+    (event) =>
+      normalizeText(event.summary).includes("ferias") &&
+      parseEventDate(event.end).getTime() > now.getTime(),
+  );
+
   return (
     <div className="pb-10">
       <header className="mb-6">
@@ -10,6 +135,9 @@ export default function ColaboradoresPage() {
         </h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
           Informações essenciais para a equipe, sem excesso de conteúdo.
+        </p>
+        <p className="mt-1 text-xs text-slate-400">
+          Reuniões, aniversários e férias atualizados pela TIMONI AGENDA.
         </p>
       </header>
 
@@ -40,14 +168,18 @@ export default function ColaboradoresPage() {
             Próxima reunião
           </p>
           <h2 className="mt-3 text-xl font-semibold text-slate-950">
-            Reunião de resultados — Rio Claro
+            {nextMeeting?.summary || "Nenhuma reunião programada"}
           </h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            Consulte o convite oficial para horário, participantes e pauta.
+            {nextMeeting
+              ? nextMeeting.location || "Consulte a TIMONI AGENDA para os detalhes."
+              : "As próximas reuniões aparecerão aqui."}
           </p>
-          <p className="mt-5 text-sm font-semibold text-violet-800">
-            08/08/2026
-          </p>
+          {nextMeeting && (
+            <p className="mt-5 text-sm font-semibold text-violet-800">
+              {formatDateTime(nextMeeting)}
+            </p>
+          )}
         </article>
 
         <article
@@ -58,10 +190,12 @@ export default function ColaboradoresPage() {
             Aniversariante
           </p>
           <h2 className="mt-3 text-xl font-semibold text-slate-950">
-            Nenhum aniversariante informado
+            {nextBirthday ? birthdayName(nextBirthday.summary) : "Nenhum aniversariante informado"}
           </h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            O próximo aniversariante da equipe aparecerá aqui.
+            {nextBirthday
+              ? `Próximo aniversário em ${formatDate(nextBirthday.start)}.`
+              : "O próximo aniversariante da equipe aparecerá aqui."}
           </p>
         </article>
 
@@ -73,10 +207,12 @@ export default function ColaboradoresPage() {
             Férias
           </p>
           <h2 className="mt-3 text-xl font-semibold text-slate-950">
-            Nenhuma férias programada
+            {nextVacation ? vacationName(nextVacation.summary) : "Nenhuma férias programada"}
           </h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            Os próximos períodos de férias da equipe aparecerão aqui.
+            {nextVacation
+              ? formatVacationPeriod(nextVacation)
+              : "Os próximos períodos de férias da equipe aparecerão aqui."}
           </p>
         </article>
       </section>

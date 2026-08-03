@@ -1,6 +1,7 @@
 import NextAuth from "next-auth";
 import type { JWT } from "next-auth/jwt";
 import Google from "next-auth/providers/google";
+import { isAuthorizedUser } from "@/lib/access-control";
 
 declare module "next-auth" {
   interface Session {
@@ -76,7 +77,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   callbacks: {
     async signIn({ user }) {
-      return user.email === process.env.AUTHORIZED_EMAIL;
+      return isAuthorizedUser(user.email);
     },
     async jwt({ token, account }) {
       if (account) {

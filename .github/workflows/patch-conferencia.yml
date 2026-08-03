@@ -1,0 +1,65 @@
+name: Finalizar conferencia de precos
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/patch-conferencia.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Aplicar correcoes
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('timoni-portal/app/api/conferencia-pedidos/route.ts')
+          text = path.read_text(encoding='utf-8')
+
+          replacements = [
+              (
+                  'import { auth } from "@/lib/auth";\nimport { NextResponse } from "next/server";',
+                  'import { auth } from "@/lib/auth";\nimport { hasModuleAccess } from "@/lib/access-control";\nimport { NextResponse } from "next/server";',
+                  'importacao de controle de acesso',
+              ),
+              (
+                  '  if (!session?.user?.email) {\n    return NextResponse.json({ error: "Sessão expirada. Entre novamente no Portal." }, { status: 401 });\n  }\n\n  try {',
+                  '  if (!session?.user?.email) {\n    return NextResponse.json({ error: "Sessão expirada. Entre novamente no Portal." }, { status: 401 });\n  }\n\n  if (!hasModuleAccess(session.user.email, "conferencia")) {\n    return NextResponse.json({ error: "Acesso não autorizado a este módulo." }, { status: 403 });\n  }\n\n  try {',
+                  'validacao de permissao da API',
+              ),
+              (
+                  '    const apiKey = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN;',
+                  '    const apiKey =\n      process.env.AI_GATEWAY_API_KEY ||\n      process.env.VERCEL_OIDC_TOKEN ||\n      request.headers.get("x-vercel-oidc-token");',
+                  'fallback OIDC por cabecalho',
+              ),
+          ]
+
+          for old, new, label in replacements:
+              if old not in text:
+                  raise SystemExit(f'Trecho não encontrado: {label}')
+              text = text.replace(old, new, 1)
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Validar build
+        working-directory: timoni-portal
+        run: npm ci && npm run build
+
+      - name: Publicar correcoes
+        run: |
+          rm .github/workflows/patch-conferencia.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add timoni-portal/app/api/conferencia-pedidos/route.ts .github/workflows/patch-conferencia.yml
+          git commit -m "Fix AI Gateway authentication and secure conference API"
+          git push origin main

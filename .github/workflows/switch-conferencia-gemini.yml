@@ -256,3 +256,5 @@ function extractGeminiText(payload: unknown) {
                   .github/workflows/switch-conferencia-gemini.yml
           git commit -m "Switch conference module to Google Gemini free quota"
           git push origin main
+
+# trigger

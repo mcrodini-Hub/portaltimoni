@@ -1,0 +1,449 @@
+from pathlib import Path
+
+path = Path("timoni-portal/app/dashboard/conferencia-pedidos/xlsx.ts")
+text = path.read_text(encoding="utf-8")
+
+number_start = text.index("function numberCell(")
+number_end = text.index("function makeRow(", number_start)
+number_function = r'''function numberCell(
+  ref: string,
+  value: number | null | undefined,
+  style = 7,
+  missing = "—",
+) {
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    const fallbackStyle = [4, 5, 9, 15, 16, 17].includes(style) ? 11 : style;
+    return textCell(ref, missing, fallbackStyle);
+  }
+  return `<c r="${ref}" s="${style}" t="n"><v>${value}</v></c>`;
+}
+
+'''
+text = text[:number_start] + number_function + text[number_end:]
+
+sheet_start = text.index("function buildSheet(")
+sheet_end = text.index("function buildStyles()", sheet_start)
+sheet_function = r'''function splitSummary(value: string | null | undefined) {
+  const raw = String(value || "").trim();
+  if (!raw) return [];
+
+  const lines = raw
+    .split(/\r?\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length > 1) return lines.slice(0, 5);
+
+  const sentences = raw
+    .replace(/\s+/g, " ")
+    .split(/\.\s+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .map((sentence) => (/[.!?]$/.test(sentence) ? sentence : `${sentence}.`));
+
+  return sentences.length > 1 ? sentences.slice(0, 5) : [raw];
+}
+
+function rowHeightForText(value: string, base = 22, charsPerLine = 145) {
+  const lines = Math.max(1, Math.ceil(String(value || "").length / charsPerLine));
+  return Math.min(84, Math.max(base, lines * 18));
+}
+
+function buildSheet(result: ConferenciaResult) {
+  const rows: string[] = [];
+  const merges: string[] = [];
+  let row = 1;
+
+  const supplier = normalizeText(result.fornecedor_curto || result.fornecedor_nome);
+  const pedido = normalizeText(result.pedido_numero);
+  const referenceDate = normalizeText(
+    result.data_documento_fornecedor || result.data_pedido,
+  );
+  const title = `Conferencia - Pedido MCR ${pedido} x ${supplier} (${referenceDate})`;
+
+  rows.push(makeRow(row, [textCell(`A${row}`, title, 1)], 26));
+  merges.push(`A${row}:I${row}`);
+  row += 1;
+
+  const identification = [
+    `Fornecedor: ${normalizeText(result.fornecedor_nome)}`,
+    `Pedido MCR: ${normalizeText(result.data_pedido)}`,
+    `Documento fornecedor: ${normalizeText(result.data_documento_fornecedor)}`,
+    `Pgto pedido: ${normalizeText(result.condicoes.pagamento_mcr)}`,
+    `Pgto fornecedor: ${normalizeText(result.condicoes.pagamento_fornecedor)}`,
+    `Frete: ${normalizeText(result.condicoes.frete_fornecedor || result.condicoes.frete_mcr)}`,
+  ].join(" - ");
+  rows.push(
+    makeRow(
+      row,
+      [textCell(`A${row}`, identification, 12)],
+      rowHeightForText(identification, 20, 190),
+    ),
+  );
+  merges.push(`A${row}:I${row}`);
+  row += 2;
+
+  rows.push(makeRow(row, [textCell(`A${row}`, "ATENÇÃO", 2)], 24));
+  merges.push(`A${row}:I${row}`);
+  row += 2;
+
+  rows.push(makeRow(row, [textCell(`A${row}`, "RESUMO", 3)], 22));
+  merges.push(`A${row}:I${row}`);
+  row += 1;
+
+  const summary = splitSummary(result.resumo_texto);
+  const summaryLines = summary.length
+    ? [...summary]
+    : [
+        `Total de itens: ${result.contagens.itens_mcr} no pedido MCR / ${result.contagens.itens_fornecedor} no documento do fornecedor.`,
+      ];
+
+  const totalItemsLine = `Total de itens: ${result.contagens.itens_mcr} no pedido MCR / ${result.contagens.itens_fornecedor} no documento do fornecedor.`;
+  if (!summaryLines.some((line) => /total de itens|itens no pedido/i.test(line))) {
+    summaryLines.unshift(totalItemsLine);
+  }
+
+  const priceLine = `Preços divergentes: ${result.contagens.precos_divergentes} item(ns).`;
+  if (
+    result.contagens.precos_divergentes > 0 &&
+    !summaryLines.some((line) => /preç|reajuste/i.test(line))
+  ) {
+    summaryLines.push(priceLine);
+  }
+
+  if (
+    result.contagens.outras_divergencias > 0 &&
+    !summaryLines.some((line) => /diverg|faltante|extra|quantidade|código|codigo/i.test(line))
+  ) {
+    summaryLines.push(
+      `Outras divergências: ${result.contagens.outras_divergencias} item(ns).`,
+    );
+  }
+
+  if (
+    typeof result.totais.subtotal_mcr === "number" &&
+    !summaryLines.some((line) => /total.*mcr|subtotal.*mcr/i.test(line))
+  ) {
+    summaryLines.push(`Total produtos pedido MCR: ${formatCurrency(result.totais.subtotal_mcr)}.`);
+  }
+
+  if (
+    typeof result.totais.total_fornecedor === "number" &&
+    !summaryLines.some((line) => /total.*fornecedor|total.*documento/i.test(line))
+  ) {
+    summaryLines.push(
+      `Total do documento do fornecedor: ${formatCurrency(result.totais.total_fornecedor)}.`,
+    );
+  }
+
+  for (const line of summaryLines.slice(0, 7)) {
+    rows.push(
+      makeRow(
+        row,
+        [textCell(`A${row}`, line, 13)],
+        rowHeightForText(line, 22, 165),
+      ),
+    );
+    merges.push(`A${row}:I${row}`);
+    row += 1;
+  }
+
+  row += 1;
+  rows.push(makeRow(row, [textCell(`A${row}`, "PONTOS DE ATENÇÃO", 20)], 22));
+  merges.push(`A${row}:I${row}`);
+  row += 1;
+
+  const attention = result.pontos_atencao.length
+    ? result.pontos_atencao
+    : ["Nenhuma divergência relevante identificada."];
+  for (const point of attention) {
+    const value = `- ${normalizeText(point)}`;
+    rows.push(
+      makeRow(
+        row,
+        [textCell(`A${row}`, value, 13)],
+        rowHeightForText(value, 22, 155),
+      ),
+    );
+    merges.push(`A${row}:I${row}`);
+    row += 1;
+  }
+
+  row += 1;
+  rows.push(makeRow(row, [textCell(`A${row}`, "LEGENDA DE CORES", 3)], 22));
+  merges.push(`A${row}:I${row}`);
+  row += 1;
+
+  rows.push(
+    makeRow(
+      row,
+      [textCell(`A${row}`, "Verde: preço do fornecedor igual ou menor que o do pedido", 18)],
+      22,
+    ),
+  );
+  merges.push(`A${row}:I${row}`);
+  row += 1;
+
+  rows.push(
+    makeRow(
+      row,
+      [textCell(`A${row}`, "Vermelho: preço do fornecedor maior que o do pedido", 19)],
+      22,
+    ),
+  );
+  merges.push(`A${row}:I${row}`);
+  row += 1;
+
+  rows.push(
+    makeRow(
+      row,
+      [textCell(`A${row}`, "Laranja: divergência de quantidade, código ou descrição/especificação", 6)],
+      22,
+    ),
+  );
+  merges.push(`A${row}:I${row}`);
+  row += 2;
+
+  const headers = [
+    "P-L (local.)",
+    "Cod. MCR",
+    "Cod. Forn.\npedido MCR",
+    `Cod. Forn.\n${supplier}`,
+    "Descrição (pedido MCR)",
+    "Qtd\npedido MCR",
+    `Qtd\n${supplier}`,
+    "Preço\npedido MCR",
+    `Preço\n${supplier}`,
+  ];
+  rows.push(
+    makeRow(
+      row,
+      headers.map((header, index) =>
+        textCell(`${colName(index + 1)}${row}`, header, 14),
+      ),
+      42,
+    ),
+  );
+  row += 1;
+
+  for (const item of result.itens) {
+    const divergencias = new Set(item.divergencias || []);
+    const wholeOrange = [
+      "item_faltante",
+      "item_extra",
+      "pareamento_incerto",
+      "outra",
+    ].some((type) => divergencias.has(type as Divergencia));
+
+    const priceComparable =
+      typeof item.preco_mcr === "number" &&
+      Number.isFinite(item.preco_mcr) &&
+      typeof item.preco_fornecedor === "number" &&
+      Number.isFinite(item.preco_fornecedor);
+    const supplierPriceHigher =
+      priceComparable &&
+      (item.preco_fornecedor as number) > (item.preco_mcr as number) + 0.05;
+    const supplierPriceLowerOrEqual =
+      priceComparable &&
+      (item.preco_fornecedor as number) <= (item.preco_mcr as number) + 0.05;
+
+    const priceSupplierStyle = divergencias.has("preco")
+      ? supplierPriceHigher
+        ? 5
+        : supplierPriceLowerOrEqual
+          ? 17
+          : 9
+      : wholeOrange
+        ? 9
+        : 4;
+
+    const styles = {
+      a: wholeOrange ? 6 : 21,
+      b: wholeOrange ? 6 : 21,
+      c: wholeOrange || divergencias.has("codigo") ? 6 : 21,
+      d: wholeOrange || divergencias.has("codigo") ? 6 : 21,
+      e: wholeOrange || divergencias.has("descricao") ? 6 : 22,
+      f: wholeOrange || divergencias.has("quantidade") ? 8 : 7,
+      g: wholeOrange || divergencias.has("quantidade") ? 8 : 7,
+      h: wholeOrange ? 9 : 4,
+      i: priceSupplierStyle,
+    };
+
+    const description = normalizeText(item.descricao);
+    rows.push(
+      makeRow(
+        row,
+        [
+          textCell(`A${row}`, normalizeText(item.pl), styles.a),
+          textCell(`B${row}`, normalizeText(item.codigo_mcr), styles.b),
+          textCell(
+            `C${row}`,
+            normalizeText(item.codigo_fornecedor_pedido_mcr),
+            styles.c,
+          ),
+          textCell(
+            `D${row}`,
+            normalizeText(item.codigo_fornecedor_documento),
+            styles.d,
+          ),
+          textCell(`E${row}`, description, styles.e),
+          numberCell(`F${row}`, item.quantidade_mcr, styles.f),
+          numberCell(`G${row}`, item.quantidade_fornecedor, styles.g),
+          numberCell(`H${row}`, item.preco_mcr, styles.h),
+          numberCell(`I${row}`, item.preco_fornecedor, styles.i),
+        ],
+        rowHeightForText(description, 24, 46),
+      ),
+    );
+    row += 1;
+  }
+
+  rows.push(
+    makeRow(
+      row,
+      [
+        textCell(`A${row}`, "TOTAL DO PEDIDO", 10),
+        numberCell(`H${row}`, result.totais.subtotal_mcr, 15, "NÃO INFORMADO"),
+        numberCell(
+          `I${row}`,
+          result.totais.subtotal_fornecedor,
+          15,
+          "NÃO INFORMADO",
+        ),
+      ],
+      32,
+    ),
+  );
+  merges.push(`A${row}:G${row}`);
+  row += 1;
+
+  rows.push(
+    makeRow(
+      row,
+      [
+        textCell(`H${row}`, "Total produtos pedido MCR", 16),
+        textCell(`I${row}`, `Subtotal ${supplier}`, 16),
+      ],
+      24,
+    ),
+  );
+  row += 1;
+
+  rows.push(
+    makeRow(
+      row,
+      [
+        textCell(`H${row}`, "Total forn. c/ impostos, frete e desconto:", 16),
+        numberCell(
+          `I${row}`,
+          result.totais.total_fornecedor,
+          15,
+          "NÃO INFORMADO",
+        ),
+      ],
+      42,
+    ),
+  );
+
+  const lastRow = row;
+  const mergeXml = merges.length
+    ? `<mergeCells count="${merges.length}">${merges
+        .map((ref) => `<mergeCell ref="${ref}"/>`)
+        .join("")}</mergeCells>`
+    : "";
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
+  <dimension ref="A1:I${lastRow}"/>
+  <sheetViews><sheetView workbookViewId="0" showGridLines="1"/></sheetViews>
+  <sheetFormatPr defaultRowHeight="18"/>
+  <cols>
+    <col min="1" max="1" width="13" customWidth="1"/>
+    <col min="2" max="2" width="13" customWidth="1"/>
+    <col min="3" max="4" width="19" customWidth="1"/>
+    <col min="5" max="5" width="48" customWidth="1"/>
+    <col min="6" max="7" width="14" customWidth="1"/>
+    <col min="8" max="9" width="16" customWidth="1"/>
+  </cols>
+  <sheetData>${rows.join("")}</sheetData>
+  ${mergeXml}
+  <pageMargins left="0.25" right="0.25" top="0.35" bottom="0.35" header="0.2" footer="0.2"/>
+  <pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0" paperSize="9"/>
+</worksheet>`;
+}
+
+'''
+text = text[:sheet_start] + sheet_function + text[sheet_end:]
+
+styles_start = text.index("function buildStyles()")
+styles_end = text.index("function formatCurrency(", styles_start)
+styles_function = r'''function buildStyles() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <numFmts count="1">
+    <numFmt numFmtId="164" formatCode="&quot;R$ &quot;#,##0.00"/>
+  </numFmts>
+  <fonts count="8">
+    <font><sz val="12"/><name val="Calibri"/><family val="2"/></font>
+    <font><b/><i/><color rgb="FF1A3A6B"/><sz val="14"/><name val="Calibri"/><family val="2"/></font>
+    <font><b/><color rgb="FFFFFFFF"/><sz val="12"/><name val="Calibri"/><family val="2"/></font>
+    <font><b/><color rgb="FF1A3A6B"/><sz val="12"/><name val="Calibri"/><family val="2"/></font>
+    <font><i/><color rgb="FF666666"/><sz val="10"/><name val="Calibri"/><family val="2"/></font>
+    <font><b/><sz val="12"/><name val="Calibri"/><family val="2"/></font>
+    <font><b/><color rgb="FFFFFFFF"/><sz val="12"/><name val="Calibri"/><family val="2"/></font>
+    <font><b/><color rgb="FFBF9000"/><sz val="12"/><name val="Calibri"/><family val="2"/></font>
+  </fonts>
+  <fills count="8">
+    <fill><patternFill patternType="none"/></fill>
+    <fill><patternFill patternType="gray125"/></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF1A3A6B"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFBF9000"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFFFA726"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFE53935"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FF66BB6A"/><bgColor indexed="64"/></patternFill></fill>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill>
+  </fills>
+  <borders count="2">
+    <border><left/><right/><top/><bottom/><diagonal/></border>
+    <border>
+      <left style="thin"><color rgb="FFCCCCCC"/></left>
+      <right style="thin"><color rgb="FFCCCCCC"/></right>
+      <top style="thin"><color rgb="FFCCCCCC"/></top>
+      <bottom style="thin"><color rgb="FFCCCCCC"/></bottom>
+      <diagonal/>
+    </border>
+  </borders>
+  <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+  <cellXfs count="23">
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+    <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="2" fillId="3" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>
+    <xf numFmtId="164" fontId="0" fillId="0" borderId="1" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="164" fontId="6" fillId="5" borderId="1" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="4" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="164" fontId="0" fillId="4" borderId="1" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="5" fillId="7" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="top" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="2" fillId="2" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="164" fontId="5" fillId="7" borderId="1" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="top" wrapText="1"/></xf>
+    <xf numFmtId="164" fontId="5" fillId="6" borderId="1" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="6" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="6" fillId="5" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="7" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+  </cellXfs>
+  <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
+}
+
+'''
+text = text[:styles_start] + styles_function + text[styles_end:]
+path.write_text(text, encoding="utf-8")

@@ -14,11 +14,16 @@ const protectedRoutes: Array<{ prefix: string; module: PortalModule }> = [
 ];
 
 export default auth((request) => {
+  const pathname = request.nextUrl.pathname;
+
+  if (pathname === "/api/conferencia-pedidos") {
+    return NextResponse.rewrite(new URL("/api/conferencia-gratis", request.url));
+  }
+
   if (!request.auth?.user?.email) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  const pathname = request.nextUrl.pathname;
   const protectedRoute = protectedRoutes.find(({ prefix }) => pathname.startsWith(prefix));
 
   if (protectedRoute && !hasModuleAccess(request.auth.user.email, protectedRoute.module)) {
@@ -29,5 +34,10 @@ export default auth((request) => {
 });
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/agenda/:path*", "/colaboradores/:path*"],
+  matcher: [
+    "/dashboard/:path*",
+    "/agenda/:path*",
+    "/colaboradores/:path*",
+    "/api/conferencia-pedidos",
+  ],
 };

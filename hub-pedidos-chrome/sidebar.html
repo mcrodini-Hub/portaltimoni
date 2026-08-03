@@ -61,8 +61,7 @@
           </div>
           <ul id="fornecedores-lista" class="supplier-list"></ul>
         </div>
-        <button id="btn-abrir-drive" class="btn btn-primary" disabled>Abrir Google Drive</button>
-        <p class="hint-text">No Drive, abra manualmente a planilha do fornecedor.</p>
+        <button id="btn-abrir-drive" hidden style="display:none">Abrir Google Drive</button>
       </div>
     </section>
 
@@ -108,12 +107,9 @@
           <p><strong>Itens a enviar:</strong> <span id="resumo-itens">0</span></p>
         </div>
         <button id="btn-atualizar-trello" class="btn btn-primary" disabled>Atualizar Trello</button>
-        <div id="confirm-wrap" class="confirm-box" hidden>
-          <p>Confirma atualizar os cartões do Trello com os itens extraídos?</p>
-          <div class="confirm-actions">
-            <button id="btn-confirmar-update" class="btn btn-primary">Confirmar</button>
-            <button id="btn-cancelar-update" class="btn btn-secondary">Cancelar</button>
-          </div>
+        <div id="confirm-wrap" hidden style="display:none!important">
+          <button id="btn-confirmar-update" type="button" hidden></button>
+          <button id="btn-cancelar-update" type="button" hidden></button>
         </div>
         <ul id="resultados-lista" class="result-list"></ul>
       </div>
@@ -144,5 +140,6 @@
   <script src="lib/state.js"></script>
   <script src="lib/messages.js"></script>
   <script src="sidebar.js"></script>
+  <script src="sidebar-direct-update.js"></script>
 </body>
 </html>

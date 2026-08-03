@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agenda de Motorista · Portal Timoni</title>
-<link rel="stylesheet" href="app.css?v=24">
+<link rel="stylesheet" href="app.css?v=25">
 </head>
 <body>
 
@@ -17,16 +17,16 @@
   </div>
   <div class="topbar-actions">
     <a class="portal-back" href="https://portaltimoni.vercel.app/">← Voltar ao Portal</a>
-    <button id="btnModoMotorista" class="icon-btn" title="Modo motorista" aria-label="Modo motorista">🚚</button>
+    <button id="btnModoMotorista" class="icon-btn" title="Modo motorista" aria-label="Modo motorista" hidden>🚚</button>
     <button id="btnConfig" class="icon-btn" title="Configurar planilha" aria-label="Configurar planilha">⚙</button>
   </div>
 </header>
 
 <main class="content" id="topoConteudo">
 
-  <!-- MODO MOTORISTA: lista simples do dia, check-in/check-out e observação -->
+  <!-- TELA DO MOTORISTA: uso direto pelo celular -->
   <section id="telaMotorista" hidden>
-    <div class="cal-header">
+    <div class="cal-header motorista-header">
       <h1 id="motoristaDataLabel">--</h1>
       <div class="cal-nav">
         <button class="btn-secondary btn-small" id="btnMotoristaHoje">Hoje</button>
@@ -36,7 +36,6 @@
     </div>
     <p class="conn-status err" id="motoristaModoLocal" hidden>⚠ Sem planilha configurada — as marcações ficam só neste celular, outros computadores não vão ver.</p>
     <div id="listaMotorista"></div>
-    <button class="btn-secondary" id="btnSairMotorista" style="margin-top:16px;">← Sair do modo motorista</button>
   </section>
 
   <!-- CONFIGURAÇÃO -->
@@ -254,7 +253,7 @@
 
 </main>
 
-<script src="lib/store.js?v=24"></script>
-<script src="app.js?v=24"></script>
+<script src="lib/store.js?v=25"></script>
+<script src="app.js?v=25"></script>
 </body>
 </html>

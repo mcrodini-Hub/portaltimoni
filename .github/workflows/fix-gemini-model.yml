@@ -1,0 +1,45 @@
+name: Corrigir modelo Gemini da Conferencia
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/fix-gemini-model.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Atualizar modelo do Google Gemini
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('timoni-portal/app/api/conferencia-gratis/route.ts')
+          text = path.read_text(encoding='utf-8')
+          old = 'models/gemini-2.5-flash:generateContent'
+          new = 'models/gemini-flash-latest:generateContent'
+          if old not in text:
+              raise SystemExit('Modelo antigo não encontrado')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+      - name: Validar build
+        working-directory: timoni-portal
+        run: npm ci && npm run build
+
+      - name: Publicar correcao
+        run: |
+          rm .github/workflows/fix-gemini-model.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add timoni-portal/app/api/conferencia-gratis/route.ts .github/workflows/fix-gemini-model.yml
+          git commit -m "Update conference module to Gemini Flash latest"
+          git push origin main

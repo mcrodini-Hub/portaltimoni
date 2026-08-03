@@ -32,6 +32,10 @@ function formatDateTime(event: CalendarEventDTO) {
   return `${formatDate(event.start)} às ${time}`;
 }
 
+function formatMeetingTitle(summary: string) {
+  return summary.replace(/^ci[cç]a\s*[-–—]\s*/i, "").trim();
+}
+
 function nextEvent(events: CalendarEventDTO[], predicate: (event: CalendarEventDTO) => boolean) {
   return events
     .filter(predicate)
@@ -106,7 +110,7 @@ export default async function ColaboradoresPage() {
         <article className="rounded-3xl border border-violet-200 bg-violet-50 p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Próxima reunião</p>
           <h2 className="mt-3 text-xl font-semibold text-slate-950">
-            {nextMeeting?.summary || "Nenhuma reunião programada"}
+            {nextMeeting ? formatMeetingTitle(nextMeeting.summary) : "Nenhuma reunião programada"}
           </h2>
           {nextMeeting && <p className="mt-5 text-sm font-semibold text-violet-800">{formatDateTime(nextMeeting)}</p>}
         </article>

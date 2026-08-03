@@ -11,6 +11,8 @@
 // Compartilhado com app.js via <script> normal (mesmo padrão do hub-pedidos-chrome / estoque-chrome).
 
 (function (root) {
+  const DEFAULT_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwy9QfpEbdGtTIiC2OFuZAUx0jIPFsXPLZKedfGp79VJ6mlzLYus_wjI2IvFPoeE6Pc/exec';
+
   const KEYS = Object.freeze({
     LOJA: 'agendaMotoristaLoja',
     WEBAPP_URL: 'agendaMotoristaWebAppUrl',
@@ -47,7 +49,10 @@
     return set(KEYS.LOJA, loja);
   }
 
-  async function getWebAppUrl() { return get(KEYS.WEBAPP_URL, ''); }
+  async function getWebAppUrl() {
+    const configurada = await get(KEYS.WEBAPP_URL, '');
+    return configurada || DEFAULT_WEBAPP_URL;
+  }
   async function setWebAppUrl(url) {
     const limpa = (url || '').trim();
     if (limpa && !/^https:\/\/script\.google\.com\/.*\/exec(\?.*)?$/.test(limpa)) {

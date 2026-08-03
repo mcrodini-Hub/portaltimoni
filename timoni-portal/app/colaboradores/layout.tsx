@@ -1,6 +1,7 @@
 import { auth, signOut } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { hasModuleAccess } from "@/lib/access-control";
 
 export default async function ColaboradoresLayout({
   children,
@@ -9,11 +10,13 @@ export default async function ColaboradoresLayout({
 }) {
   const session = await auth();
 
-  if (!session?.user) {
+  if (!session?.user?.email) {
     redirect("/login");
   }
 
-  const isPortalOwner = session.user.email === process.env.AUTHORIZED_EMAIL;
+  const email = session.user.email;
+  const isPortalOwner = email === process.env.AUTHORIZED_EMAIL;
+  const canAccessStock = hasModuleAccess(email, "estoque");
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -27,6 +30,15 @@ export default async function ColaboradoresLayout({
           </Link>
 
           <div className="flex items-center gap-2">
+            {canAccessStock && (
+              <Link
+                href="/dashboard/estoque"
+                className="shrink-0 rounded-lg bg-white px-3 py-2 text-sm font-semibold text-[#0b1f5e] transition hover:bg-blue-50"
+              >
+                Estoque
+              </Link>
+            )}
+
             {isPortalOwner && (
               <Link
                 href="/dashboard"

@@ -110,6 +110,7 @@ h1 { font-family: var(--font-head); font-size: clamp(28px, 4vw, 40px); font-weig
 .module-eyebrow { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--sw); font-weight: 600; margin: 0; }
 .module h2.module-title { font-family: var(--font-head); font-size: 21px; font-weight: 800; letter-spacing: -0.01em; margin: 0; flex-basis: 100%; }
 .module-desc { font-size: 13.5px; color: var(--text-soft); margin: -6px 0 0; max-width: 60ch; flex-basis: 100%; }
+.module-error { font-family: var(--font-mono); font-size: 12.5px; color: var(--critical); background: var(--critical-bg); border-radius: 8px; padding: 8px 12px; margin: 4px 0 0; max-width: 70ch; flex-basis: 100%; }
 
 /* ---------- Cards ---------- */
 .board { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 22px; }

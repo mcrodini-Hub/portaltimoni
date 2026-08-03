@@ -183,6 +183,20 @@
     el.title = title || '';
   }
 
+  // Mostra a mensagem de erro por escrito, direto na tela — o title (tooltip) do badge
+  // já carregava o texto, mas exige passar o mouse em cima, o que não é óbvio.
+  function setModuleError(moduleId, msg) {
+    var el = document.getElementById('err-' + moduleId);
+    if (!el) return;
+    if (msg) {
+      el.textContent = msg;
+      el.hidden = false;
+    } else {
+      el.hidden = true;
+      el.textContent = '';
+    }
+  }
+
   function renderEstoque(result) {
     var badgeConsulta = document.getElementById('estoque-consulta-badge').querySelector('.live-badge');
     var badgeCentral = document.getElementById('estoque-central-badge');
@@ -190,16 +204,19 @@
     if (!result.configured) {
       setBadge(badgeConsulta, 'demo');
       setBadge(badgeCentral, 'demo');
+      setModuleError('estoque', null);
       return;
     }
     if (result.error) {
       setBadge(badgeConsulta, 'erro', result.error);
       setBadge(badgeCentral, 'erro', result.error);
+      setModuleError('estoque', result.error);
       return;
     }
 
     setBadge(badgeConsulta, 'live');
     setBadge(badgeCentral, 'live');
+    setModuleError('estoque', null);
 
     var pillRow = document.getElementById('estoque-consulta-badge');
     pillRow.innerHTML = '';
@@ -266,10 +283,11 @@
 
   function renderMotorista(result) {
     var badge = document.getElementById('motorista-badge');
-    if (!result.configured) { setBadge(badge, 'demo'); return; }
-    if (result.error) { setBadge(badge, 'erro', result.error); return; }
+    if (!result.configured) { setBadge(badge, 'demo'); setModuleError('motorista', null); return; }
+    if (result.error) { setBadge(badge, 'erro', result.error); setModuleError('motorista', result.error); return; }
 
     setBadge(badge, 'live');
+    setModuleError('motorista', null);
     var stats = document.getElementById('motorista-stats');
     stats.innerHTML =
       '<div class="stat ok"><b>' + result.entregas + '</b><span>entregas</span></div>' +
@@ -291,10 +309,11 @@
 
   function renderAgenda(result) {
     var badge = document.getElementById('agenda-badge');
-    if (!result.configured) { setBadge(badge, 'demo'); return; }
-    if (result.error) { setBadge(badge, 'erro', result.error); return; }
+    if (!result.configured) { setBadge(badge, 'demo'); setModuleError('agenda', null); return; }
+    if (result.error) { setBadge(badge, 'erro', result.error); setModuleError('agenda', result.error); return; }
 
     setBadge(badge, 'live');
+    setModuleError('agenda', null);
     var pill = document.getElementById('agenda-pill');
     pill.className = result.total > 0 ? 'pill pill-ok' : 'pill pill-neutral';
     pill.textContent = result.total + (result.total === 1 ? ' evento hoje' : ' eventos hoje');
@@ -336,6 +355,7 @@
       setBadge(badges[2], 'demo');
       setBadge(badges[3], 'demo');
       setBadge(badges[4], 'demo');
+      setModuleError('compras', null);
       return;
     }
     if (result.error || result.vazio) {
@@ -344,6 +364,7 @@
       [fornecedoresBadge, badges[1], badges[2], badges[3], badges[4]].forEach(function (b) {
         setBadge(b, estado, titulo);
       });
+      setModuleError('compras', result.error || null);
       return;
     }
 
@@ -352,6 +373,7 @@
     setBadge(badges[2], 'live');
     setBadge(badges[3], 'live');
     setBadge(badges[4], 'live');
+    setModuleError('compras', null);
 
     // Fornecedores
     var fPillRow = document.getElementById('compras-fornecedores-pills');

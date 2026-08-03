@@ -78,7 +78,10 @@
   async function chamar(fazerFetch) {
     let res;
     try {
-      res = await fazerFetch();
+      res = await Promise.race([
+        fazerFetch(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('tempo esgotado')), 12000))
+      ]);
     } catch (e) {
       throw new Error('Não foi possível falar com a planilha. Verifique a conexão e a URL.');
     }

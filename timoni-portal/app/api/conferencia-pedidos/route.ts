@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { hasModuleAccess } from "@/lib/access-control";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -242,6 +243,10 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Sessão expirada. Entre novamente no Portal." }, { status: 401 });
   }
 
+  if (!hasModuleAccess(session.user.email, "conferencia")) {
+    return NextResponse.json({ error: "Acesso não autorizado a este módulo." }, { status: 403 });
+  }
+
   try {
     const formData = await request.formData();
     const pedidoFiles = getFiles(formData, "pedido");
@@ -258,7 +263,10 @@ export async function POST(request: Request) {
       throw new Error("Os arquivos ultrapassam 4,2 MB. Reduza o tamanho das imagens ou envie menos páginas por vez.");
     }
 
-    const apiKey = process.env.AI_GATEWAY_API_KEY || process.env.VERCEL_OIDC_TOKEN;
+    const apiKey =
+      process.env.AI_GATEWAY_API_KEY ||
+      process.env.VERCEL_OIDC_TOKEN ||
+      request.headers.get("x-vercel-oidc-token");
     if (!apiKey) {
       return NextResponse.json(
         { error: "A análise automática ainda não está autenticada na Vercel." },

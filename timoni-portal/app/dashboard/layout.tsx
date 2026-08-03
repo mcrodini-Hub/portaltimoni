@@ -1,6 +1,7 @@
 import { auth, signOut } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import { hasModuleAccess } from "@/lib/access-control";
 
 const MOTORISTA_URL =
   "https://mcrodini-hub.github.io/portaltimoni/agenda-motorista/";
@@ -12,10 +13,11 @@ export default async function DashboardLayout({
 }) {
   const session = await auth();
 
-  if (!session?.user) {
+  if (!session?.user?.email) {
     redirect("/login");
   }
 
+  const email = session.user.email;
   const linkClass =
     "whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-white/90 transition hover:bg-white/10 hover:text-white";
 
@@ -32,14 +34,33 @@ export default async function DashboardLayout({
 
           <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto py-2">
             <Link href="/dashboard" className={linkClass}>Início</Link>
-            <Link href="/colaboradores" className={linkClass}>Painel Timoni</Link>
-            <Link href="/agenda" className={linkClass}>Agenda Ciça</Link>
-            <Link href="/dashboard/compras" className={linkClass}>Compras</Link>
-            <Link href="/dashboard/conferencia-pedidos" className={linkClass}>Conferência</Link>
-            <Link href="/dashboard/estoque" className={linkClass}>Estoque</Link>
-            <a href={MOTORISTA_URL} target="_blank" rel="noreferrer" className={linkClass}>Motorista</a>
-            <Link href="/dashboard/reunioes" className={linkClass}>Reuniões</Link>
-            <Link href="/dashboard/marketing" className={linkClass}>Marketing</Link>
+            {hasModuleAccess(email, "painel") && (
+              <Link href="/colaboradores" className={linkClass}>Painel Timoni</Link>
+            )}
+            {hasModuleAccess(email, "agenda") && (
+              <Link href="/agenda" className={linkClass}>Agenda Ciça</Link>
+            )}
+            {hasModuleAccess(email, "compras") && (
+              <Link href="/dashboard/compras" className={linkClass}>Compras</Link>
+            )}
+            {hasModuleAccess(email, "conferencia") && (
+              <Link href="/dashboard/conferencia-pedidos" className={linkClass}>Conferência</Link>
+            )}
+            {hasModuleAccess(email, "estoque") && (
+              <Link href="/dashboard/estoque" className={linkClass}>Estoque</Link>
+            )}
+            {hasModuleAccess(email, "motorista") && (
+              <a href={MOTORISTA_URL} target="_blank" rel="noreferrer" className={linkClass}>Motorista</a>
+            )}
+            {hasModuleAccess(email, "reunioes") && (
+              <Link href="/dashboard/reunioes" className={linkClass}>Reuniões</Link>
+            )}
+            {hasModuleAccess(email, "marketing") && (
+              <Link href="/dashboard/marketing" className={linkClass}>Marketing</Link>
+            )}
+            {hasModuleAccess(email, "financeiro") && (
+              <Link href="/dashboard/financeiro" className={linkClass}>Financeiro</Link>
+            )}
           </nav>
 
           <form

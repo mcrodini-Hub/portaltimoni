@@ -1,0 +1,39 @@
+name: Corrigir formato Excel da Conferencia
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/fix-conference-xlsx-layout.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Aplicar padrao das planilhas de referencia
+        run: python .github/scripts/fix_conference_xlsx_layout.py
+
+      - name: Validar build
+        working-directory: timoni-portal
+        run: npm ci && npm run build
+
+      - name: Publicar correcao
+        run: |
+          rm .github/workflows/fix-conference-xlsx-layout.yml
+          rm .github/scripts/fix_conference_xlsx_layout.py
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add timoni-portal/app/dashboard/conferencia-pedidos/xlsx.ts \
+                  .github/workflows/fix-conference-xlsx-layout.yml \
+                  .github/scripts/fix_conference_xlsx_layout.py
+          git commit -m "Match conference Excel to approved reference layout"
+          git push origin main
+
+# trigger

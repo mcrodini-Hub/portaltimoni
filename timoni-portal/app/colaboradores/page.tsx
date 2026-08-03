@@ -81,12 +81,6 @@ export default async function ColaboradoresPage() {
       href: "/dashboard/estoque",
       className: "border-emerald-200 bg-emerald-50",
     },
-    hasModuleAccess(email, "compras") && {
-      title: "Compras",
-      description: "Acompanhar urgências, pedidos e pendências.",
-      href: "/dashboard/compras",
-      className: "border-blue-200 bg-blue-50",
-    },
   ].filter(Boolean) as Array<{ title: string; description: string; href: string; className: string }>;
 
   return (
@@ -137,7 +131,7 @@ export default async function ColaboradoresPage() {
       {quickLinks.length > 0 && (
         <section className="mt-6">
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Acessos rápidos</p>
-          <div className="mt-3 grid gap-4 md:grid-cols-2">
+          <div className="mt-3 grid gap-4">
             {quickLinks.map((item) => (
               <Link
                 key={item.title}

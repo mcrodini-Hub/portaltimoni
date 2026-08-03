@@ -22,10 +22,7 @@ export default async function DashboardPage() {
   return (
     <div className="pb-8">
       <header className="mb-6">
-        <div className="flex items-center justify-between gap-4">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Casa Timoni</p>
-          <span className="text-xs font-medium text-slate-400">Agosto/2026</span>
-        </div>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Casa Timoni</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Portal Timoni</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Acesso centralizado aos módulos de trabalho e comunicação interna.</p>
       </header>
@@ -57,7 +54,7 @@ export default async function DashboardPage() {
       </section>
 
       <footer className="mt-10 border-t border-slate-200 pt-4 text-center text-xs text-slate-400">
-        Idealizado por Ciça Rodini para fortalecer a comunicação interna e a evolução dos processos da Casa Timoni.
+        Idealizado por Ciça Rodini para fortalecer a comunicação interna e a evolução dos processos da Casa Timoni. Agosto 2026
       </footer>
     </div>
   );

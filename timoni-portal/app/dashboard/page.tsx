@@ -22,7 +22,10 @@ export default async function DashboardPage() {
   return (
     <div className="pb-8">
       <header className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Casa Timoni</p>
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Casa Timoni</p>
+          <span className="text-xs font-medium text-slate-400">Agosto/2026</span>
+        </div>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Portal Timoni</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Acesso centralizado aos módulos de trabalho e comunicação interna.</p>
       </header>

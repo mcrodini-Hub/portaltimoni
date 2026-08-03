@@ -43,3 +43,5 @@ jobs:
           git add timoni-portal/app/api/conferencia-gratis/route.ts .github/workflows/fix-gemini-model.yml
           git commit -m "Update conference module to Gemini Flash latest"
           git push origin main
+
+# trigger

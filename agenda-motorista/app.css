@@ -310,12 +310,30 @@ button:disabled{opacity:0.6;cursor:not-allowed;}
 .status-concluida{background:#e3f5ea;color:var(--green);}
 
 /* --------------------------- Modo Motorista --------------------------- */
+.modo-motorista-ativo .topbar{display:none;}
+.modo-motorista-ativo .content{max-width:620px;padding:16px;margin:0 auto;background:#f8f7f6;}
+.motorista-header{position:sticky;top:0;z-index:3;background:#f8f7f6;padding:4px 0 12px;}
 .motorista-card{
   background:var(--card-bg);border:1px solid var(--border);border-radius:14px;
-  padding:18px;margin-bottom:14px;
+  padding:18px;margin-bottom:14px;box-shadow:0 1px 3px rgba(20,20,30,0.06);
 }
 .motorista-topo{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:9px;}
 .motorista-status{margin:12px 0;}
 .btn-grande{width:100%;padding:18px;font-size:18px;}
 .motorista-card .viagem-sub a{color:var(--blue);font-weight:600;}
 .motorista-obs{min-height:48px;}
+
+@media (max-width:700px){
+  .modo-motorista-ativo{background:#f8f7f6;}
+  .modo-motorista-ativo .content{padding:14px 12px 32px;}
+  .motorista-header{align-items:flex-start;gap:10px;}
+  .motorista-header h1{font-size:20px;line-height:1.25;}
+  .motorista-header .cal-nav{width:100%;justify-content:space-between;}
+  .motorista-header .icon-btn,.motorista-header .btn-small{min-width:48px;min-height:44px;}
+  .motorista-card{padding:16px 14px;border-radius:12px;}
+  .motorista-card .viagem-horario{font-size:18px;}
+  .motorista-card .viagem-resumo{font-size:17px;}
+  .motorista-card .viagem-sub{font-size:15px;line-height:1.45;}
+  .motorista-obs{min-height:72px;font-size:16px;}
+  .btn-grande{min-height:56px;}
+}

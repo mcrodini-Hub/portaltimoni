@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 
 export const metadata: Metadata = { title: "Compras" };
 
@@ -10,7 +9,6 @@ const etapas = [
   "Extrair da planilha somente código, descrição e quantidade do mês atual.",
   "Lançar o pedido manualmente no Bessani.",
   "Atualizar o cartão do Trello com número, datas, etiqueta e anexo quando aplicável.",
-  "Conferir pedido MCR/Rodini contra o documento do fornecedor no módulo de Conferência.",
   "Enviar o pedido ao fornecedor e solicitar a previsão de entrega pelo WhatsApp.",
 ];
 
@@ -21,11 +19,11 @@ export default function ComprasPage() {
         <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Módulo operacional</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Compras</h1>
         <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-          O Trello permanece como fonte oficial dos pedidos. O Portal centraliza os acessos e a Conferência automática, sem exigir extensão nem duplicar o status dos cartões.
+          O Trello permanece como fonte oficial dos pedidos. O Portal centraliza o acesso, sem exigir extensão nem duplicar o status dos cartões.
         </p>
       </section>
 
-      <section className="mt-5 grid gap-4 lg:grid-cols-[1.15fr_0.85fr]">
+      <section className="mt-5">
         <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Fluxo oficial</p>
           <h2 className="mt-2 text-xl font-semibold text-slate-950">Pedido por fornecedor</h2>
@@ -47,22 +45,8 @@ export default function ComprasPage() {
           >
             Abrir pedidos no Trello
           </a>
-        </article>
 
-        <article className="rounded-3xl border border-cyan-100 bg-cyan-50 p-6">
-          <p className="text-xs font-semibold uppercase tracking-wider text-cyan-800">Processo separado</p>
-          <h2 className="mt-2 text-xl font-semibold text-slate-950">Conferência de pedidos</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            Envie o pedido MCR/Rodini e o documento do fornecedor. O sistema compara itens, quantidades, preços, totais e condições comerciais e gera o Excel das divergências.
-          </p>
-          <Link
-            href="/dashboard/conferencia-pedidos"
-            className="mt-5 inline-flex rounded-xl bg-cyan-800 px-5 py-3 text-sm font-semibold text-white transition hover:bg-cyan-900"
-          >
-            Abrir Conferência
-          </Link>
-
-          <div className="mt-6 rounded-2xl border border-cyan-200 bg-white/70 p-4">
+          <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-4">
             <p className="text-sm font-semibold text-slate-900">Mensagem padrão</p>
             <p className="mt-2 text-sm leading-6 text-slate-600">
               Olá, segue pedido de compra. Aguardo retorno com a previsão de entrega. Obrigada, Ciça.

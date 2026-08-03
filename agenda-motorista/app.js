@@ -130,9 +130,16 @@ function mostrarTela(nome) {
   ['telaConfig', 'telaAgenda', 'telaMotorista'].forEach((id) => {
     document.getElementById(id).hidden = id !== nome;
   });
+  document.body.classList.toggle('modo-motorista-ativo', nome === 'telaMotorista');
 }
 
 async function init() {
+  const modoMotoristaDireto = new URLSearchParams(window.location.search).get('motorista') === '1'
+    || window.matchMedia('(max-width: 700px)').matches;
+  if (modoMotoristaDireto) {
+    await abrirModoMotorista();
+    return;
+  }
   const hoje = new Date();
   mesAtual = { ano: hoje.getFullYear(), mes: hoje.getMonth() + 1 };
   semanaAtualInicio = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
@@ -184,15 +191,24 @@ async function renderSemana() {
   const dias = diasDaSemana();
   document.getElementById('calLabel').textContent = labelSemana(dias);
 
+  // Desenha os sete dias imediatamente. A agenda nunca fica vazia enquanto aguarda
+  // a planilha, nem desaparece quando a autorização/conexão está com problema.
+  desenharSemana(dias, dias.map(() => []), 'Carregando...');
+
   let listasPorDia;
   try {
     listasPorDia = await Promise.all(dias.map((d) => AgendaStore.listarDia(toDataStr(d))));
   } catch (e) {
     document.getElementById('calMsg').textContent = e.message;
+    desenharSemana(dias, dias.map(() => []), 'Sem viagens');
     return;
   }
   document.getElementById('calMsg').textContent = '';
 
+  desenharSemana(dias, listasPorDia, 'Sem viagens');
+}
+
+function desenharSemana(dias, listasPorDia, textoVazio) {
   const hojeStr = toDataStr(new Date());
   const diaSelecionado = diaAtual;
   const grid = document.getElementById('calGridSemana');
@@ -212,7 +228,7 @@ async function renderSemana() {
         <span class="week-day-num">${d.getDate()}/${String(d.getMonth() + 1).padStart(2, '0')}</span>
       </div>
       ${tag ? `<span class="cal-day-tag">${tag}</span>` : ''}
-      ${viagens.length ? itensHtml + maisHtml : '<span class="week-day-empty">Sem viagens</span>'}
+      ${viagens.length ? itensHtml + maisHtml : `<span class="week-day-empty">${escHtml(textoVazio)}</span>`}
     `;
     col.addEventListener('click', () => abrirDia(dataStr));
     grid.appendChild(col);
@@ -382,6 +398,7 @@ async function renderAno() {
 // --------------------------------------------------------------------------
 async function abrirDia(data) {
   diaAtual = data;
+  document.getElementById('diaTitulo').textContent = formatDataTitulo(data);
   filtroLoja = 'todas';
   fecharForm();
   document.getElementById('diaValidationMsg').textContent = '';
@@ -1151,11 +1168,6 @@ async function abrirConfig() {
 // Wiring de eventos (roda depois que o HTML já existe, script fica no fim do body)
 // --------------------------------------------------------------------------
 document.getElementById('btnModoMotorista').addEventListener('click', abrirModoMotorista);
-document.getElementById('btnSairMotorista').addEventListener('click', () => {
-  mostrarTela('telaAgenda');
-  refrescarCalendario();
-  if (diaAtual) carregarDia();
-});
 document.getElementById('btnMotoristaHoje').addEventListener('click', () => { diaMotorista = toDataStr(new Date()); renderModoMotorista(); });
 document.getElementById('btnMotoristaAnterior').addEventListener('click', () => {
   const d = dataStrParaDate(diaMotorista); d.setDate(d.getDate() - 1); diaMotorista = toDataStr(d); renderModoMotorista();

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agendamento do Motorista · Portal Timoni</title>
-<link rel="stylesheet" href="app.css?v=27">
+<link rel="stylesheet" href="app.css?v=28">
 </head>
 <body>
 
@@ -53,11 +53,11 @@
     </div>
   </section>
 
-  <!-- AGENDA: calendário e dia selecionado, lado a lado, sem precisar rolar -->
+  <!-- AGENDA: dia selecionado e ações em cima; calendário logo abaixo -->
   <section id="telaAgenda">
     <div class="dashboard-grid">
 
-      <!-- Calendário à direita no computador -->
+      <!-- Semana completa abaixo das ações do dia -->
       <div class="dash-col dash-col-cal">
         <div class="cal-header">
           <h1 id="calLabel">--</h1>
@@ -84,7 +84,7 @@
         <div class="cal-grid-ano" id="calGridAno" hidden></div>
       </div>
 
-      <!-- Viagens do dia à esquerda no computador -->
+      <!-- Dia selecionado e ações no topo -->
       <div class="dash-col dash-col-dia" id="diaSecao">
         <div class="dia-header">
           <h1 class="dia-titulo" id="diaTitulo">--</h1>
@@ -253,7 +253,7 @@
 
 </main>
 
-<script src="lib/store.js?v=27"></script>
-<script src="app.js?v=27"></script>
+<script src="lib/store.js?v=28"></script>
+<script src="app.js?v=28"></script>
 </body>
 </html>

@@ -1,9 +1,12 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
+
+const TRELLO_KEY_PAGE = "https://trello.com/app-key";
 
 export default function ConfigurarTrelloClient() {
+  const router = useRouter();
   const [key, setKey] = useState("");
   const [token, setToken] = useState("");
   const [configured, setConfigured] = useState(false);
@@ -11,24 +14,47 @@ export default function ConfigurarTrelloClient() {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  const normalizedKey = key.trim();
+  const keyLooksValid = /^[a-f0-9]{32}$/i.test(normalizedKey);
+  const tokenUrl = useMemo(() => {
+    if (!keyLooksValid) return "";
+    const params = new URLSearchParams({
+      expiration: "never",
+      name: "Portal Timoni - Compras",
+      scope: "read,write",
+      response_type: "token",
+      key: normalizedKey,
+    });
+    return `https://trello.com/1/authorize?${params.toString()}`;
+  }, [keyLooksValid, normalizedKey]);
+
   useEffect(() => {
     fetch("/api/compras/trello-config", { cache: "no-store" })
       .then(async (response) => {
         const payload = await response.json();
         if (!response.ok) throw new Error(payload?.error || "Falha ao verificar o Trello.");
-        setConfigured(Boolean(payload.configured));
+        const isConfigured = Boolean(payload.configured);
+        setConfigured(isConfigured);
+        if (isConfigured) {
+          window.setTimeout(() => router.replace("/dashboard/compras"), 500);
+        }
       })
       .catch((caught) =>
         setError(caught instanceof Error ? caught.message : "Falha ao verificar o Trello."),
       )
       .finally(() => setLoading(false));
-  }, []);
+  }, [router]);
 
   async function save() {
     setError("");
     setMessage("");
-    if (!key.trim() || !token.trim()) {
-      setError("Informe a chave e o token do Trello.");
+
+    if (!keyLooksValid) {
+      setError("A chave pública do Trello deve ter 32 caracteres. Copie somente o campo API Key, não o Secret.");
+      return;
+    }
+    if (!token.trim()) {
+      setError("Gere o token no botão azul, autorize no Trello e cole o código exibido.");
       return;
     }
 
@@ -37,33 +63,16 @@ export default function ConfigurarTrelloClient() {
       const response = await fetch("/api/compras/trello-config", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key: key.trim(), token: token.trim() }),
+        body: JSON.stringify({ key: normalizedKey, token: token.trim() }),
       });
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error || "As credenciais não foram aceitas.");
+
       setConfigured(true);
-      setKey("");
-      setToken("");
-      setMessage(`Trello conectado ao quadro ${payload.boardName || "Compras"}.`);
+      setMessage(`Trello conectado ao quadro ${payload.boardName || "Compras"}. Abrindo o módulo...`);
+      window.setTimeout(() => router.replace("/dashboard/compras"), 900);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Falha ao conectar o Trello.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function disconnect() {
-    setLoading(true);
-    setError("");
-    setMessage("");
-    try {
-      const response = await fetch("/api/compras/trello-config", { method: "DELETE" });
-      const payload = await response.json();
-      if (!response.ok) throw new Error(payload?.error || "Não foi possível desconectar.");
-      setConfigured(false);
-      setMessage("Credenciais removidas deste navegador.");
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : "Não foi possível desconectar.");
     } finally {
       setLoading(false);
     }
@@ -79,81 +88,102 @@ export default function ConfigurarTrelloClient() {
           Trello — Módulo Compras
         </h1>
         <p className="mt-3 text-sm leading-6 text-slate-600">
-          Use a chave e o token da API do Trello vinculados à conta que acessa o quadro Compras.
-          Eles ficam em cookies seguros, inacessíveis ao código da página.
+          Faça esta conexão uma única vez. Depois, a configuração desaparece e Compras funciona diretamente no Portal.
         </p>
 
-        <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-600">
-          No Trello, abra a área de desenvolvedor da sua conta, gere uma chave de API e autorize
-          um token com leitura e escrita no quadro Compras. Essa etapa é feita uma única vez neste navegador.
-        </div>
-
-        {configured && (
-          <div className="mt-5 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
-            Trello conectado neste navegador.
+        {configured ? (
+          <div className="mt-5 rounded-2xl border border-blue-200 bg-blue-50 px-4 py-4 text-sm font-semibold text-blue-900">
+            {message || "Trello conectado. Abrindo Compras..."}
           </div>
-        )}
+        ) : (
+          <div className="mt-5 space-y-5">
+            <article className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+              <p className="text-sm font-semibold text-blue-950">1. Obter a chave pública</p>
+              <p className="mt-2 text-sm leading-6 text-blue-900">
+                Abra a página do Trello e copie somente o valor chamado <strong>API Key</strong>. Não copie o Secret.
+              </p>
+              <a
+                href={TRELLO_KEY_PAGE}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white hover:bg-blue-900"
+              >
+                Abrir página da chave
+              </a>
+            </article>
 
-        {!configured && !loading && (
-          <div className="mt-5 space-y-4">
             <label className="block">
               <span className="text-sm font-semibold text-slate-900">Chave da API</span>
               <input
                 type="password"
                 value={key}
-                onChange={(event) => setKey(event.target.value)}
+                onChange={(event) => {
+                  setKey(event.target.value.replace(/\s/g, ""));
+                  setError("");
+                }}
+                placeholder="32 caracteres"
                 autoComplete="off"
-                className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-600"
+                className="mt-2 min-h-12 w-full rounded-xl border border-blue-200 px-4 text-sm outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-100"
               />
+              {normalizedKey && !keyLooksValid && (
+                <span className="mt-2 block text-xs font-medium text-rose-700">
+                  Esta não parece ser a API Key pública. Ela deve ter exatamente 32 caracteres.
+                </span>
+              )}
             </label>
+
+            <article className="rounded-2xl border border-blue-200 bg-blue-50 p-5">
+              <p className="text-sm font-semibold text-blue-950">2. Gerar o token autorizado</p>
+              <p className="mt-2 text-sm leading-6 text-blue-900">
+                Depois de colar a chave correta, clique no botão, escolha <strong>Permitir</strong> no Trello e copie o token exibido.
+              </p>
+              {tokenUrl ? (
+                <a
+                  href={tokenUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white hover:bg-blue-900"
+                >
+                  Gerar token no Trello
+                </a>
+              ) : (
+                <span className="mt-4 inline-flex min-h-11 items-center justify-center rounded-xl bg-blue-100 px-5 text-sm font-semibold text-blue-700">
+                  Cole primeiro a chave correta
+                </span>
+              )}
+            </article>
+
             <label className="block">
               <span className="text-sm font-semibold text-slate-900">Token autorizado</span>
-              <input
-                type="password"
+              <textarea
                 value={token}
-                onChange={(event) => setToken(event.target.value)}
+                onChange={(event) => {
+                  setToken(event.target.value.replace(/\s/g, ""));
+                  setError("");
+                }}
+                placeholder="Cole aqui o token mostrado pelo Trello"
+                rows={3}
                 autoComplete="off"
-                className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-600"
+                className="mt-2 w-full rounded-xl border border-blue-200 px-4 py-3 text-sm outline-none focus:border-blue-700 focus:ring-2 focus:ring-blue-100"
               />
             </label>
+
             <button
               type="button"
-              disabled={loading || !key.trim() || !token.trim()}
+              disabled={loading || !keyLooksValid || !token.trim()}
               onClick={save}
-              className="min-h-12 rounded-xl bg-blue-800 px-6 text-sm font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:bg-slate-300"
+              className="min-h-12 rounded-xl bg-blue-800 px-6 text-sm font-semibold text-white hover:bg-blue-900 disabled:cursor-not-allowed disabled:bg-blue-200 disabled:text-blue-700"
             >
               {loading ? "Validando..." : "Salvar e conectar"}
             </button>
           </div>
         )}
 
-        {configured && (
-          <button
-            type="button"
-            disabled={loading}
-            onClick={disconnect}
-            className="mt-5 min-h-11 rounded-xl border border-rose-200 bg-rose-50 px-5 text-sm font-semibold text-rose-700 hover:bg-rose-100"
-          >
-            Remover conexão deste navegador
-          </button>
-        )}
-
-        {message && (
-          <p className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
-            {message}
-          </p>
-        )}
         {error && (
           <p className="mt-4 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">
             {error}
           </p>
         )}
-
-        <div className="mt-6 border-t border-slate-200 pt-5">
-          <Link href="/dashboard/compras" className="text-sm font-semibold text-blue-800 hover:underline">
-            Voltar para Compras →
-          </Link>
-        </div>
       </section>
     </div>
   );

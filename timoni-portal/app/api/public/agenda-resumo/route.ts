@@ -1,59 +1,43 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { fromZonedTime } from "date-fns-tz";
-import { getAccessTokenFromRefreshToken, listEventsInRange, toApiError, TIME_ZONE } from "@/lib/google-calendar";
+import { auth } from "@/lib/auth";
+import { hasModuleAccess } from "@/lib/access-control";
+import { listEventsInRange, toApiError, TIME_ZONE } from "@/lib/google-calendar";
 
-// "Hoje" tem que ser o dia em São Paulo, não no fuso do processo — a Vercel roda funções em
-// UTC, então usar `new Date().setHours(0, 0, 0, 0)` direto desalinharia o dia perto da
-// meia-noite (ex.: 22h em São Paulo já seria "amanhã" em UTC).
 function limitesDeHojeEmSaoPaulo(): { inicioHoje: Date; fimHoje: Date } {
-  const hojeStr = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE }); // "YYYY-MM-DD"
+  const hojeStr = new Date().toLocaleDateString("en-CA", { timeZone: TIME_ZONE });
   return {
     inicioHoje: fromZonedTime(`${hojeStr}T00:00:00.000`, TIME_ZONE),
-    fimHoje: fromZonedTime(`${hojeStr}T23:59:59.999`, TIME_ZONE)
+    fimHoje: fromZonedTime(`${hojeStr}T23:59:59.999`, TIME_ZONE),
   };
 }
-
-// Rota pública (sem sessão de navegador) para o Portal Timoni — protegida por um token
-// compartilhado simples (PAINEL_TIMONI_TOKEN), não pelo login do portal. É só leitura: nunca
-// cria/edita/cancela evento, só resume os compromissos de hoje das duas agendas.
-//
-// CORS liberado (Access-Control-Allow-Origin: *) porque o Portal Timoni é uma página estática
-// servida de outra origem — sem isso o navegador bloquearia a resposta no fetch() do painel.
 
 function respond(body: unknown, status = 200) {
   return NextResponse.json(body, {
     status,
-    headers: { "Access-Control-Allow-Origin": "*" }
+    headers: { "Cache-Control": "no-store" },
   });
 }
 
-export async function GET(request: NextRequest) {
-  const expected = process.env.PAINEL_TIMONI_TOKEN;
-  if (!expected) {
-    return respond({ ok: false, erro: "PAINEL_TIMONI_TOKEN não configurado no servidor." }, 500);
-  }
+export async function GET() {
+  const session = await auth();
+  const email = session?.user?.email;
 
-  const { searchParams } = new URL(request.url);
-  const token = searchParams.get("token");
-  if (!token || token !== expected) {
-    return respond({ ok: false, erro: "Token inválido." }, 401);
+  if (!email) {
+    return respond({ ok: false, erro: "Sessão expirada. Entre novamente no Portal." }, 401);
   }
-
-  let accessToken: string;
-  try {
-    accessToken = await getAccessTokenFromRefreshToken();
-  } catch (error) {
-    // Erro de configuração (GOOGLE_REFRESH_TOKEN ausente/expirado) — mensagem direta, não
-    // passa por toApiError (que é voltada a erros da própria Calendar API).
-    return respond({ ok: false, erro: error instanceof Error ? error.message : String(error) }, 500);
+  if (!hasModuleAccess(email, "painel")) {
+    return respond({ ok: false, erro: "Acesso não autorizado ao Painel Timoni." }, 403);
+  }
+  if (!session.accessToken || session.error === "RefreshAccessTokenError") {
+    return respond({ ok: false, erro: "Sessão do Google expirada. Saia e entre novamente no Portal." }, 401);
   }
 
   try {
     const { inicioHoje, fimHoje } = limitesDeHojeEmSaoPaulo();
-
-    const eventos = await listEventsInRange(accessToken, {
+    const eventos = await listEventsInRange(session.accessToken, {
       timeMin: inicioHoje.toISOString(),
-      timeMax: fimHoje.toISOString()
+      timeMax: fimHoje.toISOString(),
     });
 
     return respond({
@@ -61,14 +45,14 @@ export async function GET(request: NextRequest) {
       data: {
         atualizadoEm: new Date().toISOString(),
         total: eventos.length,
-        eventos: eventos.map((e) => ({
-          titulo: e.summary,
-          inicio: e.start,
-          fim: e.end,
-          calendario: e.calendarLabel,
-          local: e.location || null
-        }))
-      }
+        eventos: eventos.map((event) => ({
+          titulo: event.summary,
+          inicio: event.start,
+          fim: event.end,
+          calendario: event.calendarLabel,
+          local: event.location || null,
+        })),
+      },
     });
   } catch (error) {
     const { message, status } = toApiError(error);

@@ -21,6 +21,7 @@ function injectPortalNavigation(html: string) {
 </style>`;
 
   return html
+    .replaceAll("?v=4", "?v=5")
     .replace("</head>", `${style}</head>`)
     .replace(
       '<div class="topbar-actions" id="lojaPillWrap" hidden>',

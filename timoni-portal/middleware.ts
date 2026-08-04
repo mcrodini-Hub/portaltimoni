@@ -11,6 +11,7 @@ const protectedRoutes: Array<{ prefix: string; module: PortalModule }> = [
   { prefix: "/dashboard/reunioes", module: "reunioes" },
   { prefix: "/dashboard/marketing", module: "marketing" },
   { prefix: "/dashboard/financeiro", module: "financeiro" },
+  { prefix: "/agenda-motorista", module: "motorista" },
   { prefix: "/motorista", module: "motorista" },
 ];
 
@@ -47,6 +48,7 @@ export const config = {
     "/agenda/:path*",
     "/colaboradores/:path*",
     "/motorista/:path*",
+    "/agenda-motorista/:path*",
     "/api/conferencia-pedidos",
   ],
 };

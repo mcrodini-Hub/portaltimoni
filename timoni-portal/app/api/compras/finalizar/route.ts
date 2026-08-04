@@ -107,6 +107,22 @@ function buildDescription(
   ].join("\n");
 }
 
+async function attachFile(cardId: string, file: FormDataEntryValue | null) {
+  if (!(file instanceof File) || file.size === 0) return false;
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error(`${file.name}: o anexo ultrapassa 10 MB.`);
+  }
+
+  const trelloForm = new FormData();
+  trelloForm.set("file", file, file.name);
+  trelloForm.set("name", file.name);
+  await trelloFetch(`/cards/${encodeURIComponent(cardId)}/attachments`, {
+    method: "POST",
+    body: trelloForm,
+  });
+  return true;
+}
+
 export async function POST(request: Request) {
   const unauthorized = await authorize();
   if (unauthorized) return unauthorized;
@@ -121,6 +137,7 @@ export async function POST(request: Request) {
     const dataEntrega = String(formData.get("dataEntrega") || "").trim();
     const items = parseItems(formData.get("items"));
     const attachment = formData.get("attachment");
+    const orderFile = formData.get("orderFile");
 
     if (!cardId || !supplierName) throw new Error("Selecione o fornecedor.");
     if (!finalTitle) throw new Error("Informe o título final do cartão, incluindo o número do pedido.");
@@ -188,26 +205,16 @@ export async function POST(request: Request) {
       });
     }
 
-    let attachmentAdded = false;
-    if (attachment instanceof File && attachment.size > 0) {
-      if (attachment.size > 10 * 1024 * 1024) {
-        throw new Error("O anexo ultrapassa 10 MB.");
-      }
-      const trelloForm = new FormData();
-      trelloForm.set("file", attachment, attachment.name);
-      trelloForm.set("name", attachment.name);
-      await trelloFetch(`/cards/${encodeURIComponent(cardId)}/attachments`, {
-        method: "POST",
-        body: trelloForm,
-      });
-      attachmentAdded = true;
-    }
+    const printAdded = await attachFile(cardId, attachment);
+    const orderFileAdded = await attachFile(cardId, orderFile);
 
     return NextResponse.json({
       ok: true,
       cardName: updatedCard.name || finalTitle,
       cardUrl: updatedCard.url || card.url || "",
-      attachmentAdded,
+      attachmentAdded: printAdded || orderFileAdded,
+      printAdded,
+      orderFileAdded,
       destination: destination.name,
     });
   } catch (error) {

@@ -8,11 +8,31 @@ import { CALENDAR_LABELS, type CalendarEventDTO, type CalendarKey } from "@/lib/
 const CALENDAR_OPTIONS = Object.entries(CALENDAR_LABELS) as [CalendarKey, string][];
 type RecurrencePreset = "none" | "biweekly" | "monthly" | "yearly" | "custom";
 type RecurrenceFrequency = "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY";
+type EditScope = "occurrence" | "series";
+
+function isDateOnly(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
 
 function toDatetimeLocal(iso: string) {
   const d = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, "0");
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function toDateLocal(value: string) {
+  if (isDateOnly(value)) return value;
+  const d = new Date(value);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
+function addDays(dateValue: string, days: number) {
+  const [year, month, day] = dateValue.split("-").map(Number);
+  const date = new Date(year, month - 1, day, 12, 0, 0);
+  date.setDate(date.getDate() + days);
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
 function defaultTimes() {
@@ -46,17 +66,42 @@ export function EventForm({
 }) {
   const isEditing = !!event;
   const defaults = defaultTimes();
+  const initialAllDay = Boolean(event?.allDay || (event?.start && isDateOnly(event.start)));
   const [summary, setSummary] = useState(event?.summary ?? "");
   const [location, setLocation] = useState(event?.location ?? "");
   const [description, setDescription] = useState(event?.description ?? "");
-  const [start, setStart] = useState(event ? toDatetimeLocal(event.start) : defaults.start);
-  const [end, setEnd] = useState(event ? toDatetimeLocal(event.end) : defaults.end);
+  const [allDay, setAllDay] = useState(initialAllDay);
+  const [start, setStart] = useState(
+    event ? (initialAllDay ? toDateLocal(event.start) : toDatetimeLocal(event.start)) : defaults.start
+  );
+  const [end, setEnd] = useState(
+    event ? (initialAllDay ? toDateLocal(event.end) : toDatetimeLocal(event.end)) : defaults.end
+  );
   const [calendarKey, setCalendarKey] = useState<CalendarKey>(event?.calendarKey ?? "principal");
   const [recurrencePreset, setRecurrencePreset] = useState<RecurrencePreset>("none");
   const [customInterval, setCustomInterval] = useState(1);
   const [customFrequency, setCustomFrequency] = useState<RecurrenceFrequency>("WEEKLY");
+  const [editScope, setEditScope] = useState<EditScope>("occurrence");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const isRecurringInstance = Boolean(event?.recurringEventId);
+  const editingSeries = isEditing && isRecurringInstance && editScope === "series";
+
+  function handleAllDayChange(checked: boolean) {
+    setAllDay(checked);
+    if (checked) {
+      const startDate = start.slice(0, 10);
+      const endDate = end.slice(0, 10);
+      setStart(startDate);
+      setEnd(endDate > startDate ? endDate : addDays(startDate, 1));
+    } else {
+      const startDate = start.slice(0, 10);
+      const endDate = end.slice(0, 10);
+      setStart(`${startDate}T09:00`);
+      setEnd(`${endDate}T10:00`);
+    }
+  }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -69,34 +114,37 @@ export function EventForm({
       setError("O intervalo deve ser de 1 a 99.");
       return;
     }
-    const startIso = new Date(start).toISOString();
-    const endIso = new Date(end).toISOString();
-    if (new Date(endIso) <= new Date(startIso)) {
+
+    const startValue = allDay ? start : new Date(start).toISOString();
+    const endValue = allDay ? end : new Date(end).toISOString();
+    if (new Date(endValue) <= new Date(startValue)) {
       setError("O fim deve ser depois do início.");
       return;
     }
 
     setSaving(true);
     try {
+      const targetEventId =
+        editingSeries && event?.recurringEventId ? event.recurringEventId : event?.id;
       const url = isEditing
-        ? `/api/events/${event!.id}?calendarKey=${event!.calendarKey}`
+        ? `/api/events/${encodeURIComponent(targetEventId!)}?calendarKey=${event!.calendarKey}`
         : "/api/events";
+      const body = {
+        summary: summary.trim(),
+        location: location.trim() || undefined,
+        description: description.trim() || undefined,
+        ...(!editingSeries ? { start: startValue, end: endValue } : {}),
+        ...(isEditing
+          ? {}
+          : {
+              calendarKey,
+              recurrence: buildRecurrence(recurrencePreset, customInterval, customFrequency),
+            }),
+      };
       const res = await fetch(url, {
         method: isEditing ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          summary: summary.trim(),
-          location: location.trim() || undefined,
-          description: description.trim() || undefined,
-          start: startIso,
-          end: endIso,
-          ...(isEditing
-            ? {}
-            : {
-                calendarKey,
-                recurrence: buildRecurrence(recurrencePreset, customInterval, customFrequency),
-              }),
-        }),
+        body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -128,6 +176,26 @@ export function EventForm({
             ))}
           </select>
         </div>
+
+        {isEditing && isRecurringInstance && (
+          <div>
+            <label className="block text-sm font-medium text-slate-700">Aplicar alteração</label>
+            <select
+              value={editScope}
+              onChange={(e) => setEditScope(e.target.value as EditScope)}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            >
+              <option value="occurrence">Somente esta ocorrência</option>
+              <option value="series">Toda a série</option>
+            </select>
+            {editingSeries && (
+              <p className="mt-1 text-xs leading-5 text-slate-500">
+                Título, local e descrição serão alterados em toda a série. Datas e horários serão preservados.
+              </p>
+            )}
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium text-slate-700">Título</label>
           <input
@@ -137,14 +205,38 @@ export function EventForm({
             placeholder="Ex: Reunião fornecedor"
           />
         </div>
+
+        <label className="flex items-center gap-2 text-sm font-medium text-slate-700">
+          <input
+            type="checkbox"
+            checked={allDay}
+            disabled={editingSeries}
+            onChange={(e) => handleAllDayChange(e.target.checked)}
+            className="h-4 w-4 rounded border-slate-300"
+          />
+          Dia inteiro
+        </label>
+
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-slate-700">Início</label>
-            <input type="datetime-local" value={start} onChange={(e) => setStart(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input
+              type={allDay ? "date" : "datetime-local"}
+              value={start}
+              disabled={editingSeries}
+              onChange={(e) => setStart(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">Fim</label>
-            <input type="datetime-local" value={end} onChange={(e) => setEnd(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm" />
+            <input
+              type={allDay ? "date" : "datetime-local"}
+              value={end}
+              disabled={editingSeries}
+              onChange={(e) => setEnd(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
+            />
           </div>
         </div>
 

@@ -10,6 +10,7 @@ const btnAnterior = document.getElementById('btnAnterior');
 const btnProximo = document.getElementById('btnProximo');
 
 let inicioPeriodo = inicioDoDia(new Date());
+let carregamentoAtual = 0;
 
 function esc(valor) {
   return String(valor == null ? '' : valor)
@@ -113,9 +114,18 @@ function renderViagem(viagem) {
     </article>`;
 }
 
-function renderDia(data, viagens) {
+function renderDia(data, viagens, erro) {
   const hoje = dataISO(data) === dataISO(new Date());
   const ordenadas = ordenarViagens(viagens);
+  let conteudo;
+
+  if (erro) {
+    conteudo = '<p class="empty">Não foi possível carregar este dia.</p>';
+  } else if (ordenadas.length) {
+    conteudo = ordenadas.map(renderViagem).join('');
+  } else {
+    conteudo = '<p class="empty">Sem agendamentos.</p>';
+  }
 
   return `
     <section class="day-card ${hoje ? 'hoje' : ''}">
@@ -126,13 +136,12 @@ function renderDia(data, viagens) {
         </div>
         ${hoje ? '<span class="today-badge">HOJE</span>' : ''}
       </header>
-      <div class="day-body">
-        ${ordenadas.length ? ordenadas.map(renderViagem).join('') : '<p class="empty">Sem agendamentos.</p>'}
-      </div>
+      <div class="day-body">${conteudo}</div>
     </section>`;
 }
 
 async function carregarAgenda() {
+  const idCarregamento = ++carregamentoAtual;
   statusEl.hidden = false;
   statusEl.className = 'status';
   statusEl.textContent = 'Carregando agenda...';
@@ -141,11 +150,27 @@ async function carregarAgenda() {
   rangeLabelEl.textContent = labelPeriodo(dias[0], dias[dias.length - 1]);
 
   try {
-    const listas = await Promise.all(dias.map((dia) => AgendaStore.listarDia(dataISO(dia))));
-    agendaEl.innerHTML = dias.map((dia, indice) => renderDia(dia, listas[indice] || [])).join('');
-    statusEl.hidden = true;
+    const periodo = await AgendaStore.listarPeriodo(dataISO(dias[0]), DIAS_VISIVEIS);
+    if (idCarregamento !== carregamentoAtual) return;
+
+    const porData = new Map(periodo.map((dia) => [dia.data, dia]));
+    agendaEl.innerHTML = dias.map((dia) => {
+      const registro = porData.get(dataISO(dia)) || { viagens: [], erro: 'Dia não retornado.' };
+      return renderDia(dia, registro.viagens || [], registro.erro);
+    }).join('');
+
+    const falhas = periodo.filter((dia) => dia.erro).length;
+    if (falhas) {
+      statusEl.hidden = false;
+      statusEl.className = 'status';
+      statusEl.textContent = `${falhas} dia${falhas > 1 ? 's' : ''} não pôde${falhas > 1 ? 'ram' : ''} ser carregado${falhas > 1 ? 's' : ''}. Os demais estão disponíveis.`;
+    } else {
+      statusEl.hidden = true;
+    }
+
     atualizadoEl.textContent = `Atualizado às ${new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date())}`;
   } catch (erro) {
+    if (idCarregamento !== carregamentoAtual) return;
     agendaEl.innerHTML = '';
     statusEl.hidden = false;
     statusEl.className = 'status erro';

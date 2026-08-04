@@ -37,11 +37,13 @@ export function EventCard({
   event,
   nowMs,
   onEdit,
+  onComplete,
   onDelete,
 }: {
   event: CalendarEventDTO;
   nowMs: number;
   onEdit: (event: CalendarEventDTO) => void;
+  onComplete: (event: CalendarEventDTO) => void;
   onDelete: (event: CalendarEventDTO) => void;
 }) {
   const urgency = getUrgency(event.start, event.end, nowMs);
@@ -56,7 +58,7 @@ export function EventCard({
       )}`;
 
   return (
-    <div className={clsx("rounded-xl border p-4", URGENCY_CLASSES[urgency])}>
+    <div className={clsx("rounded-xl border p-4", event.completed ? "border-green-200 bg-green-50" : URGENCY_CLASSES[urgency])}>
       <div className="flex items-start justify-between gap-3">
         <div>
           <div className="flex items-center gap-2">
@@ -66,10 +68,15 @@ export function EventCard({
               {event.calendarLabel}
             </span>
           </div>
-          <p className="mt-1 font-medium">{event.summary}</p>
+          <p className={clsx("mt-1 font-medium", event.completed && "text-slate-500 line-through")}>
+            {event.summary}
+          </p>
           {event.location && <p className="text-sm text-slate-500">{event.location}</p>}
         </div>
-        <div className="flex shrink-0 gap-2">
+        <div className="flex shrink-0 flex-wrap gap-2">
+          <Button variant="secondary" onClick={() => onComplete(event)}>
+            {event.completed ? "Reabrir" : "Concluir"}
+          </Button>
           <Button variant="secondary" onClick={() => onEdit(event)}>
             Editar
           </Button>

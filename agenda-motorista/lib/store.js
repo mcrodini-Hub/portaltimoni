@@ -11,7 +11,7 @@
 // Compartilhado com app.js via <script> normal (mesmo padrão do hub-pedidos-chrome / estoque-chrome).
 
 (function (root) {
-  const DEFAULT_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbwy9QfpEbdGtTIiC2OFuZAUx0jIPFsXPLZKedfGp79VJ6mlzLYus_wjI2IvFPoeE6Pc/exec';
+  const API_URL = '/api/agenda-motorista';
 
   const KEYS = Object.freeze({
     LOJA: 'agendaMotoristaLoja',
@@ -49,15 +49,9 @@
     return set(KEYS.LOJA, loja);
   }
 
-  async function getWebAppUrl() {
-    const configurada = await get(KEYS.WEBAPP_URL, '');
-    return configurada || DEFAULT_WEBAPP_URL;
-  }
+  async function getWebAppUrl() { return API_URL; }
   async function setWebAppUrl(url) {
     const limpa = (url || '').trim();
-    if (limpa && !/^https:\/\/script\.google\.com\/.*\/exec(\?.*)?$/.test(limpa)) {
-      throw new Error('URL inválida. Cole a URL do Web App terminada em /exec.');
-    }
     return set(KEYS.WEBAPP_URL, limpa);
   }
 
@@ -67,17 +61,21 @@
   // Cliente do Web App (modo planilha)
   // -------------------------------------------------------------------------
   async function apiGet(params) {
-    const base = await getWebAppUrl();
-    if (!base) throw new Error('URL do Web App não configurada.');
     const qs = new URLSearchParams(params).toString();
-    const url = base + (base.includes('?') ? '&' : '?') + qs;
-    return chamar(() => fetch(url, { method: 'GET', redirect: 'follow' }));
+    return chamar(() => fetch(`${API_URL}?${qs}`, {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'same-origin'
+    }));
   }
 
   async function apiPost(params) {
-    const base = await getWebAppUrl();
-    if (!base) throw new Error('URL do Web App não configurada.');
-    return chamar(() => fetch(base, { method: 'POST', redirect: 'follow', body: new URLSearchParams(params) }));
+    return chamar(() => fetch(API_URL, {
+      method: 'POST',
+      cache: 'no-store',
+      credentials: 'same-origin',
+      body: new URLSearchParams(params)
+    }));
   }
 
   async function chamar(fazerFetch) {
@@ -85,10 +83,10 @@
     try {
       res = await Promise.race([
         fazerFetch(),
-        new Promise((_, reject) => setTimeout(() => reject(new Error('tempo esgotado')), 12000))
+        new Promise((_, reject) => setTimeout(() => reject(new Error('tempo esgotado')), 35000))
       ]);
     } catch (e) {
-      throw new Error('Não foi possível falar com a planilha. Verifique a conexão e a URL.');
+      throw new Error('Não foi possível acessar a agenda. Tente novamente.');
     }
     let data;
     try {

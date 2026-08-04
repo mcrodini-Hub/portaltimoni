@@ -49,7 +49,7 @@ export async function GET(
 
     const safeCss = (await cssSource.text()).split("</style").join("<\\/style");
     const html = (await source.text())
-      .replace('<link rel="stylesheet" href="app.css?v=29">', "")
+      .replace('<link rel="stylesheet" href="app.css?v=30">', "")
       .replace("<head>", `<head><base href="/agenda-motorista/"><style data-agenda-inline>${safeCss}</style>`);
 
     return new NextResponse(html, {

@@ -4,6 +4,12 @@ const DIAS_VISIVEIS = 7;
 const agendaEl = document.getElementById('agenda');
 const statusEl = document.getElementById('status');
 const atualizadoEl = document.getElementById('atualizadoEm');
+const rangeLabelEl = document.getElementById('rangeLabel');
+const btnHoje = document.getElementById('btnHoje');
+const btnAnterior = document.getElementById('btnAnterior');
+const btnProximo = document.getElementById('btnProximo');
+
+let inicioPeriodo = inicioDoDia(new Date());
 
 function esc(valor) {
   return String(valor == null ? '' : valor)
@@ -14,12 +20,16 @@ function esc(valor) {
     .replace(/'/g, '&#039;');
 }
 
+function inicioDoDia(data) {
+  return new Date(data.getFullYear(), data.getMonth(), data.getDate());
+}
+
 function dataISO(data) {
   return `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}-${String(data.getDate()).padStart(2, '0')}`;
 }
 
 function adicionarDias(data, quantidade) {
-  const nova = new Date(data.getFullYear(), data.getMonth(), data.getDate());
+  const nova = inicioDoDia(data);
   nova.setDate(nova.getDate() + quantidade);
   return nova;
 }
@@ -34,6 +44,19 @@ function tituloDia(data) {
 
 function dataCurta(data) {
   return new Intl.DateTimeFormat('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' }).format(data);
+}
+
+function labelPeriodo(inicio, fim) {
+  const diaInicio = String(inicio.getDate()).padStart(2, '0');
+  const diaFim = String(fim.getDate()).padStart(2, '0');
+  const mesInicio = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(inicio);
+  const mesFim = new Intl.DateTimeFormat('pt-BR', { month: 'long' }).format(fim);
+
+  if (inicio.getMonth() === fim.getMonth() && inicio.getFullYear() === fim.getFullYear()) {
+    return `${diaInicio} a ${diaFim} de ${mesInicio} de ${fim.getFullYear()}`;
+  }
+
+  return `${diaInicio} de ${mesInicio} a ${diaFim} de ${mesFim} de ${fim.getFullYear()}`;
 }
 
 function minutos(horario) {
@@ -74,12 +97,12 @@ function renderViagem(viagem) {
   const pedido = viagem.numeroPedido ? ` · ${esc(viagem.numeroPedido)}` : '';
 
   return `
-    <article class="trip">
-      <div>
+    <article class="trip ${tipo === 'Retirada' ? 'trip-retirada' : 'trip-entrega'}">
+      <div class="trip-time-block">
         <div class="trip-time">${esc(viagem.horario || '--:--')}</div>
         <span class="trip-type ${tipo === 'Retirada' ? 'retirada' : ''}">${tipo}</span>
       </div>
-      <div>
+      <div class="trip-main">
         <p class="trip-client">${esc(cliente)}<span class="trip-order">${pedido}</span></p>
         ${linha('Endereço', montarEndereco(viagem))}
         ${linha('Volumes', viagem.volumes)}
@@ -90,8 +113,8 @@ function renderViagem(viagem) {
     </article>`;
 }
 
-function renderDia(data, viagens, indice) {
-  const hoje = indice === 0;
+function renderDia(data, viagens) {
+  const hoje = dataISO(data) === dataISO(new Date());
   const ordenadas = ordenarViagens(viagens);
 
   return `
@@ -104,7 +127,7 @@ function renderDia(data, viagens, indice) {
         ${hoje ? '<span class="today-badge">HOJE</span>' : ''}
       </header>
       <div class="day-body">
-        ${ordenadas.length ? ordenadas.map(renderViagem).join('') : '<p class="empty">Nenhum agendamento.</p>'}
+        ${ordenadas.length ? ordenadas.map(renderViagem).join('') : '<p class="empty">Sem agendamentos.</p>'}
       </div>
     </section>`;
 }
@@ -114,12 +137,12 @@ async function carregarAgenda() {
   statusEl.className = 'status';
   statusEl.textContent = 'Carregando agenda...';
 
-  const hoje = new Date();
-  const dias = Array.from({ length: DIAS_VISIVEIS }, (_, indice) => adicionarDias(hoje, indice));
+  const dias = Array.from({ length: DIAS_VISIVEIS }, (_, indice) => adicionarDias(inicioPeriodo, indice));
+  rangeLabelEl.textContent = labelPeriodo(dias[0], dias[dias.length - 1]);
 
   try {
     const listas = await Promise.all(dias.map((dia) => AgendaStore.listarDia(dataISO(dia))));
-    agendaEl.innerHTML = dias.map((dia, indice) => renderDia(dia, listas[indice] || [], indice)).join('');
+    agendaEl.innerHTML = dias.map((dia, indice) => renderDia(dia, listas[indice] || [])).join('');
     statusEl.hidden = true;
     atualizadoEl.textContent = `Atualizado às ${new Intl.DateTimeFormat('pt-BR', { hour: '2-digit', minute: '2-digit' }).format(new Date())}`;
   } catch (erro) {
@@ -130,6 +153,21 @@ async function carregarAgenda() {
     atualizadoEl.textContent = '';
   }
 }
+
+btnHoje.addEventListener('click', () => {
+  inicioPeriodo = inicioDoDia(new Date());
+  carregarAgenda();
+});
+
+btnAnterior.addEventListener('click', () => {
+  inicioPeriodo = adicionarDias(inicioPeriodo, -7);
+  carregarAgenda();
+});
+
+btnProximo.addEventListener('click', () => {
+  inicioPeriodo = adicionarDias(inicioPeriodo, 7);
+  carregarAgenda();
+});
 
 carregarAgenda();
 setInterval(carregarAgenda, 5 * 60 * 1000);

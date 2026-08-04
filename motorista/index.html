@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Motorista · Portal Timoni</title>
-<link rel="stylesheet" href="app.css?v=8">
+<link rel="stylesheet" href="app.css?v=9">
 </head>
 <body>
 <header class="topbar">
@@ -16,20 +16,30 @@
 </header>
 
 <main class="content">
-  <section class="intro">
+  <section class="calendar-head">
     <div>
       <p class="eyebrow">SOMENTE LEITURA</p>
-      <h1>Hoje e próximos 7 dias</h1>
-      <p class="subtitle">Todos os agendamentos aparecem juntos, em ordem de data e horário.</p>
+      <h1 id="rangeLabel">Carregando período...</h1>
+      <p class="subtitle">Todos os agendamentos aparecem juntos. Use as setas para consultar outra semana.</p>
     </div>
-    <p id="atualizadoEm" class="updated"></p>
+    <div class="calendar-actions" aria-label="Navegação da agenda">
+      <button id="btnHoje" class="btn today-btn" type="button">Hoje</button>
+      <button id="btnAnterior" class="btn icon-nav" type="button" aria-label="Voltar sete dias">‹</button>
+      <button id="btnProximo" class="btn icon-nav" type="button" aria-label="Avançar sete dias">›</button>
+    </div>
+  </section>
+
+  <section class="legend" aria-label="Legenda">
+    <span><i class="legend-dot entrega"></i>Entrega</span>
+    <span><i class="legend-dot retirada"></i>Retirada</span>
+    <span id="atualizadoEm" class="updated"></span>
   </section>
 
   <div id="status" class="status" role="status">Carregando agenda...</div>
   <section id="agenda" class="agenda" aria-live="polite"></section>
 </main>
 
-<script src="lib/store.js?v=8"></script>
-<script src="app.js?v=8"></script>
+<script src="lib/store.js?v=9"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

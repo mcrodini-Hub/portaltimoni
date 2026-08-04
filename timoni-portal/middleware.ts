@@ -28,6 +28,11 @@ const publicMotoristaAssets = new Set([
 export default auth((request) => {
   const pathname = request.nextUrl.pathname;
 
+  // A tela do motorista é pública e somente leitura para facilitar o uso no celular.
+  if (pathname === "/motorista" || pathname.startsWith("/motorista/")) {
+    return NextResponse.next();
+  }
+
   if (publicMotoristaAssets.has(pathname)) {
     return NextResponse.next();
   }

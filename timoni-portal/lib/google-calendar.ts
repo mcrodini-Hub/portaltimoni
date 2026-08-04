@@ -29,11 +29,22 @@ export async function getAccessTokenFromRefreshToken(): Promise<string> {
   return token;
 }
 
+function isDateOnly(value: string) {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value);
+}
+
+function toEventDateTime(value: string): calendar_v3.Schema$EventDateTime {
+  return isDateOnly(value)
+    ? { date: value }
+    : { dateTime: value, timeZone: TIME_ZONE };
+}
+
 function toDTO(event: calendar_v3.Schema$Event, calendarKey: CalendarKey): CalendarEventDTO | null {
   if (!event.id || !event.start || !event.end) return null;
   const start = event.start.dateTime ?? event.start.date;
   const end = event.end.dateTime ?? event.end.date;
   if (!start || !end) return null;
+  const originalStartTime = event.originalStartTime?.dateTime ?? event.originalStartTime?.date ?? undefined;
   return {
     id: event.id,
     summary: event.summary || "(sem título)",
@@ -45,6 +56,9 @@ function toDTO(event: calendar_v3.Schema$Event, calendarKey: CalendarKey): Calen
     calendarKey,
     calendarLabel: CALENDARS[calendarKey].label,
     completed: event.extendedProperties?.private?.completed === "true",
+    recurringEventId: event.recurringEventId ?? undefined,
+    originalStartTime,
+    allDay: Boolean(event.start.date),
   };
 }
 
@@ -86,8 +100,8 @@ export async function createEvent(
       summary: input.summary,
       description: input.description,
       location: input.location,
-      start: { dateTime: input.start, timeZone: TIME_ZONE },
-      end: { dateTime: input.end, timeZone: TIME_ZONE },
+      start: toEventDateTime(input.start),
+      end: toEventDateTime(input.end),
       recurrence: input.recurrence,
     },
   });
@@ -110,8 +124,8 @@ export async function updateEvent(
       summary: input.summary,
       description: input.description,
       location: input.location,
-      ...(input.start ? { start: { dateTime: input.start, timeZone: TIME_ZONE } } : {}),
-      ...(input.end ? { end: { dateTime: input.end, timeZone: TIME_ZONE } } : {}),
+      ...(input.start ? { start: toEventDateTime(input.start) } : {}),
+      ...(input.end ? { end: toEventDateTime(input.end) } : {}),
       ...(input.completed !== undefined
         ? { extendedProperties: { private: { completed: String(input.completed) } } }
         : {}),
@@ -132,7 +146,21 @@ export async function deleteEvent(
 }
 
 export function toApiError(error: unknown): { message: string; status: number } {
-  const status = (error as { code?: number })?.code ?? 500;
+  const typedError = error as {
+    code?: number;
+    message?: string;
+    response?: { data?: { error?: { message?: string } } };
+  };
+  const status = typedError.code ?? 500;
+  const googleMessage = typedError.response?.data?.error?.message || typedError.message;
+  if (status === 400) {
+    return {
+      message: googleMessage
+        ? `Não foi possível salvar o evento: ${googleMessage}`
+        : "Os dados do evento são inválidos.",
+      status: 400,
+    };
+  }
   if (status === 401) return { message: "Sessão expirada. Faça login novamente.", status: 401 };
   if (status === 403) return { message: "Sem permissão para acessar a agenda.", status: 403 };
   if (status === 404) return { message: "Evento não encontrado.", status: 404 };

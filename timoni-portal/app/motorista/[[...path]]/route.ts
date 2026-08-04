@@ -13,6 +13,7 @@ const ALLOWED_FILES = new Map<string, string>([
 
 function injectPortalNavigation(html: string) {
   const style = `
+<base href="/motorista/">
 <style>
 .portal-back{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:7px 12px;border-radius:10px;background:rgba(255,255,255,.14);color:#fff!important;text-decoration:none;font-size:12px;font-weight:700;white-space:nowrap}
 .portal-back:hover{background:rgba(255,255,255,.22)}

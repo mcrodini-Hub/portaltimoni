@@ -28,15 +28,11 @@ export default async function DashboardPage() {
       </header>
 
       <section>
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-700">Acesso rápido</p>
-            <h2 className="mt-0.5 text-xl font-semibold tracking-tight text-slate-950">Seus módulos</h2>
-          </div>
+        <div className="flex justify-end">
           <p className="text-xs text-slate-500">{visible.length} {visible.length === 1 ? "módulo disponível" : "módulos disponíveis"}</p>
         </div>
 
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((item) => {
             const className = `group rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${item.accent}`;
             const content = <>

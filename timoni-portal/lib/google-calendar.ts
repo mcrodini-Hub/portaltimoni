@@ -44,6 +44,7 @@ function toDTO(event: calendar_v3.Schema$Event, calendarKey: CalendarKey): Calen
     htmlLink: event.htmlLink ?? undefined,
     calendarKey,
     calendarLabel: CALENDARS[calendarKey].label,
+    completed: event.extendedProperties?.private?.completed === "true",
   };
 }
 
@@ -111,6 +112,9 @@ export async function updateEvent(
       location: input.location,
       ...(input.start ? { start: { dateTime: input.start, timeZone: TIME_ZONE } } : {}),
       ...(input.end ? { end: { dateTime: input.end, timeZone: TIME_ZONE } } : {}),
+      ...(input.completed !== undefined
+        ? { extendedProperties: { private: { completed: String(input.completed) } } }
+        : {}),
     },
   });
   const dto = toDTO(res.data, calendarKey);

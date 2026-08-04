@@ -16,10 +16,6 @@ const protectedRoutes: Array<{ prefix: string; module: PortalModule }> = [
 export default auth((request) => {
   const pathname = request.nextUrl.pathname;
 
-  if (pathname === "/api/conferencia-pedidos") {
-    return NextResponse.rewrite(new URL("/api/conferencia-gratis", request.url));
-  }
-
   if (!request.auth?.user?.email) {
     return NextResponse.redirect(new URL("/login", request.url));
   }

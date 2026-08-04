@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { hasModuleAccess } from "@/lib/access-control";
 import { google, type sheets_v4 } from "googleapis";
 import { NextResponse } from "next/server";
 
@@ -36,13 +37,7 @@ type Need = {
 
 type Product = { codigo: string; descricao: string; unidade: string };
 type Seller = { nome: string; unidade: string };
-
-type Counts = {
-  emAberto: number;
-  aguardandoCompra: number;
-  aguardandoChegada: number;
-  finalizadas: number;
-};
+type Counts = { emAberto: number; aguardandoCompra: number; aguardandoChegada: number; finalizadas: number };
 
 function emptyCounts(): Counts {
   return { emAberto: 0, aguardandoCompra: 0, aguardandoChegada: 0, finalizadas: 0 };
@@ -60,42 +55,24 @@ function parseBool(input: unknown) {
 
 function rowToNeed(row: unknown[]): Need {
   return {
-    id: value(row, 0),
-    codigo: value(row, 1),
-    descricao: value(row, 2),
-    status: value(row, 3) || STATUS.PENDENTE,
-    criadoEm: value(row, 4),
-    respondidoEm: value(row, 5),
-    numeroPedido: value(row, 6),
-    previsaoEntrega: value(row, 7),
-    observacao: value(row, 8),
-    clienteAguardando: parseBool(row[9]),
-    unidade: value(row, 10) === "araras" ? "araras" : "rio_claro",
-    vendedor: value(row, 11),
-    quantidade: value(row, 12),
-    notaVendedor: value(row, 13),
-    chegouEm: value(row, 14),
+    id: value(row, 0), codigo: value(row, 1), descricao: value(row, 2), status: value(row, 3) || STATUS.PENDENTE,
+    criadoEm: value(row, 4), respondidoEm: value(row, 5), numeroPedido: value(row, 6), previsaoEntrega: value(row, 7),
+    observacao: value(row, 8), clienteAguardando: parseBool(row[9]), unidade: value(row, 10) === "araras" ? "araras" : "rio_claro",
+    vendedor: value(row, 11), quantidade: value(row, 12), notaVendedor: value(row, 13), chegouEm: value(row, 14),
   };
 }
 
 function rowsToProducts(rows: unknown[][]): Product[] {
-  return rows
-    .slice(1)
-    .map((row) => ({ codigo: value(row, 0), descricao: value(row, 1), unidade: value(row, 2) }))
-    .filter((item) => item.codigo || item.descricao);
+  return rows.slice(1).map((row) => ({ codigo: value(row, 0), descricao: value(row, 1), unidade: value(row, 2) })).filter((item) => item.codigo || item.descricao);
 }
 
 function rowsToSellers(rows: unknown[][]): Seller[] {
-  return rows
-    .slice(1)
-    .map((row) => ({ nome: value(row, 0), unidade: value(row, 1).toLowerCase() }))
-    .filter((item) => item.nome);
+  return rows.slice(1).map((row) => ({ nome: value(row, 0), unidade: value(row, 1).toLowerCase() })).filter((item) => item.nome);
 }
 
 function summarize(needs: Need[]) {
   const geral = emptyCounts();
   const porUnidade = { rio_claro: emptyCounts(), araras: emptyCounts() };
-
   for (const need of needs) {
     let field: keyof Counts | null = null;
     if (need.status === STATUS.PENDENTE || need.status === STATUS.OBSERVACAO) field = "emAberto";
@@ -106,16 +83,17 @@ function summarize(needs: Need[]) {
     geral[field] += 1;
     porUnidade[need.unidade][field] += 1;
   }
-
   return { geral, porUnidade };
 }
 
 async function getSheets() {
   const session = await auth();
-  if (!session?.accessToken || session.error === "RefreshAccessTokenError") {
+  if (!session?.user?.email || !hasModuleAccess(session.user.email, "estoque")) {
+    throw new Error("Acesso não autorizado ao módulo Estoque.");
+  }
+  if (!session.accessToken || session.error === "RefreshAccessTokenError") {
     throw new Error("Sessão expirada. Saia e entre novamente no Portal.");
   }
-
   const oauth = new google.auth.OAuth2();
   oauth.setCredentials({ access_token: session.accessToken });
   return google.sheets({ version: "v4", auth: oauth });
@@ -127,30 +105,23 @@ async function readAll(sheets: sheets_v4.Sheets) {
     ranges: ["Necessidades!A:O", "Produtos!A:C", "Vendedores!A:B"],
     valueRenderOption: "FORMATTED_VALUE",
   });
-
   const [needRange, productRange, sellerRange] = response.data.valueRanges ?? [];
   const needRows = (needRange?.values ?? []) as unknown[][];
   const productRows = (productRange?.values ?? []) as unknown[][];
   const sellerRows = (sellerRange?.values ?? []) as unknown[][];
-
   const necessidades = needRows.slice(1).filter((row) => value(row, 0)).map(rowToNeed);
   const produtos = rowsToProducts(productRows);
   const vendedores = rowsToSellers(sellerRows);
-
   return { necessidades, produtos, vendedores, summary: summarize(necessidades), needRows };
 }
 
 function apiError(error: unknown) {
   const message = error instanceof Error ? error.message : "Falha ao acessar o Estoque.";
+  const unauthorized = /não autorizado/i.test(message);
   const needsNewConsent = /insufficient|permission|scope|forbidden|403/i.test(message);
   return NextResponse.json(
-    {
-      ok: false,
-      error: needsNewConsent
-        ? "Autorize o acesso à planilha: saia do Portal e entre novamente."
-        : message,
-    },
-    { status: needsNewConsent ? 403 : 400 },
+    { ok: false, error: needsNewConsent ? "Autorize o acesso à planilha: saia do Portal e entre novamente." : message },
+    { status: unauthorized ? 403 : needsNewConsent ? 403 : 400 },
   );
 }
 
@@ -158,23 +129,14 @@ export async function GET() {
   try {
     const sheets = await getSheets();
     const data = await readAll(sheets);
-    return NextResponse.json(
-      { ok: true, ...data, needRows: undefined },
-      { headers: { "Cache-Control": "no-store" } },
-    );
+    return NextResponse.json({ ok: true, ...data, needRows: undefined }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return apiError(error);
   }
 }
 
-async function updateCells(
-  sheets: sheets_v4.Sheets,
-  data: Array<{ range: string; values: unknown[][] }>,
-) {
-  await sheets.spreadsheets.values.batchUpdate({
-    spreadsheetId: SPREADSHEET_ID,
-    requestBody: { valueInputOption: "RAW", data },
-  });
+async function updateCells(sheets: sheets_v4.Sheets, data: Array<{ range: string; values: unknown[][] }>) {
+  await sheets.spreadsheets.values.batchUpdate({ spreadsheetId: SPREADSHEET_ID, requestBody: { valueInputOption: "RAW", data } });
 }
 
 function normalizeUnit(input: unknown): "rio_claro" | "araras" {
@@ -200,43 +162,19 @@ export async function POST(request: Request) {
 
       const produto = data.produtos.find((item) => item.codigo === codigo);
       if (!produto) throw new Error(`Produto ${codigo} não encontrado.`);
-
-      const existing = data.necessidades.find(
-        (item) => item.codigo === codigo && item.unidade === unidade && item.status !== STATUS.CHEGOU,
-      );
+      const existing = data.necessidades.find((item) => item.codigo === codigo && item.unidade === unidade && item.status !== STATUS.CHEGOU);
       if (existing) {
         if (cliente && !existing.clienteAguardando) {
           const index = data.needRows.slice(1).findIndex((row) => value(row, 0) === existing.id);
-          if (index >= 0) {
-            await updateCells(sheets, [
-              { range: `Necessidades!J${index + 2}`, values: [[true]] },
-            ]);
-          }
+          if (index >= 0) await updateCells(sheets, [{ range: `Necessidades!J${index + 2}`, values: [[true]] }]);
         }
         return NextResponse.json({ ok: true, existing: true, id: existing.id });
       }
 
       const now = new Date().toISOString();
       const id = `nec_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
-      const row = [
-        id,
-        produto.codigo,
-        produto.descricao,
-        STATUS.PENDENTE,
-        now,
-        "",
-        "",
-        "",
-        "",
-        cliente,
-        unidade,
-        vendedor,
-        quantidade,
-        nota,
-        "",
-      ];
+      const row = [id, produto.codigo, produto.descricao, STATUS.PENDENTE, now, "", "", "", "", cliente, unidade, vendedor, quantidade, nota, ""];
       if (row.length !== NEED_COLUMNS) throw new Error("Estrutura da necessidade inválida.");
-
       await sheets.spreadsheets.values.append({
         spreadsheetId: SPREADSHEET_ID,
         range: "Necessidades!A:O",
@@ -261,7 +199,6 @@ export async function POST(request: Request) {
       ]);
       return NextResponse.json({ ok: true });
     }
-
     if (action === "pedido") {
       const numeroPedido = String(body.numeroPedido ?? "").trim();
       const previsao = String(body.previsao ?? "").trim();
@@ -274,7 +211,6 @@ export async function POST(request: Request) {
       ]);
       return NextResponse.json({ ok: true });
     }
-
     if (action === "observacao") {
       const texto = String(body.texto ?? "").trim();
       if (!texto) throw new Error("Escreva a resposta.");
@@ -285,7 +221,6 @@ export async function POST(request: Request) {
       ]);
       return NextResponse.json({ ok: true });
     }
-
     if (action === "chegou") {
       await updateCells(sheets, [
         { range: `Necessidades!D${rowNumber}`, values: [[STATUS.CHEGOU]] },
@@ -293,7 +228,6 @@ export async function POST(request: Request) {
       ]);
       return NextResponse.json({ ok: true });
     }
-
     throw new Error("Ação desconhecida.");
   } catch (error) {
     return apiError(error);

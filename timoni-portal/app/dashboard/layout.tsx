@@ -3,8 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { hasModuleAccess } from "@/lib/access-control";
 
-const MOTORISTA_URL =
-  "https://mcrodini-hub.github.io/portaltimoni/agenda-motorista/";
+const MOTORISTA_URL = "/motorista/";
 
 export default async function DashboardLayout({
   children,

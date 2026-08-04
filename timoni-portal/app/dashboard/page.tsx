@@ -2,16 +2,24 @@ import Link from "next/link";
 import { auth } from "@/lib/auth";
 import { hasModuleAccess, type PortalModule } from "@/lib/access-control";
 
-const modules: Array<{module:PortalModule;name:string;description:string;href:string;icon:string;external?:boolean;accent:string}> = [
-  {module:"painel",name:"Painel Timoni",description:"Comunicados, reuniões, aniversários, férias e orientações da equipe.",href:"/colaboradores",icon:"📢",accent:"border-indigo-200 bg-indigo-50"},
-  {module:"agenda",name:"Agenda da Ciça",description:"Compromissos, reuniões e atividades organizadas por data.",href:"/agenda",icon:"📅",accent:"border-violet-200 bg-violet-50"},
-  {module:"compras",name:"Compras",description:"Pedidos, pendências, fornecedores e acompanhamento das compras.",href:"/dashboard/compras",icon:"🛒",accent:"border-blue-200 bg-blue-50"},
-  {module:"conferencia",name:"Conferência de pedidos",description:"Comparação de documentos e conferência das informações de compra.",href:"/dashboard/conferencia-pedidos",icon:"✅",accent:"border-cyan-200 bg-cyan-50"},
-  {module:"estoque",name:"Estoque",description:"Consulta de produtos, necessidades e acompanhamento das solicitações.",href:"/dashboard/estoque",icon:"📦",accent:"border-emerald-200 bg-emerald-50"},
-  {module:"motorista",name:"Agenda Motorista",description:"Entregas, retiradas, viagens e organização das rotas.",href:"https://mcrodini-hub.github.io/portaltimoni/agenda-motorista/",icon:"🚚",external:true,accent:"border-amber-200 bg-amber-50"},
-  {module:"reunioes",name:"Reuniões",description:"Pautas, decisões, atas e pendências de acompanhamento.",href:"/dashboard/reunioes",icon:"👥",accent:"border-rose-200 bg-rose-50"},
-  {module:"marketing",name:"Marketing",description:"Campanhas, conteúdo, materiais e comunicação da Casa Timoni.",href:"/dashboard/marketing",icon:"📣",accent:"border-pink-200 bg-pink-50"},
-  {module:"financeiro",name:"Financeiro",description:"Pagamentos, atrasos, devoluções e bonificações de fornecedores.",href:"/dashboard/financeiro",icon:"💰",accent:"border-lime-200 bg-lime-50"},
+const modules: Array<{
+  module: PortalModule;
+  name: string;
+  description: string;
+  href: string;
+  icon: string;
+  external?: boolean;
+  accent: string;
+}> = [
+  { module: "painel", name: "Painel Timoni", description: "Comunicados, reuniões, aniversários, férias e orientações da equipe.", href: "/colaboradores", icon: "📢", accent: "border-indigo-200 bg-indigo-50" },
+  { module: "agenda", name: "Agenda da Ciça", description: "Compromissos, reuniões e atividades organizadas por data.", href: "/agenda", icon: "📅", accent: "border-violet-200 bg-violet-50" },
+  { module: "compras", name: "Compras", description: "Pedidos, pendências, fornecedores e acompanhamento das compras.", href: "/dashboard/compras", icon: "🛒", accent: "border-blue-200 bg-blue-50" },
+  { module: "conferencia", name: "Conferência de Preços", description: "Comparação de documentos e conferência das informações de compra.", href: "/dashboard/conferencia-pedidos", icon: "✅", accent: "border-cyan-200 bg-cyan-50" },
+  { module: "estoque", name: "Estoque", description: "Consulta de produtos, necessidades e acompanhamento das solicitações.", href: "/dashboard/estoque", icon: "📦", accent: "border-emerald-200 bg-emerald-50" },
+  { module: "motorista", name: "Agenda do Motorista", description: "Entregas, retiradas, viagens e organização das rotas.", href: "/motorista/", icon: "🚚", external: true, accent: "border-amber-200 bg-amber-50" },
+  { module: "reunioes", name: "Reuniões", description: "Pautas, decisões, atas e pendências de acompanhamento.", href: "/dashboard/reunioes", icon: "👥", accent: "border-rose-200 bg-rose-50" },
+  { module: "marketing", name: "Marketing", description: "Campanhas, conteúdo, materiais e comunicação da Casa Timoni.", href: "/dashboard/marketing", icon: "📣", accent: "border-pink-200 bg-pink-50" },
+  { module: "financeiro", name: "Financeiro", description: "Pagamentos, atrasos, devoluções e bonificações de fornecedores.", href: "/dashboard/financeiro", icon: "💰", accent: "border-lime-200 bg-lime-50" },
 ];
 
 export default async function DashboardPage() {
@@ -35,16 +43,22 @@ export default async function DashboardPage() {
         <div className="mt-2 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((item) => {
             const className = `group rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${item.accent}`;
-            const content = <>
-              <div className="flex items-start justify-between gap-3">
-                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-xl shadow-sm">{item.icon}</span>
-                <span className="rounded-full bg-white px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700 shadow-sm">Ativo</span>
-              </div>
-              <h3 className="mt-3 text-base font-semibold text-slate-950">{item.name}</h3>
-              <p className="mt-1 min-h-9 overflow-hidden text-sm leading-5 text-slate-600 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">{item.description}</p>
-              <p className="mt-3 text-xs font-semibold text-blue-800">Acessar módulo →</p>
-            </>;
-            return item.external ? <a key={item.name} href={item.href} target="_blank" rel="noreferrer" className={className}>{content}</a> : <Link key={item.name} href={item.href} className={className}>{content}</Link>;
+            const content = (
+              <>
+                <div className="flex items-start justify-between gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-xl shadow-sm">{item.icon}</span>
+                  <span className="rounded-full bg-white px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700 shadow-sm">Ativo</span>
+                </div>
+                <h3 className="mt-3 text-base font-semibold text-slate-950">{item.name}</h3>
+                <p className="mt-1 min-h-9 overflow-hidden text-sm leading-5 text-slate-600 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">{item.description}</p>
+                <p className="mt-3 text-xs font-semibold text-blue-800">Acessar módulo →</p>
+              </>
+            );
+            return item.external ? (
+              <a key={item.name} href={item.href} target="_blank" rel="noreferrer" className={className}>{content}</a>
+            ) : (
+              <Link key={item.name} href={item.href} className={className}>{content}</Link>
+            );
           })}
         </div>
       </section>

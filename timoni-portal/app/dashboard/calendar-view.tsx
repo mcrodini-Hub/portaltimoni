@@ -104,6 +104,7 @@ export function CalendarView({
   const [formOpen, setFormOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<CalendarEventDTO | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [completingId, setCompletingId] = useState<string | null>(null);
 
   async function refreshEvents(currentView: ViewMode, offset: number) {
     const { start, end } = periodRange(currentView, offset);
@@ -135,7 +136,7 @@ export function CalendarView({
   }, []);
 
   const urgentCount = useMemo(
-    () => events.filter((event) => getUrgency(event.start, event.end, now) === "urgent").length,
+    () => events.filter((event) => !event.completed && getUrgency(event.start, event.end, now) === "urgent").length,
     [events, now]
   );
 
@@ -193,10 +194,31 @@ export function CalendarView({
     }
   }
 
+  async function handleComplete(event: CalendarEventDTO) {
+    setCompletingId(event.id);
+    try {
+      const res = await fetch(`/api/events/${event.id}?calendarKey=${event.calendarKey}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completed: !event.completed }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Não foi possível atualizar o compromisso.");
+        return;
+      }
+      await refreshEvents(view, periodOffset);
+    } catch {
+      setError("Falha de conexão ao atualizar o compromisso.");
+    } finally {
+      setCompletingId(null);
+    }
+  }
+
   const upcomingEvents = useMemo(
     () =>
       events
-        .filter((event) => eventDateKey(event.start) >= todayKey)
+        .filter((event) => !event.completed && eventDateKey(event.start) >= todayKey)
         .slice(periodOffset * 7, periodOffset * 7 + 7),
     [events, periodOffset, todayKey]
   );
@@ -260,6 +282,7 @@ export function CalendarView({
           setEditingEvent(selected);
           setFormOpen(true);
         }}
+        onComplete={handleComplete}
         onDelete={handleDelete}
       />
     );
@@ -461,6 +484,12 @@ export function CalendarView({
           onClose={() => setFormOpen(false)}
           onSaved={() => refreshEvents(view, periodOffset)}
         />
+      )}
+
+      {completingId && (
+        <p className="fixed bottom-4 right-4 rounded-lg bg-slate-900 px-3 py-2 text-sm text-white">
+          Atualizando compromisso…
+        </p>
       )}
 
       {deletingId && (

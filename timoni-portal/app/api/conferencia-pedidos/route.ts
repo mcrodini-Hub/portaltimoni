@@ -1,9 +1,11 @@
 import { auth } from "@/lib/auth";
 import { hasModuleAccess } from "@/lib/access-control";
+import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
+export const dynamic = "force-dynamic";
 
 const MAX_FILES_PER_GROUP = 8;
 const MAX_TOTAL_BYTES = 4_200_000;
@@ -14,137 +16,61 @@ const ALLOWED_TYPES = new Set([
   "image/webp",
 ]);
 
-const RESPONSE_SCHEMA = {
-  type: "object",
-  additionalProperties: false,
-  properties: {
-    pedido_numero: { type: "string" },
-    fornecedor_curto: { type: "string" },
-    fornecedor_nome: { type: "string" },
-    data_pedido: { type: "string" },
-    data_documento_fornecedor: { type: "string" },
-    resumo_texto: { type: "string" },
-    pontos_atencao: {
-      type: "array",
-      items: { type: "string" },
-    },
-    contagens: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        itens_mcr: { type: "integer" },
-        itens_fornecedor: { type: "integer" },
-        precos_divergentes: { type: "integer" },
-        outras_divergencias: { type: "integer" },
-      },
-      required: [
-        "itens_mcr",
-        "itens_fornecedor",
-        "precos_divergentes",
-        "outras_divergencias",
-      ],
-    },
-    totais: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        subtotal_mcr: { type: ["number", "null"] },
-        subtotal_fornecedor: { type: ["number", "null"] },
-        impostos_fornecedor: { type: ["number", "null"] },
-        frete_fornecedor: { type: ["number", "null"] },
-        desconto_fornecedor: { type: ["number", "null"] },
-        total_fornecedor: { type: ["number", "null"] },
-      },
-      required: [
-        "subtotal_mcr",
-        "subtotal_fornecedor",
-        "impostos_fornecedor",
-        "frete_fornecedor",
-        "desconto_fornecedor",
-        "total_fornecedor",
-      ],
-    },
-    condicoes: {
-      type: "object",
-      additionalProperties: false,
-      properties: {
-        pagamento_mcr: { type: "string" },
-        pagamento_fornecedor: { type: "string" },
-        entrega_mcr: { type: "string" },
-        entrega_fornecedor: { type: "string" },
-        frete_mcr: { type: "string" },
-        frete_fornecedor: { type: "string" },
-      },
-      required: [
-        "pagamento_mcr",
-        "pagamento_fornecedor",
-        "entrega_mcr",
-        "entrega_fornecedor",
-        "frete_mcr",
-        "frete_fornecedor",
-      ],
-    },
-    itens: {
-      type: "array",
-      items: {
-        type: "object",
-        additionalProperties: false,
-        properties: {
-          pl: { type: "string" },
-          codigo_mcr: { type: "string" },
-          codigo_fornecedor_pedido_mcr: { type: "string" },
-          codigo_fornecedor_documento: { type: "string" },
-          descricao: { type: "string" },
-          quantidade_mcr: { type: ["number", "null"] },
-          quantidade_fornecedor: { type: ["number", "null"] },
-          preco_mcr: { type: ["number", "null"] },
-          preco_fornecedor: { type: ["number", "null"] },
-          divergencias: {
-            type: "array",
-            items: {
-              type: "string",
-              enum: [
-                "preco",
-                "quantidade",
-                "codigo",
-                "descricao",
-                "item_faltante",
-                "item_extra",
-                "pareamento_incerto",
-                "outra",
-              ],
-            },
-          },
-          observacao: { type: "string" },
-        },
-        required: [
-          "pl",
-          "codigo_mcr",
-          "codigo_fornecedor_pedido_mcr",
-          "codigo_fornecedor_documento",
-          "descricao",
-          "quantidade_mcr",
-          "quantidade_fornecedor",
-          "preco_mcr",
-          "preco_fornecedor",
-          "divergencias",
-          "observacao",
-        ],
-      },
-    },
+const ALLOWED_DIVERGENCES = new Set([
+  "preco",
+  "quantidade",
+  "codigo",
+  "descricao",
+  "item_faltante",
+  "item_extra",
+  "pareamento_incerto",
+  "outra",
+]);
+
+const RESPONSE_TEMPLATE = {
+  pedido_numero: "",
+  fornecedor_curto: "",
+  fornecedor_nome: "",
+  data_pedido: "",
+  data_documento_fornecedor: "",
+  resumo_texto: "",
+  pontos_atencao: [""],
+  contagens: {
+    itens_mcr: 0,
+    itens_fornecedor: 0,
+    precos_divergentes: 0,
+    outras_divergencias: 0,
   },
-  required: [
-    "pedido_numero",
-    "fornecedor_curto",
-    "fornecedor_nome",
-    "data_pedido",
-    "data_documento_fornecedor",
-    "resumo_texto",
-    "pontos_atencao",
-    "contagens",
-    "totais",
-    "condicoes",
-    "itens",
+  totais: {
+    subtotal_mcr: null,
+    subtotal_fornecedor: null,
+    impostos_fornecedor: null,
+    frete_fornecedor: null,
+    desconto_fornecedor: null,
+    total_fornecedor: null,
+  },
+  condicoes: {
+    pagamento_mcr: "",
+    pagamento_fornecedor: "",
+    entrega_mcr: "",
+    entrega_fornecedor: "",
+    frete_mcr: "",
+    frete_fornecedor: "",
+  },
+  itens: [
+    {
+      pl: "",
+      codigo_mcr: "",
+      codigo_fornecedor_pedido_mcr: "",
+      codigo_fornecedor_documento: "",
+      descricao: "",
+      quantidade_mcr: null,
+      quantidade_fornecedor: null,
+      preco_mcr: null,
+      preco_fornecedor: null,
+      divergencias: ["preco"],
+      observacao: "",
+    },
   ],
 };
 
@@ -169,8 +95,10 @@ REGRAS OBRIGATÓRIAS
 13. Use "NÃO INFORMADO" para texto ausente e null para valor numérico ausente.
 14. Mantenha os itens na ordem do pedido MCR; itens extras do fornecedor ficam no final.
 15. Em divergencias, use "preco" somente para preço unitário diferente. Use os demais códigos para todas as outras diferenças.
-16. O resumo_texto deve ter no máximo 5 linhas e dizer o essencial: itens, diferenças, totais e principal ponto de atenção.
-17. pontos_atencao deve conter somente o que exige decisão, sem repetir informação irrelevante.
+16. Os únicos códigos permitidos em divergencias são: preco, quantidade, codigo, descricao, item_faltante, item_extra, pareamento_incerto e outra.
+17. O resumo_texto deve ter no máximo 5 linhas e dizer o essencial: itens, diferenças, totais e principal ponto de atenção.
+18. pontos_atencao deve conter somente o que exige decisão, sem repetir informação irrelevante.
+19. Retorne exclusivamente JSON válido, sem markdown, sem comentários e com todos os campos do modelo fornecido.
 `;
 
 function isFile(value: FormDataEntryValue): value is File {
@@ -193,39 +121,28 @@ function validateFiles(files: File[], label: string) {
   }
 }
 
-async function fileToContent(file: File) {
+async function fileToPart(file: File) {
   const bytes = Buffer.from(await file.arrayBuffer());
-  const base64 = bytes.toString("base64");
-
-  if (file.type === "application/pdf") {
-    return {
-      type: "file",
-      file: {
-        data: base64,
-        media_type: file.type,
-        filename: file.name,
-      },
-    };
-  }
-
   return {
-    type: "image_url",
-    image_url: {
-      url: `data:${file.type};base64,${base64}`,
+    inlineData: {
+      mimeType: file.type,
+      data: bytes.toString("base64"),
     },
   };
 }
 
 function extractText(payload: unknown) {
   const data = payload as {
-    choices?: Array<{ message?: { content?: string | Array<{ type?: string; text?: string }> } }>;
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+    }>;
   };
-  const content = data.choices?.[0]?.message?.content;
-  if (typeof content === "string") return content;
-  if (Array.isArray(content)) {
-    return content.map((part) => part.text || "").join("").trim();
-  }
-  return "";
+  return (
+    data.candidates?.[0]?.content?.parts
+      ?.map((part) => part.text || "")
+      .join("")
+      .trim() || ""
+  );
 }
 
 function parseJson(text: string) {
@@ -234,20 +151,149 @@ function parseJson(text: string) {
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
     .replace(/\s*```$/, "");
-  return JSON.parse(cleaned);
+  return JSON.parse(cleaned) as Record<string, unknown>;
+}
+
+function asObject(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : {};
+}
+
+function asText(value: unknown) {
+  const text = typeof value === "string" ? value.trim() : String(value ?? "").trim();
+  return text || "NÃO INFORMADO";
+}
+
+function asNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value === "string" && value.trim()) {
+    const normalized = value
+      .replace(/R\$/gi, "")
+      .replace(/\s/g, "")
+      .replace(/\.(?=\d{3}(?:\D|$))/g, "")
+      .replace(",", ".");
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function asInteger(value: unknown, fallback = 0) {
+  const number = asNumber(value);
+  return number === null ? fallback : Math.max(0, Math.round(number));
+}
+
+function normalizeResult(value: Record<string, unknown>) {
+  const rawCounts = asObject(value.contagens);
+  const rawTotals = asObject(value.totais);
+  const rawConditions = asObject(value.condicoes);
+  const rawItems = Array.isArray(value.itens) ? value.itens : [];
+
+  const itens = rawItems.map((entry) => {
+    const item = asObject(entry);
+    const divergencias = Array.isArray(item.divergencias)
+      ? item.divergencias
+          .map((entryValue) => String(entryValue || "").trim())
+          .filter((entryValue) => ALLOWED_DIVERGENCES.has(entryValue))
+      : [];
+
+    return {
+      pl: asText(item.pl),
+      codigo_mcr: asText(item.codigo_mcr),
+      codigo_fornecedor_pedido_mcr: asText(item.codigo_fornecedor_pedido_mcr),
+      codigo_fornecedor_documento: asText(item.codigo_fornecedor_documento),
+      descricao: asText(item.descricao),
+      quantidade_mcr: asNumber(item.quantidade_mcr),
+      quantidade_fornecedor: asNumber(item.quantidade_fornecedor),
+      preco_mcr: asNumber(item.preco_mcr),
+      preco_fornecedor: asNumber(item.preco_fornecedor),
+      divergencias,
+      observacao: asText(item.observacao),
+    };
+  });
+
+  const precosCalculados = itens.filter((item) => item.divergencias.includes("preco")).length;
+  const outrasCalculadas = itens.filter((item) =>
+    item.divergencias.some((entry) => entry !== "preco"),
+  ).length;
+
+  return {
+    pedido_numero: asText(value.pedido_numero),
+    fornecedor_curto: asText(value.fornecedor_curto),
+    fornecedor_nome: asText(value.fornecedor_nome),
+    data_pedido: asText(value.data_pedido),
+    data_documento_fornecedor: asText(value.data_documento_fornecedor),
+    resumo_texto: asText(value.resumo_texto),
+    pontos_atencao: Array.isArray(value.pontos_atencao)
+      ? value.pontos_atencao.map(asText).filter((entry) => entry !== "NÃO INFORMADO")
+      : [],
+    contagens: {
+      itens_mcr: asInteger(
+        rawCounts.itens_mcr,
+        itens.filter((item) => !item.divergencias.includes("item_extra")).length,
+      ),
+      itens_fornecedor: asInteger(
+        rawCounts.itens_fornecedor,
+        itens.filter((item) => !item.divergencias.includes("item_faltante")).length,
+      ),
+      precos_divergentes: asInteger(rawCounts.precos_divergentes, precosCalculados),
+      outras_divergencias: asInteger(rawCounts.outras_divergencias, outrasCalculadas),
+    },
+    totais: {
+      subtotal_mcr: asNumber(rawTotals.subtotal_mcr),
+      subtotal_fornecedor: asNumber(rawTotals.subtotal_fornecedor),
+      impostos_fornecedor: asNumber(rawTotals.impostos_fornecedor),
+      frete_fornecedor: asNumber(rawTotals.frete_fornecedor),
+      desconto_fornecedor: asNumber(rawTotals.desconto_fornecedor),
+      total_fornecedor: asNumber(rawTotals.total_fornecedor),
+    },
+    condicoes: {
+      pagamento_mcr: asText(rawConditions.pagamento_mcr),
+      pagamento_fornecedor: asText(rawConditions.pagamento_fornecedor),
+      entrega_mcr: asText(rawConditions.entrega_mcr),
+      entrega_fornecedor: asText(rawConditions.entrega_fornecedor),
+      frete_mcr: asText(rawConditions.frete_mcr),
+      frete_fornecedor: asText(rawConditions.frete_fornecedor),
+    },
+    itens,
+  };
 }
 
 export async function POST(request: Request) {
   const session = await auth();
   if (!session?.user?.email) {
-    return NextResponse.json({ error: "Sessão expirada. Entre novamente no Portal." }, { status: 401 });
+    return NextResponse.json(
+      { error: "Sessão expirada. Entre novamente no Portal." },
+      { status: 401 },
+    );
   }
 
   if (!hasModuleAccess(session.user.email, "conferencia")) {
-    return NextResponse.json({ error: "Acesso não autorizado a este módulo." }, { status: 403 });
+    return NextResponse.json(
+      { error: "Acesso não autorizado a este módulo." },
+      { status: 403 },
+    );
   }
 
   try {
+    const cookieStore = await cookies();
+    const apiKey =
+      process.env.GEMINI_API_KEY?.trim() ||
+      process.env.GOOGLE_AI_STUDIO_API_KEY?.trim() ||
+      cookieStore.get("timoni_gemini_key")?.value?.trim();
+
+    if (!apiKey) {
+      return NextResponse.json(
+        {
+          code: "GEMINI_NOT_CONFIGURED",
+          error:
+            "O Gemini ainda não está configurado neste Portal. A configuração é feita uma única vez.",
+        },
+        { status: 503 },
+      );
+    }
+
     const formData = await request.formData();
     const pedidoFiles = getFiles(formData, "pedido");
     const fornecedorFiles = getFiles(formData, "fornecedor");
@@ -260,74 +306,62 @@ export async function POST(request: Request) {
       0,
     );
     if (totalBytes > MAX_TOTAL_BYTES) {
-      throw new Error("Os arquivos ultrapassam 4,2 MB. Reduza o tamanho das imagens ou envie menos páginas por vez.");
-    }
-
-    const apiKey =
-      process.env.AI_GATEWAY_API_KEY ||
-      process.env.VERCEL_OIDC_TOKEN ||
-      request.headers.get("x-vercel-oidc-token");
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "A análise automática ainda não está autenticada na Vercel." },
-        { status: 503 },
+      throw new Error(
+        "Os arquivos ultrapassam 4,2 MB. Reduza o tamanho das imagens ou envie menos páginas por vez.",
       );
     }
 
-    const content: Array<Record<string, unknown>> = [
-      { type: "text", text: INSTRUCTIONS },
-      { type: "text", text: "GRUPO 1 — PEDIDO MCR / RODINI (DOCUMENTO-BASE)" },
+    const parts: Array<Record<string, unknown>> = [
+      {
+        text: `${INSTRUCTIONS}\n\nMODELO OBRIGATÓRIO DE RESPOSTA:\n${JSON.stringify(RESPONSE_TEMPLATE)}`,
+      },
+      { text: "GRUPO 1 — PEDIDO MCR / RODINI (DOCUMENTO-BASE)" },
     ];
 
     for (const file of pedidoFiles) {
-      content.push({ type: "text", text: `Arquivo do pedido-base: ${file.name}` });
-      content.push(await fileToContent(file));
+      parts.push({ text: `Arquivo do pedido-base: ${file.name}` });
+      parts.push(await fileToPart(file));
     }
 
-    content.push({ type: "text", text: "GRUPO 2 — DOCUMENTO DO FORNECEDOR" });
+    parts.push({ text: "GRUPO 2 — DOCUMENTO DO FORNECEDOR" });
     for (const file of fornecedorFiles) {
-      content.push({ type: "text", text: `Arquivo do fornecedor: ${file.name}` });
-      content.push(await fileToContent(file));
+      parts.push({ text: `Arquivo do fornecedor: ${file.name}` });
+      parts.push(await fileToPart(file));
     }
 
-    const gatewayResponse = await fetch("https://ai-gateway.vercel.sh/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
+    const response = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-goog-api-key": apiKey,
+        },
+        body: JSON.stringify({
+          contents: [{ role: "user", parts }],
+          generationConfig: {
+            temperature: 0,
+            maxOutputTokens: 12000,
+            responseMimeType: "application/json",
+          },
+        }),
+        cache: "no-store",
       },
-      body: JSON.stringify({
-        model: "anthropic/claude-sonnet-4.6",
-        temperature: 0,
-        max_tokens: 12000,
-        messages: [{ role: "user", content }],
-        response_format: {
-          type: "json_schema",
-          json_schema: {
-            name: "conferencia_pedido",
-            strict: true,
-            schema: RESPONSE_SCHEMA,
-          },
-        },
-        providerOptions: {
-          gateway: {
-            zeroDataRetention: true,
-            disallowPromptTraining: true,
-          },
-        },
-      }),
-      cache: "no-store",
-    });
+    );
 
-    const gatewayPayload = await gatewayResponse.json();
-    if (!gatewayResponse.ok) {
+    const payload = await response.json();
+    if (!response.ok) {
       const message =
-        (gatewayPayload as { error?: { message?: string } })?.error?.message ||
-        "Não foi possível analisar os documentos.";
-      return NextResponse.json({ error: message }, { status: 502 });
+        (payload as { error?: { message?: string; status?: string } })?.error?.message ||
+        "Não foi possível analisar os documentos pelo Gemini.";
+      const status =
+        response.status === 429
+          ? "A cota do Gemini foi atingida. Aguarde a renovação da cota e tente novamente."
+          : message;
+      return NextResponse.json({ error: status }, { status: 502 });
     }
 
-    const text = extractText(gatewayPayload);
+    const text = extractText(payload);
     if (!text) {
       return NextResponse.json(
         { error: "A análise terminou sem um resultado utilizável." },
@@ -335,12 +369,13 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = parseJson(text);
+    const result = normalizeResult(parseJson(text));
     return NextResponse.json(result, {
       headers: { "Cache-Control": "no-store" },
     });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Falha inesperada na conferência.";
+    const message =
+      error instanceof Error ? error.message : "Falha inesperada na conferência.";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }

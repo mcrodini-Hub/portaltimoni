@@ -8,6 +8,18 @@ function normalizeText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
+function normalizeMeetingTitle(value: string) {
+  return normalizeText(value).replace(/\s+/g, " ").trim();
+}
+
+function isPanelMeeting(event: CalendarEventDTO) {
+  const title = normalizeMeetingTitle(event.summary);
+  return (
+    title.startsWith("reuniao ") &&
+    (title.endsWith(" araras") || title.endsWith(" rio claro"))
+  );
+}
+
 function parseEventDate(value: string) {
   return new Date(value.includes("T") ? value : `${value}T12:00:00-03:00`);
 }
@@ -67,7 +79,7 @@ export default async function ColaboradoresPage() {
 
   const nextMeeting = nextEvent(
     timoniEvents,
-    (event) => normalizeText(event.summary).includes("reuniao") && parseEventDate(event.start) >= now,
+    (event) => isPanelMeeting(event) && parseEventDate(event.start) >= now,
   );
   const nextBirthday = nextEvent(
     timoniEvents,

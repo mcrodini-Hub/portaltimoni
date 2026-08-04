@@ -47,9 +47,9 @@ export async function GET(
       );
     }
 
-    const safeCss = (await cssSource.text()).replace(/<\\/style/gi, "<\\\\/style");
+    const safeCss = (await cssSource.text()).split("</style").join("<\\/style");
     const html = (await source.text())
-      .replace(/<link[^>]+href=["']app\\.css(?:\\?[^"']*)?["'][^>]*>/i, "")
+      .replace('<link rel="stylesheet" href="app.css?v=27">', "")
       .replace("<head>", `<head><base href="/agenda-motorista/"><style data-agenda-inline>${safeCss}</style>`);
 
     return new NextResponse(html, {

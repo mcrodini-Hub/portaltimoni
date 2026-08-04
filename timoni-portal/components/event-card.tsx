@@ -74,9 +74,18 @@ export function EventCard({
           {event.location && <p className="text-sm text-slate-500">{event.location}</p>}
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => onComplete(event)}>
-            {event.completed ? "Reabrir" : "Concluir"}
-          </Button>
+          <button
+            type="button"
+            onClick={() => onComplete(event)}
+            className={clsx(
+              "rounded-lg px-3 py-2 text-sm font-medium transition",
+              event.completed
+                ? "bg-green-600 text-white hover:bg-green-700"
+                : "bg-green-50 text-green-700 hover:bg-green-100"
+            )}
+          >
+            ✓ {event.completed ? "Concluído" : "Concluir"}
+          </button>
           <Button variant="secondary" onClick={() => onEdit(event)}>
             Editar
           </Button>

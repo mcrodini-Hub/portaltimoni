@@ -14,8 +14,19 @@ const protectedRoutes: Array<{ prefix: string; module: PortalModule }> = [
   { prefix: "/motorista", module: "motorista" },
 ];
 
+const publicMotoristaAssets = new Set([
+  "/motorista/app.css",
+  "/motorista/app.js",
+  "/motorista/lib/store.js",
+  "/motorista/icons/icon48.png",
+]);
+
 export default auth((request) => {
   const pathname = request.nextUrl.pathname;
+
+  if (publicMotoristaAssets.has(pathname)) {
+    return NextResponse.next();
+  }
 
   if (!request.auth?.user?.email) {
     return NextResponse.redirect(new URL("/login", request.url));

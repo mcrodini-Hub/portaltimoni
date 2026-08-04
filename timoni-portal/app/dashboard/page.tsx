@@ -20,40 +20,40 @@ export default async function DashboardPage() {
   const visible = modules.filter((item) => hasModuleAccess(email, item.module));
 
   return (
-    <div className="pb-8">
-      <header className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Casa Timoni</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Portal Timoni</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">Acesso centralizado aos módulos de trabalho e comunicação interna.</p>
+    <div className="pb-4">
+      <header className="mb-4">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-700">Casa Timoni</p>
+        <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Portal Timoni</h1>
+        <p className="mt-1 max-w-2xl text-sm leading-5 text-slate-600">Acesso centralizado aos módulos de trabalho e comunicação interna.</p>
       </header>
 
       <section>
         <div className="flex items-end justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Acesso rápido</p>
-            <h2 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Seus módulos</h2>
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-blue-700">Acesso rápido</p>
+            <h2 className="mt-0.5 text-xl font-semibold tracking-tight text-slate-950">Seus módulos</h2>
           </div>
-          <p className="text-sm text-slate-500">{visible.length} {visible.length === 1 ? "módulo disponível" : "módulos disponíveis"}</p>
+          <p className="text-xs text-slate-500">{visible.length} {visible.length === 1 ? "módulo disponível" : "módulos disponíveis"}</p>
         </div>
 
-        <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {visible.map((item) => {
-            const className = `group rounded-3xl border p-5 shadow-sm transition hover:-translate-y-1 hover:shadow-lg ${item.accent}`;
+            const className = `group rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${item.accent}`;
             const content = <>
               <div className="flex items-start justify-between gap-3">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-2xl shadow-sm">{item.icon}</span>
-                <span className="rounded-full bg-white px-3 py-1 text-[11px] font-semibold text-emerald-700 shadow-sm">Ativo</span>
+                <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-xl shadow-sm">{item.icon}</span>
+                <span className="rounded-full bg-white px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700 shadow-sm">Ativo</span>
               </div>
-              <h3 className="mt-5 text-lg font-semibold text-slate-950">{item.name}</h3>
-              <p className="mt-2 min-h-10 text-sm leading-5 text-slate-600">{item.description}</p>
-              <p className="mt-5 text-xs font-semibold text-blue-800">Acessar módulo →</p>
+              <h3 className="mt-3 text-base font-semibold text-slate-950">{item.name}</h3>
+              <p className="mt-1 min-h-9 overflow-hidden text-sm leading-5 text-slate-600 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">{item.description}</p>
+              <p className="mt-3 text-xs font-semibold text-blue-800">Acessar módulo →</p>
             </>;
             return item.external ? <a key={item.name} href={item.href} target="_blank" rel="noreferrer" className={className}>{content}</a> : <Link key={item.name} href={item.href} className={className}>{content}</Link>;
           })}
         </div>
       </section>
 
-      <footer className="mt-10 border-t border-slate-200 pt-4 text-center text-xs text-slate-400">
+      <footer className="mt-5 border-t border-slate-200 pt-3 text-center text-[11px] text-slate-400">
         Idealizado por Ciça Rodini para fortalecer a comunicação interna e a evolução dos processos da Casa Timoni. Agosto 2026
       </footer>
     </div>

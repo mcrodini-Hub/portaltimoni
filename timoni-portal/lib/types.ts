@@ -26,4 +26,7 @@ export interface CalendarEventDTO {
   calendarKey: CalendarKey;
   calendarLabel: string;
   completed: boolean;
+  recurringEventId?: string;
+  originalStartTime?: string;
+  allDay: boolean;
 }

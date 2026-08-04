@@ -1171,7 +1171,7 @@ document.getElementById('btnMotoristaProximo').addEventListener('click', () => {
   const d = dataStrParaDate(diaMotorista); d.setDate(d.getDate() + 1); diaMotorista = toDataStr(d); renderModoMotorista();
 });
 
-document.getElementById('btnConfig').addEventListener('click', abrirConfig);
+document.getElementById('btnConfig')?.addEventListener('click', abrirConfig);
 function fecharConfig() { mostrarTela('telaAgenda'); refrescarCalendario(); }
 document.getElementById('btnFecharConfig').addEventListener('click', fecharConfig);
 document.getElementById('btnFecharConfig2').addEventListener('click', fecharConfig);

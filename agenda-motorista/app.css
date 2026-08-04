@@ -229,18 +229,16 @@ textarea{min-height:64px;}
 .form-actions{display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border);}
 .validation-msg{font-size:13px;color:var(--red);margin-top:6px;}
 
-/* --------------------------- Dashboard: dia à esquerda + calendário à direita --------------------------- */
-.dashboard-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(700px,760px);gap:24px;align-items:start;}
-.dash-col-cal{order:2;}
+/* --------------------------- Dashboard: dia em cima + calendário logo abaixo --------------------------- */
+.dashboard-grid{display:grid;grid-template-columns:1fr;gap:24px;align-items:start;}
 .dash-col-dia{
-  order:1;border-right:1px solid var(--border);padding-right:24px;
-  max-height:calc(100vh - 110px);overflow-y:auto;
+  order:1;
+  border-bottom:1px solid var(--border);
+  padding-bottom:22px;
+  max-height:none;
+  overflow:visible;
 }
-@media (max-width:1180px){
-  .dashboard-grid{grid-template-columns:1fr;}
-  .dash-col-cal{order:1;}
-  .dash-col-dia{order:2;border-right:none;padding-right:0;border-top:1px solid var(--border);padding-top:16px;max-height:none;overflow-y:visible;}
-}
+.dash-col-cal{order:2;}
 
 .acoes-dia-compact{display:flex;gap:7px;flex-wrap:wrap;margin:12px 0 14px;}
 .acoes-dia-compact .btn-small{padding:9px 13px;}

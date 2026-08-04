@@ -20,6 +20,9 @@ const publicMotoristaAssets = new Set([
   "/motorista/app.js",
   "/motorista/lib/store.js",
   "/motorista/icons/icon48.png",
+  "/agenda-motorista/app.css",
+  "/agenda-motorista/app.js",
+  "/agenda-motorista/lib/store.js",
 ]);
 
 export default auth((request) => {

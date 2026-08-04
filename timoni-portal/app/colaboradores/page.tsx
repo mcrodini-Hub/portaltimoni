@@ -54,10 +54,25 @@ function nextEvent(events: CalendarEventDTO[], predicate: (event: CalendarEventD
     .sort((a, b) => parseEventDate(a.start).getTime() - parseEventDate(b.start).getTime())[0];
 }
 
+function nextMeetings(events: CalendarEventDTO[], now: Date) {
+  const ordered = events
+    .filter((event) => isPanelMeeting(event) && parseEventDate(event.start) >= now)
+    .sort((a, b) => parseEventDate(a.start).getTime() - parseEventDate(b.start).getTime());
+
+  const unique = new Map<string, CalendarEventDTO>();
+  for (const event of ordered) {
+    const key = `${normalizeMeetingTitle(event.summary)}|${event.start}`;
+    if (!unique.has(key)) unique.set(key, event);
+  }
+
+  return Array.from(unique.values()).slice(0, 2);
+}
+
 export default async function ColaboradoresPage() {
   const session = await auth();
   const email = session?.user?.email ?? "";
   const now = new Date();
+  let allEvents: CalendarEventDTO[] = [];
   let timoniEvents: CalendarEventDTO[] = [];
 
   if (session?.accessToken && session.error !== "RefreshAccessTokenError") {
@@ -66,21 +81,19 @@ export default async function ColaboradoresPage() {
       timeMin.setDate(timeMin.getDate() - 45);
       const timeMax = new Date(now);
       timeMax.setFullYear(timeMax.getFullYear() + 1);
-      const events = await listEventsInRange(session.accessToken, {
+      allEvents = await listEventsInRange(session.accessToken, {
         timeMin: timeMin.toISOString(),
         timeMax: timeMax.toISOString(),
         maxResults: 500,
       });
-      timoniEvents = events.filter((event) => event.calendarKey === "timoni");
+      timoniEvents = allEvents.filter((event) => event.calendarKey === "timoni");
     } catch {
+      allEvents = [];
       timoniEvents = [];
     }
   }
 
-  const nextMeeting = nextEvent(
-    timoniEvents,
-    (event) => isPanelMeeting(event) && parseEventDate(event.start) >= now,
-  );
+  const meetings = nextMeetings(allEvents, now);
   const nextBirthday = nextEvent(
     timoniEvents,
     (event) => normalizeText(event.summary).includes("aniversario") && parseEventDate(event.start) >= now,
@@ -120,11 +133,21 @@ export default async function ColaboradoresPage() {
         </article>
 
         <article className="rounded-3xl border border-violet-200 bg-violet-50 p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Próxima reunião</p>
-          <h2 className="mt-3 text-xl font-semibold text-slate-950">
-            {nextMeeting ? formatMeetingTitle(nextMeeting.summary) : "Nenhuma reunião programada"}
-          </h2>
-          {nextMeeting && <p className="mt-5 text-sm font-semibold text-violet-800">{formatDateTime(nextMeeting)}</p>}
+          <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Próximas reuniões</p>
+          {meetings.length ? (
+            <div className="mt-3 divide-y divide-violet-200">
+              {meetings.map((meeting) => (
+                <div key={`${meeting.id}-${meeting.start}`} className="py-3 first:pt-0 last:pb-0">
+                  <h2 className="text-lg font-semibold text-slate-950">
+                    {formatMeetingTitle(meeting.summary)}
+                  </h2>
+                  <p className="mt-2 text-sm font-semibold text-violet-800">{formatDateTime(meeting)}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <h2 className="mt-3 text-xl font-semibold text-slate-950">Nenhuma reunião programada</h2>
+          )}
         </article>
 
         <article className="rounded-3xl border border-pink-200 bg-pink-50 p-6 shadow-sm">

@@ -17,21 +17,13 @@ function injectPortalNavigation(html: string, css: string) {
 <base href="/motorista/">
 <style data-motorista-inline>
 ${safeCss}
-.portal-back{display:inline-flex;align-items:center;justify-content:center;min-height:36px;padding:7px 12px;border-radius:10px;background:rgba(255,255,255,.14);color:#fff!important;text-decoration:none;font-size:12px;font-weight:700;white-space:nowrap}
-.portal-back:hover{background:rgba(255,255,255,.22)}
-@media(max-width:600px){.portal-back{font-size:11px;padding:6px 9px}.brand-title{font-size:13px}}
 </style>`;
 
   return html
     .replace(/<link[^>]+href=["']app\.css(?:\?[^"']*)?["'][^>]*>/i, "")
     .replaceAll("?v=4", "?v=6")
     .replaceAll("?v=5", "?v=6")
-    .replace("</head>", `${inlineStyles}</head>`)
-    .replace(
-      '<div class="topbar-actions" id="lojaPillWrap" hidden>',
-      '<div style="display:flex;align-items:center;gap:8px"><a class="portal-back" href="/dashboard">← Voltar ao Portal</a><div class="topbar-actions" id="lojaPillWrap" hidden>',
-    )
-    .replace("</header>", "</div></header>");
+    .replace("</head>", `${inlineStyles}</head>`);
 }
 
 async function fetchMotoristaFile(ref: string, filePath: string, accept: string) {

@@ -1,6 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
-import { hasModuleAccess } from "@/lib/access-control";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -75,13 +73,6 @@ function mensagemErro(erro: unknown) {
 }
 
 export async function GET(request: NextRequest) {
-  const session = await auth();
-  const email = session?.user?.email;
-
-  if (!email || !hasModuleAccess(email, "motorista")) {
-    return NextResponse.json({ error: "Não autorizado." }, { status: 401 });
-  }
-
   const inicio = request.nextUrl.searchParams.get("inicio") || "";
   const quantidadeInformada = Number(request.nextUrl.searchParams.get("dias") || "7");
   const quantidade = Number.isInteger(quantidadeInformada)

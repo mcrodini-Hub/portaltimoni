@@ -12,6 +12,7 @@ export interface CalendarEventInput {
   start: string;
   end: string;
   recurrence?: string[];
+  completed?: boolean;
 }
 
 export interface CalendarEventDTO {
@@ -24,4 +25,5 @@ export interface CalendarEventDTO {
   htmlLink?: string;
   calendarKey: CalendarKey;
   calendarLabel: string;
+  completed: boolean;
 }

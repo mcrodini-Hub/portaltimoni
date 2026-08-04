@@ -39,7 +39,19 @@ export async function GET(
   }
 
   if (filePath === "index.html") {
-    const html = (await source.text()).replace("</head>", '<base href="/agenda-motorista/"></head>');
+    const cssSource = await fetchAgendaFile(ref, "app.css", "text/css");
+    if (!cssSource.ok) {
+      return NextResponse.json(
+        { error: "O estilo do Agendamento do Motorista não pôde ser carregado." },
+        { status: 502 },
+      );
+    }
+
+    const safeCss = (await cssSource.text()).replace(/<\\/style/gi, "<\\\\/style");
+    const html = (await source.text())
+      .replace(/<link[^>]+href=["']app\\.css(?:\\?[^"']*)?["'][^>]*>/i, "")
+      .replace("<head>", `<head><base href="/agenda-motorista/"><style data-agenda-inline>${safeCss}</style>`);
+
     return new NextResponse(html, {
       headers: { "Content-Type": contentType, "Cache-Control": "no-store, max-age=0" },
     });

@@ -15,6 +15,12 @@ const TRELLO_URL = "https://trello.com/b/UfPrTr1H/compras";
 const DRIVE_URL = "https://drive.google.com/drive/u/0/folders/1P7Nb1FwfSQ6e7TA9Wkgizyy53tGGQajk";
 const STORAGE_KEY = "timoni_compras_portal_v3";
 const ALLOWED_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/webp"]);
+const ALLOWED_ORDER_FILE_TYPES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+]);
 
 interface Summary {
   pedidosParaFazer: number;
@@ -47,6 +53,17 @@ interface PurchaseItem {
   quantidade: string;
 }
 
+interface PrintPayload {
+  ok?: boolean;
+  numeroPedido?: string;
+  empresa?: string;
+  dataEnvio?: string;
+  dataEntrega?: string;
+  fornecedor?: string;
+  finalTitle?: string;
+  error?: string;
+}
+
 function todayLocal() {
   const date = new Date();
   const pad = (value: number) => String(value).padStart(2, "0");
@@ -67,6 +84,8 @@ export default function ComprasClient() {
 
   const [orderPrint, setOrderPrint] = useState<File | null>(null);
   const [orderPrintPreview, setOrderPrintPreview] = useState("");
+  const [orderFile, setOrderFile] = useState<File | null>(null);
+  const [readingPrint, setReadingPrint] = useState(false);
 
   const [unit, setUnit] = useState<"rio_claro" | "araras">("rio_claro");
   const [finalTitle, setFinalTitle] = useState("");
@@ -146,6 +165,7 @@ export default function ComprasClient() {
     setItems([]);
     setSheetInfo("");
     setOrderPrint(null);
+    setOrderFile(null);
     setDataEntrega("");
     setSuccess("");
     setUpdatedCardUrl("");
@@ -197,12 +217,49 @@ export default function ComprasClient() {
     }
   }
 
+  async function readOrderPrint(file: File) {
+    if (!selectedSupplier) return;
+
+    setReadingPrint(true);
+    setError("");
+    setSuccess("Lendo o número e as datas do pedido...");
+
+    try {
+      const formData = new FormData();
+      formData.set("print", file, file.name);
+      formData.set("supplierName", selectedSupplier.name);
+
+      const response = await fetch("/api/compras/ler-print", {
+        method: "POST",
+        body: formData,
+      });
+      const payload = (await response.json()) as PrintPayload;
+      if (!response.ok) {
+        throw new Error(payload.error || "Não foi possível ler os dados do print.");
+      }
+
+      if (payload.finalTitle) setFinalTitle(payload.finalTitle);
+      if (payload.dataEnvio) setDataEnvio(payload.dataEnvio);
+      if (payload.dataEntrega) setDataEntrega(payload.dataEntrega);
+      setSuccess("Print lido. Confira o título e as datas antes de atualizar o Trello.");
+    } catch (caught) {
+      setError(
+        caught instanceof Error
+          ? `${caught.message} O print continua anexado; preencha os campos manualmente.`
+          : "Não foi possível ler o print. Preencha os campos manualmente.",
+      );
+      setSuccess("");
+    } finally {
+      setReadingPrint(false);
+    }
+  }
+
   function acceptOrderPrint(file: File) {
     setError("");
     try {
       validateOrderPrint(file);
       setOrderPrint(file);
-      setSuccess("Print do pedido pronto para ser anexado ao Trello.");
+      void readOrderPrint(file);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível usar esse print.");
     }
@@ -239,6 +296,25 @@ export default function ComprasClient() {
     const file = event.target.files?.[0];
     if (file) acceptOrderPrint(file);
     event.target.value = "";
+  }
+
+  function handleOrderFileSelect(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    setError("");
+    if (!ALLOWED_ORDER_FILE_TYPES.has(file.type)) {
+      setError("O arquivo do pedido deve ser PDF, PNG, JPG ou WEBP.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setError("O arquivo do pedido ultrapassa 10 MB.");
+      return;
+    }
+
+    setOrderFile(file);
+    setSuccess("Arquivo do pedido pronto para ser anexado ao cartão.");
   }
 
   function updateItem(index: number, field: keyof PurchaseItem, value: string) {
@@ -286,6 +362,7 @@ export default function ComprasClient() {
       formData.set("dataEntrega", dataEntrega);
       formData.set("items", JSON.stringify(items));
       formData.set("attachment", orderPrint, orderPrint.name);
+      if (orderFile) formData.set("orderFile", orderFile, orderFile.name);
 
       const response = await fetch("/api/compras/finalizar", {
         method: "POST",
@@ -294,13 +371,18 @@ export default function ComprasClient() {
       const payload = await response.json();
       if (!response.ok) throw new Error(payload?.error || "Não foi possível atualizar o Trello.");
 
+      const attachments = [
+        payload.printAdded ? "print" : "",
+        payload.orderFileAdded ? "arquivo do pedido" : "",
+      ].filter(Boolean);
       setSuccess(
         `Pronto: ${payload.cardName}. Movido para ${payload.destination}${
-          payload.attachmentAdded ? " com o print anexado" : ""
+          attachments.length ? ` com ${attachments.join(" e ")} anexado${attachments.length > 1 ? "s" : ""}` : ""
         }.`,
       );
       setUpdatedCardUrl(payload.cardUrl || "");
       setOrderPrint(null);
+      setOrderFile(null);
       await loadTrello();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível finalizar o pedido.");
@@ -439,8 +521,8 @@ export default function ComprasClient() {
       <section className="grid gap-5 xl:grid-cols-2">
         <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">4. Pedido feito</p>
-          <h2 className="mt-2 text-xl font-semibold text-slate-950">Colar print do pedido</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Depois de concluir o pedido no sistema, copie o print e cole abaixo com <strong>Ctrl+V</strong>. O arquivo será anexado ao cartão do Trello.</p>
+          <h2 className="mt-2 text-xl font-semibold text-slate-950">Colar print e anexar arquivo</h2>
+          <p className="mt-2 text-sm leading-6 text-slate-600">Cole o print com <strong>Ctrl+V</strong>. O Portal lê o número do pedido, a empresa e as datas para preencher o cartão; o print também será anexado ao Trello.</p>
 
           <div
             tabIndex={0}
@@ -454,7 +536,7 @@ export default function ComprasClient() {
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={orderPrintPreview} alt="Print do pedido feito" className="max-h-48 max-w-full rounded-xl border border-blue-200 bg-white object-contain shadow-sm" />
                 <p className="mt-3 text-sm font-semibold text-blue-900">{orderPrint?.name}</p>
-                <p className="mt-1 text-xs text-blue-700">Cole outro print para substituir.</p>
+                <p className="mt-1 text-xs text-blue-700">{readingPrint ? "Lendo dados do pedido..." : "Cole outro print para substituir."}</p>
               </>
             ) : (
               <>
@@ -468,12 +550,27 @@ export default function ComprasClient() {
             Selecionar print
             <input type="file" accept="image/png,image/jpeg,image/webp" onChange={handlePrintSelect} className="sr-only" />
           </label>
+
+          <div className="mt-5 border-t border-slate-200 pt-5">
+            <p className="text-sm font-semibold text-slate-900">Arquivo do pedido</p>
+            <p className="mt-1 text-sm text-slate-600">Opcional. Anexe o PDF ou a imagem original do pedido ao mesmo cartão.</p>
+            <label className="mt-3 inline-flex min-h-11 cursor-pointer items-center rounded-xl border border-slate-300 bg-white px-5 text-sm font-semibold text-slate-800 hover:bg-slate-50">
+              Selecionar arquivo
+              <input type="file" accept="application/pdf,image/png,image/jpeg,image/webp" onChange={handleOrderFileSelect} className="sr-only" />
+            </label>
+            {orderFile && (
+              <div className="mt-3 flex flex-wrap items-center gap-3 rounded-xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
+                <span className="font-semibold">{orderFile.name}</span>
+                <button type="button" onClick={() => setOrderFile(null)} className="font-semibold text-rose-700">Remover</button>
+              </div>
+            )}
+          </div>
         </article>
 
         <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">5. Atualizar Trello</p>
           <h2 className="mt-2 text-xl font-semibold text-slate-950">Finalizar o cartão</h2>
-          <p className="mt-2 text-sm text-slate-600">O Portal grava os itens, anexa o print, aplica a etiqueta Enviado e move o cartão para o topo da lista correta.</p>
+          <p className="mt-2 text-sm text-slate-600">O Portal grava os itens, anexa o print e o arquivo, aplica a etiqueta Enviado e move o cartão para o topo da lista correta.</p>
 
           <label className="mt-4 block text-sm font-semibold text-slate-800">Título final do cartão<input value={finalTitle} onChange={(event) => setFinalTitle(event.target.value)} placeholder="Ex.: ROMPLAS 6055MCR" className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 px-4 text-sm" /></label>
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
@@ -481,7 +578,7 @@ export default function ComprasClient() {
             <label className="text-sm font-semibold text-slate-800">Envio<input type="date" value={dataEnvio} onChange={(event) => setDataEnvio(event.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm" /></label>
             <label className="text-sm font-semibold text-slate-800">Entrega<input type="date" value={dataEntrega} onChange={(event) => setDataEntrega(event.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm" /></label>
           </div>
-          <button type="button" onClick={() => void finalizePurchase()} disabled={busy || !selectedSupplier || !items.length || !orderPrint} className="mt-4 min-h-12 rounded-xl bg-emerald-700 px-6 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300">{busy ? "Atualizando..." : "Atualizar Trello"}</button>
+          <button type="button" onClick={() => void finalizePurchase()} disabled={busy || readingPrint || !selectedSupplier || !items.length || !orderPrint} className="mt-4 min-h-12 rounded-xl bg-emerald-700 px-6 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300">{busy ? "Atualizando..." : readingPrint ? "Lendo print..." : "Atualizar Trello"}</button>
         </article>
       </section>
 

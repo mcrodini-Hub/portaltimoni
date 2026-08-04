@@ -7,7 +7,7 @@
   --border:#e7e4e2;
   --card-bg:#ffffff;
   --page-bg:#f8f7f6;
-  --header-bg:#fbeeec;
+  --header-bg:#102766;
   --green:#1f8a4c;
   --red:#c0362c;
   --amber:#a9720a;
@@ -27,7 +27,7 @@ body{
   justify-content:space-between;
   padding:12px 20px;
   background:var(--header-bg);
-  border-bottom:1px solid var(--border);
+  border-bottom:1px solid #0b1d4d;
   position:sticky;
   top:0;
   z-index:5;
@@ -40,21 +40,22 @@ body{
   border-radius:50%;
   object-fit:cover;
   background:#fff;
-  box-shadow:0 0 0 1px rgba(44,75,224,0.15);
+  box-shadow:0 0 0 2px rgba(255,255,255,0.75);
 }
-.brand-title{font-weight:600;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.brand-dim{color:var(--ink-soft);font-weight:500;}
+.brand-title{font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.brand-dim{color:rgba(255,255,255,0.78);font-weight:500;}
 
 .topbar-actions{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
 .loja-pill{
-  font-size:11px;font-weight:700;color:var(--blue);
-  background:rgba(44,75,224,0.1);padding:4px 10px;border-radius:999px;white-space:nowrap;
+  font-size:11px;font-weight:700;color:#fff;
+  background:rgba(255,255,255,0.16);padding:4px 10px;border-radius:999px;white-space:nowrap;
 }
 .icon-btn{
-  border:none;background:transparent;color:var(--ink-soft);
+  border:none;background:transparent;color:#fff;
   width:28px;height:28px;border-radius:6px;font-size:15px;line-height:1;cursor:pointer;
 }
-.icon-btn:hover{background:rgba(0,0,0,0.06);}
+.icon-btn:hover{background:rgba(255,255,255,0.14);}
+.topbar a,.topbar button{color:#fff;}
 
 .content{width:100%;max-width:1280px;padding:20px 28px 60px;margin:0 auto;}
 

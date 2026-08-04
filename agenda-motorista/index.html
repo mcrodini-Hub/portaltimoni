@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agendamento do Motorista · Portal Timoni</title>
+<link rel="stylesheet" href="app.css?v=27">
+</head>
+<body>
+
+<div id="toast" class="toast" hidden></div>
+
+<header class="topbar">
+  <div class="brand">
+    <img class="brand-logo" src="/motorista/icons/icon48.png" alt="Casa Timoni">
+    <span class="brand-title">Agendamento do Motorista <span class="brand-dim">· Portal Timoni</span></span>
+  </div>
+  <div class="topbar-actions">
+    <a class="portal-back" href="/dashboard">← Voltar ao Portal</a>
+    <button id="btnModoMotorista" class="icon-btn" title="Modo motorista" aria-label="Modo motorista" hidden>🚚</button>
+    <button id="btnConfig" class="icon-btn" title="Configurar planilha" aria-label="Configurar planilha">⚙</button>
+  </div>
+</header>
+
+<main class="content" id="topoConteudo">
+
+  <!-- TELA DO MOTORISTA: uso direto pelo celular -->
+  <section id="telaMotorista" hidden>
+    <div class="cal-header motorista-header">
+      <h1 id="motoristaDataLabel">--</h1>
+      <div class="cal-nav">
+        <button class="btn-secondary btn-small" id="btnMotoristaHoje">Hoje</button>
+        <button class="icon-btn" id="btnMotoristaAnterior" title="Dia anterior">‹</button>
+        <button class="icon-btn" id="btnMotoristaProximo" title="Próximo dia">›</button>
+      </div>
+    </div>
+    <p class="conn-status err" id="motoristaModoLocal" hidden>⚠ Sem planilha configurada — as marcações ficam só neste celular, outros computadores não vão ver.</p>
+    <div id="listaMotorista"></div>
+  </section>
+
+  <!-- CONFIGURAÇÃO -->
+  <section id="telaConfig" hidden>
+    <button class="btn-link" id="btnFecharConfig">← Voltar para a agenda</button>
+    <p class="step-label" style="margin-top:14px;">Configurar</p>
+    <div class="card">
+      <p class="hint-text" style="margin-top:0;">URL do Web App do Apps Script (termina em <code>/exec</code>). Enquanto vazio, a agenda roda em <strong>modo local</strong> — os dados ficam só neste navegador, sem compartilhar com outros computadores. Passo a passo em <code>apps-script/Codigo.gs</code> e no README.</p>
+      <input type="text" id="inputWebAppUrl" placeholder="https://script.google.com/macros/s/.../exec">
+      <div style="display:flex;gap:8px;margin-top:10px;">
+        <button class="btn-primary btn-small" id="btnSalvarConfig">Salvar e testar</button>
+        <button class="btn-secondary btn-small" id="btnFecharConfig2">Voltar</button>
+      </div>
+      <p class="conn-status" id="configStatus"></p>
+    </div>
+  </section>
+
+  <!-- AGENDA: calendário e dia selecionado, lado a lado, sem precisar rolar -->
+  <section id="telaAgenda">
+    <div class="dashboard-grid">
+
+      <!-- Calendário à direita no computador -->
+      <div class="dash-col dash-col-cal">
+        <div class="cal-header">
+          <h1 id="calLabel">--</h1>
+          <div class="cal-nav">
+            <button class="btn-secondary btn-small" id="btnAnterior" title="7 dias anteriores">← 7 dias anteriores</button>
+            <button class="btn-secondary btn-small" id="btnHoje">Hoje</button>
+            <button class="btn-secondary btn-small" id="btnProximo" title="Próximos 7 dias">Próximos 7 dias →</button>
+          </div>
+        </div>
+        <div class="filtro-loja view-switcher">
+          <button class="chip js-modo-cal ativo" data-modo="semana">Próximos 7 dias</button>
+          <button class="chip js-modo-cal" data-modo="mes">Mês</button>
+          <button class="chip js-modo-cal" data-modo="ano">Ano</button>
+        </div>
+        <div class="cal-legend">
+          <span><span class="dot dot-entrega"></span>entregas</span>
+          <span><span class="dot dot-retirada"></span>retiradas</span>
+          <span><span class="dot dot-bloqueio"></span>bloqueios</span>
+          <span><span class="cal-day-tag" style="margin-right:4px;">Araras</span>dia padrão de Araras</span>
+        </div>
+        <p class="validation-msg" id="calMsg"></p>
+        <div class="cal-grid-semana" id="calGridSemana"></div>
+        <div class="cal-grid" id="calGrid" hidden></div>
+        <div class="cal-grid-ano" id="calGridAno" hidden></div>
+      </div>
+
+      <!-- Viagens do dia à esquerda no computador -->
+      <div class="dash-col dash-col-dia" id="diaSecao">
+        <div class="dia-header">
+          <h1 class="dia-titulo" id="diaTitulo">--</h1>
+          <div class="filtro-loja" style="margin:0;">
+            <button class="chip js-filtro-loja ativo" data-loja="todas">Todas</button>
+            <button class="chip js-filtro-loja" data-loja="rio_claro">Rio Claro</button>
+            <button class="chip js-filtro-loja" data-loja="araras">Araras</button>
+          </div>
+        </div>
+        <div class="dia-banner" id="diaBanner" hidden></div>
+
+        <div class="acoes-dia acoes-dia-compact">
+          <button class="btn-primary btn-small" id="btnNovaViagem">+ Nova viagem</button>
+          <button class="btn-secondary btn-small" id="btnBloquearHorario">🔒 Bloquear</button>
+          <button class="btn-outline btn-small" id="btnImprimirRelatorio">Imprimir</button>
+          <button class="btn-outline btn-small" id="btnGerarExcel">Excel</button>
+          <button class="btn-outline btn-small" id="btnAbrirRota">Rota</button>
+        </div>
+
+        <div id="listaViagens" class="lista-viagens-scroll"></div>
+        <div class="validation-msg" id="diaValidationMsg"></div>
+
+        <textarea id="output" readonly hidden></textarea>
+        <div class="copy-row">
+          <button class="btn-primary btn-small" id="btnCopiarTexto">Copiar texto do dia</button>
+          <span class="copied-msg" id="copiedMsg">Copiado!</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider" style="margin:24px 0;"></div>
+
+    <!-- Lista de tudo que está agendado na semana, embaixo do calendário -->
+    <div class="agenda-lista-semana-wrap" id="agendaListaSemanaWrap">
+      <h2 class="agenda-lista-semana-titulo">Agendado nos próximos 7 dias</h2>
+      <div id="agendaListaSemana"></div>
+    </div>
+
+    <!-- FORMULÁRIO (criar / editar) — modal por cima, não empurra o resto da tela -->
+    <div class="modal-overlay" id="formOverlay" hidden>
+      <div class="form-panel modal-panel" id="formPanel">
+          <h2 id="formTitulo" style="font-size:15px;margin:0 0 4px;color:var(--blue-dark);">Nova viagem</h2>
+
+          <div class="row2">
+            <div>
+              <label>Data <span class="req">*</span></label>
+              <input type="date" id="f-data">
+            </div>
+            <div>
+              <label>Loja <span class="req">*</span></label>
+              <select id="f-loja">
+                <option value="">Selecione...</option>
+                <option value="rio_claro">Rio Claro</option>
+                <option value="araras">Araras</option>
+              </select>
+            </div>
+          </div>
+
+          <label>Tipo</label>
+          <select id="f-tipoHorario">
+            <option value="Entrega">Entrega</option>
+            <option value="Retirada">Retirada</option>
+            <option value="Bloqueio">Bloqueio de horário (sem entrega/retirada)</option>
+          </select>
+
+          <div class="row2">
+            <div>
+              <label>De <span class="hint">(opcional)</span></label>
+              <input type="text" id="f-horario" placeholder="Ex: xx:xx">
+            </div>
+            <div>
+              <label>Até <span class="req" id="f-horarioFim-req" hidden>*</span> <span class="hint" id="f-horarioFim-hint">(opcional — define um período; outra viagem nesse horário mostra aviso de conflito)</span></label>
+              <input type="text" id="f-horarioFim" placeholder="Ex: xx:xx">
+            </div>
+          </div>
+
+          <div id="camposEntrega">
+            <label>CEP <span class="hint">(opcional, para buscar o endereço)</span></label>
+            <div class="row-cep">
+              <input type="text" id="f-cep" placeholder="Ex: 13500-000">
+              <button class="btn-secondary" id="btnBuscarCep">Buscar CEP</button>
+            </div>
+            <div class="cep-msg" id="cepMsg"></div>
+
+            <label>Endereço/Link <span class="req" id="f-endereco-req">*</span></label>
+            <input type="text" id="f-endereco" placeholder="Ex: Rua, Bairro - Cidade/UF ou link do Google Maps">
+
+            <div class="row2">
+              <div>
+                <label>Número <span class="hint">(opcional)</span></label>
+                <input type="text" id="f-numero" placeholder="Ex: 123">
+              </div>
+              <div>
+                <label>Complemento <span class="hint">(opcional)</span></label>
+                <input type="text" id="f-complemento" placeholder="Ex: Apto 4, Bloco B">
+              </div>
+            </div>
+
+            <div class="row2">
+              <div>
+                <label>Vendedor <span class="hint">(opcional)</span></label>
+                <select id="f-vendedor">
+                  <option value="">Selecione...</option>
+                  <option value="Ciça">Ciça</option>
+                  <option value="Jaqueline">Jaqueline</option>
+                  <option value="Jeovana">Jeovana</option>
+                  <option value="Reginaldo">Reginaldo</option>
+                  <option value="Thais">Thais</option>
+                </select>
+              </div>
+              <div>
+                <label>Cliente/Fornecedor <span class="hint">(opcional)</span></label>
+                <input type="text" id="f-clienteFornecedor" placeholder="Ex: VILELA FIBRAS">
+              </div>
+            </div>
+
+            <label>NF/Pedido <span class="hint">(opcional)</span></label>
+            <input type="text" id="f-numeroPedido" placeholder="Ex: 6073MCR">
+
+            <label>Detalhamento <span class="hint">(um item por linha)</span></label>
+            <textarea id="f-itens" placeholder="Ex: 5 rolos de 100g&#10;Ex: 10 rolos de 150g"></textarea>
+
+            <div class="row2">
+              <div>
+                <label>Nome do contato <span class="hint">(opcional)</span></label>
+                <input type="text" id="f-contatoNome" placeholder="Ex: Edson">
+              </div>
+              <div>
+                <label>WhatsApp do contato <span class="hint">(opcional)</span></label>
+                <input type="text" id="f-contatoWhats" placeholder="Ex: (xx) xxxxx-xxxx">
+              </div>
+            </div>
+
+            <label>Número de volumes <span class="req">*</span></label>
+            <input type="number" id="f-volumes" min="1" step="1" inputmode="numeric" placeholder="Ex: 3">
+
+            <label class="check">
+              <input type="checkbox" id="f-dividir"> Anexos (dividir pedido entre empresas)
+            </label>
+            <div class="notas-container" id="notasContainer" style="display:none;"></div>
+            <button class="btn-secondary" id="addNotaBtn" style="display:none;">+ Adicionar Anexo</button>
+          </div>
+
+          <label>Outras informações / Motivo <span class="hint">(opcional — horário de almoço, observações, motivo do bloqueio, etc.)</span></label>
+          <textarea id="f-info"></textarea>
+
+          <label>Preenchido por <span class="req">*</span></label>
+          <select id="f-preenchidoPor">
+            <option value="">Selecione...</option>
+            <option value="Ciça">Ciça</option>
+            <option value="Jaqueline">Jaqueline</option>
+            <option value="Jeovana">Jeovana</option>
+            <option value="Reginaldo">Reginaldo</option>
+            <option value="Thais">Thais</option>
+          </select>
+
+          <div class="validation-msg" id="formValidationMsg"></div>
+          <div class="form-actions">
+            <button class="btn-primary" id="btnSalvarViagem">Salvar</button>
+            <button class="btn-secondary" id="btnCancelarForm">Cancelar</button>
+            <button class="btn-danger" id="btnExcluirNoForm" hidden>Excluir viagem</button>
+          </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script src="lib/store.js?v=27"></script>
+<script src="app.js?v=27"></script>
+</body>
+</html>

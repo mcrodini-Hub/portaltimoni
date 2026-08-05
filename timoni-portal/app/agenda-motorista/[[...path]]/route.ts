@@ -7,6 +7,7 @@ const ALLOWED_FILES = new Map<string, string>([
   ["index.html", "text/html; charset=utf-8"],
   ["app.css", "text/css; charset=utf-8"],
   ["app.js", "text/javascript; charset=utf-8"],
+  ["print-a5.js", "text/javascript; charset=utf-8"],
   ["lib/store.js", "text/javascript; charset=utf-8"],
 ]);
 
@@ -50,7 +51,8 @@ export async function GET(
     const safeCss = (await cssSource.text()).split("</style").join("<\\/style");
     const html = (await source.text())
       .replace('<link rel="stylesheet" href="app.css?v=30">', "")
-      .replace("<head>", `<head><base href="/agenda-motorista/"><style data-agenda-inline>${safeCss}</style>`);
+      .replace("<head>", `<head><base href="/agenda-motorista/"><style data-agenda-inline>${safeCss}</style>`)
+      .replace("</body>", '<script src="print-a5.js?v=1"></script></body>');
 
     return new NextResponse(html, {
       headers: { "Content-Type": contentType, "Cache-Control": "no-store, max-age=0" },

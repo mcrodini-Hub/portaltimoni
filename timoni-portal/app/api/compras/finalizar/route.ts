@@ -181,6 +181,7 @@ export async function POST(request: Request) {
         desc: description,
         idList: destination.id,
         pos: "top",
+        start: `${dataEnvio}T12:00:00-03:00`,
         due: `${dataEntrega}T12:00:00-03:00`,
       },
     });
@@ -210,6 +211,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       ok: true,
+      message: "Pronto!",
       cardName: updatedCard.name || finalTitle,
       cardUrl: updatedCard.url || card.url || "",
       attachmentAdded: printAdded || orderFileAdded,

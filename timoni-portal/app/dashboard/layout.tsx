@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { hasModuleAccess } from "@/lib/access-control";
 
-const MOTORISTA_URL = "/motorista/";
+const MOTORISTA_URL = "/agenda-motorista/";
 
 export default async function DashboardLayout({
   children,
@@ -49,7 +49,7 @@ export default async function DashboardLayout({
               <Link href="/dashboard/estoque" className={linkClass}>Estoque</Link>
             )}
             {hasModuleAccess(email, "motorista") && (
-              <a href={MOTORISTA_URL} target="_blank" rel="noreferrer" className={linkClass}>Motorista</a>
+              <Link href={MOTORISTA_URL} className={linkClass}>Motorista</Link>
             )}
             {hasModuleAccess(email, "reunioes") && (
               <Link href="/dashboard/reunioes" className={linkClass}>Reuniões</Link>

@@ -80,6 +80,31 @@ function locateHeader(
   return null;
 }
 
+function isHeaderOrSummary(item: {
+  codigo: string;
+  descricao: string;
+  quantidade: string;
+}) {
+  const code = canonical(item.codigo);
+  const description = canonical(item.descricao);
+  const quantity = canonical(item.quantidade);
+
+  const isHeader =
+    ["codigo", "cod", "codigodecompra", "compra"].includes(code) ||
+    ["descricao", "descricaodoproduto", "produto"].includes(description) ||
+    /^(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)\d{2,4}$/.test(quantity);
+
+  const isSummary =
+    code === "total" ||
+    description === "total" ||
+    code === "subtotal" ||
+    description === "subtotal" ||
+    code === "observacao" ||
+    description === "observacao";
+
+  return isHeader || isSummary;
+}
+
 function spreadsheetIdentity(value: string) {
   const url = new URL(value);
   const match = url.pathname.match(/\/spreadsheets\/d\/([^/]+)/);
@@ -177,7 +202,8 @@ export async function POST(request: Request) {
         descricao: String(row[columns.descriptionIndex] ?? "").trim(),
         quantidade: String(row[columns.quantityIndex] ?? "").trim(),
       }))
-      .filter((item) => item.codigo && item.descricao && item.quantidade);
+      .filter((item) => item.codigo && item.descricao && item.quantidade)
+      .filter((item) => !isHeaderOrSummary(item));
 
     if (!items.length) {
       throw new Error("Nenhum item com código, descrição e quantidade foi encontrado.");

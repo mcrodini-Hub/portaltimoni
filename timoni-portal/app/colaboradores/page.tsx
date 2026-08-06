@@ -20,6 +20,10 @@ function isPanelMeeting(event: CalendarEventDTO) {
   );
 }
 
+function isMeetingForUnit(event: CalendarEventDTO, unit: "rio claro" | "araras") {
+  return isPanelMeeting(event) && normalizeMeetingTitle(event.summary).endsWith(` ${unit}`);
+}
+
 function parseEventDate(value: string) {
   return new Date(value.includes("T") ? value : `${value}T12:00:00-03:00`);
 }
@@ -102,6 +106,29 @@ export default async function ColaboradoresPage() {
     timoniEvents,
     (event) => normalizeText(event.summary).includes("ferias") && parseEventDate(event.end) > now,
   );
+  const nextRioClaroMeeting = nextEvent(
+    allEvents,
+    (event) => isMeetingForUnit(event, "rio claro") && parseEventDate(event.start) >= now,
+  );
+  const nextArarasMeeting = nextEvent(
+    allEvents,
+    (event) => isMeetingForUnit(event, "araras") && parseEventDate(event.start) >= now,
+  );
+
+  const unitCards = [
+    {
+      title: "Rio Claro",
+      meeting: nextRioClaroMeeting,
+      description: "Comunicação, reunião e acompanhamento da operação de Rio Claro.",
+      className: "border-blue-200 bg-blue-50",
+    },
+    {
+      title: "Araras",
+      meeting: nextArarasMeeting,
+      description: "Comunicação, reunião e acompanhamento da operação de Araras.",
+      className: "border-amber-200 bg-amber-50",
+    },
+  ];
 
   const quickLinks = [
     hasModuleAccess(email, "estoque") && {
@@ -109,6 +136,12 @@ export default async function ColaboradoresPage() {
       description: "Consultar produtos e registrar necessidades.",
       href: "/dashboard/estoque",
       className: "border-emerald-200 bg-emerald-50",
+    },
+    hasModuleAccess(email, "motorista") && {
+      title: "Agenda do Motorista",
+      description: "Organizar entregas, retiradas e viagens compartilhadas entre Rio Claro e Araras.",
+      href: "/agenda-motorista/",
+      className: "border-amber-200 bg-amber-50",
     },
   ].filter(Boolean) as Array<{ title: string; description: string; href: string; className: string }>;
 
@@ -118,7 +151,7 @@ export default async function ColaboradoresPage() {
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Comunicação interna</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Painel Timoni</h1>
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-          Informações essenciais para a equipe, sem excesso de conteúdo.
+          Informações essenciais para a equipe, separadas por unidade quando necessário.
         </p>
       </header>
 
@@ -167,10 +200,39 @@ export default async function ColaboradoresPage() {
         </article>
       </section>
 
+      <section className="mt-6">
+        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Unidades</p>
+        <div className="mt-3 grid gap-4 md:grid-cols-2">
+          {unitCards.map((item) => (
+            <article key={item.title} className={`rounded-3xl border p-6 shadow-sm ${item.className}`}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">Unidade</p>
+                  <h2 className="mt-2 text-2xl font-semibold text-slate-950">{item.title}</h2>
+                </div>
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm">Painel</span>
+              </div>
+              <p className="mt-3 text-sm leading-6 text-slate-600">{item.description}</p>
+              <div className="mt-5 rounded-2xl bg-white/70 p-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Próxima reunião</p>
+                {item.meeting ? (
+                  <>
+                    <h3 className="mt-2 text-base font-semibold text-slate-950">{formatMeetingTitle(item.meeting.summary)}</h3>
+                    <p className="mt-1 text-sm font-semibold text-blue-800">{formatDateTime(item.meeting)}</p>
+                  </>
+                ) : (
+                  <p className="mt-2 text-sm font-semibold text-slate-700">Nenhuma reunião programada</p>
+                )}
+              </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
       {quickLinks.length > 0 && (
         <section className="mt-6">
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Acessos rápidos</p>
-          <div className="mt-3 grid gap-4">
+          <div className="mt-3 grid gap-4 md:grid-cols-2">
             {quickLinks.map((item) => (
               <Link
                 key={item.title}

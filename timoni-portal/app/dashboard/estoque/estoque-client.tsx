@@ -217,6 +217,9 @@ export default function EstoqueClient({ isManager = false }: EstoqueClientProps)
     [products, descriptionSearch, selected],
   );
   const sellerOptions = sellers.filter((item) => !item.unidade || item.unidade === newUnit || item.unidade === "todas");
+  const activeProduct = resolveProduct();
+  const activeUnit = activeProduct?.unidade?.trim();
+  const quantityPlaceholder = activeUnit ? `Quantidade (${activeUnit})` : "Quantidade";
 
   function NeedCard({ need }: { need: Need }) {
     const disabled = busy === need.id;
@@ -353,7 +356,10 @@ export default function EstoqueClient({ isManager = false }: EstoqueClientProps)
               </div>
             )}
           </div>
-          <input value={quantity} onChange={(event) => setQuantity(event.target.value)} placeholder="Quantidade" className={input} />
+          <div>
+            <input value={quantity} onChange={(event) => setQuantity(event.target.value)} placeholder={quantityPlaceholder} className={input + " w-full"} />
+            {activeUnit && <p className="mt-1 text-xs font-semibold text-emerald-700">Unidade de medida: {activeUnit}</p>}
+          </div>
           <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Observação" className={input + " md:col-span-2 xl:col-span-5"} />
         </div>
         <label className="mt-4 flex items-center gap-2 text-sm">

@@ -20,6 +20,11 @@ function isPanelMeeting(event: CalendarEventDTO) {
   );
 }
 
+function isMeetingForUnit(event: CalendarEventDTO, unit: "araras" | "rio claro") {
+  const title = normalizeMeetingTitle(event.summary);
+  return isPanelMeeting(event) && title.endsWith(` ${unit}`);
+}
+
 function parseEventDate(value: string) {
   return new Date(value.includes("T") ? value : `${value}T12:00:00-03:00`);
 }
@@ -54,20 +59,6 @@ function nextEvent(events: CalendarEventDTO[], predicate: (event: CalendarEventD
     .sort((a, b) => parseEventDate(a.start).getTime() - parseEventDate(b.start).getTime())[0];
 }
 
-function nextMeetings(events: CalendarEventDTO[], now: Date) {
-  const ordered = events
-    .filter((event) => isPanelMeeting(event) && parseEventDate(event.start) >= now)
-    .sort((a, b) => parseEventDate(a.start).getTime() - parseEventDate(b.start).getTime());
-
-  const unique = new Map<string, CalendarEventDTO>();
-  for (const event of ordered) {
-    const key = `${normalizeMeetingTitle(event.summary)}|${event.start}`;
-    if (!unique.has(key)) unique.set(key, event);
-  }
-
-  return Array.from(unique.values()).slice(0, 2);
-}
-
 const empresasAtendimentoInterno = [
   "Brascabos",
   "Caprem",
@@ -88,10 +79,22 @@ const empresasAtendimentoInterno = [
   "Whirlpool",
 ];
 
-const comunicadosVendasEmpresas = [
-  { unidade: "Rio Claro", comConteudo: true },
-  { unidade: "Araras", comConteudo: false },
-];
+function MeetingCard({ title, meeting }: { title: string; meeting?: CalendarEventDTO }) {
+  return (
+    <article className="rounded-3xl border border-violet-200 bg-violet-50 p-6 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Reuniões</p>
+      <h2 className="mt-3 text-xl font-semibold text-slate-950">{title}</h2>
+      {meeting ? (
+        <>
+          <p className="mt-3 text-sm font-semibold text-violet-800">{formatDateTime(meeting)}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{formatMeetingTitle(meeting.summary)}</p>
+        </>
+      ) : (
+        <p className="mt-3 text-sm leading-6 text-slate-600">Nenhuma reunião programada.</p>
+      )}
+    </article>
+  );
+}
 
 export default async function ColaboradoresPage() {
   const session = await auth();
@@ -118,7 +121,14 @@ export default async function ColaboradoresPage() {
     }
   }
 
-  const meetings = nextMeetings(allEvents, now);
+  const nextArarasMeeting = nextEvent(
+    allEvents,
+    (event) => isMeetingForUnit(event, "araras") && parseEventDate(event.start) >= now,
+  );
+  const nextRioClaroMeeting = nextEvent(
+    allEvents,
+    (event) => isMeetingForUnit(event, "rio claro") && parseEventDate(event.start) >= now,
+  );
   const nextBirthday = nextEvent(
     timoniEvents,
     (event) => normalizeText(event.summary).includes("aniversario") && parseEventDate(event.start) >= now,
@@ -140,46 +150,40 @@ export default async function ColaboradoresPage() {
         </p>
       </header>
 
-      <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        {comunicadosVendasEmpresas.map((comunicado) => (
-          <article key={comunicado.unidade} className="rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm sm:col-span-2 xl:col-span-2">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Comunicados</p>
-                {comunicado.comConteudo && <h2 className="mt-3 text-xl font-semibold text-slate-950">Vendas Empresas</h2>}
-              </div>
-              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm">
-                {comunicado.unidade}{comunicado.comConteudo ? " · 06/08/2026" : ""}
-              </span>
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <article className="rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm md:col-span-2 xl:col-span-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Comunicados</p>
+              <h2 className="mt-3 text-xl font-semibold text-slate-950">Vendas Empresas</h2>
             </div>
-            {comunicado.comConteudo && (
-              <div className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
-                <p>
-                  As empresas relacionadas abaixo são atendidas exclusivamente por vendas internas e devem ser direcionadas para Jaqueline.
-                </p>
-                <p className="font-semibold text-slate-900">
-                  Qualquer orçamento que for passado pelo Balcão será desconsiderado.
-                </p>
-                <p>Esta orientação se deve à complexidade do atendimento destes clientes:</p>
-                <ul className="list-disc space-y-1 pl-5">
-                  <li>Definição de produtos/serviços.</li>
-                  <li>Resposta direta no Portal.</li>
-                  <li>Negociação de preços com autorização exclusiva da Ciça, Marcelo ou Sérgio.</li>
-                </ul>
-                <div>
-                  <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Empresas</p>
-                  <ul className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-2">
-                    {empresasAtendimentoInterno.map((empresa) => (
-                      <li key={`${comunicado.unidade}-${empresa}`} className="rounded-lg bg-white/70 px-2 py-1 text-xs font-semibold text-slate-700">
-                        {empresa}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            )}
-          </article>
-        ))}
+            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm">Rio Claro · 06/08/2026</span>
+          </div>
+          <div className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
+            <p>
+              As empresas relacionadas abaixo são atendidas exclusivamente por vendas internas e devem ser direcionadas para Jaqueline.
+            </p>
+            <p className="font-semibold text-slate-900">
+              Qualquer orçamento que for passado pelo Balcão será desconsiderado.
+            </p>
+            <p>Esta orientação se deve à complexidade do atendimento destes clientes:</p>
+            <ul className="list-disc space-y-1 pl-5">
+              <li>Definição de produtos/serviços.</li>
+              <li>Resposta direta no Portal.</li>
+              <li>Negociação de preços com autorização exclusiva da Ciça, Marcelo ou Sérgio.</li>
+            </ul>
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Empresas</p>
+              <ul className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+                {empresasAtendimentoInterno.map((empresa) => (
+                  <li key={empresa} className="rounded-lg bg-white/70 px-2 py-1 text-xs font-semibold text-slate-700">
+                    {empresa}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </article>
 
         {canAccessStock ? (
           <Link
@@ -201,23 +205,18 @@ export default async function ColaboradoresPage() {
           </article>
         )}
 
-        <article className="rounded-3xl border border-violet-200 bg-violet-50 p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Reuniões</p>
-          {meetings.length ? (
-            <div className="mt-3 divide-y divide-violet-200">
-              {meetings.map((meeting) => (
-                <div key={`${meeting.id}-${meeting.start}`} className="py-3 first:pt-0 last:pb-0">
-                  <h2 className="text-lg font-semibold text-slate-950">
-                    {formatMeetingTitle(meeting.summary)}
-                  </h2>
-                  <p className="mt-2 text-sm font-semibold text-violet-800">{formatDateTime(meeting)}</p>
-                </div>
-              ))}
+        <article className="min-h-44 rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Comunicados</p>
+              <h2 className="mt-3 text-xl font-semibold text-slate-950">Araras</h2>
             </div>
-          ) : (
-            <h2 className="mt-3 text-xl font-semibold text-slate-950">Nenhuma reunião programada</h2>
-          )}
+            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm">Araras</span>
+          </div>
         </article>
+
+        <MeetingCard title="Araras" meeting={nextArarasMeeting} />
+        <MeetingCard title="Rio Claro" meeting={nextRioClaroMeeting} />
 
         <article className="rounded-3xl border border-pink-200 bg-pink-50 p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-pink-700">Aniversários</p>

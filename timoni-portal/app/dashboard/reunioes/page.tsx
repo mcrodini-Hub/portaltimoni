@@ -1,4 +1,4 @@
-const DRIVE_URL = "https://drive.google.com/drive/folders/1JlcPgSS_hLFqG0RVNR-VF32x7xhQJ3eb";
+const DRIVE_URL = "https://drive.google.com/drive/folders/1a90BS_9nnf_9_o9VZyNDICfPyAxxyYOg";
 const MODEL_URL = "https://docs.google.com/document/d/1D5W1Yu-8Ic54YQSNpOM6y2blyU0Pn1X19Lb2xkchPGM";
 
 const meetings = [
@@ -11,7 +11,7 @@ const meetings = [
     frequency: "Mensal",
     leaders: "Ciça e Marcelo",
     url: "https://docs.google.com/document/d/1S9dQlOGwFE8RwNnjw1PFy08DH9a6k1_9kugQEBgmxHQ",
-    slidesUrl: "https://docs.google.com/presentation/d/1AK7mw2-ifR-ChlRuun_4O9FIr3ThmZvzfVMA_ryZgXA",
+    slidesUrl: "https://docs.google.com/presentation/d/1zN_tU03-tq8Y6Ewo4GasboPTjRHXnpjXB0bbSrjHaWI",
     style: "border-amber-200 bg-amber-50",
   },
   {

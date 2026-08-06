@@ -304,7 +304,7 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
 
   function TrackingSection() {
     return (
-      <section className="mt-5 rounded-3xl border bg-white p-5 shadow-sm">
+      <section className="rounded-3xl border bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Acompanhamento</p>
@@ -316,6 +316,29 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
           {trackingNeeds.map((need) => <NeedCard key={need.id} need={need} />)}
           {!loading && !trackingNeeds.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhuma solicitação em acompanhamento.</p>}
           {loading && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Carregando solicitações...</p>}
+        </div>
+      </section>
+    );
+  }
+
+  function NeedsSection() {
+    return (
+      <section className="rounded-3xl border bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-xl font-semibold">Necessidades do estoque</h2>
+          <div className="flex rounded-xl bg-slate-100 p-1">
+            {(["todas", "rio_claro", "araras"] as Unit[]).map((item) => <button key={item} onClick={() => setUnit(item)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${unit === item ? "bg-white shadow-sm" : "text-slate-500"}`}>{item === "todas" ? "Todas" : unitLabel(item)}</button>)}
+          </div>
+        </div>
+        <div className="mt-5 grid gap-5 xl:grid-cols-2">
+          <div>
+            <h3 className="font-semibold">Em aberto</h3>
+            <div className="mt-3 space-y-3">{openNeeds.map((need) => <NeedCard key={need.id} need={need} />)}{!loading && !openNeeds.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhuma necessidade em aberto.</p>}</div>
+          </div>
+          <div>
+            <h3 className="font-semibold">A caminho</h3>
+            <div className="mt-3 space-y-3">{onWay.map((need) => <NeedCard key={need.id} need={need} />)}{!loading && !onWay.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhum produto a caminho.</p>}</div>
+          </div>
         </div>
       </section>
     );
@@ -341,42 +364,25 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
       {notice && <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">{notice}</div>}
 
       {!isManager ? (
-        <div className="mt-5">
-          <RequestForm />
+        <div className="mt-5 space-y-5">
           <TrackingSection />
+          <RequestForm />
         </div>
       ) : (
-        <>
-          <section className="mt-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
+        <div className="mt-5 space-y-5">
+          <NeedsSection />
+
+          <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             {cards.map(([key, title]) => <article key={key} className="rounded-2xl border bg-white p-4 shadow-sm"><p className="text-3xl font-semibold">{loading ? "—" : summary.geral[key]}</p><p className="mt-2 text-sm text-slate-500">{title}</p></article>)}
           </section>
 
-          <section className="mt-5 rounded-3xl border bg-white p-5 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-xl font-semibold">Necessidades do estoque</h2>
-              <div className="flex rounded-xl bg-slate-100 p-1">
-                {(["todas", "rio_claro", "araras"] as Unit[]).map((item) => <button key={item} onClick={() => setUnit(item)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${unit === item ? "bg-white shadow-sm" : "text-slate-500"}`}>{item === "todas" ? "Todas" : unitLabel(item)}</button>)}
-              </div>
-            </div>
-            <div className="mt-5 grid gap-5 xl:grid-cols-2">
-              <div>
-                <h3 className="font-semibold">Em aberto</h3>
-                <div className="mt-3 space-y-3">{openNeeds.map((need) => <NeedCard key={need.id} need={need} />)}{!loading && !openNeeds.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhuma necessidade em aberto.</p>}</div>
-              </div>
-              <div>
-                <h3 className="font-semibold">A caminho</h3>
-                <div className="mt-3 space-y-3">{onWay.map((need) => <NeedCard key={need.id} need={need} />)}{!loading && !onWay.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhum produto a caminho.</p>}</div>
-              </div>
-            </div>
-          </section>
+          <RequestForm />
 
-          <div className="mt-5"><RequestForm /></div>
-
-          <section className="mt-5 rounded-3xl border bg-white p-5 shadow-sm">
+          <section className="rounded-3xl border bg-white p-5 shadow-sm">
             <h2 className="text-xl font-semibold">Finalizadas</h2>
             <div className="mt-3 space-y-3">{history.map((need) => <NeedCard key={need.id} need={need} />)}{!loading && !history.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhum registro finalizado.</p>}</div>
           </section>
-        </>
+        </div>
       )}
     </div>
   );

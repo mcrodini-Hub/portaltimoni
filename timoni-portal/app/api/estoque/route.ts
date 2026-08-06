@@ -39,6 +39,11 @@ type Product = { codigo: string; descricao: string; unidade: string };
 type Seller = { nome: string; unidade: string };
 type Counts = { emAberto: number; aguardandoCompra: number; aguardandoChegada: number; finalizadas: number };
 
+const fixedSellers: Seller[] = [
+  { nome: "Ciça", unidade: "araras" },
+  { nome: "Marcelo", unidade: "araras" },
+];
+
 function emptyCounts(): Counts {
   return { emAberto: 0, aguardandoCompra: 0, aguardandoChegada: 0, finalizadas: 0 };
 }
@@ -67,7 +72,15 @@ function rowsToProducts(rows: unknown[][]): Product[] {
 }
 
 function rowsToSellers(rows: unknown[][]): Seller[] {
-  return rows.slice(1).map((row) => ({ nome: value(row, 0), unidade: value(row, 1).toLowerCase() })).filter((item) => item.nome);
+  const sellers = rows.slice(1).map((row) => ({ nome: value(row, 0), unidade: value(row, 1).toLowerCase() })).filter((item) => item.nome);
+  const seen = new Set(sellers.map((seller) => `${seller.nome.trim().toLowerCase()}-${seller.unidade.trim().toLowerCase()}`));
+
+  for (const seller of fixedSellers) {
+    const key = `${seller.nome.trim().toLowerCase()}-${seller.unidade.trim().toLowerCase()}`;
+    if (!seen.has(key)) sellers.push(seller);
+  }
+
+  return sellers;
 }
 
 function summarize(needs: Need[]) {

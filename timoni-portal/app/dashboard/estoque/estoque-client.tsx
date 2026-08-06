@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo/edit";
 
-type Unit = "todas" | "rio_claro" | "araras";
+type RequestUnit = "rio_claro" | "araras";
+type Unit = "todas" | RequestUnit;
 type Need = {
   id: string;
   codigo: string;
@@ -15,7 +16,7 @@ type Need = {
   previsaoEntrega: string;
   observacao: string;
   clienteAguardando: boolean;
-  unidade: "rio_claro" | "araras";
+  unidade: RequestUnit;
   vendedor: string;
   quantidade: string;
   notaVendedor: string;
@@ -28,6 +29,8 @@ type Data = { ok: boolean; necessidades: Need[]; produtos: Product[]; vendedores
 
 type EstoqueClientProps = {
   isManager?: boolean;
+  defaultUnit?: RequestUnit;
+  allowedUnits?: RequestUnit[];
 };
 
 const empty: Counts = { emAberto: 0, aguardandoCompra: 0, aguardandoChegada: 0, finalizadas: 0 };
@@ -38,12 +41,16 @@ const cards: Array<[keyof Counts, string]> = [
   ["aguardandoChegada", "A caminho"],
   ["finalizadas", "Finalizadas"],
 ];
-const input = "rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm";
+const input = "rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm disabled:bg-slate-50 disabled:text-slate-500";
 const primary = "rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50";
 const secondary = "rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700";
 
 function norm(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+}
+
+function unitLabel(unit: RequestUnit) {
+  return unit === "araras" ? "Araras" : "Rio Claro";
 }
 
 function findByCode(list: Product[], term: string) {
@@ -93,7 +100,8 @@ function date(value: string) {
       }).format(d);
 }
 
-export default function EstoqueClient({ isManager = false }: EstoqueClientProps) {
+export default function EstoqueClient({ isManager = false, defaultUnit = "rio_claro", allowedUnits = ["rio_claro", "araras"] }: EstoqueClientProps) {
+  const safeAllowedUnits = allowedUnits.length ? allowedUnits : [defaultUnit];
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -102,8 +110,8 @@ export default function EstoqueClient({ isManager = false }: EstoqueClientProps)
   const [products, setProducts] = useState<Product[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [summary, setSummary] = useState<Summary>(emptySummary);
-  const [unit, setUnit] = useState<Unit>("todas");
-  const [newUnit, setNewUnit] = useState<"rio_claro" | "araras">("rio_claro");
+  const [unit, setUnit] = useState<Unit>(isManager ? "todas" : defaultUnit);
+  const [newUnit, setNewUnit] = useState<RequestUnit>(defaultUnit);
   const [seller, setSeller] = useState("");
   const [codeSearch, setCodeSearch] = useState("");
   const [descriptionSearch, setDescriptionSearch] = useState("");
@@ -111,6 +119,14 @@ export default function EstoqueClient({ isManager = false }: EstoqueClientProps)
   const [quantity, setQuantity] = useState("");
   const [note, setNote] = useState("");
   const [waiting, setWaiting] = useState(false);
+
+  useEffect(() => {
+    if (!safeAllowedUnits.includes(newUnit)) {
+      setNewUnit(safeAllowedUnits[0]);
+      setSeller("");
+    }
+    if (!isManager && unit !== safeAllowedUnits[0]) setUnit(safeAllowedUnits[0]);
+  }, [isManager, newUnit, safeAllowedUnits, unit]);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -212,10 +228,7 @@ export default function EstoqueClient({ isManager = false }: EstoqueClientProps)
   const onWay = filtered.filter((need) => need.status === "pedido_existente");
   const history = filtered.filter((need) => need.status === "chegou").slice(0, 50);
   const codeResults = useMemo(() => (selected ? [] : findByCode(products, codeSearch)), [products, codeSearch, selected]);
-  const descriptionResults = useMemo(
-    () => (selected ? [] : findByDescription(products, descriptionSearch)),
-    [products, descriptionSearch, selected],
-  );
+  const descriptionResults = useMemo(() => (selected ? [] : findByDescription(products, descriptionSearch)), [products, descriptionSearch, selected]);
   const sellerOptions = sellers.filter((item) => !item.unidade || item.unidade === newUnit || item.unidade === "todas");
   const activeProduct = resolveProduct();
   const activeUnit = activeProduct?.unidade?.trim();
@@ -227,57 +240,21 @@ export default function EstoqueClient({ isManager = false }: EstoqueClientProps)
       <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
-            <p className="font-semibold text-slate-950">
-              <span className="text-blue-700">{need.codigo}</span> {need.descricao}
-            </p>
-            <p className="mt-1 text-xs text-slate-500">
-              {need.unidade === "araras" ? "Araras" : "Rio Claro"} · {need.vendedor} · Qtd. {need.quantidade || "—"}
-            </p>
+            <p className="font-semibold text-slate-950"><span className="text-blue-700">{need.codigo}</span> {need.descricao}</p>
+            <p className="mt-1 text-xs text-slate-500">{unitLabel(need.unidade)} · {need.vendedor} · Qtd. {need.quantidade || "—"}</p>
           </div>
           <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold">{label(need.status)}</span>
         </div>
         {need.notaVendedor && <p className="mt-3 text-sm text-slate-600">{need.notaVendedor}</p>}
         {need.observacao && <p className="mt-3 text-sm font-medium text-amber-700">{need.observacao}</p>}
-        {need.status === "pedido_existente" && (
-          <p className="mt-3 text-sm">
-            Pedido <strong>{need.numeroPedido}</strong> · previsão {need.previsaoEntrega || "não informada"}
-          </p>
-        )}
+        {need.status === "pedido_existente" && <p className="mt-3 text-sm">Pedido <strong>{need.numeroPedido}</strong> · previsão {need.previsaoEntrega || "não informada"}</p>}
         <p className="mt-3 text-xs text-slate-400">{date(need.criadoEm)}</p>
         {need.status !== "chegou" && isManager && (
           <div className="mt-4 flex flex-wrap gap-2">
-            {["pendente", "observacao"].includes(need.status) && (
-              <button
-                disabled={disabled}
-                onClick={() => void post({ action: "em_compra", id: need.id }, need.id)}
-                className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
-              >
-                Relação de compra
-              </button>
-            )}
-            {["pendente", "em_compra", "observacao"].includes(need.status) && (
-              <button
-                disabled={disabled}
-                onClick={() => void order(need)}
-                className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
-              >
-                Pedido feito
-              </button>
-            )}
-            {["pendente", "em_compra", "observacao"].includes(need.status) && (
-              <button disabled={disabled} onClick={() => void observe(need)} className="rounded-lg border px-3 py-2 text-xs font-semibold">
-                Outra resposta
-              </button>
-            )}
-            {need.status === "pedido_existente" && (
-              <button
-                disabled={disabled}
-                onClick={() => void arrived(need)}
-                className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
-              >
-                Produto chegou
-              </button>
-            )}
+            {["pendente", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void post({ action: "em_compra", id: need.id }, need.id)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Relação de compra</button>}
+            {["pendente", "em_compra", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void order(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Pedido feito</button>}
+            {["pendente", "em_compra", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void observe(need)} className="rounded-lg border px-3 py-2 text-xs font-semibold">Outra resposta</button>}
+            {need.status === "pedido_existente" && <button disabled={disabled} onClick={() => void arrived(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Produto chegou</button>}
           </div>
         )}
       </article>
@@ -289,70 +266,26 @@ export default function EstoqueClient({ isManager = false }: EstoqueClientProps)
       <section className="rounded-3xl border bg-white p-5 shadow-sm">
         <h2 className="text-xl font-semibold">Consultar e solicitar produto</h2>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
-          <select
-            value={newUnit}
-            onChange={(event) => {
-              setNewUnit(event.target.value as "rio_claro" | "araras");
-              setSeller("");
-            }}
-            className={input}
-          >
-            <option value="rio_claro">Rio Claro</option>
-            <option value="araras">Araras</option>
+          <select value={newUnit} onChange={(event) => { setNewUnit(event.target.value as RequestUnit); setSeller(""); }} disabled={safeAllowedUnits.length === 1} className={input}>
+            {safeAllowedUnits.map((item) => <option key={item} value={item}>{unitLabel(item)}</option>)}
           </select>
           <select value={seller} onChange={(event) => setSeller(event.target.value)} className={input}>
             <option value="">Selecione o vendedor</option>
-            {sellerOptions.map((item) => (
-              <option key={`${item.nome}-${item.unidade}`} value={item.nome}>
-                {item.nome}
-              </option>
-            ))}
+            {sellerOptions.map((item) => <option key={`${item.nome}-${item.unidade}`} value={item.nome}>{item.nome}</option>)}
           </select>
           <div className="relative">
-            <input
-              value={codeSearch}
-              onChange={(event) => {
-                setCodeSearch(event.target.value);
-                setSelected("");
-              }}
-              placeholder="Código do produto"
-              className={input + " w-full"}
-            />
+            <input value={codeSearch} onChange={(event) => { setCodeSearch(event.target.value); setSelected(""); }} placeholder="Código do produto" className={input + " w-full"} />
             {codeResults.length > 0 && (
               <div className="absolute z-10 mt-1 max-h-72 w-full overflow-auto rounded-xl border bg-white shadow-lg">
-                {codeResults.map((product) => (
-                  <button
-                    key={product.codigo}
-                    onClick={() => selectProduct(product)}
-                    className="block w-full border-b px-4 py-3 text-left text-sm hover:bg-slate-50"
-                  >
-                    <strong>{product.codigo}</strong> {product.descricao}
-                  </button>
-                ))}
+                {codeResults.map((product) => <button key={product.codigo} onClick={() => selectProduct(product)} className="block w-full border-b px-4 py-3 text-left text-sm hover:bg-slate-50"><strong>{product.codigo}</strong> {product.descricao}</button>)}
               </div>
             )}
           </div>
           <div className="relative md:col-span-2 xl:col-span-3">
-            <input
-              value={descriptionSearch}
-              onChange={(event) => {
-                setDescriptionSearch(event.target.value);
-                setSelected("");
-              }}
-              placeholder="Descrição do produto"
-              className={input + " w-full"}
-            />
+            <input value={descriptionSearch} onChange={(event) => { setDescriptionSearch(event.target.value); setSelected(""); }} placeholder="Descrição do produto" className={input + " w-full"} />
             {descriptionResults.length > 0 && (
               <div className="absolute z-10 mt-1 max-h-72 w-full overflow-auto rounded-xl border bg-white shadow-lg">
-                {descriptionResults.map((product) => (
-                  <button
-                    key={product.codigo}
-                    onClick={() => selectProduct(product)}
-                    className="block w-full border-b px-4 py-3 text-left text-sm hover:bg-slate-50"
-                  >
-                    <strong>{product.codigo}</strong> {product.descricao}
-                  </button>
-                ))}
+                {descriptionResults.map((product) => <button key={product.codigo} onClick={() => selectProduct(product)} className="block w-full border-b px-4 py-3 text-left text-sm hover:bg-slate-50"><strong>{product.codigo}</strong> {product.descricao}</button>)}
               </div>
             )}
           </div>
@@ -362,12 +295,8 @@ export default function EstoqueClient({ isManager = false }: EstoqueClientProps)
           </div>
           <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Observação" className={input + " md:col-span-2 xl:col-span-5"} />
         </div>
-        <label className="mt-4 flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={waiting} onChange={(event) => setWaiting(event.target.checked)} /> Cliente aguardando
-        </label>
-        <button onClick={() => void create()} disabled={busy === "geral"} className={primary + " mt-4"}>
-          Registrar solicitação
-        </button>
+        <label className="mt-4 flex items-center gap-2 text-sm"><input type="checkbox" checked={waiting} onChange={(event) => setWaiting(event.target.checked)} /> Cliente aguardando</label>
+        <button onClick={() => void create()} disabled={busy === "geral"} className={primary + " mt-4"}>Registrar solicitação</button>
       </section>
     );
   }
@@ -378,18 +307,12 @@ export default function EstoqueClient({ isManager = false }: EstoqueClientProps)
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Módulo Estoque</p>
           <h1 className="mt-2 text-3xl font-semibold">Estoque CT</h1>
-          <p className="mt-3 text-sm text-slate-600">
-            {isManager ? "Uso direto no Portal Timoni, no computador ou celular." : "Consulte o produto e registre a necessidade para o estoque acompanhar."}
-          </p>
+          <p className="mt-3 text-sm text-slate-600">{isManager ? "Uso direto no Portal Timoni, no computador ou celular." : "Consulte o produto e registre a necessidade para o estoque acompanhar."}</p>
         </div>
         {isManager && (
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <button onClick={() => void refresh()} className={primary}>
-              Atualizar informações
-            </button>
-            <a href={SHEET_URL} target="_blank" rel="noreferrer" className={secondary + " text-center"}>
-              Abrir planilha
-            </a>
+            <button onClick={() => void refresh()} className={primary}>Atualizar informações</button>
+            <a href={SHEET_URL} target="_blank" rel="noreferrer" className={secondary + " text-center"}>Abrir planilha</a>
           </div>
         )}
       </section>
@@ -400,70 +323,38 @@ export default function EstoqueClient({ isManager = false }: EstoqueClientProps)
       {!isManager ? (
         <div className="mt-5">
           <RequestForm />
-          <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">
-            Depois de registrar, o estoque acompanha a necessidade e retorna pelo fluxo interno.
-          </p>
+          <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">Depois de registrar, o estoque acompanha a necessidade e retorna pelo fluxo interno.</p>
         </div>
       ) : (
         <>
           <section className="mt-5 grid grid-cols-2 gap-3 xl:grid-cols-4">
-            {cards.map(([key, title]) => (
-              <article key={key} className="rounded-2xl border bg-white p-4 shadow-sm">
-                <p className="text-3xl font-semibold">{loading ? "—" : summary.geral[key]}</p>
-                <p className="mt-2 text-sm text-slate-500">{title}</p>
-              </article>
-            ))}
+            {cards.map(([key, title]) => <article key={key} className="rounded-2xl border bg-white p-4 shadow-sm"><p className="text-3xl font-semibold">{loading ? "—" : summary.geral[key]}</p><p className="mt-2 text-sm text-slate-500">{title}</p></article>)}
           </section>
 
           <section className="mt-5 rounded-3xl border bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-semibold">Necessidades do estoque</h2>
               <div className="flex rounded-xl bg-slate-100 p-1">
-                {(["todas", "rio_claro", "araras"] as Unit[]).map((item) => (
-                  <button
-                    key={item}
-                    onClick={() => setUnit(item)}
-                    className={`rounded-lg px-3 py-2 text-xs font-semibold ${unit === item ? "bg-white shadow-sm" : "text-slate-500"}`}
-                  >
-                    {item === "todas" ? "Todas" : item === "araras" ? "Araras" : "Rio Claro"}
-                  </button>
-                ))}
+                {(["todas", "rio_claro", "araras"] as Unit[]).map((item) => <button key={item} onClick={() => setUnit(item)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${unit === item ? "bg-white shadow-sm" : "text-slate-500"}`}>{item === "todas" ? "Todas" : unitLabel(item)}</button>)}
               </div>
             </div>
             <div className="mt-5 grid gap-5 xl:grid-cols-2">
               <div>
                 <h3 className="font-semibold">Em aberto</h3>
-                <div className="mt-3 space-y-3">
-                  {openNeeds.map((need) => (
-                    <NeedCard key={need.id} need={need} />
-                  ))}
-                  {!loading && !openNeeds.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhuma necessidade em aberto.</p>}
-                </div>
+                <div className="mt-3 space-y-3">{openNeeds.map((need) => <NeedCard key={need.id} need={need} />)}{!loading && !openNeeds.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhuma necessidade em aberto.</p>}</div>
               </div>
               <div>
                 <h3 className="font-semibold">A caminho</h3>
-                <div className="mt-3 space-y-3">
-                  {onWay.map((need) => (
-                    <NeedCard key={need.id} need={need} />
-                  ))}
-                  {!loading && !onWay.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhum produto a caminho.</p>}
-                </div>
+                <div className="mt-3 space-y-3">{onWay.map((need) => <NeedCard key={need.id} need={need} />)}{!loading && !onWay.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhum produto a caminho.</p>}</div>
               </div>
             </div>
           </section>
 
-          <div className="mt-5">
-            <RequestForm />
-          </div>
+          <div className="mt-5"><RequestForm /></div>
 
           <section className="mt-5 rounded-3xl border bg-white p-5 shadow-sm">
             <h2 className="text-xl font-semibold">Finalizadas</h2>
-            <div className="mt-3 space-y-3">
-              {history.map((need) => (
-                <NeedCard key={need.id} need={need} />
-              ))}
-              {!loading && !history.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhum registro finalizado.</p>}
-            </div>
+            <div className="mt-3 space-y-3">{history.map((need) => <NeedCard key={need.id} need={need} />)}{!loading && !history.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhum registro finalizado.</p>}</div>
           </section>
         </>
       )}

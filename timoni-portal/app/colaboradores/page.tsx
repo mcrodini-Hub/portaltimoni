@@ -6,6 +6,12 @@ import type { CalendarEventDTO } from "@/lib/types";
 
 type PanelStore = "geral" | "rio claro" | "araras";
 
+type FixedMeeting = {
+  summary: string;
+  start: string;
+  label: string;
+};
+
 function normalizeText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
@@ -65,6 +71,21 @@ function formatDateTime(event: CalendarEventDTO) {
   return `${formatDate(event.start)} às ${time}`;
 }
 
+function formatFixedMeetingDateTime(meeting: FixedMeeting) {
+  const date = parseEventDate(meeting.start);
+  const weekday = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    weekday: "long",
+  }).format(date);
+  const time = new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(date);
+
+  return `${formatDate(date)} · ${weekday} · ${time}`;
+}
+
 function formatMeetingTitle(summary: string) {
   return summary.replace(/^ci[cç]a\s*[-–—]\s*/i, "").trim();
 }
@@ -74,6 +95,30 @@ function nextEvent(events: CalendarEventDTO[], predicate: (event: CalendarEventD
     .filter(predicate)
     .sort((a, b) => parseEventDate(a.start).getTime() - parseEventDate(b.start).getTime())[0];
 }
+
+function upcomingEvents(events: CalendarEventDTO[], predicate: (event: CalendarEventDTO) => boolean, limit = 4) {
+  const now = new Date();
+  return events
+    .filter((event) => predicate(event) && parseEventDate(event.start) >= now)
+    .sort((a, b) => parseEventDate(a.start).getTime() - parseEventDate(b.start).getTime())
+    .slice(0, limit);
+}
+
+function isBirthday(event: CalendarEventDTO) {
+  const title = normalizeText(event.summary);
+  return title.includes("aniversario") || title.includes("aniversariante") || title.includes("birthday");
+}
+
+function isVacation(event: CalendarEventDTO) {
+  const title = normalizeText(event.summary);
+  return title.includes("ferias") || title.includes("férias");
+}
+
+const fixedArarasMeeting: FixedMeeting = {
+  summary: "Reunião Araras",
+  start: "2026-09-08T07:30:00-03:00",
+  label: "Próxima reunião já agendada",
+};
 
 const empresasAtendimentoInterno = [
   "Brascabos",
@@ -161,7 +206,7 @@ function AnnouncementCard({ store, compact = false }: { store: "rio claro" | "ar
   );
 }
 
-function MeetingCard({ title, meeting }: { title: string; meeting?: CalendarEventDTO }) {
+function MeetingCard({ title, meeting, fixedMeeting }: { title: string; meeting?: CalendarEventDTO; fixedMeeting?: FixedMeeting }) {
   return (
     <article className="rounded-3xl border border-violet-200 bg-violet-50 p-6 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Reuniões</p>
@@ -171,8 +216,51 @@ function MeetingCard({ title, meeting }: { title: string; meeting?: CalendarEven
           <p className="mt-3 text-sm font-semibold text-violet-800">{formatDateTime(meeting)}</p>
           <p className="mt-2 text-sm leading-6 text-slate-600">{formatMeetingTitle(meeting.summary)}</p>
         </>
+      ) : fixedMeeting ? (
+        <>
+          <p className="mt-3 text-sm font-semibold text-violet-800">{formatFixedMeetingDateTime(fixedMeeting)}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{fixedMeeting.label}</p>
+        </>
       ) : (
         <p className="mt-3 text-sm leading-6 text-slate-600">Nenhuma reunião programada.</p>
+      )}
+    </article>
+  );
+}
+
+function EventListCard({
+  title,
+  tone,
+  events,
+  emptyMessage,
+  formatSummary,
+}: {
+  title: string;
+  tone: "pink" | "amber";
+  events: CalendarEventDTO[];
+  emptyMessage: string;
+  formatSummary: (summary: string) => string;
+}) {
+  const toneClass = tone === "pink"
+    ? "border-pink-200 bg-pink-50 text-pink-700"
+    : "border-amber-200 bg-amber-50 text-amber-700";
+
+  return (
+    <article className={`rounded-3xl border p-6 shadow-sm ${toneClass}`}>
+      <p className="text-xs font-semibold uppercase tracking-wider">{title}</p>
+      {events.length ? (
+        <ul className="mt-3 space-y-3">
+          {events.map((event) => (
+            <li key={`${event.calendarKey}-${event.id}`} className="rounded-2xl bg-white/70 p-3 text-slate-700">
+              <p className="text-base font-semibold text-slate-950">{formatSummary(event.summary)}</p>
+              <p className="mt-1 text-sm text-slate-600">
+                {title === "Férias" ? `${formatDate(event.start)} a ${formatDate(event.end)}` : formatDate(event.start)}
+              </p>
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <h2 className="mt-3 text-xl font-semibold text-slate-950">{emptyMessage}</h2>
       )}
     </article>
   );
@@ -217,14 +305,11 @@ export default async function ColaboradoresPage() {
     allEvents,
     (event) => isMeetingForUnit(event, "rio claro") && parseEventDate(event.start) >= now,
   );
-  const nextBirthday = nextEvent(
-    timoniEvents,
-    (event) => normalizeText(event.summary).includes("aniversario") && parseEventDate(event.start) >= now,
-  );
-  const nextVacation = nextEvent(
-    timoniEvents,
-    (event) => normalizeText(event.summary).includes("ferias") && parseEventDate(event.end) > now,
-  );
+  const birthdays = upcomingEvents(timoniEvents, isBirthday);
+  const vacations = timoniEvents
+    .filter((event) => isVacation(event) && parseEventDate(event.end) > now)
+    .sort((a, b) => parseEventDate(a.start).getTime() - parseEventDate(b.start).getTime())
+    .slice(0, 4);
 
   const canAccessStock = hasModuleAccess(email, "estoque");
   const showRioClaro = panelStore === "geral" || panelStore === "rio claro";
@@ -267,24 +352,24 @@ export default async function ColaboradoresPage() {
         )}
 
         {panelStore === "geral" && <AnnouncementCard store="araras" compact />}
-        {showAraras && <MeetingCard title="Araras" meeting={nextArarasMeeting} />}
+        {showAraras && <MeetingCard title="Araras" meeting={nextArarasMeeting} fixedMeeting={fixedArarasMeeting} />}
         {showRioClaro && <MeetingCard title="Rio Claro" meeting={nextRioClaroMeeting} />}
 
-        <article className="rounded-3xl border border-pink-200 bg-pink-50 p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-pink-700">Aniversários</p>
-          <h2 className="mt-3 text-xl font-semibold text-slate-950">
-            {nextBirthday ? nextBirthday.summary.replace(/^anivers[aá]rio\s*/i, "") : "Nenhum aniversariante informado"}
-          </h2>
-          {nextBirthday && <p className="mt-3 text-sm text-slate-600">{formatDate(nextBirthday.start)}</p>}
-        </article>
+        <EventListCard
+          title="Aniversários"
+          tone="pink"
+          events={birthdays}
+          emptyMessage="Nenhum aniversariante informado"
+          formatSummary={(summary) => summary.replace(/^anivers[aá]rio\s*/i, "")}
+        />
 
-        <article className="rounded-3xl border border-amber-200 bg-amber-50 p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-amber-700">Férias</p>
-          <h2 className="mt-3 text-xl font-semibold text-slate-950">
-            {nextVacation ? nextVacation.summary.replace(/\s*-\s*f[eé]rias\s*$/i, "") : "Nenhum período programado"}
-          </h2>
-          {nextVacation && <p className="mt-3 text-sm text-slate-600">{formatDate(nextVacation.start)} a {formatDate(nextVacation.end)}</p>}
-        </article>
+        <EventListCard
+          title="Férias"
+          tone="amber"
+          events={vacations}
+          emptyMessage="Nenhum período programado"
+          formatSummary={(summary) => summary.replace(/\s*-\s*f[eé]rias\s*$/i, "")}
+        />
       </section>
 
       <p className="mt-10 text-center text-xs text-slate-400">

@@ -32,7 +32,6 @@ export default async function DashboardLayout({
           </Link>
 
           <nav className="flex min-w-0 flex-1 gap-1 overflow-x-auto py-2">
-            <Link href="/dashboard" className={linkClass}>Início</Link>
             {hasModuleAccess(email, "painel") && (
               <Link href="/colaboradores" className={linkClass}>Painel Timoni</Link>
             )}

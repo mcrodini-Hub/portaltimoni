@@ -12,6 +12,13 @@ type FixedMeeting = {
   label: string;
 };
 
+type PanelDateItem = {
+  id: string;
+  summary: string;
+  start: string;
+  end?: string;
+};
+
 function normalizeText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
@@ -114,11 +121,45 @@ function isVacation(event: CalendarEventDTO) {
   return title.includes("ferias") || title.includes("férias");
 }
 
+function calendarEventToPanelItem(event: CalendarEventDTO): PanelDateItem {
+  return {
+    id: `${event.calendarKey}-${event.id}`,
+    summary: event.summary,
+    start: event.start,
+    end: event.end,
+  };
+}
+
+function uniqueDateItems(items: PanelDateItem[], limit = 6) {
+  const seen = new Set<string>();
+
+  return items
+    .sort((a, b) => parseEventDate(a.start).getTime() - parseEventDate(b.start).getTime())
+    .filter((item) => {
+      const key = `${normalizeText(item.summary)}-${formatDate(item.start)}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, limit);
+}
+
 const fixedArarasMeeting: FixedMeeting = {
   summary: "Reunião Araras",
   start: "2026-09-08T07:30:00-03:00",
   label: "Próxima reunião já agendada",
 };
+
+const fixedPanelBirthdays: PanelDateItem[] = [
+  { id: "reinaldo-araras", summary: "Reinaldo (Araras)", start: "2026-08-13" },
+  { id: "thais", summary: "Thais", start: "2026-08-19" },
+  { id: "maria-carolina-araras", summary: "Maria Carolina (Araras)", start: "2026-08-30" },
+  { id: "joao-aniversario-loja", summary: "João aniversário de loja", start: "2026-09-01" },
+];
+
+const fixedPanelVacations: PanelDateItem[] = [
+  { id: "leopoldo", summary: "Leopoldo", start: "2026-08-03", end: "2026-08-23" },
+];
 
 const empresasAtendimentoInterno = [
   "Brascabos",
@@ -237,7 +278,7 @@ function EventListCard({
 }: {
   title: string;
   tone: "pink" | "amber";
-  events: CalendarEventDTO[];
+  events: PanelDateItem[];
   emptyMessage: string;
   formatSummary: (summary: string) => string;
 }) {
@@ -251,10 +292,10 @@ function EventListCard({
       {events.length ? (
         <ul className="mt-3 space-y-3">
           {events.map((event) => (
-            <li key={`${event.calendarKey}-${event.id}`} className="rounded-2xl bg-white/70 p-3 text-slate-700">
+            <li key={event.id} className="rounded-2xl bg-white/70 p-3 text-slate-700">
               <p className="text-base font-semibold text-slate-950">{formatSummary(event.summary)}</p>
               <p className="mt-1 text-sm text-slate-600">
-                {title === "Férias" ? `${formatDate(event.start)} a ${formatDate(event.end)}` : formatDate(event.start)}
+                {title === "Férias" && event.end ? `${formatDate(event.start)} a ${formatDate(event.end)}` : formatDate(event.start)}
               </p>
             </li>
           ))}
@@ -305,11 +346,13 @@ export default async function ColaboradoresPage() {
     allEvents,
     (event) => isMeetingForUnit(event, "rio claro") && parseEventDate(event.start) >= now,
   );
-  const birthdays = upcomingEvents(timoniEvents, isBirthday);
-  const vacations = timoniEvents
+  const calendarBirthdays = upcomingEvents(timoniEvents, isBirthday).map(calendarEventToPanelItem);
+  const calendarVacations = timoniEvents
     .filter((event) => isVacation(event) && parseEventDate(event.end) > now)
     .sort((a, b) => parseEventDate(a.start).getTime() - parseEventDate(b.start).getTime())
-    .slice(0, 4);
+    .map(calendarEventToPanelItem);
+  const birthdays = uniqueDateItems([...fixedPanelBirthdays, ...calendarBirthdays]);
+  const vacations = uniqueDateItems([...fixedPanelVacations, ...calendarVacations]);
 
   const canAccessStock = hasModuleAccess(email, "estoque");
   const showRioClaro = panelStore === "geral" || panelStore === "rio claro";

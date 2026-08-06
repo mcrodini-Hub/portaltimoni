@@ -205,7 +205,7 @@ function AnnouncementCard({ store, compact = false }: { store: "rio claro" | "ar
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Comunicados</p>
           <h2 className="mt-3 text-xl font-semibold text-slate-950">
-            {isRioClaro ? "Vendas Empresas" : "Araras"}
+            {isRioClaro ? "Vendas Empresas" : "Nova Ferramenta: Painel Timoni e Estoque"}
           </h2>
         </div>
         <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm">
@@ -239,8 +239,28 @@ function AnnouncementCard({ store, compact = false }: { store: "rio claro" | "ar
           </div>
         </div>
       ) : (
-        <div className="mt-4 rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-700">
-          Nenhum comunicado publicado para Araras neste momento.
+        <div className="mt-4 space-y-4 rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-700">
+          <p className="font-semibold italic text-slate-950">Esta é a nova comunicação interna da Casa Timoni.</p>
+          <p>
+            Vocês vão usar o Portal Timoni pelo Chrome. O acesso principal é pelo Painel Timoni com avisos e comunicados para a equipe e o link para o Módulo Estoque: canal exclusivo para consultarem ou solicitarem produtos.
+          </p>
+          <div>
+            <p className="font-semibold text-slate-950">Logins de acesso:</p>
+            <div className="mt-2 space-y-1 font-medium text-slate-800">
+              <p>fotoscasatimoni@gmail.com</p>
+              <p>reginaldo@casatimoni.com.br</p>
+              <p>comercialara@casatimoni.com.br</p>
+            </div>
+          </div>
+          <div>
+            <p className="font-semibold text-slate-950">Fluxo do Estoque:</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5">
+              <li>Consultar pelo código ou descrição.</li>
+              <li>Informar quantidade e unidade.</li>
+              <li>Registrar a necessidade.</li>
+              <li>Acompanhar o status até finalizar.</li>
+            </ol>
+          </div>
         </div>
       )}
     </article>

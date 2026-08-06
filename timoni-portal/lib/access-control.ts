@@ -28,8 +28,8 @@ const allModules: PortalModule[] = [
   "financeiro",
 ];
 
-function withStock(modules: PortalModule[]) {
-  return Array.from(new Set([...modules, "estoque"]));
+function withStock(modules: PortalModule[]): PortalModule[] {
+  return Array.from(new Set<PortalModule>([...modules, "estoque"]));
 }
 
 export const portalUsers: Record<string, PortalUser> = {

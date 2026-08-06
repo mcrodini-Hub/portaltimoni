@@ -5,6 +5,7 @@ import { listEventsInRange } from "@/lib/google-calendar";
 import type { CalendarEventDTO } from "@/lib/types";
 
 type PanelStore = "geral" | "rio claro" | "araras";
+type Store = "rio claro" | "araras";
 
 type FixedMeeting = {
   summary: string;
@@ -29,27 +30,17 @@ function normalizeMeetingTitle(value: string) {
 
 function getPanelStore(email: string): PanelStore {
   const normalized = email.trim().toLowerCase();
-
-  if (["mcrodini@gmail.com", "mrodini@gmail.com"].includes(normalized)) {
-    return "geral";
-  }
-
-  if (["reginaldo@casatimoni.com.br", "comercialara@casatimoni.com.br", "fotoscasatimoni@gmail.com"].includes(normalized)) {
-    return "araras";
-  }
-
+  if (["mcrodini@gmail.com", "mrodini@gmail.com"].includes(normalized)) return "geral";
+  if (["reginaldo@casatimoni.com.br", "comercialara@casatimoni.com.br", "fotoscasatimoni@gmail.com"].includes(normalized)) return "araras";
   return "rio claro";
 }
 
 function isPanelMeeting(event: CalendarEventDTO) {
   const title = normalizeMeetingTitle(event.summary);
-  return (
-    title.startsWith("reuniao ") &&
-    (title.endsWith(" araras") || title.endsWith(" rio claro"))
-  );
+  return title.startsWith("reuniao ") && (title.endsWith(" araras") || title.endsWith(" rio claro"));
 }
 
-function isMeetingForUnit(event: CalendarEventDTO, unit: "araras" | "rio claro") {
+function isMeetingForUnit(event: CalendarEventDTO, unit: Store) {
   const title = normalizeMeetingTitle(event.summary);
   return isPanelMeeting(event) && title.endsWith(` ${unit}`);
 }
@@ -89,7 +80,6 @@ function formatFixedMeetingDateTime(meeting: FixedMeeting) {
     hour: "2-digit",
     minute: "2-digit",
   }).format(date);
-
   return `${formatDate(date)} · ${weekday} · ${time}`;
 }
 
@@ -117,8 +107,7 @@ function isBirthday(event: CalendarEventDTO) {
 }
 
 function isVacation(event: CalendarEventDTO) {
-  const title = normalizeText(event.summary);
-  return title.includes("ferias") || title.includes("férias");
+  return normalizeText(event.summary).includes("ferias");
 }
 
 function calendarEventToPanelItem(event: CalendarEventDTO): PanelDateItem {
@@ -132,7 +121,6 @@ function calendarEventToPanelItem(event: CalendarEventDTO): PanelDateItem {
 
 function uniqueDateItems(items: PanelDateItem[], limit = 6) {
   const seen = new Set<string>();
-
   return items
     .sort((a, b) => parseEventDate(a.start).getTime() - parseEventDate(b.start).getTime())
     .filter((item) => {
@@ -196,7 +184,7 @@ function StockFlow() {
   );
 }
 
-function AnnouncementCard({ store, compact = false }: { store: "rio claro" | "araras"; compact?: boolean }) {
+function AnnouncementCard({ store, compact = false }: { store: Store; compact?: boolean }) {
   const isRioClaro = store === "rio claro";
 
   return (
@@ -215,12 +203,8 @@ function AnnouncementCard({ store, compact = false }: { store: "rio claro" | "ar
 
       {isRioClaro ? (
         <div className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
-          <p>
-            As empresas relacionadas abaixo são atendidas exclusivamente por vendas internas e devem ser direcionadas para Jaqueline.
-          </p>
-          <p className="font-semibold text-slate-900">
-            Qualquer orçamento que for passado pelo Balcão será desconsiderado.
-          </p>
+          <p>As empresas relacionadas abaixo são atendidas exclusivamente por vendas internas e devem ser direcionadas para Jaqueline.</p>
+          <p className="font-semibold text-slate-900">Qualquer orçamento que for passado pelo Balcão será desconsiderado.</p>
           <p>Esta orientação se deve à complexidade do atendimento destes clientes:</p>
           <ul className="list-disc space-y-1 pl-5">
             <li>Definição de produtos/serviços.</li>
@@ -231,9 +215,7 @@ function AnnouncementCard({ store, compact = false }: { store: "rio claro" | "ar
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Empresas</p>
             <ul className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
               {empresasAtendimentoInterno.map((empresa) => (
-                <li key={empresa} className="rounded-lg bg-white/70 px-2 py-1 text-xs font-semibold text-slate-700">
-                  {empresa}
-                </li>
+                <li key={empresa} className="rounded-lg bg-white/70 px-2 py-1 text-xs font-semibold text-slate-700">{empresa}</li>
               ))}
             </ul>
           </div>
@@ -259,6 +241,15 @@ function AnnouncementCard({ store, compact = false }: { store: "rio claro" | "ar
               <li>Informar quantidade e unidade.</li>
               <li>Registrar a necessidade.</li>
               <li>Acompanhar o status até finalizar.</li>
+            </ol>
+          </div>
+          <div>
+            <p className="font-semibold text-slate-950">Quem responde segue essa ordem:</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5">
+              <li>Lucas Araras</li>
+              <li>Reginaldo</li>
+              <li>Lucas Rio Claro</li>
+              <li>Ciça</li>
             </ol>
           </div>
         </div>
@@ -289,22 +280,14 @@ function MeetingCard({ title, meeting, fixedMeeting }: { title: string; meeting?
   );
 }
 
-function EventListCard({
-  title,
-  tone,
-  events,
-  emptyMessage,
-  formatSummary,
-}: {
+function EventListCard({ title, tone, events, emptyMessage, formatSummary }: {
   title: string;
   tone: "pink" | "amber";
   events: PanelDateItem[];
   emptyMessage: string;
   formatSummary: (summary: string) => string;
 }) {
-  const toneClass = tone === "pink"
-    ? "border-pink-200 bg-pink-50 text-pink-700"
-    : "border-amber-200 bg-amber-50 text-amber-700";
+  const toneClass = tone === "pink" ? "border-pink-200 bg-pink-50 text-pink-700" : "border-amber-200 bg-amber-50 text-amber-700";
 
   return (
     <article className={`rounded-3xl border p-6 shadow-sm ${toneClass}`}>
@@ -358,14 +341,8 @@ export default async function ColaboradoresPage() {
     }
   }
 
-  const nextArarasMeeting = nextEvent(
-    allEvents,
-    (event) => isMeetingForUnit(event, "araras") && parseEventDate(event.start) >= now,
-  );
-  const nextRioClaroMeeting = nextEvent(
-    allEvents,
-    (event) => isMeetingForUnit(event, "rio claro") && parseEventDate(event.start) >= now,
-  );
+  const nextArarasMeeting = nextEvent(allEvents, (event) => isMeetingForUnit(event, "araras") && parseEventDate(event.start) >= now);
+  const nextRioClaroMeeting = nextEvent(allEvents, (event) => isMeetingForUnit(event, "rio claro") && parseEventDate(event.start) >= now);
   const calendarBirthdays = upcomingEvents(timoniEvents, isBirthday).map(calendarEventToPanelItem);
   const calendarVacations = timoniEvents
     .filter((event) => isVacation(event) && parseEventDate(event.end) > now)
@@ -377,31 +354,24 @@ export default async function ColaboradoresPage() {
   const canAccessStock = hasModuleAccess(email, "estoque");
   const showRioClaro = panelStore === "geral" || panelStore === "rio claro";
   const showAraras = panelStore === "geral" || panelStore === "araras";
-  const mainStore = panelStore === "araras" ? "araras" : "rio claro";
+  const mainStore: Store = panelStore === "araras" ? "araras" : "rio claro";
 
   return (
     <div className="pb-10">
       <header className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Comunicação interna</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Painel Timoni</h1>
-        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
-          <StoreLabel store={panelStore} />
-        </p>
+        <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600"><StoreLabel store={panelStore} /></p>
       </header>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <AnnouncementCard store={mainStore} />
 
         {canAccessStock ? (
-          <Link
-            href="/dashboard/estoque"
-            className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"
-          >
+          <Link href="/dashboard/estoque" className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Estoque</p>
             <h2 className="mt-3 text-xl font-semibold text-slate-950">Consulta de produtos</h2>
-            <p className="mt-3 text-sm leading-6 text-slate-600">
-              Consultar produtos e registrar necessidades da unidade.
-            </p>
+            <p className="mt-3 text-sm leading-6 text-slate-600">Consultar produtos e registrar necessidades da unidade.</p>
             <p className="mt-5 text-sm font-semibold text-blue-800">Acessar Estoque →</p>
             <StockFlow />
           </Link>

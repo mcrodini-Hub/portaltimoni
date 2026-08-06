@@ -4,6 +4,8 @@ import { hasModuleAccess } from "@/lib/access-control";
 import { listEventsInRange } from "@/lib/google-calendar";
 import type { CalendarEventDTO } from "@/lib/types";
 
+type UnitSlug = "rio claro" | "araras";
+
 function normalizeText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
@@ -20,7 +22,7 @@ function isPanelMeeting(event: CalendarEventDTO) {
   );
 }
 
-function isMeetingForUnit(event: CalendarEventDTO, unit: "rio claro" | "araras") {
+function isMeetingForUnit(event: CalendarEventDTO, unit: UnitSlug) {
   return isPanelMeeting(event) && normalizeMeetingTitle(event.summary).endsWith(` ${unit}`);
 }
 
@@ -130,6 +132,22 @@ export default async function ColaboradoresPage() {
     },
   ];
 
+  const visualPublications = [
+    {
+      unit: "Araras",
+      box: "Comunicados",
+      date: "06/08/2026",
+      text: "Comunicados da unidade Araras.",
+      className: "border-blue-200 bg-blue-50",
+    },
+    {
+      unit: "Araras",
+      box: "Reuniões",
+      text: "Pauta.",
+      className: "border-violet-200 bg-violet-50",
+    },
+  ];
+
   const quickLinks = [
     hasModuleAccess(email, "estoque") && {
       title: "Estoque",
@@ -224,6 +242,28 @@ export default async function ColaboradoresPage() {
                   <p className="mt-2 text-sm font-semibold text-slate-700">Nenhuma reunião programada</p>
                 )}
               </div>
+            </article>
+          ))}
+        </div>
+      </section>
+
+      <section className="mt-6">
+        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Publicações visuais</p>
+        <div className="mt-3 grid gap-4 md:grid-cols-2">
+          {visualPublications.map((item) => (
+            <article key={`${item.unit}-${item.box}`} className={`rounded-3xl border p-6 shadow-sm ${item.className}`}>
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">Unidade: {item.unit}</p>
+                  <h2 className="mt-2 text-xl font-semibold text-slate-950">Box: {item.box}</h2>
+                </div>
+                {item.date && (
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">
+                    {item.date}
+                  </span>
+                )}
+              </div>
+              <p className="mt-5 text-sm leading-6 text-slate-700">Texto: {item.text}</p>
             </article>
           ))}
         </div>

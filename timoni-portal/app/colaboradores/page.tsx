@@ -205,14 +205,15 @@ export default async function ColaboradoresPage() {
           </article>
         )}
 
-        <article className="min-h-44 rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Comunicados</p>
-              <h2 className="mt-3 text-xl font-semibold text-slate-950">Araras</h2>
-            </div>
-            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm">Araras</span>
-          </div>
+        <article className="rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Fluxo do Estoque</p>
+          <h2 className="mt-3 text-xl font-semibold text-slate-950">Solicitação de produto</h2>
+          <ol className="mt-4 space-y-2 text-sm leading-6 text-slate-700">
+            <li><strong>1.</strong> Consultar pelo código ou descrição.</li>
+            <li><strong>2.</strong> Informar quantidade e unidade.</li>
+            <li><strong>3.</strong> Registrar a necessidade.</li>
+            <li><strong>4.</strong> Acompanhar o status até finalizar.</li>
+          </ol>
         </article>
 
         <MeetingCard title="Araras" meeting={nextArarasMeeting} />

@@ -60,13 +60,13 @@ export const portalUsers: Record<string, PortalUser> = {
   "reginaldo@casatimoni.com.br": {
     name: "Reginaldo - Araras",
     email: "reginaldo@casatimoni.com.br",
-    modules: withStock(["painel", "reunioes", "motorista", "financeiro"]),
+    modules: withStock(["painel", "motorista", "financeiro"]),
     requiresPassword: true,
   },
   "comercialara@casatimoni.com.br": {
     name: "Carolina - Vendas Araras",
     email: "comercialara@casatimoni.com.br",
-    modules: withStock(["painel", "marketing", "reunioes"]),
+    modules: withStock(["painel", "marketing"]),
     requiresPassword: false,
   },
   "marketplacerc.mcr@gmail.com": {
@@ -84,7 +84,7 @@ export const portalUsers: Record<string, PortalUser> = {
   "fotoscasatimoni@gmail.com": {
     name: "Lucas e Vendedores - Araras",
     email: "fotoscasatimoni@gmail.com",
-    modules: withStock(["painel", "reunioes"]),
+    modules: withStock(["painel"]),
     requiresPassword: false,
   },
   "balcaotimoni@gmail.com": {

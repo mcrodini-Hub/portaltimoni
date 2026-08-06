@@ -162,7 +162,7 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
       });
       const payload = (await response.json()) as { ok?: boolean; error?: string; existing?: boolean };
       if (!response.ok || !payload.ok) throw new Error(payload.error || "Falha ao atualizar");
-      setNotice(payload.existing ? "Produto já ativo; solicitação mantida." : "Atualizado.");
+      setNotice(payload.existing ? "Produto já ativo; solicitação mantida." : "Solicitação registrada.");
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao atualizar");
@@ -227,6 +227,7 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
   const openNeeds = filtered.filter((need) => ["pendente", "em_compra", "observacao"].includes(need.status));
   const onWay = filtered.filter((need) => need.status === "pedido_existente");
   const history = filtered.filter((need) => need.status === "chegou").slice(0, 50);
+  const trackingNeeds = [...openNeeds, ...onWay];
   const codeResults = useMemo(() => (selected ? [] : findByCode(products, codeSearch)), [products, codeSearch, selected]);
   const descriptionResults = useMemo(() => (selected ? [] : findByDescription(products, descriptionSearch)), [products, descriptionSearch, selected]);
   const sellerOptions = sellers.filter((item) => !item.unidade || item.unidade === newUnit || item.unidade === "todas");
@@ -301,13 +302,32 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
     );
   }
 
+  function TrackingSection() {
+    return (
+      <section className="mt-5 rounded-3xl border bg-white p-5 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Acompanhamento</p>
+            <h2 className="mt-1 text-xl font-semibold">Solicitações registradas</h2>
+          </div>
+          <button onClick={() => void refresh()} className={secondary}>Atualizar</button>
+        </div>
+        <div className="mt-4 space-y-3">
+          {trackingNeeds.map((need) => <NeedCard key={need.id} need={need} />)}
+          {!loading && !trackingNeeds.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhuma solicitação em acompanhamento.</p>}
+          {loading && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Carregando solicitações...</p>}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <div className="pb-10">
       <section className="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm sm:p-6">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Módulo Estoque</p>
           <h1 className="mt-2 text-3xl font-semibold">Estoque CT</h1>
-          <p className="mt-3 text-sm text-slate-600">{isManager ? "Uso direto no Portal Timoni, no computador ou celular." : "Consulte o produto e registre a necessidade para o estoque acompanhar."}</p>
+          <p className="mt-3 text-sm text-slate-600">{isManager ? "Uso direto no Portal Timoni, no computador ou celular." : "Consulte o produto, registre a necessidade e acompanhe o andamento."}</p>
         </div>
         {isManager && (
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
@@ -323,7 +343,7 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
       {!isManager ? (
         <div className="mt-5">
           <RequestForm />
-          <p className="mt-4 rounded-2xl bg-slate-50 p-4 text-sm text-slate-500">Depois de registrar, o estoque acompanha a necessidade e retorna pelo fluxo interno.</p>
+          <TrackingSection />
         </div>
       ) : (
         <>

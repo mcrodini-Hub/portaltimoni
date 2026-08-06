@@ -6,6 +6,7 @@ import type { CalendarEventDTO } from "@/lib/types";
 
 type PanelStore = "geral" | "rio claro" | "araras";
 type Store = "rio claro" | "araras";
+type AnnouncementVariant = "large" | "compact" | "full";
 
 type FixedMeeting = {
   summary: string;
@@ -184,11 +185,12 @@ function StockFlow() {
   );
 }
 
-function AnnouncementCard({ store, compact = false }: { store: Store; compact?: boolean }) {
+function AnnouncementCard({ store, variant = "large" }: { store: Store; variant?: AnnouncementVariant }) {
   const isRioClaro = store === "rio claro";
+  const spanClass = variant === "full" ? "md:col-span-2 xl:col-span-4" : variant === "compact" ? "" : "md:col-span-2 xl:col-span-3";
 
   return (
-    <article className={`rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm ${compact ? "" : "md:col-span-2 xl:col-span-3"}`}>
+    <article className={`rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm ${spanClass}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Comunicados</p>
@@ -280,6 +282,42 @@ function MeetingCard({ title, meeting, fixedMeeting }: { title: string; meeting?
   );
 }
 
+function MeetingSummaryCard({ araras, rioClaro }: { araras?: CalendarEventDTO; rioClaro?: CalendarEventDTO }) {
+  return (
+    <article className="rounded-3xl border border-violet-200 bg-violet-50 p-6 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Reuniões</p>
+      <h2 className="mt-3 text-xl font-semibold text-slate-950">Araras / Rio Claro</h2>
+      <div className="mt-3 space-y-3 text-sm leading-6 text-slate-600">
+        <div>
+          <p className="font-semibold text-violet-800">Araras</p>
+          {araras ? (
+            <>
+              <p>{formatDateTime(araras)}</p>
+              <p>{formatMeetingTitle(araras.summary)}</p>
+            </>
+          ) : (
+            <>
+              <p>{formatFixedMeetingDateTime(fixedArarasMeeting)}</p>
+              <p>{fixedArarasMeeting.label}</p>
+            </>
+          )}
+        </div>
+        <div className="border-t border-violet-200 pt-3">
+          <p className="font-semibold text-violet-800">Rio Claro</p>
+          {rioClaro ? (
+            <>
+              <p>{formatDateTime(rioClaro)}</p>
+              <p>{formatMeetingTitle(rioClaro.summary)}</p>
+            </>
+          ) : (
+            <p>Nenhuma reunião programada.</p>
+          )}
+        </div>
+      </div>
+    </article>
+  );
+}
+
 function EventListCard({ title, tone, events, emptyMessage, formatSummary }: {
   title: string;
   tone: "pink" | "amber";
@@ -365,7 +403,14 @@ export default async function ColaboradoresPage() {
       </header>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <AnnouncementCard store={mainStore} />
+        {panelStore === "geral" ? (
+          <>
+            <AnnouncementCard store="rio claro" variant="full" />
+            <AnnouncementCard store="araras" variant="full" />
+          </>
+        ) : (
+          <AnnouncementCard store={mainStore} />
+        )}
 
         {canAccessStock ? (
           <Link href="/dashboard/estoque" className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
@@ -384,9 +429,14 @@ export default async function ColaboradoresPage() {
           </article>
         )}
 
-        {panelStore === "geral" && <AnnouncementCard store="araras" compact />}
-        {showAraras && <MeetingCard title="Araras" meeting={nextArarasMeeting} fixedMeeting={fixedArarasMeeting} />}
-        {showRioClaro && <MeetingCard title="Rio Claro" meeting={nextRioClaroMeeting} />}
+        {panelStore === "geral" ? (
+          <MeetingSummaryCard araras={nextArarasMeeting} rioClaro={nextRioClaroMeeting} />
+        ) : (
+          <>
+            {showAraras && <MeetingCard title="Araras" meeting={nextArarasMeeting} fixedMeeting={fixedArarasMeeting} />}
+            {showRioClaro && <MeetingCard title="Rio Claro" meeting={nextRioClaroMeeting} />}
+          </>
+        )}
 
         <EventListCard
           title="Aniversários"

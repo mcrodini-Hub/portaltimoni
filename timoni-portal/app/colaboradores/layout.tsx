@@ -13,44 +13,31 @@ export default async function ColaboradoresLayout({
     redirect("/login");
   }
 
-  const isPortalOwner = session.user.email === process.env.AUTHORIZED_EMAIL;
-
   return (
     <div className="min-h-screen bg-slate-50">
       <header className="sticky top-0 z-40 border-b border-blue-950/50 bg-[#0b1f5e] text-white shadow-sm">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
           <Link
-            href="/colaboradores"
+            href="/dashboard"
             className="shrink-0 py-3 text-base font-semibold tracking-tight text-white"
           >
-            Painel Timoni
+            Casa Timoni
           </Link>
 
-          <div className="flex items-center gap-2">
-            {isPortalOwner && (
-              <Link
-                href="/dashboard"
-                className="shrink-0 rounded-lg border border-white/20 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/10"
-              >
-                Portal Timoni
-              </Link>
-            )}
-
-            <form
-              action={async () => {
-                "use server";
-                await signOut({ redirectTo: "/login" });
-              }}
-              className="hidden shrink-0 sm:block"
+          <form
+            action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/login" });
+            }}
+            className="shrink-0"
+          >
+            <button
+              type="submit"
+              className="rounded-lg px-2 py-2 text-sm text-white/65 transition hover:bg-white/10 hover:text-white"
             >
-              <button
-                type="submit"
-                className="rounded-lg px-2 py-2 text-sm text-white/65 transition hover:bg-white/10 hover:text-white"
-              >
-                Sair
-              </button>
-            </form>
-          </div>
+              Sair
+            </button>
+          </form>
         </div>
       </header>
 

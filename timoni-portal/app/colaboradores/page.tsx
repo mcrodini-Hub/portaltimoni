@@ -170,6 +170,32 @@ const empresasAtendimentoInterno = [
   "Whirlpool",
 ];
 
+const announcementByStore = {
+  "rio claro": {
+    label: "Rio Claro",
+    title: "Nova Ferramenta: Painel Timoni e Estoque",
+    logins: [
+      "balcaotimoni@gmail.com",
+      "estoquetimoni@gmail.com",
+      "marketplacerc.mcr@gmail.com",
+      "comercialrc@casatimoni.com.br",
+      "caixatimonirioclaro@gmail.com",
+      "carolina@casatimoni.com.br",
+    ],
+    responders: ["Lucas Rio Claro", "Ciça", "Lucas Araras", "Reginaldo"],
+  },
+  araras: {
+    label: "Araras",
+    title: "Nova Ferramenta: Painel Timoni e Estoque",
+    logins: [
+      "fotoscasatimoni@gmail.com",
+      "reginaldo@casatimoni.com.br",
+      "comercialara@casatimoni.com.br",
+    ],
+    responders: ["Lucas Araras", "Reginaldo", "Lucas Rio Claro", "Ciça"],
+  },
+} satisfies Record<Store, { label: string; title: string; logins: string[]; responders: string[] }>;
+
 function StockFlow() {
   return (
     <div className="mt-6 border-t border-emerald-200 pt-5">
@@ -186,76 +212,48 @@ function StockFlow() {
 }
 
 function AnnouncementCard({ store, variant = "large" }: { store: Store; variant?: AnnouncementVariant }) {
-  const isRioClaro = store === "rio claro";
   const spanClass = variant === "full" ? "md:col-span-2 xl:col-span-4" : variant === "compact" ? "" : "md:col-span-2 xl:col-span-3";
+  const announcement = announcementByStore[store];
 
   return (
     <article className={`rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm ${spanClass}`}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Comunicados</p>
-          <h2 className="mt-3 text-xl font-semibold text-slate-950">
-            {isRioClaro ? "Vendas Empresas" : "Nova Ferramenta: Painel Timoni e Estoque"}
-          </h2>
+          <h2 className="mt-3 text-xl font-semibold text-slate-950">{announcement.title}</h2>
         </div>
         <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm">
-          {isRioClaro ? "Rio Claro · 06/08/2026" : "Araras"}
+          {announcement.label}
         </span>
       </div>
 
-      {isRioClaro ? (
-        <div className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
-          <p>As empresas relacionadas abaixo são atendidas exclusivamente por vendas internas e devem ser direcionadas para Jaqueline.</p>
-          <p className="font-semibold text-slate-900">Qualquer orçamento que for passado pelo Balcão será desconsiderado.</p>
-          <p>Esta orientação se deve à complexidade do atendimento destes clientes:</p>
-          <ul className="list-disc space-y-1 pl-5">
-            <li>Definição de produtos/serviços.</li>
-            <li>Resposta direta no Portal.</li>
-            <li>Negociação de preços com autorização exclusiva da Ciça, Marcelo ou Sérgio.</li>
-          </ul>
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Empresas</p>
-            <ul className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
-              {empresasAtendimentoInterno.map((empresa) => (
-                <li key={empresa} className="rounded-lg bg-white/70 px-2 py-1 text-xs font-semibold text-slate-700">{empresa}</li>
-              ))}
-            </ul>
+      <div className="mt-4 space-y-4 rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-700">
+        <p className="font-semibold italic text-slate-950">Esta é a nova comunicação interna da Casa Timoni.</p>
+        <p>
+          Vocês vão usar o Portal Timoni pelo Chrome. O acesso principal é pelo Painel Timoni com avisos e comunicados para a equipe e o link para o Módulo Estoque: canal exclusivo para consultarem ou solicitarem produtos. Assim, a comunicação que hoje fica solta no WhatsApp passa a ficar registrada no Portal.
+        </p>
+        <div>
+          <p className="font-semibold text-slate-950">Logins de acesso:</p>
+          <div className="mt-2 space-y-1 font-medium text-slate-800">
+            {announcement.logins.map((login) => <p key={login}>{login}</p>)}
           </div>
         </div>
-      ) : (
-        <div className="mt-4 space-y-4 rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-700">
-          <p className="font-semibold italic text-slate-950">Esta é a nova comunicação interna da Casa Timoni.</p>
-          <p>
-            Vocês vão usar o Portal Timoni pelo Chrome. O acesso principal é pelo Painel Timoni com avisos e comunicados para a equipe e o link para o Módulo Estoque: canal exclusivo para consultarem ou solicitarem produtos.
-          </p>
-          <div>
-            <p className="font-semibold text-slate-950">Logins de acesso:</p>
-            <div className="mt-2 space-y-1 font-medium text-slate-800">
-              <p>fotoscasatimoni@gmail.com</p>
-              <p>reginaldo@casatimoni.com.br</p>
-              <p>comercialara@casatimoni.com.br</p>
-            </div>
-          </div>
-          <div>
-            <p className="font-semibold text-slate-950">Fluxo do Estoque:</p>
-            <ol className="mt-2 list-decimal space-y-1 pl-5">
-              <li>Consultar pelo código ou descrição.</li>
-              <li>Informar quantidade e unidade.</li>
-              <li>Registrar a necessidade.</li>
-              <li>Acompanhar o status até finalizar.</li>
-            </ol>
-          </div>
-          <div>
-            <p className="font-semibold text-slate-950">Quem responde segue essa ordem:</p>
-            <ol className="mt-2 list-decimal space-y-1 pl-5">
-              <li>Lucas Araras</li>
-              <li>Reginaldo</li>
-              <li>Lucas Rio Claro</li>
-              <li>Ciça</li>
-            </ol>
-          </div>
+        <div>
+          <p className="font-semibold text-slate-950">Fluxo do Estoque:</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5">
+            <li>Consultar pelo código ou descrição.</li>
+            <li>Informar quantidade e unidade.</li>
+            <li>Registrar a necessidade.</li>
+            <li>Acompanhar o status até finalizar.</li>
+          </ol>
         </div>
-      )}
+        <div>
+          <p className="font-semibold text-slate-950">Quem responde segue essa ordem:</p>
+          <ol className="mt-2 list-decimal space-y-1 pl-5">
+            {announcement.responders.map((responder) => <li key={responder}>{responder}</li>)}
+          </ol>
+        </div>
+      </div>
     </article>
   );
 }

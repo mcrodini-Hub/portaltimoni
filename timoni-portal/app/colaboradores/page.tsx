@@ -79,6 +79,21 @@ const empresasAtendimentoInterno = [
   "Whirlpool",
 ];
 
+function StockFlow() {
+  return (
+    <div className="mt-6 border-t border-emerald-200 pt-5">
+      <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Fluxo do Estoque</p>
+      <h3 className="mt-2 text-base font-semibold text-slate-950">Solicitação de produto</h3>
+      <ol className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
+        <li><strong>1.</strong> Consultar pelo código ou descrição.</li>
+        <li><strong>2.</strong> Informar quantidade e unidade.</li>
+        <li><strong>3.</strong> Registrar a necessidade.</li>
+        <li><strong>4.</strong> Acompanhar o status até finalizar.</li>
+      </ol>
+    </div>
+  );
+}
+
 function MeetingCard({ title, meeting }: { title: string; meeting?: CalendarEventDTO }) {
   return (
     <article className="rounded-3xl border border-violet-200 bg-violet-50 p-6 shadow-sm">
@@ -196,25 +211,16 @@ export default async function ColaboradoresPage() {
               Consultar produtos e registrar necessidades da unidade.
             </p>
             <p className="mt-5 text-sm font-semibold text-blue-800">Acessar Estoque →</p>
+            <StockFlow />
           </Link>
         ) : (
           <article className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Estoque</p>
             <h2 className="mt-3 text-xl font-semibold text-slate-950">Consulta de produtos</h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">Acesso disponível conforme liberação do Portal.</p>
+            <StockFlow />
           </article>
         )}
-
-        <article className="rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Fluxo do Estoque</p>
-          <h2 className="mt-3 text-xl font-semibold text-slate-950">Solicitação de produto</h2>
-          <ol className="mt-4 space-y-2 text-sm leading-6 text-slate-700">
-            <li><strong>1.</strong> Consultar pelo código ou descrição.</li>
-            <li><strong>2.</strong> Informar quantidade e unidade.</li>
-            <li><strong>3.</strong> Registrar a necessidade.</li>
-            <li><strong>4.</strong> Acompanhar o status até finalizar.</li>
-          </ol>
-        </article>
 
         <MeetingCard title="Araras" meeting={nextArarasMeeting} />
         <MeetingCard title="Rio Claro" meeting={nextRioClaroMeeting} />

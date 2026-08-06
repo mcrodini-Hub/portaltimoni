@@ -88,6 +88,8 @@ const empresasAtendimentoInterno = [
   "Whirlpool",
 ];
 
+const comunicadosVendasEmpresas = ["Rio Claro", "Araras"];
+
 export default async function ColaboradoresPage() {
   const session = await auth();
   const email = session?.user?.email ?? "";
@@ -136,39 +138,41 @@ export default async function ColaboradoresPage() {
       </header>
 
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-6">
-        <article className="rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm sm:col-span-2 xl:col-span-2">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Comunicados</p>
-              <h2 className="mt-3 text-xl font-semibold text-slate-950">Vendas Empresas</h2>
+        {comunicadosVendasEmpresas.map((unidade) => (
+          <article key={unidade} className="rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm sm:col-span-2 xl:col-span-2">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Comunicados</p>
+                <h2 className="mt-3 text-xl font-semibold text-slate-950">Vendas Empresas</h2>
+              </div>
+              <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm">{unidade} · 06/08/2026</span>
             </div>
-            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-blue-800 shadow-sm">Rio Claro · 06/08/2026</span>
-          </div>
-          <div className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
-            <p>
-              As empresas relacionadas abaixo são atendidas exclusivamente por vendas internas e devem ser direcionadas para Jaqueline.
-            </p>
-            <p className="font-semibold text-slate-900">
-              Qualquer orçamento que for passado pelo Balcão será desconsiderado.
-            </p>
-            <p>Esta orientação se deve à complexidade do atendimento destes clientes:</p>
-            <ul className="list-disc space-y-1 pl-5">
-              <li>Definição de produtos/serviços.</li>
-              <li>Resposta direta no Portal.</li>
-              <li>Negociação de preços com autorização exclusiva da Ciça, Marcelo ou Sérgio.</li>
-            </ul>
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Empresas</p>
-              <ul className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-2">
-                {empresasAtendimentoInterno.map((empresa) => (
-                  <li key={empresa} className="rounded-lg bg-white/70 px-2 py-1 text-xs font-semibold text-slate-700">
-                    {empresa}
-                  </li>
-                ))}
+            <div className="mt-4 space-y-3 text-sm leading-6 text-slate-700">
+              <p>
+                As empresas relacionadas abaixo são atendidas exclusivamente por vendas internas e devem ser direcionadas para Jaqueline.
+              </p>
+              <p className="font-semibold text-slate-900">
+                Qualquer orçamento que for passado pelo Balcão será desconsiderado.
+              </p>
+              <p>Esta orientação se deve à complexidade do atendimento destes clientes:</p>
+              <ul className="list-disc space-y-1 pl-5">
+                <li>Definição de produtos/serviços.</li>
+                <li>Resposta direta no Portal.</li>
+                <li>Negociação de preços com autorização exclusiva da Ciça, Marcelo ou Sérgio.</li>
               </ul>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Empresas</p>
+                <ul className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-2">
+                  {empresasAtendimentoInterno.map((empresa) => (
+                    <li key={`${unidade}-${empresa}`} className="rounded-lg bg-white/70 px-2 py-1 text-xs font-semibold text-slate-700">
+                      {empresa}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             </div>
-          </div>
-        </article>
+          </article>
+        ))}
 
         {canAccessStock ? (
           <Link

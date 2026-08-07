@@ -32,7 +32,12 @@ function normalizeMeetingTitle(value: string) {
 function getPanelStore(email: string): PanelStore {
   const normalized = email.trim().toLowerCase();
   if (["mcrodini@gmail.com", "mrodini@gmail.com"].includes(normalized)) return "geral";
-  if (["reginaldo@casatimoni.com.br", "comercialara@casatimoni.com.br", "fotoscasatimoni@gmail.com"].includes(normalized)) return "araras";
+  if ([
+    "reginaldo@casatimoni.com.br",
+    "comercialara@casatimoni.com.br",
+    "fotoscasatimoni@gmail.com",
+    "casatimoniararas@gmail.com",
+  ].includes(normalized)) return "araras";
   return "rio claro";
 }
 
@@ -228,6 +233,7 @@ const announcementByStore = {
       "fotoscasatimoni@gmail.com",
       "reginaldo@casatimoni.com.br",
       "comercialara@casatimoni.com.br",
+      "casatimoniararas@gmail.com",
     ],
     responders: ["Lucas Araras", "Reginaldo", "Lucas Rio Claro", "Ciça"],
   },

@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 type RequestUnit = "rio_claro" | "araras";
 
 const ESTOQUE_GESTAO_EMAILS = new Set([
-  "reginaldo@casatimoni.com.br",
+  "estoqueararascasatimoni@gmail.com",
   "estoquetimoni@gmail.com",
   "mcrodini@gmail.com",
   "mrodini@gmail.com",
@@ -18,7 +18,7 @@ const ESTOQUE_GESTAO_EMAILS = new Set([
 const ARARAS_EMAILS = new Set([
   "fotoscasatimoni@gmail.com",
   "comercialara@casatimoni.com.br",
-  "reginaldo@casatimoni.com.br",
+  "estoqueararascasatimoni@gmail.com",
 ]);
 
 const RIO_CLARO_EMAILS = new Set([

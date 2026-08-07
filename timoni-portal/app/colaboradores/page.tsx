@@ -140,11 +140,49 @@ function uniqueDateItems(items: PanelDateItem[], limit = 6) {
     .slice(0, limit);
 }
 
-const fixedArarasMeeting: FixedMeeting = {
-  summary: "Reunião Araras",
-  start: "2026-09-08T07:30:00-03:00",
-  label: "Próxima reunião já agendada",
-};
+function getNextArarasMeeting(reference: Date): FixedMeeting {
+  let year = 2026;
+  let month = 8; // setembro, base zero
+
+  while (true) {
+    let day = 6;
+    let candidate = new Date(`${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}T07:40:00-03:00`);
+
+    while (candidate.getDay() !== 2) {
+      day += 1;
+      candidate = new Date(`${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}T07:40:00-03:00`);
+    }
+
+    const meetingEnd = new Date(candidate.getTime() + 60 * 60 * 1000);
+    if (meetingEnd > reference) {
+      return {
+        summary: "Reunião Araras",
+        start: candidate.toISOString(),
+        label: "Próxima reunião já agendada",
+      };
+    }
+
+    month += 1;
+    if (month > 11) {
+      month = 0;
+      year += 1;
+    }
+  }
+}
+
+function getNextRioClaroMeeting(reference: Date): FixedMeeting {
+  const candidate = new Date("2026-08-08T07:30:00-03:00");
+
+  while (new Date(candidate.getTime() + 60 * 60 * 1000) <= reference) {
+    candidate.setUTCDate(candidate.getUTCDate() + 14);
+  }
+
+  return {
+    summary: "Reunião Rio Claro",
+    start: candidate.toISOString(),
+    label: "Próxima reunião já agendada",
+  };
+}
 
 const fixedPanelBirthdays: PanelDateItem[] = [
   { id: "reinaldo-araras", summary: "Reinaldo (Araras)", start: "2026-08-13" },
@@ -330,7 +368,7 @@ function MeetingCard({ title, meeting, fixedMeeting }: { title: string; meeting?
   );
 }
 
-function MeetingSummaryCard({ araras, rioClaro }: { araras?: CalendarEventDTO; rioClaro?: CalendarEventDTO }) {
+function MeetingSummaryCard({ araras, rioClaro }: { araras: FixedMeeting; rioClaro: FixedMeeting }) {
   return (
     <article className="rounded-3xl border border-violet-200 bg-violet-50 p-6 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Reuniões</p>
@@ -338,28 +376,13 @@ function MeetingSummaryCard({ araras, rioClaro }: { araras?: CalendarEventDTO; r
       <div className="mt-3 space-y-3 text-sm leading-6 text-slate-600">
         <div>
           <p className="font-semibold text-violet-800">Araras</p>
-          {araras ? (
-            <>
-              <p>{formatDateTime(araras)}</p>
-              <p>{formatMeetingTitle(araras.summary)}</p>
-            </>
-          ) : (
-            <>
-              <p>{formatFixedMeetingDateTime(fixedArarasMeeting)}</p>
-              <p>{fixedArarasMeeting.label}</p>
-            </>
-          )}
+          <p>{formatFixedMeetingDateTime(araras)}</p>
+          <p>{araras.label}</p>
         </div>
         <div className="border-t border-violet-200 pt-3">
           <p className="font-semibold text-violet-800">Rio Claro</p>
-          {rioClaro ? (
-            <>
-              <p>{formatDateTime(rioClaro)}</p>
-              <p>{formatMeetingTitle(rioClaro.summary)}</p>
-            </>
-          ) : (
-            <p>Nenhuma reunião programada.</p>
-          )}
+          <p>{formatFixedMeetingDateTime(rioClaro)}</p>
+          <p>{rioClaro.label}</p>
         </div>
       </div>
     </article>
@@ -427,8 +450,8 @@ export default async function ColaboradoresPage() {
     }
   }
 
-  const nextArarasMeeting = nextEvent(allEvents, (event) => isMeetingForUnit(event, "araras") && parseEventDate(event.start) >= now);
-  const nextRioClaroMeeting = nextEvent(allEvents, (event) => isMeetingForUnit(event, "rio claro") && parseEventDate(event.start) >= now);
+  const nextArarasMeeting = getNextArarasMeeting(now);
+  const nextRioClaroMeeting = getNextRioClaroMeeting(now);
   const calendarBirthdays = upcomingEvents(timoniEvents, isBirthday).map(calendarEventToPanelItem);
   const calendarVacations = timoniEvents
     .filter((event) => isVacation(event) && parseEventDate(event.end) > now)
@@ -481,8 +504,8 @@ export default async function ColaboradoresPage() {
           <MeetingSummaryCard araras={nextArarasMeeting} rioClaro={nextRioClaroMeeting} />
         ) : (
           <>
-            {showAraras && <MeetingCard title="Araras" meeting={nextArarasMeeting} fixedMeeting={fixedArarasMeeting} />}
-            {showRioClaro && <MeetingCard title="Rio Claro" meeting={nextRioClaroMeeting} />}
+            {showAraras && <MeetingCard title="Araras" fixedMeeting={nextArarasMeeting} />}
+            {showRioClaro && <MeetingCard title="Rio Claro" fixedMeeting={nextRioClaroMeeting} />}
           </>
         )}
 

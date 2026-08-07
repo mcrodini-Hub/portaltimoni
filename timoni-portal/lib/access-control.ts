@@ -22,10 +22,10 @@ const allModules: PortalModule[] = [
   "compras",
   "conferencia",
   "estoque",
+  "financeiro",
+  "marketing",
   "motorista",
   "reunioes",
-  "marketing",
-  "financeiro",
 ];
 
 function withStock(modules: PortalModule[]): PortalModule[] {
@@ -48,7 +48,7 @@ export const portalUsers: Record<string, PortalUser> = {
   "margareth@casatimoni.com.br": {
     name: "Margareth",
     email: "margareth@casatimoni.com.br",
-    modules: allModules,
+    modules: allModules.filter((module) => module !== "marketing"),
     requiresPassword: true,
   },
   "carolina@casatimoni.com.br": {
@@ -60,7 +60,7 @@ export const portalUsers: Record<string, PortalUser> = {
   "comercialrc@casatimoni.com.br": {
     name: "Jeovana - Rio Claro",
     email: "comercialrc@casatimoni.com.br",
-    modules: withStock(["painel", "marketing", "motorista", "financeiro"]),
+    modules: withStock(["painel", "motorista", "financeiro"]),
     requiresPassword: true,
   },
   "reginaldo@casatimoni.com.br": {
@@ -72,19 +72,19 @@ export const portalUsers: Record<string, PortalUser> = {
   "comercialara@casatimoni.com.br": {
     name: "Carolina - Vendas Araras",
     email: "comercialara@casatimoni.com.br",
-    modules: withStock(["painel", "marketing", "motorista"]),
+    modules: withStock(["painel", "motorista"]),
     requiresPassword: false,
   },
   "casatimoniararas@gmail.com": {
     name: "Casa Timoni Araras",
     email: "casatimoniararas@gmail.com",
-    modules: withStock(["painel", "marketing"]),
+    modules: withStock(["painel"]),
     requiresPassword: false,
   },
   "marketplacerc.mcr@gmail.com": {
     name: "Jaqueline - Marketplace Rio Claro",
     email: "marketplacerc.mcr@gmail.com",
-    modules: withStock(["painel", "marketing", "motorista"]),
+    modules: withStock(["painel", "motorista"]),
     requiresPassword: false,
   },
   "estoquetimoni@gmail.com": {

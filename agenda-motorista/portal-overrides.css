@@ -19,34 +19,39 @@ body{
 }
 
 .content{
-  max-width:1280px;
+  max-width:1180px;
   padding:24px;
 }
 
 /* Topo igual ao padrao visual do Portal */
 .topbar{
-  min-height:42px;
-  height:42px;
-  padding:0 48px;
-  background:#0f2567;
-  border-bottom:none;
-  box-shadow:none;
-  position:sticky;
-  top:0;
-  z-index:20;
-  justify-content:flex-start;
-  gap:24px;
+  min-height:42px !important;
+  height:42px !important;
+  padding:0 48px !important;
+  background:#0b1f5e !important;
+  border-bottom:1px solid rgba(15,23,42,.25) !important;
+  box-shadow:none !important;
+  position:sticky !important;
+  top:0 !important;
+  z-index:50 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:flex-start !important;
+  gap:24px !important;
 }
 
 .brand{
-  width:100%;
-  display:flex;
-  align-items:center;
-  gap:24px;
+  width:100% !important;
+  display:flex !important;
+  align-items:center !important;
+  gap:22px !important;
+  min-width:max-content !important;
 }
 
 .brand-logo,
-.topbar-actions{
+.topbar-actions,
+.brand-title,
+.brand-dim{
   display:none !important;
 }
 
@@ -58,31 +63,26 @@ body{
   white-space:nowrap;
 }
 
-.brand-title{
-  display:flex;
-  align-items:center;
-  gap:24px;
-  color:#fff;
-  font-size:0;
-  font-weight:700;
-  white-space:nowrap;
-}
-
-.brand-title::before{
-  content:"Painel Timoni     Agenda Ciça     Compras     Conferência     Estoque     Motorista     Reuniões     Marketing     Financeiro";
+.brand::after{
+  content:"Painel Timoni    Agenda Ciça    Compras    Conferência    Estoque    Motorista    Reuniões    Marketing    Financeiro";
   color:#fff;
   font-size:13px;
   font-weight:700;
-  word-spacing:18px;
+  white-space:pre;
 }
 
-.brand-dim{
-  display:none;
+/* Remove botoes solicitados */
+#btnGerarExcel,
+.copy-row,
+#btnCopiarTexto,
+#copiedMsg{
+  display:none !important;
 }
 
+/* Visual geral mais sobrio */
 button,
 .portal-back{
-  border-radius:14px;
+  border-radius:12px;
   font-weight:700;
   letter-spacing:.01em;
 }
@@ -90,25 +90,27 @@ button,
 .btn-primary{
   background:#1d4ed8;
   color:#fff;
-  box-shadow:0 8px 18px rgba(29,78,216,.18);
+  box-shadow:none;
+  border:1px solid #1d4ed8;
 }
 .btn-primary:hover{background:#1e40af;}
 
 .btn-secondary{
-  background:#f1f5f9;
+  background:#fff;
   color:#334155;
-  border:1px solid #e2e8f0;
+  border:1px solid #dbe3ef;
 }
-.btn-secondary:hover{background:#e2e8f0;}
+.btn-secondary:hover{background:#f8fafc;border-color:#bfdbfe;color:#1d4ed8;}
 
 .btn-outline{
   background:#fff;
   color:#334155;
-  border:1px solid #cbd5e1;
+  border:1px solid #dbe3ef;
 }
 .btn-outline:hover{
   background:#f8fafc;
-  border-color:#94a3b8;
+  border-color:#bfdbfe;
+  color:#1d4ed8;
 }
 
 .btn-danger{
@@ -118,34 +120,52 @@ button,
 }
 
 .btn-small{
-  min-height:40px;
-  padding:10px 14px;
-  font-size:14px;
+  min-height:38px;
+  padding:9px 13px;
+  font-size:13px;
+}
+
+.dashboard-grid{
+  display:flex !important;
+  flex-direction:column !important;
+  gap:18px !important;
 }
 
 .dash-col-dia{
+  order:1;
   background:#fff;
   border:1px solid #e2e8f0;
-  border-radius:24px;
-  padding:20px;
+  border-radius:22px;
+  padding:18px;
   box-shadow:0 1px 3px rgba(15,23,42,.06);
 }
 
-.dia-titulo{
-  font-size:22px;
+.dash-col-cal{
+  order:2;
+  background:#fff;
+  border:1px solid #e2e8f0;
+  border-radius:22px;
+  padding:18px;
+  box-shadow:0 1px 3px rgba(15,23,42,.06);
+}
+
+.dia-titulo,
+.cal-header h1{
+  font-size:20px;
   color:#0f172a;
+  font-weight:750;
 }
 
 .acoes-dia-compact{
-  display:grid;
-  grid-template-columns:minmax(180px, 1.3fr) repeat(4, minmax(112px, .8fr));
-  gap:10px;
-  margin:16px 0 18px;
+  display:flex !important;
+  flex-wrap:wrap !important;
+  gap:10px !important;
+  margin:14px 0 16px !important;
 }
 
 .acoes-dia-compact button{
-  width:100%;
-  min-height:46px;
+  width:auto !important;
+  min-height:40px !important;
   display:inline-flex;
   align-items:center;
   justify-content:center;
@@ -154,29 +174,7 @@ button,
 }
 
 .acoes-dia-compact .btn-primary{
-  min-height:50px;
-  font-size:15px;
-}
-
-.acoes-dia-compact .btn-secondary,
-.acoes-dia-compact .btn-outline{
-  background:#fff;
-  color:#334155;
-  border:1px solid #e2e8f0;
-}
-
-.acoes-dia-compact .btn-secondary:hover,
-.acoes-dia-compact .btn-outline:hover{
-  background:#f8fafc;
-  border-color:#bfdbfe;
-  color:#1d4ed8;
-}
-
-.copy-row .btn-primary{
-  background:#fff;
-  color:#1d4ed8;
-  border:1px solid #bfdbfe;
-  box-shadow:none;
+  min-width:150px;
 }
 
 .cal-header,
@@ -184,56 +182,59 @@ button,
 .viagem-card,
 .card,
 .form-panel,
-.year-month{
-  border-color:#e2e8f0;
-  border-radius:20px;
-  box-shadow:0 1px 3px rgba(15,23,42,.05);
+.year-month,
+.agenda-lista-semana-wrap{
+  border-color:#e2e8f0 !important;
+  border-radius:18px !important;
+  box-shadow:0 1px 3px rgba(15,23,42,.05) !important;
 }
 
 .week-day,
 .cal-day{
-  border-color:#e2e8f0;
-  border-radius:18px;
+  border-color:#e2e8f0 !important;
+  border-radius:16px !important;
+  background:#fff !important;
 }
 
 .week-day:hover,
 .cal-day:hover{
-  border-color:#93c5fd;
+  border-color:#93c5fd !important;
 }
 
 .week-day.hoje,
 .cal-day.hoje{
-  border-color:#2563eb;
+  border-color:#2563eb !important;
+  box-shadow:0 0 0 1px #2563eb inset !important;
 }
 
 .view-switcher .chip{
   border-radius:999px;
   background:#f1f5f9;
   color:#475569;
+  border:1px solid transparent;
 }
 .view-switcher .chip.ativo{
   background:#0f172a;
   color:#fff;
 }
 
-@media (max-width:1050px){
-  .topbar{padding:0 16px;overflow-x:auto;}
-  .brand{min-width:max-content;}
+.cal-legend{
+  color:#64748b !important;
+  font-size:12px !important;
 }
 
-@media (max-width:900px){
-  .acoes-dia-compact{
-    grid-template-columns:repeat(2,minmax(0,1fr));
-  }
-  .acoes-dia-compact .btn-primary{
-    grid-column:1 / -1;
-  }
+.agenda-lista-semana-titulo{
+  font-size:16px !important;
+  color:#0f172a !important;
+}
+
+@media (max-width:1050px){
+  .topbar{padding:0 16px !important;overflow-x:auto !important;}
+  .brand{min-width:max-content !important;}
 }
 
 @media (max-width:560px){
   .content{padding:16px 12px 28px;}
-  .dash-col-dia{padding:16px;border-radius:20px;}
-  .acoes-dia-compact{
-    grid-template-columns:1fr;
-  }
+  .dash-col-dia,.dash-col-cal{padding:16px;border-radius:20px;}
+  .acoes-dia-compact button{width:100% !important;}
 }

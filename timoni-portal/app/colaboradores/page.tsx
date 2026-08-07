@@ -145,47 +145,21 @@ function uniqueDateItems(items: PanelDateItem[], limit = 6) {
     .slice(0, limit);
 }
 
-function getNextArarasMeeting(reference: Date): FixedMeeting {
-  let year = 2026;
-  let month = 8; // setembro, base zero
+const fixedMeetingSchedule: Record<Store, FixedMeeting[]> = {
+  araras: [
+    { summary: "Reunião Araras", start: "2026-09-08T07:40:00-03:00", label: "Próxima" },
+    { summary: "Reunião Araras", start: "2026-10-09T07:40:00-03:00", label: "Seguinte" },
+  ],
+  "rio claro": [
+    { summary: "Reunião Rio Claro", start: "2026-08-08T07:30:00-03:00", label: "Próxima" },
+    { summary: "Reunião Rio Claro", start: "2026-09-03T07:30:00-03:00", label: "Seguinte" },
+  ],
+};
 
-  while (true) {
-    let day = 6;
-    let candidate = new Date(`${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}T07:40:00-03:00`);
-
-    while (candidate.getDay() !== 2) {
-      day += 1;
-      candidate = new Date(`${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}T07:40:00-03:00`);
-    }
-
-    const meetingEnd = new Date(candidate.getTime() + 60 * 60 * 1000);
-    if (meetingEnd > reference) {
-      return {
-        summary: "Reunião Araras",
-        start: candidate.toISOString(),
-        label: "Próxima reunião já agendada",
-      };
-    }
-
-    month += 1;
-    if (month > 11) {
-      month = 0;
-      year += 1;
-    }
-  }
-}
-
-function getNextRioClaroMeeting(reference: Date): FixedMeeting | undefined {
-  const candidate = new Date("2026-09-03T07:30:00-03:00");
-  const meetingEnd = new Date(candidate.getTime() + 60 * 60 * 1000);
-
-  if (meetingEnd <= reference) return undefined;
-
-  return {
-    summary: "Reunião Rio Claro",
-    start: candidate.toISOString(),
-    label: "Próxima reunião já agendada",
-  };
+function getUpcomingFixedMeetings(reference: Date, unit: Store) {
+  return fixedMeetingSchedule[unit]
+    .filter((meeting) => new Date(parseEventDate(meeting.start).getTime() + 60 * 60 * 1000) > reference)
+    .slice(0, 2);
 }
 
 const fixedPanelBirthdays: PanelDateItem[] = [
@@ -351,21 +325,20 @@ function AnnouncementCard({ store, variant = "large" }: { store: Store; variant?
   );
 }
 
-function MeetingCard({ title, meeting, fixedMeeting }: { title: string; meeting?: CalendarEventDTO; fixedMeeting?: FixedMeeting }) {
+function MeetingCard({ title, meetings }: { title: string; meetings: FixedMeeting[] }) {
   return (
     <article className="rounded-3xl border border-violet-200 bg-violet-50 p-6 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Reuniões</p>
       <h2 className="mt-3 text-xl font-semibold text-slate-950">{title}</h2>
-      {meeting ? (
-        <>
-          <p className="mt-3 text-sm font-semibold text-violet-800">{formatDateTime(meeting)}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{formatMeetingTitle(meeting.summary)}</p>
-        </>
-      ) : fixedMeeting ? (
-        <>
-          <p className="mt-3 text-sm font-semibold text-violet-800">{formatFixedMeetingDateTime(fixedMeeting)}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{fixedMeeting.label}</p>
-        </>
+      {meetings.length ? (
+        <div className="mt-3 space-y-3">
+          {meetings.map((meeting, index) => (
+            <div key={meeting.start} className={index ? "border-t border-violet-200 pt-3" : ""}>
+              <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">{index === 0 ? "Próxima" : "Seguinte"}</p>
+              <p className="mt-1 text-sm font-semibold text-violet-800">{formatFixedMeetingDateTime(meeting)}</p>
+            </div>
+          ))}
+        </div>
       ) : (
         <p className="mt-3 text-sm leading-6 text-slate-600">Nenhuma reunião programada.</p>
       )}
@@ -373,28 +346,25 @@ function MeetingCard({ title, meeting, fixedMeeting }: { title: string; meeting?
   );
 }
 
-function MeetingSummaryCard({ araras, rioClaro }: { araras: FixedMeeting; rioClaro?: FixedMeeting }) {
+function MeetingSummaryCard({ araras, rioClaro }: { araras: FixedMeeting[]; rioClaro: FixedMeeting[] }) {
+  const renderUnit = (title: string, meetings: FixedMeeting[]) => (
+    <div>
+      <p className="font-semibold text-violet-800">{title}</p>
+      {meetings.length ? meetings.map((meeting, index) => (
+        <p key={meeting.start} className="mt-1">
+          <span className="font-medium">{index === 0 ? "Próxima:" : "Seguinte:"}</span> {formatFixedMeetingDateTime(meeting)}
+        </p>
+      )) : <p className="mt-1">Nenhuma reunião programada.</p>}
+    </div>
+  );
+
   return (
     <article className="rounded-3xl border border-violet-200 bg-violet-50 p-6 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Reuniões</p>
       <h2 className="mt-3 text-xl font-semibold text-slate-950">Araras / Rio Claro</h2>
       <div className="mt-3 space-y-3 text-sm leading-6 text-slate-600">
-        <div>
-          <p className="font-semibold text-violet-800">Araras</p>
-          <p>{formatFixedMeetingDateTime(araras)}</p>
-          <p>{araras.label}</p>
-        </div>
-        <div className="border-t border-violet-200 pt-3">
-          <p className="font-semibold text-violet-800">Rio Claro</p>
-          {rioClaro ? (
-            <>
-              <p>{formatFixedMeetingDateTime(rioClaro)}</p>
-              <p>{rioClaro.label}</p>
-            </>
-          ) : (
-            <p>Próxima reunião mensal ainda não programada.</p>
-          )}
-        </div>
+        {renderUnit("Araras", araras)}
+        <div className="border-t border-violet-200 pt-3">{renderUnit("Rio Claro", rioClaro)}</div>
       </div>
     </article>
   );
@@ -461,8 +431,8 @@ export default async function ColaboradoresPage() {
     }
   }
 
-  const nextArarasMeeting = getNextArarasMeeting(now);
-  const nextRioClaroMeeting = getNextRioClaroMeeting(now);
+  const nextArarasMeetings = getUpcomingFixedMeetings(now, "araras");
+  const nextRioClaroMeetings = getUpcomingFixedMeetings(now, "rio claro");
   const calendarBirthdays = upcomingEvents(timoniEvents, isBirthday).map(calendarEventToPanelItem);
   const calendarVacations = timoniEvents
     .filter((event) => isVacation(event) && parseEventDate(event.end) > now)
@@ -512,11 +482,11 @@ export default async function ColaboradoresPage() {
         )}
 
         {panelStore === "geral" ? (
-          <MeetingSummaryCard araras={nextArarasMeeting} rioClaro={nextRioClaroMeeting} />
+          <MeetingSummaryCard araras={nextArarasMeetings} rioClaro={nextRioClaroMeetings} />
         ) : (
           <>
-            {showAraras && <MeetingCard title="Araras" fixedMeeting={nextArarasMeeting} />}
-            {showRioClaro && <MeetingCard title="Rio Claro" fixedMeeting={nextRioClaroMeeting} />}
+            {showAraras && <MeetingCard title="Araras" meetings={nextArarasMeetings} />}
+            {showRioClaro && <MeetingCard title="Rio Claro" meetings={nextRioClaroMeetings} />}
           </>
         )}
 

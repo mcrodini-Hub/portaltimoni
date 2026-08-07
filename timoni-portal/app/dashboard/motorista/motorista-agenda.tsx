@@ -16,6 +16,7 @@ type Viagem = {
   contatoNome?: string;
   contatoWhats?: string;
   endereco?: string;
+  numero?: string;
   complemento?: string;
   info?: string;
   preenchidoPor?: string;
@@ -40,6 +41,8 @@ type FormState = {
   preenchidoPor: string;
 };
 
+type Modo = "dia" | "mes";
+
 const REQUIRED: Array<keyof FormState> = [
   "loja",
   "vendedor",
@@ -51,8 +54,6 @@ const REQUIRED: Array<keyof FormState> = [
   "endereco",
   "preenchidoPor",
 ];
-
-const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
 function localDateString(d = new Date()) {
   const y = d.getFullYear();
@@ -66,13 +67,15 @@ function dateFromString(value: string) {
   return new Date(y, m - 1, d);
 }
 
-function monthGrid(base: Date) {
+function monthDays(base: Date) {
   const first = new Date(base.getFullYear(), base.getMonth(), 1);
   const start = new Date(first);
   start.setDate(first.getDate() - first.getDay());
-  return Array.from({ length: 42 }, (_, index) =>
-    new Date(start.getFullYear(), start.getMonth(), start.getDate() + index),
-  );
+  return Array.from({ length: 42 }, (_, index) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + index);
+    return d;
+  });
 }
 
 function emptyForm(data = localDateString()): FormState {
@@ -96,11 +99,33 @@ function emptyForm(data = localDateString()): FormState {
   };
 }
 
+function formFromViagem(v: Viagem): FormState {
+  const bloqueio = v.tipoHorario === "Bloqueio";
+  const enderecoCompleto = [v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ");
+  const match = enderecoCompleto.match(/\nLink:\s*(https?:\/\/\S+)/i);
+  return {
+    loja: v.loja || "",
+    vendedor: v.vendedor || "",
+    data: v.data,
+    hora: bloqueio ? "" : (v.horario || "").slice(0, 5),
+    bloquear: bloqueio,
+    bloqueioInicio: bloqueio ? (v.horario || "").slice(0, 5) : "",
+    bloqueioFim: bloqueio ? (v.horarioFim || "").slice(0, 5) : "",
+    numeroPedido: v.numeroPedido || "",
+    clienteFornecedor: v.clienteFornecedor || "",
+    volumes: v.volumes || "",
+    contatoNome: v.contatoNome || "",
+    contatoWhats: v.contatoWhats || "",
+    endereco: enderecoCompleto.replace(/\nLink:\s*https?:\/\/\S+/i, "").trim(),
+    linkEndereco: match?.[1] || "",
+    observacao: v.info || "",
+    preenchidoPor: v.preenchidoPor || "",
+  };
+}
+
 async function parseResponse(response: Response) {
   const data = await response.json().catch(() => null);
-  if (!response.ok || !data?.ok) {
-    throw new Error(data?.erro || "Não foi possível acessar a agenda.");
-  }
+  if (!response.ok || !data?.ok) throw new Error(data?.erro || "Não foi possível acessar a agenda.");
   return data;
 }
 
@@ -115,25 +140,41 @@ function horaCurta(hora?: string) {
 }
 
 export default function MotoristaAgenda() {
-  const [mes, setMes] = useState(() => new Date());
-  const [diaSelecionado, setDiaSelecionado] = useState(() => localDateString());
+  const hoje = localDateString();
+  const [modo, setModo] = useState<Modo>("dia");
+  const [selecionado, setSelecionado] = useState(hoje);
+  const [mesBase, setMesBase] = useState(() => new Date());
   const [viagens, setViagens] = useState<Record<string, Viagem[]>>({});
   const [form, setForm] = useState<FormState>(() => emptyForm());
   const [modal, setModal] = useState(false);
+  const [editandoId, setEditandoId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState("");
   const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());
 
-  const dias = useMemo(() => monthGrid(mes), [mes]);
-  const itensSelecionados = viagens[diaSelecionado] || [];
+  const diasMes = useMemo(() => monthDays(mesBase), [mesBase]);
 
-  async function carregar() {
+  async function carregarDia(data = selecionado) {
+    setLoading(true);
+    setErro("");
+    try {
+      const response = await fetch(`/api/agenda-motorista?action=dia&data=${data}`, { cache: "no-store" });
+      const body = await parseResponse(response);
+      setViagens((current) => ({ ...current, [data]: body.viagens || [] }));
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível carregar a agenda.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function carregarMes() {
     setLoading(true);
     setErro("");
     try {
       const pares = await Promise.all(
-        dias.map(async (d) => {
+        diasMes.map(async (d) => {
           const data = localDateString(d);
           const response = await fetch(`/api/agenda-motorista?action=dia&data=${data}`, { cache: "no-store" });
           const body = await parseResponse(response);
@@ -149,31 +190,29 @@ export default function MotoristaAgenda() {
   }
 
   useEffect(() => {
-    void carregar();
+    if (modo === "dia") void carregarDia(selecionado);
+    else void carregarMes();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mes]);
+  }, [modo, selecionado, mesBase]);
 
-  function irHoje() {
-    const hoje = new Date();
-    setMes(hoje);
-    setDiaSelecionado(localDateString(hoje));
-  }
-
-  function abrirNova(data?: string) {
-    setForm(emptyForm(data || diaSelecionado));
+  function abrirNova(data = selecionado) {
+    setEditandoId(null);
+    setForm(emptyForm(data));
     setInvalidos(new Set());
     setErro("");
     setModal(true);
   }
 
-  function selecionarDia(data: string) {
-    setDiaSelecionado(data);
+  function abrirEditar(v: Viagem) {
+    setEditandoId(v.id);
+    setForm(formFromViagem(v));
+    setInvalidos(new Set());
+    setErro("");
+    setModal(true);
   }
 
   function fieldClass(name: keyof FormState) {
-    return `mt-1 w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 ${
-      invalidos.has(name) ? "border-red-500" : "border-slate-300"
-    }`;
+    return `mt-1 w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 ${invalidos.has(name) ? "border-red-500" : "border-slate-300"}`;
   }
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -207,7 +246,8 @@ export default function MotoristaAgenda() {
     try {
       const detalhesEndereco = form.linkEndereco ? `${form.endereco}\nLink: ${form.linkEndereco}` : form.endereco;
       const payload = new URLSearchParams({
-        action: "criar",
+        action: editandoId ? "atualizar" : "criar",
+        ...(editandoId ? { id: editandoId } : {}),
         data: form.data,
         loja: form.loja,
         tipoHorario: form.bloquear ? "Bloqueio" : "Entrega",
@@ -235,9 +275,9 @@ export default function MotoristaAgenda() {
       });
       await parseResponse(response);
       setModal(false);
-      setDiaSelecionado(form.data);
-      setMes(dateFromString(form.data));
-      await carregar();
+      setSelecionado(form.data);
+      if (modo === "mes") await carregarMes();
+      else await carregarDia(form.data);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível salvar.");
     } finally {
@@ -245,56 +285,37 @@ export default function MotoristaAgenda() {
     }
   }
 
-  function imprimirDia() {
-    const itens = itensSelecionados.filter((v) => v.tipoHorario !== "Bloqueio");
-    if (!itens.length) {
-      setErro("Não há entregas ou retiradas agendadas neste dia para imprimir.");
-      return;
-    }
-
-    const data = dateFromString(diaSelecionado);
-    const diaSemana = data.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
-    const dataLabel = data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
-    const linhas = itens
-      .slice()
-      .sort((a, b) => String(a.horario || "").localeCompare(String(b.horario || "")))
-      .map((v, index) => {
-        const endereco = [v.endereco, v.complemento].filter(Boolean).join(" - ");
-        return `
-          <div class="item">
-            <p><strong>${index + 1}. ${horaCurta(v.horario)} ${v.tipoHorario || "Entrega"} ${lojaLabel(v.loja).toLowerCase()} - Vendedor: ${v.vendedor || ""}</strong></p>
-            <p>${v.clienteFornecedor || ""} ${v.numeroPedido || ""} Volume: ${v.volumes || ""}</p>
-            ${endereco ? `<p>${endereco}</p>` : ""}
-            ${(v.contatoNome || v.contatoWhats) ? `<p>Contato: ${[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>` : ""}
-            ${v.info ? `<p>Observação: ${v.info}</p>` : ""}
-          </div>`;
-      })
-      .join("");
-
-    const janela = window.open("", "_blank", "width=900,height=700");
-    if (!janela) {
-      setErro("O navegador bloqueou a janela de impressão. Libere pop-ups para o Portal Timoni.");
-      return;
-    }
-    janela.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Agenda Motorista ${dataLabel}</title><style>
-      @page { size: A4; margin: 16mm; }
-      body { font-family: Arial, sans-serif; color: #111; font-size: 13px; line-height: 1.35; }
-      h1 { font-size: 18px; margin: 0 0 24px; }
-      .item { margin: 0 0 18px; page-break-inside: avoid; }
-      p { margin: 3px 0; }
-    </style></head><body><h1>AGENDA MOTORISTA - DIA ${dataLabel} - ${diaSemana}</h1>${linhas}</body></html>`);
-    janela.document.close();
-    janela.focus();
-    janela.print();
+  function selecionarDia(data: string) {
+    setSelecionado(data);
+    setModo("dia");
   }
 
-  const mesLabel = mes.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
-  const diaLabel = dateFromString(diaSelecionado).toLocaleDateString("pt-BR", {
-    weekday: "long",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  });
+  function imprimirDia() {
+    const itens = (viagens[selecionado] || [])
+      .filter((v) => v.tipoHorario !== "Bloqueio")
+      .slice()
+      .sort((a, b) => (a.horario || "").localeCompare(b.horario || ""));
+
+    if (!itens.length) {
+      setErro("Não há entregas ou retiradas neste dia para imprimir.");
+      return;
+    }
+
+    const data = dateFromString(selecionado);
+    const diaSemana = data.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
+    const linhas = itens.map((v, index) => {
+      const endereco = [v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ");
+      return `<div class="item"><p><strong>${index + 1}. ${horaCurta(v.horario)} ${v.tipoHorario || "Entrega"} ${lojaLabel(v.loja).toLowerCase()} - Vendedor: ${v.vendedor || ""}</strong></p><p>${v.clienteFornecedor || ""} ${v.numeroPedido || ""} Volume: ${v.volumes || ""}</p><p>${endereco}</p><p>Contato: ${v.contatoNome || ""}${v.contatoWhats ? ` - ${v.contatoWhats}` : ""}</p>${v.info ? `<p>Observação: ${v.info}</p>` : ""}</div>`;
+    }).join("");
+
+    const popup = window.open("", "_blank", "width=850,height=900");
+    if (!popup) return;
+    popup.document.write(`<!doctype html><html><head><title>Agenda Motorista</title><style>body{font-family:Arial,sans-serif;margin:28px;color:#111}h1{font-size:18px;margin-bottom:28px}.item{margin-bottom:24px;page-break-inside:avoid}.item p{margin:3px 0;font-size:13px;line-height:1.4}</style></head><body><h1>AGENDA MOTORISTA - DIA ${data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} - ${diaSemana}</h1>${linhas}<script>window.onload=()=>window.print()</script></body></html>`);
+    popup.document.close();
+  }
+
+  const itensDia = (viagens[selecionado] || []).slice().sort((a, b) => (a.horario || "").localeCompare(b.horario || ""));
+  const dataSelecionada = dateFromString(selecionado);
 
   return (
     <>
@@ -302,176 +323,108 @@ export default function MotoristaAgenda() {
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => abrirNova()} className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-900">Nova viagem</button>
-            <button type="button" onClick={imprimirDia} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Imprimir dia</button>
-            <span className="hidden h-7 w-px bg-slate-200 sm:block" />
-            <button type="button" onClick={() => setMes((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">← Mês</button>
-            <button type="button" onClick={irHoje} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Hoje</button>
-            <button type="button" onClick={() => setMes((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Mês →</button>
-            <p className="ml-auto text-sm font-semibold capitalize text-slate-800">{mesLabel}</p>
+            <button type="button" onClick={imprimirDia} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Imprimir dia</button>
+            <button type="button" onClick={() => setModo("dia")} className={`rounded-lg px-3 py-2 text-sm font-medium ${modo === "dia" ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>Dia</button>
+            <button type="button" onClick={() => setModo("mes")} className={`rounded-lg px-3 py-2 text-sm font-medium ${modo === "mes" ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>Mês</button>
           </div>
+
+          {modo === "dia" ? (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Agenda do dia</p>
+                <p className="mt-1 text-lg font-semibold text-slate-950">{dataSelecionada.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</p>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setSelecionado(localDateString(new Date(dataSelecionada.getFullYear(), dataSelecionada.getMonth(), dataSelecionada.getDate() - 1)))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">← Dia anterior</button>
+                <button type="button" onClick={() => setSelecionado(hoje)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">Hoje</button>
+                <button type="button" onClick={() => setSelecionado(localDateString(new Date(dataSelecionada.getFullYear(), dataSelecionada.getMonth(), dataSelecionada.getDate() + 1)))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">Próximo dia →</button>
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3">
+              <button type="button" onClick={() => setMesBase((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">←</button>
+              <p className="text-lg font-semibold capitalize text-slate-950">{mesBase.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</p>
+              <button type="button" onClick={() => setMesBase((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">→</button>
+            </div>
+          )}
         </div>
 
         {erro && !modal && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
-        <div className="mt-4 grid grid-cols-7 border-x border-t border-slate-200 bg-slate-50">
-          {DIAS_SEMANA.map((dia) => (
-            <div key={dia} className="border-b border-r border-slate-200 px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500 last:border-r-0">{dia}</div>
-          ))}
-        </div>
-        <div className="grid grid-cols-7 border-l border-slate-200">
-          {dias.map((d) => {
-            const data = localDateString(d);
-            const itens = viagens[data] || [];
-            const hoje = data === localDateString();
-            const selecionado = data === diaSelecionado;
-            const mesmoMes = d.getMonth() === mes.getMonth();
-            return (
-              <button
-                key={data}
-                type="button"
-                onClick={() => selecionarDia(data)}
-                className={`min-h-24 border-b border-r border-slate-200 p-2 text-left transition sm:min-h-28 ${selecionado ? "bg-blue-50 ring-2 ring-inset ring-blue-500" : hoje ? "bg-blue-50/50" : "bg-white hover:bg-slate-50"} ${!mesmoMes ? "opacity-45" : ""}`}
-              >
-                <div className="flex items-center justify-between gap-1">
-                  <span className={`text-xs font-semibold ${hoje ? "text-blue-800" : "text-slate-700"}`}>{d.getDate()}</span>
-                  {itens.length > 0 && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">{itens.length}</span>}
+        {modo === "dia" ? (
+          <div className="mt-4 space-y-3">
+            {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itensDia.length === 0 ? <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-400">Sem viagens neste dia.</p> : itensDia.map((v, index) => (
+              <article key={v.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-slate-950">{index + 1}. {horaCurta(v.horario)}{v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""} · {v.tipoHorario || "Viagem"} · {lojaLabel(v.loja)}</p>
+                    {v.vendedor && <p className="mt-1 text-xs text-slate-600">Vendedor: {v.vendedor}</p>}
+                    {v.tipoHorario !== "Bloqueio" && <>
+                      <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""} {v.numeroPedido ? `· ${v.numeroPedido}` : ""} {v.volumes ? `· Volume: ${v.volumes}` : ""}</p>
+                      {v.endereco && <p className="mt-1 text-sm text-slate-700">{[v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ")}</p>}
+                      {(v.contatoNome || v.contatoWhats) && <p className="mt-1 text-sm text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
+                    </>}
+                    {v.info && <p className="mt-2 text-sm text-slate-600">Observação: {v.info}</p>}
+                  </div>
+                  <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50">Editar</button>
                 </div>
-                <div className="mt-1 space-y-1">
-                  {loading ? (
-                    <span className="text-[10px] text-slate-400">...</span>
-                  ) : (
-                    itens.slice(0, 3).map((v) => (
-                      <div key={v.id} className={`truncate rounded px-1.5 py-1 text-[10px] ${v.tipoHorario === "Bloqueio" ? "bg-amber-100 text-amber-900" : "bg-slate-100 text-slate-700"}`}>
-                        {horaCurta(v.horario)} · {v.clienteFornecedor || v.tipoHorario}
-                      </div>
-                    ))
-                  )}
-                  {itens.length > 3 && <p className="text-[10px] font-medium text-slate-500">+{itens.length - 3} mais</p>}
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">Dia selecionado</p>
-            <h2 className="mt-1 text-base font-semibold capitalize text-slate-950">{diaLabel}</h2>
+              </article>
+            ))}
           </div>
-          <div className="flex gap-2">
-            <button type="button" onClick={() => abrirNova(diaSelecionado)} className="rounded-lg bg-blue-800 px-3 py-2 text-sm font-semibold text-white">Nova viagem neste dia</button>
-            <button type="button" onClick={imprimirDia} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">Imprimir dia</button>
+        ) : (
+          <div className="mt-4">
+            <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase text-slate-400"><span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span></div>
+            <div className="mt-1 grid grid-cols-7 gap-1">
+              {diasMes.map((d) => {
+                const data = localDateString(d);
+                const itens = viagens[data] || [];
+                const fora = d.getMonth() !== mesBase.getMonth();
+                return <button key={data} type="button" onClick={() => selecionarDia(data)} className={`min-h-24 rounded-xl border p-2 text-left ${fora ? "border-slate-100 bg-slate-50 text-slate-300" : data === hoje ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white"}`}>
+                  <p className="text-sm font-semibold">{d.getDate()}</p>
+                  <div className="mt-1 space-y-1">{itens.slice(0, 3).map((v) => <p key={v.id} className="truncate text-[10px] text-slate-600">{horaCurta(v.horario)} {v.clienteFornecedor || v.tipoHorario}</p>)}{itens.length > 3 && <p className="text-[10px] text-slate-400">+{itens.length - 3}</p>}</div>
+                </button>;
+              })}
+            </div>
           </div>
-        </div>
-
-        <div className="mt-3 space-y-2">
-          {loading ? (
-            <p className="text-sm text-slate-400">Carregando...</p>
-          ) : itensSelecionados.length === 0 ? (
-            <p className="text-sm text-slate-400">Sem viagens neste dia.</p>
-          ) : (
-            itensSelecionados.map((v, index) => (
-              <div key={v.id} className={`rounded-xl border p-3 ${v.tipoHorario === "Bloqueio" ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
-                <p className="text-sm font-semibold text-slate-950">{index + 1}. {horaCurta(v.horario)}{v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""} · {v.tipoHorario || "Viagem"} · {lojaLabel(v.loja)}</p>
-                {v.vendedor && <p className="mt-1 text-xs text-slate-600">Vendedor: {v.vendedor}</p>}
-                {v.clienteFornecedor && <p className="mt-1 text-sm text-slate-800">{v.clienteFornecedor}{v.numeroPedido ? ` · ${v.numeroPedido}` : ""}{v.volumes ? ` · Volume: ${v.volumes}` : ""}</p>}
-              </div>
-            ))
-          )}
-        </div>
+        )}
       </section>
 
       {modal && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 p-3 sm:p-6">
           <form onSubmit={salvar} className="my-4 w-full max-w-4xl rounded-2xl bg-white p-4 shadow-2xl sm:p-6">
             <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Motorista</p>
-                <h2 className="mt-1 text-xl font-semibold text-slate-950">Nova viagem</h2>
-                <p className="mt-1 text-xs text-slate-500">Campos com * são obrigatórios.</p>
-              </div>
+              <div><p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Motorista</p><h2 className="mt-1 text-xl font-semibold text-slate-950">{editandoId ? "Editar agendamento" : "Nova viagem"}</h2><p className="mt-1 text-xs text-slate-500">Campos com * são obrigatórios.</p></div>
               <button type="button" onClick={() => setModal(false)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600">Fechar</button>
             </div>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <label className="text-sm font-medium text-slate-700">* Loja
-                <select value={form.loja} onChange={(e) => set("loja", e.target.value)} className={fieldClass("loja")}>
-                  <option value="">Selecione</option>
-                  <option value="araras">Araras</option>
-                  <option value="rio_claro">Rio Claro</option>
-                </select>
-              </label>
-              <label className="text-sm font-medium text-slate-700">* Vendedor
-                <input value={form.vendedor} onChange={(e) => set("vendedor", e.target.value)} className={fieldClass("vendedor")} />
-              </label>
-              <label className="text-sm font-medium text-slate-700">* Data
-                <input type="date" value={form.data} onChange={(e) => set("data", e.target.value)} className={fieldClass("data")} />
-              </label>
-              <label className="text-sm font-medium text-slate-700">Hora
-                <input type="time" value={form.hora} onChange={(e) => set("hora", e.target.value)} disabled={form.bloquear} className={`${fieldClass("hora")} disabled:bg-slate-100`} />
-              </label>
+              <label className="text-sm font-medium text-slate-700">* Loja<select value={form.loja} onChange={(e) => set("loja", e.target.value)} className={fieldClass("loja")}><option value="">Selecione</option><option value="araras">Araras</option><option value="rio_claro">Rio Claro</option></select></label>
+              <label className="text-sm font-medium text-slate-700">* Vendedor<input value={form.vendedor} onChange={(e) => set("vendedor", e.target.value)} className={fieldClass("vendedor")} /></label>
+              <label className="text-sm font-medium text-slate-700">* Data<input type="date" value={form.data} onChange={(e) => set("data", e.target.value)} className={fieldClass("data")} /></label>
+              <label className="text-sm font-medium text-slate-700">Hora<input type="time" value={form.hora} onChange={(e) => set("hora", e.target.value)} disabled={form.bloquear} className={`${fieldClass("hora")} disabled:bg-slate-100`} /></label>
             </div>
 
             <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <label className="flex items-center gap-2 text-sm font-semibold text-slate-800">
-                <input type="checkbox" checked={form.bloquear} onChange={(e) => set("bloquear", e.target.checked)} />
-                Bloquear horário
-              </label>
-              {form.bloquear && (
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <label className="text-sm text-slate-700">De
-                    <input type="time" value={form.bloqueioInicio} onChange={(e) => set("bloqueioInicio", e.target.value)} className={fieldClass("bloqueioInicio")} />
-                  </label>
-                  <label className="text-sm text-slate-700">Até
-                    <input type="time" value={form.bloqueioFim} onChange={(e) => set("bloqueioFim", e.target.value)} className={fieldClass("bloqueioFim")} />
-                  </label>
-                </div>
-              )}
+              <label className="flex items-center gap-2 text-sm font-semibold text-slate-800"><input type="checkbox" checked={form.bloquear} onChange={(e) => set("bloquear", e.target.checked)} />Bloquear horário</label>
+              {form.bloquear && <div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm text-slate-700">De<input type="time" value={form.bloqueioInicio} onChange={(e) => set("bloqueioInicio", e.target.value)} className={fieldClass("bloqueioInicio")} /></label><label className="text-sm text-slate-700">Até<input type="time" value={form.bloqueioFim} onChange={(e) => set("bloqueioFim", e.target.value)} className={fieldClass("bloqueioFim")} /></label></div>}
             </div>
 
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <label className="text-sm font-medium text-slate-700">* NF/PEDIDO
-                <input value={form.numeroPedido} onChange={(e) => set("numeroPedido", e.target.value)} className={fieldClass("numeroPedido")} />
-              </label>
-              <label className="text-sm font-medium text-slate-700">* CLIENTE/FORNECEDOR
-                <input value={form.clienteFornecedor} onChange={(e) => set("clienteFornecedor", e.target.value)} className={fieldClass("clienteFornecedor")} />
-              </label>
-              <label className="text-sm font-medium text-slate-700">Volume
-                <input value={form.volumes} onChange={(e) => set("volumes", e.target.value)} className={fieldClass("volumes")} />
-              </label>
-              <div className="grid gap-4 sm:grid-cols-2">
-                <label className="text-sm font-medium text-slate-700">* Contato
-                  <input value={form.contatoNome} onChange={(e) => set("contatoNome", e.target.value)} className={fieldClass("contatoNome")} />
-                </label>
-                <label className="text-sm font-medium text-slate-700">* Tel/Cel
-                  <input value={form.contatoWhats} onChange={(e) => set("contatoWhats", e.target.value)} className={fieldClass("contatoWhats")} />
-                </label>
-              </div>
+              <label className="text-sm font-medium text-slate-700">* NF/PEDIDO<input value={form.numeroPedido} onChange={(e) => set("numeroPedido", e.target.value)} className={fieldClass("numeroPedido")} /></label>
+              <label className="text-sm font-medium text-slate-700">* CLIENTE/FORNECEDOR<input value={form.clienteFornecedor} onChange={(e) => set("clienteFornecedor", e.target.value)} className={fieldClass("clienteFornecedor")} /></label>
+              <label className="text-sm font-medium text-slate-700">Volume<input value={form.volumes} onChange={(e) => set("volumes", e.target.value)} className={fieldClass("volumes")} /></label>
+              <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">* Contato<input value={form.contatoNome} onChange={(e) => set("contatoNome", e.target.value)} className={fieldClass("contatoNome")} /></label><label className="text-sm font-medium text-slate-700">* Tel/Cel<input value={form.contatoWhats} onChange={(e) => set("contatoWhats", e.target.value)} className={fieldClass("contatoWhats")} /></label></div>
             </div>
 
             <div className="mt-4 grid gap-4">
-              <label className="text-sm font-medium text-slate-700">* Endereço
-                <input value={form.endereco} onChange={(e) => set("endereco", e.target.value)} className={fieldClass("endereco")} />
-              </label>
-              <label className="text-sm font-medium text-slate-700">Link endereço
-                <input type="url" value={form.linkEndereco} onChange={(e) => set("linkEndereco", e.target.value)} placeholder="https://maps.google.com/..." className={fieldClass("linkEndereco")} />
-              </label>
-              <label className="text-sm font-medium text-slate-700">Observação
-                <textarea value={form.observacao} onChange={(e) => set("observacao", e.target.value)} rows={3} className={fieldClass("observacao")} />
-              </label>
-              <label className="text-sm font-medium text-slate-700">* Preenchido por
-                <input value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} className={fieldClass("preenchidoPor")} />
-              </label>
+              <label className="text-sm font-medium text-slate-700">* Endereço<input value={form.endereco} onChange={(e) => set("endereco", e.target.value)} className={fieldClass("endereco")} /></label>
+              <label className="text-sm font-medium text-slate-700">Link endereço<input type="url" value={form.linkEndereco} onChange={(e) => set("linkEndereco", e.target.value)} placeholder="https://maps.google.com/..." className={fieldClass("linkEndereco")} /></label>
+              <label className="text-sm font-medium text-slate-700">Observação<textarea value={form.observacao} onChange={(e) => set("observacao", e.target.value)} rows={3} className={fieldClass("observacao")} /></label>
+              <label className="text-sm font-medium text-slate-700">* Preenchido por<input value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} className={fieldClass("preenchidoPor")} /></label>
             </div>
 
             {erro && <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
-
-            <div className="mt-5 flex justify-end gap-2 border-t border-slate-200 pt-4">
-              <button type="button" onClick={() => setModal(false)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700">Cancelar</button>
-              <button type="submit" disabled={saving} className="rounded-lg bg-blue-800 px-5 py-2 text-sm font-semibold text-white disabled:opacity-60">{saving ? "Salvando..." : "Salvar viagem"}</button>
-            </div>
+            <div className="mt-5 flex justify-end gap-2 border-t border-slate-200 pt-4"><button type="button" onClick={() => setModal(false)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700">Cancelar</button><button type="submit" disabled={saving} className="rounded-lg bg-blue-800 px-5 py-2 text-sm font-semibold text-white disabled:opacity-60">{saving ? "Salvando..." : editandoId ? "Salvar alterações" : "Salvar viagem"}</button></div>
           </form>
         </div>
       )}

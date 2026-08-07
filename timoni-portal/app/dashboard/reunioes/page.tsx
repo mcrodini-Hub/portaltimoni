@@ -1,7 +1,6 @@
 import { auth } from "@/lib/auth";
 
 const DRIVE_URL = "https://drive.google.com/drive/folders/1a90BS_9nnf_9_o9VZyNDICfPyAxxyYOg";
-const MODEL_URL = "https://docs.google.com/document/d/1D5W1Yu-8Ic54YQSNpOM6y2blyU0Pn1X19Lb2xkchPGM";
 
 const GESTAO_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
 

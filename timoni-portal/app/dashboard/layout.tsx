@@ -2,8 +2,10 @@ import { auth, signOut } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
 import { hasModuleAccess } from "@/lib/access-control";
+import StoreSwitcher from "./store-switcher";
 
 const MOTORISTA_URL = "/agenda-motorista/";
+const STORE_SWITCHER_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
 
 export default async function DashboardLayout({
   children,
@@ -17,6 +19,7 @@ export default async function DashboardLayout({
   }
 
   const email = session.user.email;
+  const showStoreSwitcher = STORE_SWITCHER_EMAILS.has(email.toLowerCase());
   const linkClass =
     "whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-white/90 transition hover:bg-white/10 hover:text-white";
 
@@ -77,6 +80,8 @@ export default async function DashboardLayout({
           </form>
         </div>
       </header>
+
+      {showStoreSwitcher && <StoreSwitcher />}
 
       <main className="mx-auto max-w-6xl px-4 py-5 sm:px-6">
         {children}

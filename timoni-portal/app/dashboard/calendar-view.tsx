@@ -44,7 +44,7 @@ function dateKey(year: number, month: number, day: number) {
 function periodRange(view: ViewMode, offset: number) {
   if (view === "week") {
     const current = saoPauloParts(new Date());
-    const start = new Date(Date.UTC(current.year, current.month, current.day, 3));
+    const start = new Date(Date.UTC(current.year - 1, current.month, current.day, 3));
     const end = new Date(Date.UTC(current.year + 1, current.month, current.day, 3));
     return { start, end };
   }
@@ -215,13 +215,26 @@ export function CalendarView({
     }
   }
 
-  const upcomingEvents = useMemo(
-    () =>
-      events
-        .filter((event) => eventDateKey(event.start) >= todayKey)
-        .slice(periodOffset * 7, periodOffset * 7 + 7),
-    [events, periodOffset, todayKey]
+  const pendingUpcomingEvents = useMemo(
+    () => events.filter((event) => !event.completed && eventDateKey(event.start) >= todayKey),
+    [events, todayKey]
   );
+
+  const historyEvents = useMemo(
+    () => events.filter((event) => event.completed || eventDateKey(event.start) < todayKey),
+    [events, todayKey]
+  );
+
+  const upcomingEvents = useMemo(() => {
+    if (periodOffset >= 0) {
+      return pendingUpcomingEvents.slice(periodOffset * 7, periodOffset * 7 + 7);
+    }
+
+    const historyPage = -periodOffset;
+    const end = Math.max(0, historyEvents.length - (historyPage - 1) * 7);
+    const start = Math.max(0, end - 7);
+    return historyEvents.slice(start, end);
+  }, [historyEvents, pendingUpcomingEvents, periodOffset]);
 
   const upcomingGroups = useMemo(() => {
     const grouped = new Map<string, CalendarEventDTO[]>();
@@ -240,7 +253,9 @@ export function CalendarView({
             "dd/MM",
             { locale: ptBR }
           )}`
-        : "Nenhum compromisso futuro"
+        : periodOffset < 0
+          ? "Nenhum compromisso anterior"
+          : "Nenhum compromisso futuro"
       : view === "month"
         ? format(range.start, "MMMM 'de' yyyy", { locale: ptBR })
         : format(range.start, "yyyy", { locale: ptBR });
@@ -249,6 +264,11 @@ export function CalendarView({
     view === "week" ? "← 7 eventos anteriores" : view === "month" ? "← Mês anterior" : "← Ano anterior";
   const nextLabel =
     view === "week" ? "Próximos 7 eventos →" : view === "month" ? "Mês seguinte →" : "Ano seguinte →";
+
+  const hasPreviousWeekPage =
+    periodOffset >= 0 ? historyEvents.length > 0 : historyEvents.length > -periodOffset * 7;
+  const hasNextWeekPage =
+    periodOffset < 0 || pendingUpcomingEvents.length > (periodOffset + 1) * 7;
 
   function changeView(nextView: ViewMode) {
     setView(nextView);
@@ -335,8 +355,8 @@ export function CalendarView({
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button
           variant="secondary"
-          disabled={view === "week" && periodOffset === 0}
-          onClick={() => setPeriodOffset((offset) => view === "week" ? Math.max(0, offset - 1) : offset - 1)}
+          disabled={view === "week" && !hasPreviousWeekPage}
+          onClick={() => setPeriodOffset((offset) => offset - 1)}
         >
           {previousLabel}
         </Button>
@@ -345,7 +365,7 @@ export function CalendarView({
         </Button>
         <Button
           variant="secondary"
-          disabled={view === "week" && events.length <= (periodOffset + 1) * 7}
+          disabled={view === "week" && !hasNextWeekPage}
           onClick={() => setPeriodOffset((offset) => offset + 1)}
         >
           {nextLabel}
@@ -381,7 +401,9 @@ export function CalendarView({
             );
           })
         ) : (
-          <p className="mt-6 text-sm text-slate-400">Nenhum compromisso futuro.</p>
+          <p className="mt-6 text-sm text-slate-400">
+            {periodOffset < 0 ? "Nenhum compromisso anterior." : "Nenhum compromisso futuro."}
+          </p>
         )
       )}
 

@@ -1,0 +1,183 @@
+/* Padrao visual Portal Timoni para Agenda Motorista */
+:root{
+  --blue:#1d4ed8;
+  --blue-dark:#1e40af;
+  --ink:#0f172a;
+  --ink-soft:#64748b;
+  --border:#e2e8f0;
+  --card-bg:#ffffff;
+  --page-bg:#f8fafc;
+  --green:#047857;
+  --red:#b91c1c;
+  --amber:#b45309;
+  --amber-bg:#fff7ed;
+}
+
+body{
+  background:var(--page-bg);
+  color:var(--ink);
+}
+
+.content{
+  max-width:1280px;
+  padding:24px;
+}
+
+.topbar{
+  background:#0f172a;
+  border-bottom:1px solid #1e293b;
+  box-shadow:0 10px 30px rgba(15,23,42,.12);
+}
+
+button,
+.portal-back{
+  border-radius:14px;
+  font-weight:700;
+  letter-spacing:.01em;
+}
+
+.btn-primary{
+  background:#1d4ed8;
+  color:#fff;
+  box-shadow:0 8px 18px rgba(29,78,216,.18);
+}
+.btn-primary:hover{background:#1e40af;}
+
+.btn-secondary{
+  background:#f1f5f9;
+  color:#334155;
+  border:1px solid #e2e8f0;
+}
+.btn-secondary:hover{background:#e2e8f0;}
+
+.btn-outline{
+  background:#fff;
+  color:#334155;
+  border:1px solid #cbd5e1;
+}
+.btn-outline:hover{
+  background:#f8fafc;
+  border-color:#94a3b8;
+}
+
+.btn-danger{
+  background:#fef2f2;
+  color:#b91c1c;
+  border:1px solid #fecaca;
+}
+
+.btn-small{
+  min-height:40px;
+  padding:10px 14px;
+  font-size:14px;
+}
+
+.dash-col-dia{
+  background:#fff;
+  border:1px solid #e2e8f0;
+  border-radius:24px;
+  padding:20px;
+  box-shadow:0 1px 3px rgba(15,23,42,.06);
+}
+
+.dia-titulo{
+  font-size:22px;
+  color:#0f172a;
+}
+
+.acoes-dia-compact{
+  display:grid;
+  grid-template-columns:minmax(180px, 1.3fr) repeat(4, minmax(112px, .8fr));
+  gap:10px;
+  margin:16px 0 18px;
+}
+
+.acoes-dia-compact button{
+  width:100%;
+  min-height:46px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  box-shadow:none;
+}
+
+.acoes-dia-compact .btn-primary{
+  min-height:50px;
+  font-size:15px;
+}
+
+.acoes-dia-compact .btn-secondary,
+.acoes-dia-compact .btn-outline{
+  background:#fff;
+  color:#334155;
+  border:1px solid #e2e8f0;
+}
+
+.acoes-dia-compact .btn-secondary:hover,
+.acoes-dia-compact .btn-outline:hover{
+  background:#f8fafc;
+  border-color:#bfdbfe;
+  color:#1d4ed8;
+}
+
+.copy-row .btn-primary{
+  background:#fff;
+  color:#1d4ed8;
+  border:1px solid #bfdbfe;
+  box-shadow:none;
+}
+
+.cal-header,
+.agenda-lista-dia,
+.viagem-card,
+.card,
+.form-panel,
+.year-month{
+  border-color:#e2e8f0;
+  border-radius:20px;
+  box-shadow:0 1px 3px rgba(15,23,42,.05);
+}
+
+.week-day,
+.cal-day{
+  border-color:#e2e8f0;
+  border-radius:18px;
+}
+
+.week-day:hover,
+.cal-day:hover{
+  border-color:#93c5fd;
+}
+
+.week-day.hoje,
+.cal-day.hoje{
+  border-color:#2563eb;
+}
+
+.view-switcher .chip{
+  border-radius:999px;
+  background:#f1f5f9;
+  color:#475569;
+}
+.view-switcher .chip.ativo{
+  background:#0f172a;
+  color:#fff;
+}
+
+@media (max-width:900px){
+  .acoes-dia-compact{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+  .acoes-dia-compact .btn-primary{
+    grid-column:1 / -1;
+  }
+}
+
+@media (max-width:560px){
+  .content{padding:16px 12px 28px;}
+  .dash-col-dia{padding:16px;border-radius:20px;}
+  .acoes-dia-compact{
+    grid-template-columns:1fr;
+  }
+}

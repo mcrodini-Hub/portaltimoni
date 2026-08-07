@@ -33,7 +33,7 @@ function getPanelStore(email: string): PanelStore {
   const normalized = email.trim().toLowerCase();
   if (["mcrodini@gmail.com", "mrodini@gmail.com"].includes(normalized)) return "geral";
   if ([
-    "reginaldo@casatimoni.com.br",
+    "estoqueararascasatimoni@gmail.com",
     "comercialara@casatimoni.com.br",
     "fotoscasatimoni@gmail.com",
     "casatimoniararas@gmail.com",
@@ -205,7 +205,7 @@ const announcementByStore = {
     title: "Comunicados Araras",
     logins: [
       "fotoscasatimoni@gmail.com",
-      "reginaldo@casatimoni.com.br",
+      "estoqueararascasatimoni@gmail.com",
       "comercialara@casatimoni.com.br",
       "casatimoniararas@gmail.com",
     ],

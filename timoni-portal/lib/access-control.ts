@@ -69,6 +69,12 @@ export const portalUsers: Record<string, PortalUser> = {
     modules: withStock(["painel", "marketing"]),
     requiresPassword: false,
   },
+  "casatimoniararas@gmail.com": {
+    name: "Casa Timoni Araras",
+    email: "casatimoniararas@gmail.com",
+    modules: withStock(["painel", "marketing"]),
+    requiresPassword: false,
+  },
   "marketplacerc.mcr@gmail.com": {
     name: "Jaqueline - Marketplace Rio Claro",
     email: "marketplacerc.mcr@gmail.com",

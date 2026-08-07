@@ -1,0 +1,51 @@
+name: Fix motorista dropdowns
+
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-motorista-dropdowns.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - name: Atualizar listas suspensas
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          p = Path('timoni-portal/app/dashboard/motorista/motorista-agenda.tsx')
+          s = p.read_text(encoding='utf-8')
+
+          marker = 'type Modo = "dia" | "mes";\n\n'
+          const = 'const AUTORIZADOS = ["Ciça", "Thais", "Jaqueline", "Jeovana", "Margareth", "Reginaldo", "Carol Araras"] as const;\n\n'
+          if const not in s:
+              s = s.replace(marker, marker + const, 1)
+
+          old_vendedor = '<label className="text-sm font-medium text-slate-700">* Vendedor<input value={form.vendedor} onChange={(e) => set("vendedor", e.target.value)} className={fieldClass("vendedor")} /></label>'
+          new_vendedor = '<label className="text-sm font-medium text-slate-700">* Vendedor<select value={form.vendedor} onChange={(e) => set("vendedor", e.target.value)} className={fieldClass("vendedor")}><option value="">Selecione</option>{form.vendedor && !AUTORIZADOS.includes(form.vendedor as (typeof AUTORIZADOS)[number]) && <option value={form.vendedor}>{form.vendedor}</option>}{AUTORIZADOS.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>'
+          if old_vendedor not in s:
+              raise SystemExit('Campo Vendedor esperado não encontrado')
+          s = s.replace(old_vendedor, new_vendedor, 1)
+
+          old_preenchido = '<label className="text-sm font-medium text-slate-700">* Preenchido por<input value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} className={fieldClass("preenchidoPor")} /></label>'
+          new_preenchido = '<label className="text-sm font-medium text-slate-700">* Preenchido por<select value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} className={fieldClass("preenchidoPor")}><option value="">Selecione</option>{form.preenchidoPor && !AUTORIZADOS.includes(form.preenchidoPor as (typeof AUTORIZADOS)[number]) && <option value={form.preenchidoPor}>{form.preenchidoPor}</option>}{AUTORIZADOS.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>'
+          if old_preenchido not in s:
+              raise SystemExit('Campo Preenchido por esperado não encontrado')
+          s = s.replace(old_preenchido, new_preenchido, 1)
+
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add timoni-portal/app/dashboard/motorista/motorista-agenda.tsx
+          git commit -m "fix: restaura vendedores e preenchido por como listas" || exit 0
+          git push origin main

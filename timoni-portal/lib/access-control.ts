@@ -45,6 +45,12 @@ export const portalUsers: Record<string, PortalUser> = {
     modules: withStock(allModules.filter((module) => module !== "agenda")),
     requiresPassword: true,
   },
+  "margareth@casatimoni.com.br": {
+    name: "Margareth",
+    email: "margareth@casatimoni.com.br",
+    modules: allModules,
+    requiresPassword: true,
+  },
   "carolina@casatimoni.com.br": {
     name: "Carolina - Financeiro Rio Claro",
     email: "carolina@casatimoni.com.br",
@@ -66,7 +72,7 @@ export const portalUsers: Record<string, PortalUser> = {
   "comercialara@casatimoni.com.br": {
     name: "Carolina - Vendas Araras",
     email: "comercialara@casatimoni.com.br",
-    modules: withStock(["painel", "marketing"]),
+    modules: withStock(["painel", "marketing", "motorista"]),
     requiresPassword: false,
   },
   "casatimoniararas@gmail.com": {

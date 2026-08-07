@@ -35,6 +35,7 @@ type FormState = {
   volumes: string;
   contatoNome: string;
   contatoWhats: string;
+  cep: string;
   endereco: string;
   linkEndereco: string;
   observacao: string;
@@ -51,6 +52,7 @@ const REQUIRED: Array<keyof FormState> = [
   "data",
   "numeroPedido",
   "clienteFornecedor",
+  "volumes",
   "contatoNome",
   "contatoWhats",
   "endereco",
@@ -94,6 +96,7 @@ function emptyForm(data = localDateString()): FormState {
     volumes: "",
     contatoNome: "",
     contatoWhats: "",
+    cep: "",
     endereco: "",
     linkEndereco: "",
     observacao: "",
@@ -118,6 +121,7 @@ function formFromViagem(v: Viagem): FormState {
     volumes: v.volumes || "",
     contatoNome: v.contatoNome || "",
     contatoWhats: v.contatoWhats || "",
+    cep: "",
     endereco: enderecoCompleto.replace(/\nLink:\s*https?:\/\/\S+/i, "").trim(),
     linkEndereco: match?.[1] || "",
     observacao: v.info || "",
@@ -139,6 +143,21 @@ function lojaLabel(loja?: string) {
 
 function horaCurta(hora?: string) {
   return hora ? hora.slice(0, 5) : "--:--";
+}
+
+function formatarCep(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 8);
+  return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
+}
+
+function formatarTelefone(value: string) {
+  const digits = value.replace(/\D/g, "").slice(0, 11);
+  if (digits.length <= 2) return digits;
+  const ddd = digits.slice(0, 2);
+  const numero = digits.slice(2);
+  if (numero.length <= 4) return `${ddd} ${numero}`;
+  if (numero.length <= 8) return `${ddd} ${numero.slice(0, 4)}-${numero.slice(4)}`;
+  return `${ddd} ${numero.slice(0, 5)}-${numero.slice(5)}`;
 }
 
 export default function MotoristaAgenda() {
@@ -225,6 +244,24 @@ export default function MotoristaAgenda() {
       next.delete(key);
       return next;
     });
+  }
+
+  async function buscarCep() {
+    const cep = form.cep.replace(/\D/g, "");
+    if (cep.length !== 8) {
+      setErro("Digite um CEP com 8 números.");
+      return;
+    }
+    setErro("");
+    try {
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+      if (!response.ok || data.erro) throw new Error("CEP não encontrado.");
+      const endereco = [data.logradouro, data.bairro, [data.localidade, data.uf].filter(Boolean).join("/")].filter(Boolean).join(" - ");
+      set("endereco", endereco);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível buscar o CEP.");
+    }
   }
 
   async function salvar(event: FormEvent) {
@@ -414,11 +451,12 @@ export default function MotoristaAgenda() {
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="text-sm font-medium text-slate-700">* NF/PEDIDO<input value={form.numeroPedido} onChange={(e) => set("numeroPedido", e.target.value)} className={fieldClass("numeroPedido")} /></label>
               <label className="text-sm font-medium text-slate-700">* CLIENTE/FORNECEDOR<input value={form.clienteFornecedor} onChange={(e) => set("clienteFornecedor", e.target.value)} className={fieldClass("clienteFornecedor")} /></label>
-              <label className="text-sm font-medium text-slate-700">Volume<input value={form.volumes} onChange={(e) => set("volumes", e.target.value)} className={fieldClass("volumes")} /></label>
-              <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">* Contato<input value={form.contatoNome} onChange={(e) => set("contatoNome", e.target.value)} className={fieldClass("contatoNome")} /></label><label className="text-sm font-medium text-slate-700">* Tel/Cel<input value={form.contatoWhats} onChange={(e) => set("contatoWhats", e.target.value)} className={fieldClass("contatoWhats")} /></label></div>
+              <label className="text-sm font-medium text-slate-700">* Volume<input value={form.volumes} onChange={(e) => set("volumes", e.target.value)} className={fieldClass("volumes")} /></label>
+              <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">* Contato<input value={form.contatoNome} onChange={(e) => set("contatoNome", e.target.value)} className={fieldClass("contatoNome")} /></label><label className="text-sm font-medium text-slate-700">* Tel/Cel<input value={form.contatoWhats} onChange={(e) => set("contatoWhats", formatarTelefone(e.target.value))} inputMode="tel" placeholder="19 98181-9171" className={fieldClass("contatoWhats")} /></label></div>
             </div>
 
             <div className="mt-4 grid gap-4">
+              <div className="grid gap-2 sm:grid-cols-[220px_auto] sm:items-end"><label className="text-sm font-medium text-slate-700">CEP<input value={form.cep} onChange={(e) => set("cep", formatarCep(e.target.value))} inputMode="numeric" placeholder="00000-000" className={fieldClass("cep")} /></label><button type="button" onClick={buscarCep} className="h-[42px] rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">Buscar CEP</button></div>
               <label className="text-sm font-medium text-slate-700">* Endereço<input value={form.endereco} onChange={(e) => set("endereco", e.target.value)} className={fieldClass("endereco")} /></label>
               <label className="text-sm font-medium text-slate-700">Link endereço<input type="url" value={form.linkEndereco} onChange={(e) => set("linkEndereco", e.target.value)} placeholder="https://maps.google.com/..." className={fieldClass("linkEndereco")} /></label>
               <label className="text-sm font-medium text-slate-700">Observação<textarea value={form.observacao} onChange={(e) => set("observacao", e.target.value)} rows={3} className={fieldClass("observacao")} /></label>

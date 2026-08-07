@@ -63,9 +63,9 @@ export const portalUsers: Record<string, PortalUser> = {
     modules: withStock(["painel", "motorista", "financeiro"]),
     requiresPassword: true,
   },
-  "reginaldo@casatimoni.com.br": {
-    name: "Reginaldo - Araras",
-    email: "reginaldo@casatimoni.com.br",
+  "estoqueararascasatimoni@gmail.com": {
+    name: "Estoque Araras",
+    email: "estoqueararascasatimoni@gmail.com",
     modules: withStock(["painel", "motorista", "financeiro"]),
     requiresPassword: true,
   },

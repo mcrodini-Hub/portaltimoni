@@ -50,17 +50,17 @@ export default async function DashboardLayout({
             {hasModuleAccess(email, "estoque") && (
               <Link href="/dashboard/estoque" className={linkClass}>Estoque</Link>
             )}
+            {hasModuleAccess(email, "financeiro") && (
+              <Link href="/dashboard/financeiro" className={linkClass}>Financeiro</Link>
+            )}
+            {hasModuleAccess(email, "marketing") && (
+              <Link href="/dashboard/marketing" className={linkClass}>Marketing</Link>
+            )}
             {hasModuleAccess(email, "motorista") && (
               <Link href={MOTORISTA_URL} className={linkClass}>Motorista</Link>
             )}
             {hasModuleAccess(email, "reunioes") && (
               <Link href="/dashboard/reunioes" className={linkClass}>Reuniões</Link>
-            )}
-            {hasModuleAccess(email, "marketing") && (
-              <Link href="/dashboard/marketing" className={linkClass}>Marketing</Link>
-            )}
-            {hasModuleAccess(email, "financeiro") && (
-              <Link href="/dashboard/financeiro" className={linkClass}>Financeiro</Link>
             )}
           </nav>
 

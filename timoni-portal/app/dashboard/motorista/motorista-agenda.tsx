@@ -43,6 +43,8 @@ type FormState = {
 
 type Modo = "dia" | "mes";
 
+const AUTORIZADOS = ["Ciça", "Thais", "Jaqueline", "Jeovana", "Margareth", "Reginaldo", "Carol Araras"] as const;
+
 const REQUIRED: Array<keyof FormState> = [
   "loja",
   "vendedor",
@@ -399,7 +401,7 @@ export default function MotoristaAgenda() {
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <label className="text-sm font-medium text-slate-700">* Loja<select value={form.loja} onChange={(e) => set("loja", e.target.value)} className={fieldClass("loja")}><option value="">Selecione</option><option value="araras">Araras</option><option value="rio_claro">Rio Claro</option></select></label>
-              <label className="text-sm font-medium text-slate-700">* Vendedor<input value={form.vendedor} onChange={(e) => set("vendedor", e.target.value)} className={fieldClass("vendedor")} /></label>
+              <label className="text-sm font-medium text-slate-700">* Vendedor<select value={form.vendedor} onChange={(e) => set("vendedor", e.target.value)} className={fieldClass("vendedor")}><option value="">Selecione</option>{form.vendedor && !AUTORIZADOS.includes(form.vendedor as (typeof AUTORIZADOS)[number]) && <option value={form.vendedor}>{form.vendedor}</option>}{AUTORIZADOS.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>
               <label className="text-sm font-medium text-slate-700">* Data<input type="date" value={form.data} onChange={(e) => set("data", e.target.value)} className={fieldClass("data")} /></label>
               <label className="text-sm font-medium text-slate-700">Hora<input type="time" value={form.hora} onChange={(e) => set("hora", e.target.value)} disabled={form.bloquear} className={`${fieldClass("hora")} disabled:bg-slate-100`} /></label>
             </div>
@@ -420,7 +422,7 @@ export default function MotoristaAgenda() {
               <label className="text-sm font-medium text-slate-700">* Endereço<input value={form.endereco} onChange={(e) => set("endereco", e.target.value)} className={fieldClass("endereco")} /></label>
               <label className="text-sm font-medium text-slate-700">Link endereço<input type="url" value={form.linkEndereco} onChange={(e) => set("linkEndereco", e.target.value)} placeholder="https://maps.google.com/..." className={fieldClass("linkEndereco")} /></label>
               <label className="text-sm font-medium text-slate-700">Observação<textarea value={form.observacao} onChange={(e) => set("observacao", e.target.value)} rows={3} className={fieldClass("observacao")} /></label>
-              <label className="text-sm font-medium text-slate-700">* Preenchido por<input value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} className={fieldClass("preenchidoPor")} /></label>
+              <label className="text-sm font-medium text-slate-700">* Preenchido por<select value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} className={fieldClass("preenchidoPor")}><option value="">Selecione</option>{form.preenchidoPor && !AUTORIZADOS.includes(form.preenchidoPor as (typeof AUTORIZADOS)[number]) && <option value={form.preenchidoPor}>{form.preenchidoPor}</option>}{AUTORIZADOS.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>
             </div>
 
             {erro && <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}

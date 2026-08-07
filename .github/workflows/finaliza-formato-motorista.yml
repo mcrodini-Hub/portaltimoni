@@ -1,0 +1,36 @@
+name: Finaliza formato motorista
+on:
+  push:
+    paths:
+      - '.github/workflows/finaliza-formato-motorista.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Ajustar formato dos cards e impressao
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('timoni-portal/app/dashboard/motorista/motorista-agenda.tsx')
+          s = p.read_text(encoding='utf-8')
+
+          old_print = '''return `<div class="item"><p><strong>${index + 1}. ${horaCurta(v.horario)} ${v.tipoHorario || "Entrega"} ${lojaLabel(v.loja).toLowerCase()} - Vendedor: ${v.vendedor || ""}</strong></p><p>${v.clienteFornecedor || ""} ${v.numeroPedido || ""} Volume: ${v.volumes || ""}</p><p>${endereco}</p><p>Contato: ${v.contatoNome || ""}${v.contatoWhats ? ` - ${v.contatoWhats}` : ""}</p>${v.info ? `<p>Observação: ${v.info}</p>` : ""}${v.preenchidoPor ? `<p class="preenchido">Preenchido por: ${v.preenchidoPor}</p>` : ""}</div>`;'''
+          new_print = '''return `<div class="item"><p><strong>${index + 1}. ${v.tipoHorario || "Entrega"} ${lojaLabel(v.loja)} | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}${v.vendedor ? ` | Vendedor: ${v.vendedor}` : ""}</strong></p><p>${v.clienteFornecedor || ""}${v.numeroPedido ? ` · ${v.numeroPedido}` : ""}${v.volumes ? ` · Volume: ${v.volumes}` : ""}</p><p>${endereco}</p><p>Contato: ${v.contatoNome || ""}${v.contatoWhats ? ` - ${v.contatoWhats}` : ""}</p>${v.info ? `<p>Observação: ${v.info}</p>` : ""}${v.preenchidoPor ? `<p class="preenchido">Preenchido por: ${v.preenchidoPor}</p>` : ""}</div>`;'''
+          s = s.replace(old_print, new_print)
+          s = s.replace('.item .preenchido{font-size:9pt;margin-top:8px}', '.item .preenchido{font-size:10pt;margin-top:8px}')
+
+          old_card = '''<div>\n                    <p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario || "Viagem"} {lojaLabel(v.loja)} | {horaCurta(v.horario)}{v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}</p>\n                    {v.vendedor && <p className="mt-1 text-xs text-slate-600">Vendedor: {v.vendedor}</p>}\n                    {v.tipoHorario !== "Bloqueio" && <>\n                      <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""} {v.numeroPedido ? `· ${v.numeroPedido}` : ""} {v.volumes ? `· Volume: ${v.volumes}` : ""}</p>\n                      {v.endereco && <p className="mt-1 text-sm text-slate-700">{[v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ")}</p>}\n                      {(v.contatoNome || v.contatoWhats) && <p className="mt-1 text-sm text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}\n                    </>}\n                    {v.info && <p className="mt-2 text-sm text-slate-600">Observação: {v.info}</p>}\n                    {v.preenchidoPor && <p className="mt-3 font-[Arial] text-[9px] text-slate-500">Preenchido por: {v.preenchidoPor}</p>}\n                  </div>'''
+          new_card = '''<div className="font-[Arial] text-[11pt] leading-[1.35]">\n                    <p className="font-semibold text-slate-950">{index + 1}. {v.tipoHorario || "Viagem"} {lojaLabel(v.loja)} | {horaCurta(v.horario)}{v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}{v.vendedor ? ` | Vendedor: ${v.vendedor}` : ""}</p>\n                    {v.tipoHorario !== "Bloqueio" && <>\n                      <p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{v.numeroPedido ? ` · ${v.numeroPedido}` : ""}{v.volumes ? ` · Volume: ${v.volumes}` : ""}</p>\n                      {v.endereco && <p className="mt-3 text-slate-700">{[v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ")}</p>}\n                      {(v.contatoNome || v.contatoWhats) && <p className="mt-3 text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}\n                    </>}\n                    {v.info && <p className="mt-3 text-slate-600">Observação: {v.info}</p>}\n                    {v.preenchidoPor && <p className="mt-3 font-[Arial] text-[10pt] text-slate-500">Preenchido por: {v.preenchidoPor}</p>}\n                  </div>'''
+          s = s.replace(old_card, new_card)
+          p.write_text(s, encoding='utf-8')
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add timoni-portal/app/dashboard/motorista/motorista-agenda.tsx
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "fix: aplica formato final dos cards do motorista"
+          git push

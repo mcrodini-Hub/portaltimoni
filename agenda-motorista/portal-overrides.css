@@ -23,10 +23,61 @@ body{
   padding:24px;
 }
 
+/* Topo igual ao padrao visual do Portal */
 .topbar{
-  background:#0f172a;
-  border-bottom:1px solid #1e293b;
-  box-shadow:0 10px 30px rgba(15,23,42,.12);
+  min-height:42px;
+  height:42px;
+  padding:0 48px;
+  background:#0f2567;
+  border-bottom:none;
+  box-shadow:none;
+  position:sticky;
+  top:0;
+  z-index:20;
+  justify-content:flex-start;
+  gap:24px;
+}
+
+.brand{
+  width:100%;
+  display:flex;
+  align-items:center;
+  gap:24px;
+}
+
+.brand-logo,
+.topbar-actions{
+  display:none !important;
+}
+
+.brand::before{
+  content:"Casa Timoni";
+  color:#fff;
+  font-size:13px;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+.brand-title{
+  display:flex;
+  align-items:center;
+  gap:24px;
+  color:#fff;
+  font-size:0;
+  font-weight:700;
+  white-space:nowrap;
+}
+
+.brand-title::before{
+  content:"Painel Timoni     Agenda Ciça     Compras     Conferência     Estoque     Motorista     Reuniões     Marketing     Financeiro";
+  color:#fff;
+  font-size:13px;
+  font-weight:700;
+  word-spacing:18px;
+}
+
+.brand-dim{
+  display:none;
 }
 
 button,
@@ -163,6 +214,11 @@ button,
 .view-switcher .chip.ativo{
   background:#0f172a;
   color:#fff;
+}
+
+@media (max-width:1050px){
+  .topbar{padding:0 16px;overflow-x:auto;}
+  .brand{min-width:max-content;}
 }
 
 @media (max-width:900px){

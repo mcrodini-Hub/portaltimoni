@@ -100,6 +100,12 @@ function date(value: string) {
       }).format(d);
 }
 
+function timestamp(value: string) {
+  if (!value) return 0;
+  const parsed = new Date(value).getTime();
+  return Number.isNaN(parsed) ? 0 : parsed;
+}
+
 export default function EstoqueClient({ isManager = false, defaultUnit = "rio_claro", allowedUnits = ["rio_claro", "araras"] }: EstoqueClientProps) {
   const safeAllowedUnits = allowedUnits.length ? allowedUnits : [defaultUnit];
   const [loading, setLoading] = useState(true);
@@ -223,7 +229,8 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
     setWaiting(false);
   }
 
-  const filtered = useMemo(() => needs.filter((need) => unit === "todas" || need.unidade === unit), [needs, unit]);
+  const sortedNeeds = useMemo(() => [...needs].sort((a, b) => timestamp(b.criadoEm) - timestamp(a.criadoEm)), [needs]);
+  const filtered = useMemo(() => sortedNeeds.filter((need) => unit === "todas" || need.unidade === unit), [sortedNeeds, unit]);
   const openNeeds = filtered.filter((need) => ["pendente", "em_compra", "observacao"].includes(need.status));
   const onWay = filtered.filter((need) => need.status === "pedido_existente");
   const history = filtered.filter((need) => need.status === "chegou").slice(0, 50);
@@ -310,7 +317,7 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Acompanhamento</p>
             <h2 className="mt-1 text-xl font-semibold">Solicitações registradas</h2>
           </div>
-          <button onClick={() => void refresh()} className={secondary}>Atualizar</button>
+          {isManager && <button onClick={() => void refresh()} className={secondary}>Atualizar</button>}
         </div>
         <div className="mt-4 space-y-3">
           {trackingNeeds.map((need) => <NeedCard key={need.id} need={need} />)}
@@ -346,25 +353,25 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
 
   return (
     <div className="pb-10">
-      <section className="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm sm:p-6">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Módulo Estoque</p>
-          <h1 className="mt-2 text-3xl font-semibold">Estoque CT</h1>
-          <p className="mt-3 text-sm text-slate-600">{isManager ? "Uso direto no Portal Timoni, no computador ou celular." : "Consulte o produto, registre a necessidade e acompanhe o andamento."}</p>
-        </div>
-        {isManager && (
+      {isManager && (
+        <section className="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm sm:p-6">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Módulo Estoque</p>
+            <h1 className="mt-2 text-3xl font-semibold">Estoque CT</h1>
+            <p className="mt-3 text-sm text-slate-600">Uso direto no Portal Timoni, no computador ou celular.</p>
+          </div>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <button onClick={() => void refresh()} className={primary}>Atualizar informações</button>
             <a href={SHEET_URL} target="_blank" rel="noreferrer" className={secondary + " text-center"}>Abrir planilha</a>
           </div>
-        )}
-      </section>
+        </section>
+      )}
 
-      {error && <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800">{error}</div>}
-      {notice && <div className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800">{notice}</div>}
+      {error && <div className={isManager ? "mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800" : "rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800"}>{error}</div>}
+      {notice && <div className={isManager ? "mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800" : "rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800"}>{notice}</div>}
 
       {!isManager ? (
-        <div className="mt-5 space-y-5">
+        <div className="space-y-5">
           <TrackingSection />
           <RequestForm />
         </div>

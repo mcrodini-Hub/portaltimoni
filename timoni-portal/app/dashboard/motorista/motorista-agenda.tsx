@@ -396,7 +396,7 @@ export default function MotoristaAgenda() {
               <article key={v.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
-                    <p className="text-sm font-semibold text-slate-950">{index + 1}. {horaCurta(v.horario)}{v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""} · {v.tipoHorario || "Viagem"} · {lojaLabel(v.loja)}</p>
+                    <p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario || "Viagem"} {lojaLabel(v.loja)} | {horaCurta(v.horario)}{v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}</p>
                     {v.vendedor && <p className="mt-1 text-xs text-slate-600">Vendedor: {v.vendedor}</p>}
                     {v.tipoHorario !== "Bloqueio" && <>
                       <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""} {v.numeroPedido ? `· ${v.numeroPedido}` : ""} {v.volumes ? `· Volume: ${v.volumes}` : ""}</p>

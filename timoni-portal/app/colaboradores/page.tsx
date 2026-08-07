@@ -120,12 +120,19 @@ function calendarEventToPanelItem(event: CalendarEventDTO): PanelDateItem {
   };
 }
 
+function cleanPanelSummary(summary: string) {
+  return summary
+    .replace(/^anivers[aá]rio\s*/i, "")
+    .replace(/\s*-\s*f[eé]rias\s*$/i, "")
+    .trim();
+}
+
 function uniqueDateItems(items: PanelDateItem[], limit = 6) {
   const seen = new Set<string>();
   return items
     .sort((a, b) => parseEventDate(a.start).getTime() - parseEventDate(b.start).getTime())
     .filter((item) => {
-      const key = `${normalizeText(item.summary)}-${formatDate(item.start)}`;
+      const key = `${normalizeText(cleanPanelSummary(item.summary))}-${formatDate(item.start)}`;
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
@@ -173,13 +180,13 @@ const empresasAtendimentoInterno = [
 const announcementByStore = {
   "rio claro": {
     label: "Rio Claro",
-    title: "Nova Ferramenta: Painel Timoni e Estoque",
+    title: "Comunicados Rio Claro",
     logins: [],
     responders: ["Lucas Rio Claro", "Ciça"],
   },
   araras: {
     label: "Araras",
-    title: "Nova Ferramenta: Painel Timoni e Estoque",
+    title: "Comunicados Araras",
     logins: [
       "fotoscasatimoni@gmail.com",
       "reginaldo@casatimoni.com.br",
@@ -204,27 +211,79 @@ function StockFlow() {
   );
 }
 
+function NewToolAnnouncement({ store }: { store: Store }) {
+  const announcement = announcementByStore[store];
+
+  return (
+    <div className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-700">
+      <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Comunicado 1</p>
+      <h3 className="mt-1 text-lg font-semibold text-slate-950">Nova Ferramenta: Painel Timoni e Estoque</h3>
+      <p className="mt-2 line-clamp-3">
+        Esta é a nova comunicação interna da Casa Timoni. O acesso principal é pelo Painel Timoni, com avisos para a equipe, e pelo Módulo Estoque para consultar ou solicitar produtos.
+      </p>
+      <details className="mt-3 group">
+        <summary className="cursor-pointer text-sm font-semibold text-blue-800 marker:text-blue-800">Ver comunicado completo →</summary>
+        <div className="mt-3 space-y-4 border-t border-blue-100 pt-3">
+          <p className="font-semibold italic text-slate-950">Esta é a nova comunicação interna da Casa Timoni.</p>
+          <p>
+            Vocês vão usar o Portal Timoni pelo Chrome. O acesso principal é pelo Painel Timoni com avisos e comunicados para a equipe e o link para o Módulo Estoque: canal exclusivo para consultarem ou solicitarem produtos. Assim, a comunicação que hoje fica solta no WhatsApp passa a ficar registrada no Portal.
+          </p>
+          {announcement.logins.length > 0 && (
+            <div>
+              <p className="font-semibold text-slate-950">Logins de acesso:</p>
+              <div className="mt-2 space-y-1 font-medium text-slate-800">
+                {announcement.logins.map((login) => <p key={login}>{login}</p>)}
+              </div>
+            </div>
+          )}
+          <div>
+            <p className="font-semibold text-slate-950">Fluxo do Estoque:</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5">
+              <li>Consultar pelo código ou descrição.</li>
+              <li>Informar quantidade e unidade.</li>
+              <li>Registrar a necessidade.</li>
+              <li>Acompanhar o status até finalizar.</li>
+            </ol>
+          </div>
+          <div>
+            <p className="font-semibold text-slate-950">Quem responde segue essa ordem:</p>
+            <ol className="mt-2 list-decimal space-y-1 pl-5">
+              {announcement.responders.map((responder) => <li key={responder}>{responder}</li>)}
+            </ol>
+          </div>
+        </div>
+      </details>
+    </div>
+  );
+}
+
 function VendasEmpresasCard() {
   return (
-    <div className="mt-4 space-y-3 rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-700">
+    <div className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-700">
       <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Comunicado 2</p>
-      <h3 className="text-lg font-semibold text-slate-950">Vendas Empresas</h3>
-      <p>As empresas relacionadas abaixo são atendidas exclusivamente por vendas internas e devem ser direcionadas para Jaqueline.</p>
-      <p className="font-semibold text-slate-900">Qualquer orçamento que for passado pelo Balcão será desconsiderado.</p>
-      <p>Esta orientação se deve à complexidade do atendimento destes clientes:</p>
-      <ul className="list-disc space-y-1 pl-5">
-        <li>Definição de produtos/serviços.</li>
-        <li>Resposta direta no Portal.</li>
-        <li>Negociação de preços com autorização exclusiva da Ciça, Marcelo ou Sérgio.</li>
-      </ul>
-      <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Empresas</p>
-        <ul className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
-          {empresasAtendimentoInterno.map((empresa) => (
-            <li key={empresa} className="rounded-lg bg-white/70 px-2 py-1 text-xs font-semibold text-slate-700">{empresa}</li>
-          ))}
-        </ul>
-      </div>
+      <h3 className="mt-1 text-lg font-semibold text-slate-950">Vendas Empresas</h3>
+      <p className="mt-2 line-clamp-3">As empresas relacionadas são atendidas exclusivamente por vendas internas e devem ser direcionadas para Jaqueline.</p>
+      <details className="mt-3 group">
+        <summary className="cursor-pointer text-sm font-semibold text-blue-800 marker:text-blue-800">Ver comunicado completo →</summary>
+        <div className="mt-3 space-y-3 border-t border-blue-100 pt-3">
+          <p>As empresas relacionadas abaixo são atendidas exclusivamente por vendas internas e devem ser direcionadas para Jaqueline.</p>
+          <p className="font-semibold text-slate-900">Qualquer orçamento que for passado pelo Balcão será desconsiderado.</p>
+          <p>Esta orientação se deve à complexidade do atendimento destes clientes:</p>
+          <ul className="list-disc space-y-1 pl-5">
+            <li>Definição de produtos/serviços.</li>
+            <li>Resposta direta no Portal.</li>
+            <li>Negociação de preços com autorização exclusiva da Ciça, Marcelo ou Sérgio.</li>
+          </ul>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Empresas</p>
+            <ul className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+              {empresasAtendimentoInterno.map((empresa) => (
+                <li key={empresa} className="rounded-lg bg-white/70 px-2 py-1 text-xs font-semibold text-slate-700">{empresa}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      </details>
     </div>
   );
 }
@@ -245,38 +304,10 @@ function AnnouncementCard({ store, variant = "large" }: { store: Store; variant?
         </span>
       </div>
 
-      <div className="mt-4 space-y-4 rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-700">
-        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Comunicado 1</p>
-        <p className="font-semibold italic text-slate-950">Esta é a nova comunicação interna da Casa Timoni.</p>
-        <p>
-          Vocês vão usar o Portal Timoni pelo Chrome. O acesso principal é pelo Painel Timoni com avisos e comunicados para a equipe e o link para o Módulo Estoque: canal exclusivo para consultarem ou solicitarem produtos. Assim, a comunicação que hoje fica solta no WhatsApp passa a ficar registrada no Portal.
-        </p>
-        {announcement.logins.length > 0 && (
-          <div>
-            <p className="font-semibold text-slate-950">Logins de acesso:</p>
-            <div className="mt-2 space-y-1 font-medium text-slate-800">
-              {announcement.logins.map((login) => <p key={login}>{login}</p>)}
-            </div>
-          </div>
-        )}
-        <div>
-          <p className="font-semibold text-slate-950">Fluxo do Estoque:</p>
-          <ol className="mt-2 list-decimal space-y-1 pl-5">
-            <li>Consultar pelo código ou descrição.</li>
-            <li>Informar quantidade e unidade.</li>
-            <li>Registrar a necessidade.</li>
-            <li>Acompanhar o status até finalizar.</li>
-          </ol>
-        </div>
-        <div>
-          <p className="font-semibold text-slate-950">Quem responde segue essa ordem:</p>
-          <ol className="mt-2 list-decimal space-y-1 pl-5">
-            {announcement.responders.map((responder) => <li key={responder}>{responder}</li>)}
-          </ol>
-        </div>
+      <div className="mt-4 space-y-4">
+        <NewToolAnnouncement store={store} />
+        {store === "rio claro" && <VendasEmpresasCard />}
       </div>
-
-      {store === "rio claro" && <VendasEmpresasCard />}
     </article>
   );
 }
@@ -464,7 +495,7 @@ export default async function ColaboradoresPage() {
           tone="pink"
           events={birthdays}
           emptyMessage="Nenhum aniversariante informado"
-          formatSummary={(summary) => summary.replace(/^anivers[aá]rio\s*/i, "")}
+          formatSummary={cleanPanelSummary}
         />
 
         <EventListCard
@@ -472,7 +503,7 @@ export default async function ColaboradoresPage() {
           tone="amber"
           events={vacations}
           emptyMessage="Nenhum período programado"
-          formatSummary={(summary) => summary.replace(/\s*-\s*f[eé]rias\s*$/i, "")}
+          formatSummary={cleanPanelSummary}
         />
       </section>
 

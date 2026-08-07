@@ -262,18 +262,14 @@ function VendasEmpresasCard() {
     <div className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-700">
       <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Comunicado 2</p>
       <h3 className="mt-1 text-lg font-semibold text-slate-950">Vendas Empresas</h3>
-      <p className="mt-2 line-clamp-3">As empresas relacionadas são atendidas exclusivamente por vendas internas e devem ser direcionadas para Jaqueline.</p>
+      <p className="mt-2 line-clamp-3">As empresas relacionadas abaixo são atendidas exclusivamente por vendas internas.</p>
       <details className="mt-3 group">
         <summary className="cursor-pointer text-sm font-semibold text-blue-800 marker:text-blue-800">Ver comunicado completo →</summary>
         <div className="mt-3 space-y-3 border-t border-blue-100 pt-3">
-          <p>As empresas relacionadas abaixo são atendidas exclusivamente por vendas internas e devem ser direcionadas para Jaqueline.</p>
-          <p className="font-semibold text-slate-900">Qualquer orçamento que for passado pelo Balcão será desconsiderado.</p>
-          <p>Esta orientação se deve à complexidade do atendimento destes clientes:</p>
-          <ul className="list-disc space-y-1 pl-5">
-            <li>Definição de produtos/serviços.</li>
-            <li>Resposta direta no Portal.</li>
-            <li>Negociação de preços com autorização exclusiva da Ciça, Marcelo ou Sérgio.</li>
-          </ul>
+          <p>As empresas relacionadas abaixo são atendidas exclusivamente por vendas internas.</p>
+          <p>Todo atendimento, orçamento ou negociação destes clientes deve ser direcionado para <strong>Jaqueline</strong>.</p>
+          <p className="font-semibold text-slate-900">Qualquer orçamento feito fora deste fluxo será desconsiderado.</p>
+          <p>Esta orientação existe porque estes clientes exigem acompanhamento específico, definição correta de produtos/serviços e negociação de condições comerciais com autorização da gestão.</p>
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Empresas</p>
             <ul className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">

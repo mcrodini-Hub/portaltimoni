@@ -174,15 +174,8 @@ const announcementByStore = {
   "rio claro": {
     label: "Rio Claro",
     title: "Nova Ferramenta: Painel Timoni e Estoque",
-    logins: [
-      "balcaotimoni@gmail.com",
-      "estoquetimoni@gmail.com",
-      "marketplacerc.mcr@gmail.com",
-      "comercialrc@casatimoni.com.br",
-      "caixatimonirioclaro@gmail.com",
-      "carolina@casatimoni.com.br",
-    ],
-    responders: ["Lucas Rio Claro", "Ciça", "Lucas Araras", "Reginaldo"],
+    logins: [],
+    responders: ["Lucas Rio Claro", "Ciça"],
   },
   araras: {
     label: "Araras",
@@ -211,6 +204,31 @@ function StockFlow() {
   );
 }
 
+function VendasEmpresasCard() {
+  return (
+    <div className="mt-4 space-y-3 rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-700">
+      <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Comunicado 2</p>
+      <h3 className="text-lg font-semibold text-slate-950">Vendas Empresas</h3>
+      <p>As empresas relacionadas abaixo são atendidas exclusivamente por vendas internas e devem ser direcionadas para Jaqueline.</p>
+      <p className="font-semibold text-slate-900">Qualquer orçamento que for passado pelo Balcão será desconsiderado.</p>
+      <p>Esta orientação se deve à complexidade do atendimento destes clientes:</p>
+      <ul className="list-disc space-y-1 pl-5">
+        <li>Definição de produtos/serviços.</li>
+        <li>Resposta direta no Portal.</li>
+        <li>Negociação de preços com autorização exclusiva da Ciça, Marcelo ou Sérgio.</li>
+      </ul>
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Empresas</p>
+        <ul className="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-2 lg:grid-cols-3">
+          {empresasAtendimentoInterno.map((empresa) => (
+            <li key={empresa} className="rounded-lg bg-white/70 px-2 py-1 text-xs font-semibold text-slate-700">{empresa}</li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 function AnnouncementCard({ store, variant = "large" }: { store: Store; variant?: AnnouncementVariant }) {
   const spanClass = variant === "full" ? "md:col-span-2 xl:col-span-4" : variant === "compact" ? "" : "md:col-span-2 xl:col-span-3";
   const announcement = announcementByStore[store];
@@ -228,16 +246,19 @@ function AnnouncementCard({ store, variant = "large" }: { store: Store; variant?
       </div>
 
       <div className="mt-4 space-y-4 rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-700">
+        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Comunicado 1</p>
         <p className="font-semibold italic text-slate-950">Esta é a nova comunicação interna da Casa Timoni.</p>
         <p>
           Vocês vão usar o Portal Timoni pelo Chrome. O acesso principal é pelo Painel Timoni com avisos e comunicados para a equipe e o link para o Módulo Estoque: canal exclusivo para consultarem ou solicitarem produtos. Assim, a comunicação que hoje fica solta no WhatsApp passa a ficar registrada no Portal.
         </p>
-        <div>
-          <p className="font-semibold text-slate-950">Logins de acesso:</p>
-          <div className="mt-2 space-y-1 font-medium text-slate-800">
-            {announcement.logins.map((login) => <p key={login}>{login}</p>)}
+        {announcement.logins.length > 0 && (
+          <div>
+            <p className="font-semibold text-slate-950">Logins de acesso:</p>
+            <div className="mt-2 space-y-1 font-medium text-slate-800">
+              {announcement.logins.map((login) => <p key={login}>{login}</p>)}
+            </div>
           </div>
-        </div>
+        )}
         <div>
           <p className="font-semibold text-slate-950">Fluxo do Estoque:</p>
           <ol className="mt-2 list-decimal space-y-1 pl-5">
@@ -254,6 +275,8 @@ function AnnouncementCard({ store, variant = "large" }: { store: Store; variant?
           </ol>
         </div>
       </div>
+
+      {store === "rio claro" && <VendasEmpresasCard />}
     </article>
   );
 }

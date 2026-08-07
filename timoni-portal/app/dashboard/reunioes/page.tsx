@@ -12,6 +12,9 @@ type Meeting = {
   date: string;
   day: string;
   time: string;
+  secondDate: string;
+  secondDay: string;
+  secondTime: string;
   frequency: string;
   leaders: string;
   url: string;
@@ -26,6 +29,9 @@ const meetings: Meeting[] = [
     date: "08/09/2026",
     day: "Terça-feira",
     time: "7h40",
+    secondDate: "09/10/2026",
+    secondDay: "Sexta-feira",
+    secondTime: "7h40",
     frequency: "Mensal",
     leaders: "Ciça e Marcelo",
     url: "https://docs.google.com/document/d/1S9dQlOGwFE8RwNnjw1PFy08DH9a6k1_9kugQEBgmxHQ",
@@ -35,9 +41,12 @@ const meetings: Meeting[] = [
   {
     unit: "Rio Claro",
     pautaUrl: "https://docs.google.com/document/d/1M6jya2u-u_iqHMGd3cvH-p_YjbJbK2BzP4I0HlJxZEs",
-    date: "03/09/2026",
-    day: "Quinta-feira",
+    date: "08/08/2026",
+    day: "Sábado",
     time: "7h30",
+    secondDate: "03/09/2026",
+    secondDay: "Quinta-feira",
+    secondTime: "7h30",
     frequency: "Mensal",
     leaders: "Ciça, Marcelo e Jeovana",
     url: "https://docs.google.com/document/d/1rVOOEsR4dkqj51O8iRc14X5Iy2ywCEn0hxXz_jBKmyQ",
@@ -56,14 +65,28 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
         </div>
         <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">{meeting.frequency}</span>
       </div>
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-white/80 p-3">
-          <p className="text-xs text-slate-500">Data</p>
-          <p className="mt-1 font-semibold text-slate-900">{meeting.date}</p>
+      <div className="mt-5 space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-white/80 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Próxima</p>
+            <p className="mt-1 font-semibold text-slate-900">{meeting.date}</p>
+            <p className="text-xs text-slate-500">{meeting.day}</p>
+          </div>
+          <div className="rounded-2xl bg-white/80 p-3">
+            <p className="text-xs text-slate-500">Horário</p>
+            <p className="mt-1 font-semibold text-slate-900">{meeting.time}</p>
+          </div>
         </div>
-        <div className="rounded-2xl bg-white/80 p-3">
-          <p className="text-xs text-slate-500">Horário</p>
-          <p className="mt-1 font-semibold text-slate-900">{meeting.time}</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="rounded-2xl bg-white/80 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Seguinte</p>
+            <p className="mt-1 font-semibold text-slate-900">{meeting.secondDate}</p>
+            <p className="text-xs text-slate-500">{meeting.secondDay}</p>
+          </div>
+          <div className="rounded-2xl bg-white/80 p-3">
+            <p className="text-xs text-slate-500">Horário</p>
+            <p className="mt-1 font-semibold text-slate-900">{meeting.secondTime}</p>
+          </div>
         </div>
       </div>
       <p className="mt-4 text-sm text-slate-600">Condução: <strong>{meeting.leaders}</strong></p>

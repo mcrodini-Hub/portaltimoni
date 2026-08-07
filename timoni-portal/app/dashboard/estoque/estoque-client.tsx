@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo/edit";
 
@@ -126,6 +126,13 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
   const [note, setNote] = useState("");
   const [waiting, setWaiting] = useState(false);
 
+  const codeInputRef = useRef<HTMLInputElement>(null);
+  const descriptionInputRef = useRef<HTMLInputElement>(null);
+  const quantityInputRef = useRef<HTMLInputElement>(null);
+  const noteInputRef = useRef<HTMLInputElement>(null);
+  const waitingInputRef = useRef<HTMLInputElement>(null);
+  const registerButtonRef = useRef<HTMLButtonElement>(null);
+
   useEffect(() => {
     if (!safeAllowedUnits.includes(newUnit)) {
       setNewUnit(safeAllowedUnits[0]);
@@ -208,9 +215,58 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
     return products.find((product) => norm(product.descricao) === norm(descriptionSearch));
   }
 
+  function chooseProductFromCode() {
+    const exact = products.find((product) => norm(product.codigo) === norm(codeSearch));
+    const product = exact || codeResults[0];
+    if (product) selectProduct(product);
+  }
+
+  function chooseProductFromDescription() {
+    const exact = products.find((product) => norm(product.descricao) === norm(descriptionSearch));
+    const product = exact || descriptionResults[0];
+    if (product) selectProduct(product);
+  }
+
+  function handleCodeKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    chooseProductFromCode();
+    descriptionInputRef.current?.focus();
+  }
+
+  function handleDescriptionKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    chooseProductFromDescription();
+    quantityInputRef.current?.focus();
+  }
+
+  function handleQuantityKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    noteInputRef.current?.focus();
+  }
+
+  function handleNoteKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    waitingInputRef.current?.focus();
+  }
+
+  function handleWaitingKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    setWaiting((value) => !value);
+    registerButtonRef.current?.focus();
+  }
+
   async function create() {
     const product = resolveProduct();
-    if (!product) return setError("Selecione um produto pelo código ou pela descrição.");
+    if (!product) {
+      setError("Selecione um produto pelo código ou pela descrição.");
+      codeInputRef.current?.focus();
+      return;
+    }
     if (!seller) return setError("Selecione o vendedor.");
     await post({
       action: "criar",
@@ -227,6 +283,7 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
     setQuantity("");
     setNote("");
     setWaiting(false);
+    codeInputRef.current?.focus();
   }
 
   const sortedNeeds = useMemo(() => [...needs].sort((a, b) => timestamp(b.criadoEm) - timestamp(a.criadoEm)), [needs]);
@@ -273,6 +330,7 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
     return (
       <section className="rounded-3xl border bg-white p-5 shadow-sm">
         <h2 className="text-xl font-semibold">Consultar e solicitar produto</h2>
+        <p className="mt-1 text-sm text-slate-500">Fluxo rápido: código + Enter, descrição + Enter, quantidade + Enter, observação + Enter, cliente aguardando + Enter e registrar.</p>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
           <select value={newUnit} onChange={(event) => { setNewUnit(event.target.value as RequestUnit); setSeller(""); }} disabled={safeAllowedUnits.length === 1} className={input}>
             {safeAllowedUnits.map((item) => <option key={item} value={item}>{unitLabel(item)}</option>)}
@@ -282,29 +340,29 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
             {sellerOptions.map((item) => <option key={`${item.nome}-${item.unidade}`} value={item.nome}>{item.nome}</option>)}
           </select>
           <div className="relative">
-            <input value={codeSearch} onChange={(event) => { setCodeSearch(event.target.value); setSelected(""); }} placeholder="Código do produto" className={input + " w-full"} />
+            <input ref={codeInputRef} value={codeSearch} onChange={(event) => { setCodeSearch(event.target.value); setSelected(""); }} onKeyDown={handleCodeKeyDown} inputMode="numeric" placeholder="Código do produto" className={input + " w-full"} />
             {codeResults.length > 0 && (
               <div className="absolute z-10 mt-1 max-h-72 w-full overflow-auto rounded-xl border bg-white shadow-lg">
-                {codeResults.map((product) => <button key={product.codigo} onClick={() => selectProduct(product)} className="block w-full border-b px-4 py-3 text-left text-sm hover:bg-slate-50"><strong>{product.codigo}</strong> {product.descricao}</button>)}
+                {codeResults.map((product) => <button key={product.codigo} onMouseDown={(event) => event.preventDefault()} onClick={() => selectProduct(product)} className="block w-full border-b px-4 py-3 text-left text-sm hover:bg-slate-50"><strong>{product.codigo}</strong> {product.descricao}</button>)}
               </div>
             )}
           </div>
           <div className="relative md:col-span-2 xl:col-span-3">
-            <input value={descriptionSearch} onChange={(event) => { setDescriptionSearch(event.target.value); setSelected(""); }} placeholder="Descrição do produto" className={input + " w-full"} />
+            <input ref={descriptionInputRef} value={descriptionSearch} onChange={(event) => { setDescriptionSearch(event.target.value); setSelected(""); }} onKeyDown={handleDescriptionKeyDown} placeholder="Descrição do produto" className={input + " w-full"} />
             {descriptionResults.length > 0 && (
               <div className="absolute z-10 mt-1 max-h-72 w-full overflow-auto rounded-xl border bg-white shadow-lg">
-                {descriptionResults.map((product) => <button key={product.codigo} onClick={() => selectProduct(product)} className="block w-full border-b px-4 py-3 text-left text-sm hover:bg-slate-50"><strong>{product.codigo}</strong> {product.descricao}</button>)}
+                {descriptionResults.map((product) => <button key={product.codigo} onMouseDown={(event) => event.preventDefault()} onClick={() => selectProduct(product)} className="block w-full border-b px-4 py-3 text-left text-sm hover:bg-slate-50"><strong>{product.codigo}</strong> {product.descricao}</button>)}
               </div>
             )}
           </div>
           <div>
-            <input value={quantity} onChange={(event) => setQuantity(event.target.value)} placeholder={quantityPlaceholder} className={input + " w-full"} />
+            <input ref={quantityInputRef} value={quantity} onChange={(event) => setQuantity(event.target.value)} onKeyDown={handleQuantityKeyDown} placeholder={quantityPlaceholder} className={input + " w-full"} />
             {activeUnit && <p className="mt-1 text-xs font-semibold text-emerald-700">Unidade de medida: {activeUnit}</p>}
           </div>
-          <input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Observação" className={input + " md:col-span-2 xl:col-span-5"} />
+          <input ref={noteInputRef} value={note} onChange={(event) => setNote(event.target.value)} onKeyDown={handleNoteKeyDown} placeholder="Observação" className={input + " md:col-span-2 xl:col-span-5"} />
         </div>
-        <label className="mt-4 flex items-center gap-2 text-sm"><input type="checkbox" checked={waiting} onChange={(event) => setWaiting(event.target.checked)} /> Cliente aguardando</label>
-        <button onClick={() => void create()} disabled={busy === "geral"} className={primary + " mt-4"}>Registrar solicitação</button>
+        <label className="mt-4 flex items-center gap-2 text-sm"><input ref={waitingInputRef} type="checkbox" checked={waiting} onChange={(event) => setWaiting(event.target.checked)} onKeyDown={handleWaitingKeyDown} /> Cliente aguardando</label>
+        <button ref={registerButtonRef} onClick={() => void create()} disabled={busy === "geral"} className={primary + " mt-4"}>Registrar solicitação</button>
       </section>
     );
   }
@@ -323,6 +381,27 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
           {trackingNeeds.map((need) => <NeedCard key={need.id} need={need} />)}
           {!loading && !trackingNeeds.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhuma solicitação em acompanhamento.</p>}
           {loading && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Carregando solicitações...</p>}
+        </div>
+      </section>
+    );
+  }
+
+  function UnitSwitch() {
+    if (!isManager) return null;
+    return (
+      <section className="rounded-3xl border border-blue-100 bg-blue-50 p-4 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Visualização</p>
+            <h2 className="mt-1 text-lg font-semibold text-slate-950">Trocar tela da loja</h2>
+          </div>
+          <div className="flex rounded-xl bg-white p-1 shadow-sm">
+            {(["rio_claro", "araras", "todas"] as Unit[]).map((item) => (
+              <button key={item} onClick={() => setUnit(item)} className={`rounded-lg px-4 py-2 text-xs font-semibold ${unit === item ? "bg-blue-700 text-white" : "text-slate-600"}`}>
+                {item === "todas" ? "Todas" : unitLabel(item)}
+              </button>
+            ))}
+          </div>
         </div>
       </section>
     );
@@ -372,18 +451,19 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
 
       {!isManager ? (
         <div className="space-y-5">
-          <TrackingSection />
-          <RequestForm />
+          {TrackingSection()}
+          {RequestForm()}
         </div>
       ) : (
         <div className="mt-5 space-y-5">
-          <NeedsSection />
+          {UnitSwitch()}
+          {NeedsSection()}
 
           <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             {cards.map(([key, title]) => <article key={key} className="rounded-2xl border bg-white p-4 shadow-sm"><p className="text-3xl font-semibold">{loading ? "—" : summary.geral[key]}</p><p className="mt-2 text-sm text-slate-500">{title}</p></article>)}
           </section>
 
-          <RequestForm />
+          {RequestForm()}
 
           <section className="rounded-3xl border bg-white p-5 shadow-sm">
             <h2 className="text-xl font-semibold">Finalizadas</h2>

@@ -16,10 +16,10 @@ const modules: Array<{
   { module: "compras", name: "Compras", description: "Pedidos, pendências, fornecedores e acompanhamento das compras.", href: "/dashboard/compras", icon: "🛒", accent: "border-blue-200 bg-blue-50" },
   { module: "conferencia", name: "Conferência de Preços", description: "Comparação de documentos e conferência das informações de compra.", href: "/dashboard/conferencia-pedidos", icon: "✅", accent: "border-cyan-200 bg-cyan-50" },
   { module: "estoque", name: "Estoque", description: "Consulta de produtos, necessidades e acompanhamento das solicitações.", href: "/dashboard/estoque", icon: "📦", accent: "border-emerald-200 bg-emerald-50" },
+  { module: "financeiro", name: "Financeiro", description: "Pagamentos, atrasos, devoluções e bonificações de fornecedores.", href: "/dashboard/financeiro", icon: "💰", accent: "border-lime-200 bg-lime-50" },
+  { module: "marketing", name: "Marketing", description: "Campanhas, conteúdo, materiais e comunicação da Casa Timoni.", href: "/dashboard/marketing", icon: "📣", accent: "border-pink-200 bg-pink-50" },
   { module: "motorista", name: "Agendamento do Motorista", description: "Cadastro e organização de entregas, retiradas e bloqueios de horário.", href: "/dashboard/motorista", icon: "🚚", accent: "border-amber-200 bg-amber-50" },
   { module: "reunioes", name: "Reuniões", description: "Pautas, decisões, atas e pendências de acompanhamento.", href: "/dashboard/reunioes", icon: "👥", accent: "border-rose-200 bg-rose-50" },
-  { module: "marketing", name: "Marketing", description: "Campanhas, conteúdo, materiais e comunicação da Casa Timoni.", href: "/dashboard/marketing", icon: "📣", accent: "border-pink-200 bg-pink-50" },
-  { module: "financeiro", name: "Financeiro", description: "Pagamentos, atrasos, devoluções e bonificações de fornecedores.", href: "/dashboard/financeiro", icon: "💰", accent: "border-lime-200 bg-lime-50" },
 ];
 
 export default async function DashboardPage() {

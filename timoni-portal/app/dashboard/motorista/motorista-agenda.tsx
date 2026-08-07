@@ -344,12 +344,12 @@ export default function MotoristaAgenda() {
     const diaSemana = data.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
     const linhas = itens.map((v, index) => {
       const endereco = [v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ");
-      return `<div class="item"><p><strong>${index + 1}. ${horaCurta(v.horario)} ${v.tipoHorario || "Entrega"} ${lojaLabel(v.loja).toLowerCase()} - Vendedor: ${v.vendedor || ""}</strong></p><p>${v.clienteFornecedor || ""} ${v.numeroPedido || ""} Volume: ${v.volumes || ""}</p><p>${endereco}</p><p>Contato: ${v.contatoNome || ""}${v.contatoWhats ? ` - ${v.contatoWhats}` : ""}</p>${v.info ? `<p>Observação: ${v.info}</p>` : ""}</div>`;
+      return `<div class="item"><p><strong>${index + 1}. ${horaCurta(v.horario)} ${v.tipoHorario || "Entrega"} ${lojaLabel(v.loja).toLowerCase()} - Vendedor: ${v.vendedor || ""}</strong></p><p>${v.clienteFornecedor || ""} ${v.numeroPedido || ""} Volume: ${v.volumes || ""}</p><p>${endereco}</p><p>Contato: ${v.contatoNome || ""}${v.contatoWhats ? ` - ${v.contatoWhats}` : ""}</p>${v.info ? `<p>Observação: ${v.info}</p>` : ""}${v.preenchidoPor ? `<p class="preenchido">Preenchido por: ${v.preenchidoPor}</p>` : ""}</div>`;
     }).join("");
 
     const popup = window.open("", "_blank", "width=850,height=900");
     if (!popup) return;
-    popup.document.write(`<!doctype html><html><head><title>Agenda Motorista</title><style>body{font-family:Arial,sans-serif;margin:28px;color:#111}h1{font-size:18px;margin-bottom:28px}.item{margin-bottom:24px;page-break-inside:avoid}.item p{margin:3px 0;font-size:13px;line-height:1.4}</style></head><body><h1>AGENDA MOTORISTA - DIA ${data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} - ${diaSemana}</h1>${linhas}<script>window.onload=()=>window.print()</script></body></html>`);
+    popup.document.write(`<!doctype html><html><head><title>Agenda Motorista</title><style>body{font-family:Arial,sans-serif;margin:28px;color:#111}h1{font-size:18px;margin-bottom:28px}.item{margin-bottom:24px;page-break-inside:avoid}.item p{margin:3px 0;font-family:Arial,sans-serif;font-size:11pt;line-height:1.35}.item .preenchido{font-size:9pt;margin-top:8px}</style></head><body><h1>AGENDA MOTORISTA - DIA ${data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} - ${diaSemana}</h1>${linhas}<script>window.onload=()=>window.print()</script></body></html>`);
     popup.document.close();
   }
 
@@ -404,6 +404,7 @@ export default function MotoristaAgenda() {
                       {(v.contatoNome || v.contatoWhats) && <p className="mt-1 text-sm text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
                     </>}
                     {v.info && <p className="mt-2 text-sm text-slate-600">Observação: {v.info}</p>}
+                    {v.preenchidoPor && <p className="mt-3 font-[Arial] text-[9px] text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
                   </div>
                   <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50">Editar</button>
                 </div>

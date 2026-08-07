@@ -104,7 +104,7 @@ export default function MotoristaLeitura() {
           .print-day.print-selected { display: block !important; padding: 0 !important; }
           .print-day .screen-day-header { display: none !important; }
           .print-only { display: block !important; }
-          .print-item { border: 0 !important; background: white !important; padding: 0 0 18px 0 !important; }
+          .print-item { border: 0 !important; background: white !important; padding: 0 0 18px 0 !important; font-family: Arial, sans-serif !important; font-size: 11pt !important; }
           .print-number { display: none !important; }
           @page { size: A4; margin: 16mm; }
         }
@@ -168,18 +168,19 @@ export default function MotoristaLeitura() {
                           <div className="flex items-start gap-3">
                             <span className="print-number flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow-sm">{index + 1}</span>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold text-slate-950 print:text-base print:font-normal print:text-black">
+                              <p className="text-sm font-semibold text-slate-950 print:text-[11pt] print:font-normal print:text-black">
                                 <span className="print-only">{index + 1}. </span>{horaCurta(v.horario)}{v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""} {v.tipoHorario || "Viagem"} {lojaLabel(v.loja).toLowerCase()} {v.vendedor ? `- Vendedor: ${v.vendedor}` : ""}
                               </p>
                               <p className="screen-day-header mt-0.5 text-xs text-slate-600">{v.vendedor ? `Vendedor: ${v.vendedor}` : ""}</p>
                               {!bloqueio && (
                                 <>
-                                  <p className="mt-2 text-sm font-medium text-slate-900 print:mt-1 print:text-base print:font-normal print:text-black">{v.clienteFornecedor || ""} {v.numeroPedido || ""} {v.volumes ? `Volume: ${v.volumes}` : "Volume:"}</p>
-                                  {endereco && <p className="mt-1 text-sm text-slate-700 print:text-base print:text-black">{endereco}</p>}
-                                  {(v.contatoNome || v.contatoWhats) && <p className="mt-1 text-sm text-slate-700 print:text-base print:text-black">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
+                                  <p className="mt-2 text-sm font-medium text-slate-900 print:mt-1 print:text-[11pt] print:font-normal print:text-black">{v.clienteFornecedor || ""} {v.numeroPedido || ""} {v.volumes ? `Volume: ${v.volumes}` : "Volume:"}</p>
+                                  {endereco && <p className="mt-1 text-sm text-slate-700 print:text-[11pt] print:text-black">{endereco}</p>}
+                                  {(v.contatoNome || v.contatoWhats) && <p className="mt-1 text-sm text-slate-700 print:text-[11pt] print:text-black">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
                                 </>
                               )}
-                              {v.info && <p className="mt-2 text-sm text-slate-600 print:text-base print:text-black">Observação: {v.info}</p>}
+                              {v.info && <p className="mt-2 text-sm text-slate-600 print:text-[11pt] print:text-black">Observação: {v.info}</p>}
+                              {v.preenchidoPor && <p className="mt-3 font-[Arial] text-[9px] text-slate-500 print:text-[9pt] print:text-black">Preenchido por: {v.preenchidoPor}</p>}
                             </div>
                           </div>
                         </article>

@@ -108,9 +108,6 @@ export default async function ReunioesPage() {
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-600">{isGestao ? "Próximos registros" : "Próximo registro"}</p>
             <h2 className="mt-1 text-xl font-semibold text-slate-900">{isGestao ? "Reuniões agendadas" : "Reunião agendada"}</h2>
           </div>
-          <a href={MODEL_URL} target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-700 hover:text-blue-900">
-            Modelo de informações →
-          </a>
         </div>
 
         <div className={`mt-3 grid gap-4 ${isGestao ? "md:grid-cols-2" : "md:grid-cols-1"}`}>

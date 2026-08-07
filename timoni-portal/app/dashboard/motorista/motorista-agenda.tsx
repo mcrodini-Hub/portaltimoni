@@ -52,6 +52,8 @@ const REQUIRED: Array<keyof FormState> = [
   "preenchidoPor",
 ];
 
+const DIAS_SEMANA = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
 function localDateString(d = new Date()) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -59,11 +61,18 @@ function localDateString(d = new Date()) {
   return `${y}-${m}-${day}`;
 }
 
-function nextDays(start: Date, count = 7) {
-  return Array.from({ length: count }, (_, index) => {
-    const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + index);
-    return d;
-  });
+function dateFromString(value: string) {
+  const [y, m, d] = value.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+function monthGrid(base: Date) {
+  const first = new Date(base.getFullYear(), base.getMonth(), 1);
+  const start = new Date(first);
+  start.setDate(first.getDate() - first.getDay());
+  return Array.from({ length: 42 }, (_, index) =>
+    new Date(start.getFullYear(), start.getMonth(), start.getDate() + index),
+  );
 }
 
 function emptyForm(data = localDateString()): FormState {
@@ -95,8 +104,19 @@ async function parseResponse(response: Response) {
   return data;
 }
 
+function lojaLabel(loja?: string) {
+  if (loja === "araras") return "Araras";
+  if (loja === "rio_claro") return "Rio Claro";
+  return loja || "";
+}
+
+function horaCurta(hora?: string) {
+  return hora ? hora.slice(0, 5) : "--:--";
+}
+
 export default function MotoristaAgenda() {
-  const [inicio, setInicio] = useState(() => new Date());
+  const [mes, setMes] = useState(() => new Date());
+  const [diaSelecionado, setDiaSelecionado] = useState(() => localDateString());
   const [viagens, setViagens] = useState<Record<string, Viagem[]>>({});
   const [form, setForm] = useState<FormState>(() => emptyForm());
   const [modal, setModal] = useState(false);
@@ -105,7 +125,8 @@ export default function MotoristaAgenda() {
   const [erro, setErro] = useState("");
   const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());
 
-  const dias = useMemo(() => nextDays(inicio, 7), [inicio]);
+  const dias = useMemo(() => monthGrid(mes), [mes]);
+  const itensSelecionados = viagens[diaSelecionado] || [];
 
   async function carregar() {
     setLoading(true);
@@ -130,13 +151,23 @@ export default function MotoristaAgenda() {
   useEffect(() => {
     void carregar();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [inicio]);
+  }, [mes]);
+
+  function irHoje() {
+    const hoje = new Date();
+    setMes(hoje);
+    setDiaSelecionado(localDateString(hoje));
+  }
 
   function abrirNova(data?: string) {
-    setForm(emptyForm(data || localDateString()));
+    setForm(emptyForm(data || diaSelecionado));
     setInvalidos(new Set());
     setErro("");
     setModal(true);
+  }
+
+  function selecionarDia(data: string) {
+    setDiaSelecionado(data);
   }
 
   function fieldClass(name: keyof FormState) {
@@ -204,6 +235,8 @@ export default function MotoristaAgenda() {
       });
       await parseResponse(response);
       setModal(false);
+      setDiaSelecionado(form.data);
+      setMes(dateFromString(form.data));
       await carregar();
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível salvar.");
@@ -212,60 +245,141 @@ export default function MotoristaAgenda() {
     }
   }
 
-  const dataInicio = dias[0];
-  const dataFim = dias[dias.length - 1];
-  const faixa = `${dataInicio.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })} a ${dataFim.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })}`;
+  function imprimirDia() {
+    const itens = itensSelecionados.filter((v) => v.tipoHorario !== "Bloqueio");
+    if (!itens.length) {
+      setErro("Não há entregas ou retiradas agendadas neste dia para imprimir.");
+      return;
+    }
+
+    const data = dateFromString(diaSelecionado);
+    const diaSemana = data.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
+    const dataLabel = data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
+    const linhas = itens
+      .slice()
+      .sort((a, b) => String(a.horario || "").localeCompare(String(b.horario || "")))
+      .map((v, index) => {
+        const endereco = [v.endereco, v.complemento].filter(Boolean).join(" - ");
+        return `
+          <div class="item">
+            <p><strong>${index + 1}. ${horaCurta(v.horario)} ${v.tipoHorario || "Entrega"} ${lojaLabel(v.loja).toLowerCase()} - Vendedor: ${v.vendedor || ""}</strong></p>
+            <p>${v.clienteFornecedor || ""} ${v.numeroPedido || ""} Volume: ${v.volumes || ""}</p>
+            ${endereco ? `<p>${endereco}</p>` : ""}
+            ${(v.contatoNome || v.contatoWhats) ? `<p>Contato: ${[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>` : ""}
+            ${v.info ? `<p>Observação: ${v.info}</p>` : ""}
+          </div>`;
+      })
+      .join("");
+
+    const janela = window.open("", "_blank", "width=900,height=700");
+    if (!janela) {
+      setErro("O navegador bloqueou a janela de impressão. Libere pop-ups para o Portal Timoni.");
+      return;
+    }
+    janela.document.write(`<!doctype html><html><head><meta charset="utf-8"><title>Agenda Motorista ${dataLabel}</title><style>
+      @page { size: A4; margin: 16mm; }
+      body { font-family: Arial, sans-serif; color: #111; font-size: 13px; line-height: 1.35; }
+      h1 { font-size: 18px; margin: 0 0 24px; }
+      .item { margin: 0 0 18px; page-break-inside: avoid; }
+      p { margin: 3px 0; }
+    </style></head><body><h1>AGENDA MOTORISTA - DIA ${dataLabel} - ${diaSemana}</h1>${linhas}</body></html>`);
+    janela.document.close();
+    janela.focus();
+    janela.print();
+  }
+
+  const mesLabel = mes.toLocaleDateString("pt-BR", { month: "long", year: "numeric" });
+  const diaLabel = dateFromString(diaSelecionado).toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  });
 
   return (
     <>
       <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Próximos 7 dias</p>
-            <p className="mt-1 text-sm font-medium text-slate-800">{faixa}</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={() => setInicio((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - 7))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">← 7 dias</button>
-            <button type="button" onClick={() => setInicio(new Date())} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Hoje</button>
-            <button type="button" onClick={() => setInicio((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">+ 7 dias</button>
+        <div className="flex flex-col gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={() => abrirNova()} className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-900">Nova viagem</button>
+            <button type="button" onClick={imprimirDia} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Imprimir dia</button>
+            <span className="hidden h-7 w-px bg-slate-200 sm:block" />
+            <button type="button" onClick={() => setMes((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">← Mês</button>
+            <button type="button" onClick={irHoje} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Hoje</button>
+            <button type="button" onClick={() => setMes((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Mês →</button>
+            <p className="ml-auto text-sm font-semibold capitalize text-slate-800">{mesLabel}</p>
           </div>
         </div>
 
         {erro && !modal && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
-        <div className="mt-4 grid gap-3 lg:grid-cols-7">
+        <div className="mt-4 grid grid-cols-7 border-x border-t border-slate-200 bg-slate-50">
+          {DIAS_SEMANA.map((dia) => (
+            <div key={dia} className="border-b border-r border-slate-200 px-2 py-2 text-center text-[11px] font-semibold uppercase tracking-wide text-slate-500 last:border-r-0">{dia}</div>
+          ))}
+        </div>
+        <div className="grid grid-cols-7 border-l border-slate-200">
           {dias.map((d) => {
             const data = localDateString(d);
             const itens = viagens[data] || [];
             const hoje = data === localDateString();
+            const selecionado = data === diaSelecionado;
+            const mesmoMes = d.getMonth() === mes.getMonth();
             return (
-              <button key={data} type="button" onClick={() => abrirNova(data)} className={`min-h-40 rounded-2xl border p-3 text-left transition hover:border-blue-300 hover:shadow-sm ${hoje ? "border-blue-300 bg-blue-50/70" : "border-slate-200 bg-white"}`}>
-                <div className="flex items-center justify-between gap-2">
-                  <div>
-                    <p className="text-xs font-semibold uppercase text-slate-500">{d.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "")}</p>
-                    <p className="text-lg font-semibold text-slate-950">{d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}</p>
-                  </div>
-                  {hoje && <span className="rounded-full bg-blue-800 px-2 py-0.5 text-[10px] font-semibold text-white">Hoje</span>}
+              <button
+                key={data}
+                type="button"
+                onClick={() => selecionarDia(data)}
+                className={`min-h-24 border-b border-r border-slate-200 p-2 text-left transition sm:min-h-28 ${selecionado ? "bg-blue-50 ring-2 ring-inset ring-blue-500" : hoje ? "bg-blue-50/50" : "bg-white hover:bg-slate-50"} ${!mesmoMes ? "opacity-45" : ""}`}
+              >
+                <div className="flex items-center justify-between gap-1">
+                  <span className={`text-xs font-semibold ${hoje ? "text-blue-800" : "text-slate-700"}`}>{d.getDate()}</span>
+                  {itens.length > 0 && <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-semibold text-slate-600">{itens.length}</span>}
                 </div>
-
-                <div className="mt-3 space-y-2">
+                <div className="mt-1 space-y-1">
                   {loading ? (
-                    <p className="text-xs text-slate-400">Carregando...</p>
-                  ) : itens.length === 0 ? (
-                    <p className="text-xs text-slate-400">Sem viagens</p>
+                    <span className="text-[10px] text-slate-400">...</span>
                   ) : (
-                    itens.map((v) => (
-                      <div key={v.id} className="rounded-xl border border-slate-200 bg-slate-50 p-2">
-                        <p className="truncate text-xs font-semibold text-slate-900">{v.horario || "--:--"} · {v.clienteFornecedor || v.tipoHorario}</p>
-                        <p className="mt-0.5 truncate text-[11px] text-slate-500">{v.loja === "araras" ? "Araras" : v.loja === "rio_claro" ? "Rio Claro" : v.loja || ""}{v.vendedor ? ` · ${v.vendedor}` : ""}</p>
+                    itens.slice(0, 3).map((v) => (
+                      <div key={v.id} className={`truncate rounded px-1.5 py-1 text-[10px] ${v.tipoHorario === "Bloqueio" ? "bg-amber-100 text-amber-900" : "bg-slate-100 text-slate-700"}`}>
+                        {horaCurta(v.horario)} · {v.clienteFornecedor || v.tipoHorario}
                       </div>
                     ))
                   )}
+                  {itens.length > 3 && <p className="text-[10px] font-medium text-slate-500">+{itens.length - 3} mais</p>}
                 </div>
               </button>
             );
           })}
+        </div>
+      </section>
+
+      <section className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 pb-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.12em] text-blue-700">Dia selecionado</p>
+            <h2 className="mt-1 text-base font-semibold capitalize text-slate-950">{diaLabel}</h2>
+          </div>
+          <div className="flex gap-2">
+            <button type="button" onClick={() => abrirNova(diaSelecionado)} className="rounded-lg bg-blue-800 px-3 py-2 text-sm font-semibold text-white">Nova viagem neste dia</button>
+            <button type="button" onClick={imprimirDia} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">Imprimir dia</button>
+          </div>
+        </div>
+
+        <div className="mt-3 space-y-2">
+          {loading ? (
+            <p className="text-sm text-slate-400">Carregando...</p>
+          ) : itensSelecionados.length === 0 ? (
+            <p className="text-sm text-slate-400">Sem viagens neste dia.</p>
+          ) : (
+            itensSelecionados.map((v, index) => (
+              <div key={v.id} className={`rounded-xl border p-3 ${v.tipoHorario === "Bloqueio" ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
+                <p className="text-sm font-semibold text-slate-950">{index + 1}. {horaCurta(v.horario)}{v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""} · {v.tipoHorario || "Viagem"} · {lojaLabel(v.loja)}</p>
+                {v.vendedor && <p className="mt-1 text-xs text-slate-600">Vendedor: {v.vendedor}</p>}
+                {v.clienteFornecedor && <p className="mt-1 text-sm text-slate-800">{v.clienteFornecedor}{v.numeroPedido ? ` · ${v.numeroPedido}` : ""}{v.volumes ? ` · Volume: ${v.volumes}` : ""}</p>}
+              </div>
+            ))
+          )}
         </div>
       </section>
 

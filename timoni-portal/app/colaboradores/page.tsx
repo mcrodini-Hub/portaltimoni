@@ -170,12 +170,11 @@ function getNextArarasMeeting(reference: Date): FixedMeeting {
   }
 }
 
-function getNextRioClaroMeeting(reference: Date): FixedMeeting {
-  const candidate = new Date("2026-08-08T07:30:00-03:00");
+function getNextRioClaroMeeting(reference: Date): FixedMeeting | undefined {
+  const candidate = new Date("2026-09-03T07:30:00-03:00");
+  const meetingEnd = new Date(candidate.getTime() + 60 * 60 * 1000);
 
-  while (new Date(candidate.getTime() + 60 * 60 * 1000) <= reference) {
-    candidate.setUTCDate(candidate.getUTCDate() + 14);
-  }
+  if (meetingEnd <= reference) return undefined;
 
   return {
     summary: "Reunião Rio Claro",
@@ -368,7 +367,7 @@ function MeetingCard({ title, meeting, fixedMeeting }: { title: string; meeting?
   );
 }
 
-function MeetingSummaryCard({ araras, rioClaro }: { araras: FixedMeeting; rioClaro: FixedMeeting }) {
+function MeetingSummaryCard({ araras, rioClaro }: { araras: FixedMeeting; rioClaro?: FixedMeeting }) {
   return (
     <article className="rounded-3xl border border-violet-200 bg-violet-50 p-6 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Reuniões</p>
@@ -381,8 +380,14 @@ function MeetingSummaryCard({ araras, rioClaro }: { araras: FixedMeeting; rioCla
         </div>
         <div className="border-t border-violet-200 pt-3">
           <p className="font-semibold text-violet-800">Rio Claro</p>
-          <p>{formatFixedMeetingDateTime(rioClaro)}</p>
-          <p>{rioClaro.label}</p>
+          {rioClaro ? (
+            <>
+              <p>{formatFixedMeetingDateTime(rioClaro)}</p>
+              <p>{rioClaro.label}</p>
+            </>
+          ) : (
+            <p>Próxima reunião mensal ainda não programada.</p>
+          )}
         </div>
       </div>
     </article>

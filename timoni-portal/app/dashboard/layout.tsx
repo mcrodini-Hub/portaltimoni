@@ -4,7 +4,7 @@ import Link from "next/link";
 import { hasModuleAccess } from "@/lib/access-control";
 import StoreSwitcher from "./store-switcher";
 
-const MOTORISTA_URL = "/agenda-motorista-v2/";
+const MOTORISTA_URL = "/dashboard/motorista";
 const STORE_SWITCHER_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
 
 export default async function DashboardLayout({

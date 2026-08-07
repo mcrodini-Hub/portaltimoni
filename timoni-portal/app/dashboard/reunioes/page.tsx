@@ -118,38 +118,6 @@ export default async function ReunioesPage() {
         </div>
       </section>
 
-      <section className="mt-5 grid gap-4 lg:grid-cols-[1.35fr_1fr]">
-        <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-emerald-600">Fluxo padrão</p>
-          <h2 className="mt-1 text-xl font-semibold text-slate-900">Como cada reunião será tratada</h2>
-          <div className="mt-4 space-y-3">
-            {[
-              ["1", "Preparar", "Reunir pauta, resultados e pendências anteriores."],
-              ["2", "Registrar", "Anotar os apontamentos dentro dos tópicos da pauta."],
-              ["3", "Consolidar", "Finalizar a ata e manter os arquivos na pasta oficial."],
-            ].map(([step, title, description]) => (
-              <div key={step} className="flex gap-3 rounded-2xl bg-slate-50 p-4">
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">{step}</span>
-                <div>
-                  <p className="font-semibold text-slate-900">{title}</p>
-                  <p className="mt-0.5 text-sm leading-5 text-slate-500">{description}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="rounded-3xl border border-blue-100 bg-blue-50 p-5">
-          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Arquivos oficiais</p>
-          <h2 className="mt-1 text-xl font-semibold text-slate-900">{isGestao ? "Tudo organizado por unidade" : "Tudo organizado para Araras"}</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">
-            {isGestao
-              ? "Pauta para impressão, apresentação e ata ficam disponíveis nas pastas de Araras e Rio Claro."
-              : "Pauta para impressão, apresentação e ata ficam disponíveis na pasta oficial de Reuniões Araras."}
-          </p>
-          <a href={DRIVE_URL} target="_blank" rel="noreferrer" className="mt-4 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-900">Abrir Google Drive →</a>
-        </div>
-      </section>
     </div>
   );
 }

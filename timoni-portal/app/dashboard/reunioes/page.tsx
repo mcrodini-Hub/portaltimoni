@@ -40,7 +40,7 @@ const meetings: Meeting[] = [
   },
   {
     unit: "Rio Claro",
-    pautaUrl: "https://docs.google.com/document/d/1M6jya2u-u_iqHMGd3cvH-p_YjbJbK2BzP4I0HlJxZEs",
+    pautaUrl: "https://docs.google.com/document/d/1qlgMtkqkg-LlS-LtdxDHYKcNXWbAbgWjARDtNRLHBe8",
     date: "08/08/2026",
     day: "Sábado",
     time: "7h30",
@@ -49,8 +49,8 @@ const meetings: Meeting[] = [
     secondTime: "7h30",
     frequency: "Mensal",
     leaders: "Ciça, Marcelo e Jeovana",
-    url: "https://docs.google.com/document/d/1rVOOEsR4dkqj51O8iRc14X5Iy2ywCEn0hxXz_jBKmyQ",
-    slidesUrl: "https://docs.google.com/presentation/d/1TPXlD4tIng7g0FozlQkzkpz7MiiRyz_5pcToiVs-gMM",
+    url: "https://docs.google.com/document/d/11fReHdh6AwwOoJXGWnRrDnU6VFbwZ4iduT_8NbYpVr4",
+    slidesUrl: "https://docs.google.com/presentation/d/1VblTWAcgvrEdWBf5PMq97sr23NNdtT7vQg8Hmza_JPM",
     style: "border-blue-200 bg-blue-50",
   },
 ];

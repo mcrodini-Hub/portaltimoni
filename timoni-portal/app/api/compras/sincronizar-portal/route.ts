@@ -39,7 +39,7 @@ export async function GET() {
   try {
     const result = await syncPortalTrelloDocs(credentials);
     return NextResponse.json(
-      { ok: true, board: "https://trello.com/b/tZi5fLDT/portal-timoni", ...result },
+      { ok: true, ...result },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

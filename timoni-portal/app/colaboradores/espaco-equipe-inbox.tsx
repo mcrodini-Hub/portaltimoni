@@ -41,17 +41,26 @@ export default async function EspacoEquipeInbox() {
 
   return (
     <section className="mt-6 rounded-3xl border border-blue-200 bg-blue-50 p-6 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Espaço Equipe</p>
-      <h2 className="mt-2 text-xl font-semibold text-slate-950">Mensagens da equipe</h2>
+      <div className="max-w-3xl">
+        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Espaço Equipe</p>
+        <h2 className="mt-2 text-xl font-semibold text-slate-950">Sua contribuição ajuda a melhorar nosso dia a dia</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          Use este espaço para enviar sugestões, reclamações, dificuldades ou ideias de melhoria. Os registros serão analisados pela gestão e poderão ser considerados nas pautas das reuniões.
+        </p>
+      </div>
+
+      <div className="mt-5 border-t border-blue-200 pt-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Mensagens recebidas</p>
+      </div>
 
       {messages.length ? (
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className="mt-3 grid gap-3 md:grid-cols-2">
           {messages.map((item, index) => (
             <MessageBox key={`${item.date}-${item.employee}-${index}`} item={item} index={index} />
           ))}
         </div>
       ) : (
-        <p className="mt-4 rounded-2xl bg-white/80 p-4 text-sm text-slate-600">
+        <p className="mt-3 rounded-2xl bg-white/80 p-4 text-sm text-slate-600">
           Nenhuma mensagem registrada ainda.
         </p>
       )}

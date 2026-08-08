@@ -1,6 +1,8 @@
 import { auth, signOut } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import Link from "next/link";
+import EspacoEquipeForm from "@/app/colaboradores/espaco-equipe-form";
+import { TEAM_MEMBERS } from "@/lib/team-members";
 
 export default async function ColaboradoresLayout({
   children,
@@ -43,6 +45,7 @@ export default async function ColaboradoresLayout({
 
       <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
         {children}
+        <EspacoEquipeForm members={TEAM_MEMBERS} />
       </main>
     </div>
   );

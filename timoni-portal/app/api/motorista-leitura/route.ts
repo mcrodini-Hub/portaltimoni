@@ -8,25 +8,20 @@ const WEBAPP_URL =
   "https://script.google.com/macros/s/AKfycbwy9QfpEbdGtTIiC2OFuZAUx0jIPFsXPLZKedfGp79VJ6mlzLYus_wjI2IvFPoeE6Pc/exec";
 const REQUEST_TIMEOUT_MS = 30_000;
 
-export async function GET(request: NextRequest) {
-  const action = request.nextUrl.searchParams.get("action");
-  if (action !== "dia") {
-    return NextResponse.json({ ok: false, erro: "Consulta não permitida." }, { status: 400 });
-  }
-
-  const destino = new URL(WEBAPP_URL);
-  request.nextUrl.searchParams.forEach((valor, chave) => destino.searchParams.set(chave, valor));
-
+async function encaminhar(url: string, init: RequestInit) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
   try {
-    const resposta = await fetch(destino.toString(), {
-      method: "GET",
+    const resposta = await fetch(url, {
+      ...init,
       redirect: "follow",
       cache: "no-store",
       signal: controller.signal,
-      headers: { Accept: "application/json" },
+      headers: {
+        Accept: "application/json",
+        ...(init.headers || {}),
+      },
     });
     const texto = await resposta.text();
     return new NextResponse(texto, {
@@ -45,4 +40,35 @@ export async function GET(request: NextRequest) {
   } finally {
     clearTimeout(timeout);
   }
+}
+
+export async function GET(request: NextRequest) {
+  const action = request.nextUrl.searchParams.get("action");
+  if (action !== "dia") {
+    return NextResponse.json({ ok: false, erro: "Consulta não permitida." }, { status: 400 });
+  }
+
+  const destino = new URL(WEBAPP_URL);
+  request.nextUrl.searchParams.forEach((valor, chave) => destino.searchParams.set(chave, valor));
+  return encaminhar(destino.toString(), { method: "GET" });
+}
+
+export async function POST(request: NextRequest) {
+  const body = await request.json().catch(() => null);
+  const id = typeof body?.id === "string" ? body.id.trim() : "";
+  if (!id) {
+    return NextResponse.json({ ok: false, erro: "Viagem não informada." }, { status: 400 });
+  }
+
+  const notasJson = JSON.stringify({
+    status: "feito",
+    feitoEm: new Date().toISOString(),
+  });
+  const payload = new URLSearchParams({ action: "atualizar", id, notasJson });
+
+  return encaminhar(WEBAPP_URL, {
+    method: "POST",
+    body: payload.toString(),
+    headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+  });
 }

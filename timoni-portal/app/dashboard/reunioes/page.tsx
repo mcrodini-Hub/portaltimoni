@@ -49,7 +49,7 @@ const meetings: Meeting[] = [
     secondTime: "7h30",
     frequency: "Mensal",
     leaders: "Ciça, Marcelo e Jeovana",
-    url: "https://docs.google.com/document/d/11fReHdh6AwwOoJXGWnRrDnU6VFbwZ4iduT_8NbYpVr4",
+    url: "https://docs.google.com/document/d/1rVOOEsR4dkqj51O8iRc14X5Iy2ywCEn0hxXz_jBKmyQ",
     slidesUrl: "https://docs.google.com/presentation/d/1VblTWAcgvrEdWBf5PMq97sr23NNdtT7vQg8Hmza_JPM",
     style: "border-blue-200 bg-blue-50",
   },

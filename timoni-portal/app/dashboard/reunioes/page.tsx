@@ -1,8 +1,6 @@
 import { auth } from "@/lib/auth";
-import { listTeamMessages, type TeamMessage } from "@/lib/espaco-equipe";
 
 const DRIVE_URL = "https://drive.google.com/drive/folders/1a90BS_9nnf_9_o9VZyNDICfPyAxxyYOg";
-const ESPACO_EQUIPE_URL = "https://docs.google.com/spreadsheets/d/1aLAj_PJv8MjDpzKkGqyLnALCiP_uJfe9udj9_Yk0X-I/edit";
 
 const GESTAO_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
 
@@ -101,70 +99,11 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
   );
 }
 
-function formatMessageDate(value: string) {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(date);
-}
-
-function TeamMessages({ messages }: { messages: TeamMessage[] }) {
-  return (
-    <section className="mt-5 rounded-3xl border border-indigo-200 bg-indigo-50 p-5 shadow-sm sm:p-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-indigo-700">Espaço Equipe</p>
-          <h2 className="mt-1 text-xl font-semibold text-slate-900">Demandas recebidas dos funcionários</h2>
-          <p className="mt-2 text-sm leading-6 text-slate-600">Sugestões, reclamações e ideias para considerar na preparação das próximas pautas.</p>
-        </div>
-        <a href={ESPACO_EQUIPE_URL} target="_blank" rel="noreferrer" className="inline-flex shrink-0 items-center justify-center rounded-xl border border-indigo-200 bg-white px-4 py-2.5 text-sm font-semibold text-indigo-800 transition hover:bg-indigo-100">
-          Abrir registros
-        </a>
-      </div>
-
-      {messages.length ? (
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
-          {messages.map((item, index) => (
-            <article key={`${item.date}-${item.employee}-${index}`} className="rounded-2xl border border-indigo-100 bg-white p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="font-semibold text-slate-950">{item.employee}</p>
-                  <p className="text-xs text-slate-500">{item.unit} · {formatMessageDate(item.date)}</p>
-                </div>
-                <span className="rounded-full bg-indigo-100 px-2.5 py-1 text-xs font-semibold text-indigo-800">{item.status || "Novo"}</span>
-              </div>
-              <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.message}</p>
-              {item.note && <p className="mt-3 border-t border-slate-100 pt-3 text-xs text-slate-500">{item.note}</p>}
-            </article>
-          ))}
-        </div>
-      ) : (
-        <p className="mt-4 rounded-2xl bg-white p-4 text-sm text-slate-600">Nenhuma mensagem registrada ainda.</p>
-      )}
-    </section>
-  );
-}
-
 export default async function ReunioesPage() {
   const session = await auth();
   const email = session?.user?.email?.trim().toLowerCase() ?? "";
   const isGestao = GESTAO_EMAILS.has(email);
   const visibleMeetings = isGestao ? meetings : meetings.filter((meeting) => meeting.unit === "Araras");
-  let teamMessages: TeamMessage[] = [];
-
-  if (isGestao) {
-    try {
-      teamMessages = await listTeamMessages();
-    } catch {
-      teamMessages = [];
-    }
-  }
 
   return (
     <div className="pb-10">
@@ -175,7 +114,7 @@ export default async function ReunioesPage() {
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{isGestao ? "Reuniões" : "Reuniões Araras"}</h1>
             <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600">
               {isGestao
-                ? "Pautas, atas, apresentação, registros oficiais e demandas da equipe de Araras e Rio Claro."
+                ? "Pautas, atas, apresentação e registros oficiais de Araras e Rio Claro."
                 : "Pauta, ata, apresentação e registros oficiais das reuniões de Araras."}
             </p>
           </div>
@@ -184,8 +123,6 @@ export default async function ReunioesPage() {
           </a>
         </div>
       </section>
-
-      {isGestao && <TeamMessages messages={teamMessages} />}
 
       <section className="mt-5">
         <div className="flex items-end justify-between gap-3">

@@ -6,6 +6,16 @@ const GESTAO_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
 
 type MeetingUnit = "Araras" | "Rio Claro";
 
+type EmployeeMessage = {
+  id: string;
+  unit: MeetingUnit;
+  employee: string;
+  date: string;
+  message: string;
+};
+
+const employeeMessages: EmployeeMessage[] = [];
+
 type Meeting = {
   unit: MeetingUnit;
   pautaUrl: string;
@@ -99,11 +109,36 @@ function MeetingCard({ meeting }: { meeting: Meeting }) {
   );
 }
 
+function EmployeeMessages({ messages }: { messages: EmployeeMessage[] }) {
+  return (
+    <section className="mt-5 rounded-3xl border border-blue-200 bg-blue-50 p-5 shadow-sm sm:p-6">
+      <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Mensagens dos funcionários</p>
+      <h2 className="mt-1 text-xl font-semibold text-slate-900">Para leitura nas reuniões</h2>
+      {messages.length ? (
+        <div className="mt-4 space-y-3">
+          {messages.map((item) => (
+            <article key={item.id} className="rounded-2xl bg-white/80 p-4">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <p className="font-semibold text-slate-900">{item.employee}</p>
+                <p className="text-xs font-medium text-slate-500">{item.unit} · {item.date}</p>
+              </div>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.message}</p>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <p className="mt-3 text-sm text-slate-600">Nenhuma mensagem registrada.</p>
+      )}
+    </section>
+  );
+}
+
 export default async function ReunioesPage() {
   const session = await auth();
   const email = session?.user?.email?.trim().toLowerCase() ?? "";
   const isGestao = GESTAO_EMAILS.has(email);
   const visibleMeetings = isGestao ? meetings : meetings.filter((meeting) => meeting.unit === "Araras");
+  const visibleMessages = isGestao ? employeeMessages : employeeMessages.filter((item) => item.unit === "Araras");
 
   return (
     <div className="pb-10">
@@ -136,6 +171,8 @@ export default async function ReunioesPage() {
           {visibleMeetings.map((meeting) => <MeetingCard key={meeting.unit} meeting={meeting} />)}
         </div>
       </section>
+
+      <EmployeeMessages messages={visibleMessages} />
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { hasModuleAccess } from "@/lib/access-control";
+import { syncPortalTrelloDocs } from "@/lib/portal-trello-docs";
 import {
   getStoredTrelloCredentials,
   normalizeTrelloText,
@@ -91,6 +92,15 @@ export async function GET() {
     );
   }
 
+  let portalDocsSync: Awaited<ReturnType<typeof syncPortalTrelloDocs>> | { error: string } | null = null;
+  try {
+    portalDocsSync = await syncPortalTrelloDocs(credentials);
+  } catch (error) {
+    portalDocsSync = {
+      error: error instanceof Error ? error.message : "Não foi possível sincronizar a documentação do Portal Timoni.",
+    };
+  }
+
   try {
     const board = await trelloFetch<TrelloBoard>(`/boards/${TRELLO_BOARD_SHORT_LINK}`, {
       params: {
@@ -170,6 +180,7 @@ export async function GET() {
           rio_claro: sentRioClaroList?.id || null,
           araras: sentArarasList?.id || null,
         },
+        portalDocsSync,
         updatedAt: new Date().toISOString(),
       },
       { headers: { "Cache-Control": "no-store" } },
@@ -178,6 +189,7 @@ export async function GET() {
     return NextResponse.json(
       {
         configured: true,
+        portalDocsSync,
         error:
           error instanceof Error
             ? `Não foi possível ler o Trello: ${error.message}`

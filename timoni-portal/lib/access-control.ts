@@ -28,6 +28,9 @@ const allModules: PortalModule[] = [
   "reunioes",
 ];
 
+const modulesWithoutCicaAgenda = allModules.filter((module) => module !== "agenda");
+const operationalModules: PortalModule[] = ["painel", "estoque", "motorista"];
+
 function withStock(modules: PortalModule[]): PortalModule[] {
   return Array.from(new Set<PortalModule>([...modules, "estoque"]));
 }
@@ -42,7 +45,7 @@ export const portalUsers: Record<string, PortalUser> = {
   "mrodini@gmail.com": {
     name: "Marcelo Rodini",
     email: "mrodini@gmail.com",
-    modules: withStock(allModules.filter((module) => module !== "agenda")),
+    modules: modulesWithoutCicaAgenda,
     requiresPassword: true,
   },
   "margareth@casatimoni.com.br": {
@@ -60,13 +63,13 @@ export const portalUsers: Record<string, PortalUser> = {
   "comercialrc@casatimoni.com.br": {
     name: "Jeovana - Rio Claro",
     email: "comercialrc@casatimoni.com.br",
-    modules: withStock(["painel", "motorista", "financeiro"]),
+    modules: modulesWithoutCicaAgenda,
     requiresPassword: true,
   },
   "estoqueararascasatimoni@gmail.com": {
     name: "Estoque Araras",
     email: "estoqueararascasatimoni@gmail.com",
-    modules: withStock(["painel", "motorista", "financeiro"]),
+    modules: operationalModules,
     requiresPassword: true,
   },
   "comercialara@casatimoni.com.br": {
@@ -78,25 +81,25 @@ export const portalUsers: Record<string, PortalUser> = {
   "casatimoniararas@gmail.com": {
     name: "Casa Timoni Araras",
     email: "casatimoniararas@gmail.com",
-    modules: withStock(["painel"]),
+    modules: operationalModules,
     requiresPassword: false,
   },
   "marketplacerc.mcr@gmail.com": {
     name: "Jaqueline - Marketplace Rio Claro",
     email: "marketplacerc.mcr@gmail.com",
-    modules: withStock(["painel", "motorista"]),
+    modules: operationalModules,
     requiresPassword: false,
   },
   "estoquetimoni@gmail.com": {
     name: "Lucas - Estoque Rio Claro",
     email: "estoquetimoni@gmail.com",
-    modules: withStock(["painel"]),
+    modules: operationalModules,
     requiresPassword: false,
   },
   "fotoscasatimoni@gmail.com": {
     name: "Lucas e Vendedores - Araras",
     email: "fotoscasatimoni@gmail.com",
-    modules: withStock(["painel"]),
+    modules: operationalModules,
     requiresPassword: false,
   },
   "balcaotimoni@gmail.com": {

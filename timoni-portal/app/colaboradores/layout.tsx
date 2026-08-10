@@ -4,6 +4,7 @@ import Link from "next/link";
 import EspacoEquipeForm from "@/app/colaboradores/espaco-equipe-form";
 import EspacoEquipeInbox from "@/app/colaboradores/espaco-equipe-inbox";
 import PainelAlerts from "@/app/colaboradores/painel-alerts";
+import PainelNotificationsClient from "@/app/painel-notifications-client";
 import { TEAM_MEMBERS } from "@/lib/team-members";
 
 const GESTAO_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
@@ -61,6 +62,8 @@ export default async function ColaboradoresLayout({
           </form>
         </div>
       </header>
+
+      <PainelNotificationsClient email={email} />
 
       <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
         <PainelAlerts email={email} />

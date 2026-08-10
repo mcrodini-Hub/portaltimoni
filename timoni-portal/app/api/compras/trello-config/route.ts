@@ -1,6 +1,6 @@
 import { auth } from "@/lib/auth";
 import { hasModuleAccess } from "@/lib/access-control";
-import { getStoredTrelloCredentials, validateTrelloCredentials } from "@/lib/trello";
+import { getStoredTrelloCredentials, TRELLO_API_KEY, validateTrelloCredentials } from "@/lib/trello";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
@@ -39,12 +39,13 @@ export async function POST(request: Request) {
   if (unauthorized) return unauthorized;
 
   try {
-    const body = (await request.json()) as { key?: string; token?: string };
-    const key = body.key?.trim();
+    const body = (await request.json()) as { token?: string; key?: string };
     const token = body.token?.trim();
-    if (!key || !token) {
+    const key = body.key?.trim() || TRELLO_API_KEY;
+
+    if (!token) {
       return NextResponse.json(
-        { error: "Informe a chave e o token do Trello." },
+        { error: "Cole a chave de conexão do Trello." },
         { status: 400 },
       );
     }
@@ -67,7 +68,7 @@ export async function POST(request: Request) {
       {
         error:
           error instanceof Error
-            ? `O Trello não aceitou as credenciais: ${error.message}`
+            ? `O Trello não aceitou a chave: ${error.message}`
             : "Não foi possível validar o Trello.",
       },
       { status: 400 },

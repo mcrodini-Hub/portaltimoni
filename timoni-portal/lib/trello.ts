@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 
 export const TRELLO_BOARD_SHORT_LINK = "UfPrTr1H";
 export const TRELLO_BOARD_URL = "https://trello.com/b/UfPrTr1H/compras";
+export const TRELLO_API_KEY = "6d6dfd3e5a2a67b5a99006ae2825a5df";
 
 export type TrelloCredentials = {
   key: string;

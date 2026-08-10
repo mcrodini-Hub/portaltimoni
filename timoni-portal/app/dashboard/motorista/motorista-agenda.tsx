@@ -37,6 +37,7 @@ type FormState = {
   contatoWhats: string;
   cep: string;
   endereco: string;
+  numeroEndereco: string;
   linkEndereco: string;
   observacao: string;
   preenchidoPor: string;
@@ -56,6 +57,7 @@ const REQUIRED: Array<keyof FormState> = [
   "contatoNome",
   "contatoWhats",
   "endereco",
+  "numeroEndereco",
   "preenchidoPor",
 ];
 
@@ -98,6 +100,7 @@ function emptyForm(data = localDateString()): FormState {
     contatoWhats: "",
     cep: "",
     endereco: "",
+    numeroEndereco: "",
     linkEndereco: "",
     observacao: "",
     preenchidoPor: "",
@@ -123,6 +126,7 @@ function formFromViagem(v: Viagem): FormState {
     contatoWhats: v.contatoWhats || "",
     cep: "",
     endereco: enderecoCompleto.replace(/\nLink:\s*https?:\/\/\S+/i, "").trim(),
+    numeroEndereco: v.numero || "",
     linkEndereco: match?.[1] || "",
     observacao: v.info || "",
     preenchidoPor: v.preenchidoPor || "",
@@ -260,6 +264,9 @@ export default function MotoristaAgenda() {
       const endereco = [data.logradouro, data.bairro, [data.localidade, data.uf].filter(Boolean).join("/")].filter(Boolean).join(" - ");
       const linkMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}`;
       set("endereco", endereco);
+      set("numeroEndereco", "");
+      set("linkEndereco", "");
+      setErro("CEP localizado. Confirme o número do endereço para gerar o link do Google Maps.");
       set("linkEndereco", linkMaps);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível buscar o CEP.");
@@ -285,7 +292,9 @@ export default function MotoristaAgenda() {
     setSaving(true);
     setErro("");
     try {
-      const detalhesEndereco = form.linkEndereco ? `${form.endereco}\nLink: ${form.linkEndereco}` : form.endereco;
+      const enderecoCompleto = [form.endereco, form.numeroEndereco].filter(Boolean).join(", ");
+      const linkMaps = form.linkEndereco || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoCompleto)}`;
+      const detalhesEndereco = `${form.endereco}\nLink: ${linkMaps}`;
       const payload = new URLSearchParams({
         action: editandoId ? "atualizar" : "criar",
         ...(editandoId ? { id: editandoId } : {}),
@@ -301,7 +310,7 @@ export default function MotoristaAgenda() {
         contatoNome: form.contatoNome,
         contatoWhats: form.contatoWhats,
         endereco: detalhesEndereco,
-        numero: "",
+        numero: form.numeroEndereco,
         complemento: "",
         itens: "",
         info: form.observacao,
@@ -459,8 +468,8 @@ export default function MotoristaAgenda() {
 
             <div className="mt-4 grid gap-4">
               <div className="grid gap-2 sm:grid-cols-[220px_auto] sm:items-end"><label className="text-sm font-medium text-slate-700">CEP<input value={form.cep} onChange={(e) => set("cep", formatarCep(e.target.value))} inputMode="numeric" placeholder="00000-000" className={fieldClass("cep")} /></label><button type="button" onClick={buscarCep} className="h-[42px] rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">Buscar CEP</button></div>
-              <label className="text-sm font-medium text-slate-700">* Endereço<input value={form.endereco} onChange={(e) => set("endereco", e.target.value)} className={fieldClass("endereco")} /></label>
-              <label className="text-sm font-medium text-slate-700">Link endereço<input type="url" value={form.linkEndereco} onChange={(e) => set("linkEndereco", e.target.value)} placeholder="https://maps.google.com/..." className={fieldClass("linkEndereco")} /></label>
+              <div className="grid gap-4 sm:grid-cols-[1fr_180px]"><label className="text-sm font-medium text-slate-700">* Endereço<input value={form.endereco} onChange={(e) => set("endereco", e.target.value)} className={fieldClass("endereco")} /></label><label className="text-sm font-medium text-slate-700">* Número<input value={form.numeroEndereco} onChange={(e) => { const numero = e.target.value; set("numeroEndereco", numero); const destino = [form.endereco, numero].filter(Boolean).join(", "); set("linkEndereco", destino ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destino)}` : ""); }} placeholder="Confirme o número" className={fieldClass("numeroEndereco")} /></label></div>
+              <label className="text-sm font-medium text-slate-700">Link endereço<input type="url" value={form.linkEndereco} onChange={(e) => set("linkEndereco", e.target.value)} placeholder="Gerado após informar o número" className={fieldClass("linkEndereco")} /></label>
               <label className="text-sm font-medium text-slate-700">Observação<textarea value={form.observacao} onChange={(e) => set("observacao", e.target.value)} rows={3} className={fieldClass("observacao")} /></label>
               <label className="text-sm font-medium text-slate-700">* Preenchido por<select value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} className={fieldClass("preenchidoPor")}><option value="">Selecione</option>{form.preenchidoPor && !AUTORIZADOS.includes(form.preenchidoPor as (typeof AUTORIZADOS)[number]) && <option value={form.preenchidoPor}>{form.preenchidoPor}</option>}{AUTORIZADOS.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>
             </div>

@@ -15,6 +15,15 @@ const etapas = [
 export default function ComprasPage() {
   return (
     <div className="pb-10">
+      <div className="mb-4 flex justify-end">
+        <a
+          href="/dashboard/compras/configurar"
+          className="inline-flex min-h-11 items-center justify-center rounded-xl border border-blue-300 bg-white px-5 text-sm font-semibold text-blue-800 shadow-sm hover:bg-blue-50"
+        >
+          Configurar Trello
+        </a>
+      </div>
+
       <ComprasClient />
 
       <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">

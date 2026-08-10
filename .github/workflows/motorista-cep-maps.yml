@@ -1,0 +1,31 @@
+name: Motorista CEP Maps
+on:
+  push:
+    paths:
+      - '.github/workflows/motorista-cep-maps.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Atualizar busca de CEP
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('timoni-portal/app/dashboard/motorista/motorista-agenda.tsx')
+          s = p.read_text(encoding='utf-8')
+          old = '''      const endereco = [data.logradouro, data.bairro, [data.localidade, data.uf].filter(Boolean).join("/")].filter(Boolean).join(" - ");\n      set("endereco", endereco);'''
+          new = '''      const endereco = [data.logradouro, data.bairro, [data.localidade, data.uf].filter(Boolean).join("/")].filter(Boolean).join(" - ");\n      const linkMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}`;\n      set("endereco", endereco);\n      set("linkEndereco", linkMaps);'''
+          if old not in s:
+              raise SystemExit('Trecho da busca de CEP não encontrado')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "mcrodini-Hub"
+          git config user.email "mcrodini@gmail.com"
+          git add timoni-portal/app/dashboard/motorista/motorista-agenda.tsx
+          git commit -m "feat: gera link Google Maps ao buscar CEP" || exit 0
+          git push

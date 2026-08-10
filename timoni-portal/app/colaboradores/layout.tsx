@@ -8,7 +8,7 @@ import { TEAM_MEMBERS } from "@/lib/team-members";
 const GESTAO_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
 
 const navItems = [
-  { href: "/colaboradores", label: "Casa Timoni" },
+  { href: "/dashboard", label: "Casa Timoni" },
   { href: "/colaboradores", label: "Painel Timoni" },
   { href: "/dashboard/estoque", label: "Estoque" },
   { href: "/dashboard/motorista", label: "Motorista" },

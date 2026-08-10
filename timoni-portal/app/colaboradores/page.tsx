@@ -301,6 +301,23 @@ function VendasEmpresasCard() {
   );
 }
 
+function GeneralAnnouncementCard() {
+  return (
+    <article className="rounded-3xl border border-orange-200 bg-orange-50 p-6 shadow-sm md:col-span-2 xl:col-span-4">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-orange-700">Comunicado geral</p>
+          <h2 className="mt-2 text-xl font-semibold text-slate-950">Casa Timoni Araras fechada dia 15/08, sábado</h2>
+        </div>
+        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-orange-800 shadow-sm">15/08/2026</span>
+      </div>
+      <p className="mt-4 text-sm leading-6 text-slate-700">
+        No dia <strong>15 de agosto</strong>, a cidade de Araras (SP) comemora seu aniversário de fundação, completando <strong>164 anos em 2026</strong>, e o <strong>Dia de Nossa Senhora do Patrocínio</strong>, padroeira do município.
+      </p>
+    </article>
+  );
+}
+
 function AnnouncementCard({ store, variant = "large" }: { store: Store; variant?: AnnouncementVariant }) {
   const spanClass = variant === "full" ? "md:col-span-2 xl:col-span-4" : variant === "compact" ? "" : "md:col-span-2 xl:col-span-3";
   const announcement = announcementByStore[store];
@@ -455,6 +472,8 @@ export default async function ColaboradoresPage() {
       </header>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <GeneralAnnouncementCard />
+
         {panelStore === "geral" ? (
           <>
             <AnnouncementCard store="rio claro" variant="full" />

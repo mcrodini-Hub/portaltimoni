@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import Link from "next/link";
 import { hasModuleAccess } from "@/lib/access-control";
 import StoreSwitcher from "./store-switcher";
+import PainelNotificationsClient from "@/app/painel-notifications-client";
 
 const MOTORISTA_URL = "/dashboard/motorista";
 const STORE_SWITCHER_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
@@ -80,6 +81,8 @@ export default async function DashboardLayout({
           </form>
         </div>
       </header>
+
+      <PainelNotificationsClient email={email} />
 
       {showStoreSwitcher && <StoreSwitcher />}
 

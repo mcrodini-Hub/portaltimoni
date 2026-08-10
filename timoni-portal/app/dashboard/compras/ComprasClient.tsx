@@ -227,6 +227,8 @@ export default function ComprasClient() {
     }
   }
 
+  const visibleError = error.includes("Sessão Google expirada") ? "" : error;
+
   return (
     <div className="space-y-5">
       <section className="rounded-3xl border border-blue-100 bg-white p-6 shadow-sm">
@@ -518,7 +520,7 @@ export default function ComprasClient() {
         </ol>
       </section>
 
-      {error && <p className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-semibold text-rose-800">{error}</p>}
+      {visibleError && <p className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-semibold text-rose-800">{visibleError}</p>}
       {success && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800">
           <p>{success}</p>

@@ -4,12 +4,10 @@ export const metadata: Metadata = { title: "Marketing" };
 
 const TRELLO_URL = "https://trello.com/b/6HcTFpSp/ct-marketing";
 const DRIVE_URL = "https://drive.google.com/open?id=1zSvHeO4YmWOSRp4i_CBTSxleBBIzfdPD&usp=drive_fs";
-const WHATSAPP_URL = "https://chat.whatsapp.com/KpDNo1RZOsV2cvb3qEB3py";
 
 const frentes = [
   { title: "Campanhas", description: "Organize campanhas em andamento, responsáveis, prazo e objetivo.", action: "Abrir Trello do Marketing", href: TRELLO_URL },
   { title: "Conteúdo", description: "Acesse artes, fotos, vídeos, textos e materiais aprovados.", action: "Abrir pasta do Drive", href: DRIVE_URL },
-  { title: "Comunicação", description: "Acompanhe aprovações, retornos e alinhamentos rápidos da equipe.", action: "Abrir grupo do WhatsApp", href: WHATSAPP_URL },
 ];
 
 const rotina = [
@@ -34,7 +32,7 @@ export default function MarketingPage() {
         </div>
       </section>
 
-      <section className="mt-5 grid gap-4 md:grid-cols-3">
+      <section className="mt-5 grid gap-4 md:grid-cols-2">
         {frentes.map((frente) => (
           <article key={frente.title} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <h2 className="font-semibold text-slate-900">{frente.title}</h2>

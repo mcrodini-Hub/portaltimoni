@@ -29,7 +29,13 @@ export async function POST(request: Request) {
 
     await appendTeamMessage({ employee, unit, message });
     return NextResponse.json({ ok: true });
-  } catch {
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error(`[Painel Timoni] Espaço Equipe / envio: ${error.name}: ${error.message}`);
+    } else {
+      console.error("[Painel Timoni] Espaço Equipe / envio: falha desconhecida");
+    }
+
     return NextResponse.json(
       { error: "Não foi possível registrar agora. Tente novamente." },
       { status: 500 },

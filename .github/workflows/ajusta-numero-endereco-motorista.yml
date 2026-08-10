@@ -1,0 +1,42 @@
+name: Ajusta numero endereco motorista
+on:
+  push:
+    paths:
+      - '.github/workflows/ajusta-numero-endereco-motorista.yml'
+permissions:
+  contents: write
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+      - name: Ajustar formulario
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p=Path('timoni-portal/app/dashboard/motorista/motorista-agenda.tsx')
+          s=p.read_text()
+          s=s.replace('  endereco: string;\n  linkEndereco: string;', '  endereco: string;\n  numeroEndereco: string;\n  linkEndereco: string;')
+          s=s.replace('    endereco: "",\n    linkEndereco: "",', '    endereco: "",\n    numeroEndereco: "",\n    linkEndereco: "",')
+          s=s.replace('    endereco: enderecoCompleto.replace(/\\nLink:\\s*https?:\\/\\/\\S+/i, "").trim(),\n    linkEndereco: match?.[1] || "",', '    endereco: enderecoCompleto.replace(/\\nLink:\\s*https?:\\/\\/\\S+/i, "").trim(),\n    numeroEndereco: v.numero || "",\n    linkEndereco: match?.[1] || "",')
+          s=s.replace('      set("endereco", endereco);', '      set("endereco", endereco);\n      set("numeroEndereco", "");\n      set("linkEndereco", "");\n      setErro("CEP localizado. Confirme o número do endereço para gerar o link do Google Maps.");')
+          s=s.replace('      const detalhesEndereco = form.linkEndereco ? `${form.endereco}\\nLink: ${form.linkEndereco}` : form.endereco;', '      const enderecoCompleto = [form.endereco, form.numeroEndereco].filter(Boolean).join(", ");\n      const linkMaps = form.linkEndereco || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoCompleto)}`;\n      const detalhesEndereco = `${form.endereco}\\nLink: ${linkMaps}`;')
+          s=s.replace('        numero: "",', '        numero: form.numeroEndereco,')
+          old='<label className="text-sm font-medium text-slate-700">* Endereço<input value={form.endereco} onChange={(e) => set("endereco", e.target.value)} className={fieldClass("endereco")} /></label>\n              <label className="text-sm font-medium text-slate-700">Link endereço<input type="url" value={form.linkEndereco} onChange={(e) => set("linkEndereco", e.target.value)} placeholder="https://maps.google.com/..." className={fieldClass("linkEndereco")} /></label>'
+          new='<div className="grid gap-4 sm:grid-cols-[1fr_180px]"><label className="text-sm font-medium text-slate-700">* Endereço<input value={form.endereco} onChange={(e) => set("endereco", e.target.value)} className={fieldClass("endereco")} /></label><label className="text-sm font-medium text-slate-700">* Número<input value={form.numeroEndereco} onChange={(e) => { const numero = e.target.value; set("numeroEndereco", numero); const destino = [form.endereco, numero].filter(Boolean).join(", "); set("linkEndereco", destino ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destino)}` : ""); }} placeholder="Confirme o número" className={fieldClass("numeroEndereco")} /></label></div>\n              <label className="text-sm font-medium text-slate-700">Link endereço<input type="url" value={form.linkEndereco} onChange={(e) => set("linkEndereco", e.target.value)} placeholder="Gerado após informar o número" className={fieldClass("linkEndereco")} /></label>'
+          s=s.replace(old,new)
+          s=s.replace('  "endereco",\n  "preenchidoPor",', '  "endereco",\n  "numeroEndereco",\n  "preenchidoPor",')
+          p.write_text(s)
+          PY
+      - name: Commit
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add timoni-portal/app/dashboard/motorista/motorista-agenda.tsx
+          git diff --cached --quiet || git commit -m 'feat: confirma numero e gera link do Maps no motorista'
+          git push

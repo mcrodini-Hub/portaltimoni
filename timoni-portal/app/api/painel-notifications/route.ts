@@ -37,6 +37,14 @@ function unitLabel(unit: StockAlert["unidade"]) {
   return unit === "araras" ? "Araras" : "Rio Claro";
 }
 
+function logIntegrationError(area: string, error: unknown) {
+  if (error instanceof Error) {
+    console.error(`[Painel Timoni] ${area}: ${error.name}: ${error.message}`);
+    return;
+  }
+  console.error(`[Painel Timoni] ${area}: falha desconhecida`);
+}
+
 export async function GET() {
   const session = await auth();
   const email = normalizeEmail(session?.user?.email ?? "");
@@ -59,8 +67,8 @@ export async function GET() {
           url: "/colaboradores",
         });
       }
-    } catch {
-      // Se a planilha estiver indisponível, não bloqueia o Portal.
+    } catch (error) {
+      logIntegrationError("Espaço Equipe / leitura", error);
     }
   }
 
@@ -80,8 +88,8 @@ export async function GET() {
           url: "/dashboard/estoque",
         });
       }
-    } catch {
-      // Se a planilha estiver indisponível, não bloqueia o Portal.
+    } catch (error) {
+      logIntegrationError("Estoque / leitura de alertas", error);
     }
   }
 

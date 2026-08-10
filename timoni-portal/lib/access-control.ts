@@ -30,6 +30,7 @@ const allModules: PortalModule[] = [
 
 const modulesWithoutCicaAgenda = allModules.filter((module) => module !== "agenda");
 const operationalModules: PortalModule[] = ["painel", "estoque", "motorista"];
+const commercialRioClaroModules: PortalModule[] = ["painel", "estoque", "financeiro", "marketing", "motorista"];
 
 function withStock(modules: PortalModule[]): PortalModule[] {
   return Array.from(new Set<PortalModule>([...modules, "estoque"]));
@@ -63,7 +64,7 @@ export const portalUsers: Record<string, PortalUser> = {
   "comercialrc@casatimoni.com.br": {
     name: "Jeovana - Rio Claro",
     email: "comercialrc@casatimoni.com.br",
-    modules: modulesWithoutCicaAgenda,
+    modules: commercialRioClaroModules,
     requiresPassword: true,
   },
   "estoqueararascasatimoni@gmail.com": {

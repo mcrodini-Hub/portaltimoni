@@ -1,0 +1,79 @@
+name: Ajusta links motorista
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/ajusta-links-motorista.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  ajustar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Ajustar links clicaveis
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          helper_anchor = '''function separarEndereco(endereco?: string) {
+            const valor = endereco || "";
+            const match = valor.match(/\\nLink:\\s*(https?:\\/\\/\\S+)/i);
+            return {
+              texto: valor.replace(/\\nLink:\\s*https?:\\/\\/\\S+/i, "").trim(),
+              link: match?.[1] || "",
+            };
+          }
+
+          '''
+
+          # Tela da equipe
+          p = Path('timoni-portal/app/dashboard/motorista/motorista-agenda.tsx')
+          s = p.read_text(encoding='utf-8')
+          anchor = 'function horaCurta(hora?: string) {\n  return hora ? hora.slice(0, 5) : "--:--";\n}\n\n'
+          if 'function separarEndereco(' not in s:
+            s = s.replace(anchor, anchor + helper_anchor)
+
+          old = '{v.endereco && <p className="mt-3 text-slate-700">{[v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ")}</p>}'
+          new = '''{v.endereco && <p className="mt-3 text-slate-700">
+                        {[separarEndereco(v.endereco).texto, v.numero, v.complemento].filter(Boolean).join(" - ")}
+                        {separarEndereco(v.endereco).link && <>{" · "}<a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a></>}
+                      </p>}'''
+          if old not in s:
+            raise SystemExit('Trecho de endereco da equipe nao encontrado')
+          s = s.replace(old, new)
+          p.write_text(s, encoding='utf-8')
+
+          # Tela somente leitura do motorista
+          p = Path('timoni-portal/app/motorista/motorista-leitura.tsx')
+          s = p.read_text(encoding='utf-8')
+          anchor = 'function horaCurta(hora?: string) {\n  return hora ? hora.slice(0, 5) : "--:--";\n}\n\n'
+          if 'function separarEndereco(' not in s:
+            s = s.replace(anchor, anchor + helper_anchor)
+
+          old = 'const endereco = [v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ");'
+          new = 'const enderecoInfo = separarEndereco(v.endereco);\n                      const endereco = [enderecoInfo.texto, v.numero, v.complemento].filter(Boolean).join(" - ");'
+          if old not in s:
+            raise SystemExit('Trecho de endereco do motorista nao encontrado')
+          s = s.replace(old, new, 1)
+
+          old = '{endereco && <p className="mt-1 text-sm text-slate-700 print:text-[11pt] print:text-black">{endereco}</p>}'
+          new = '''{endereco && <p className="mt-1 text-sm text-slate-700 print:text-[11pt] print:text-black">{endereco}</p>}
+                                  {enderecoInfo.link && <a href={enderecoInfo.link} target="_blank" rel="noreferrer" className="no-print mt-2 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Abrir no Google Maps</a>}'''
+          if old not in s:
+            raise SystemExit('Trecho visual do motorista nao encontrado')
+          s = s.replace(old, new, 1)
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add timoni-portal/app/dashboard/motorista/motorista-agenda.tsx timoni-portal/app/motorista/motorista-leitura.tsx
+          git diff --cached --quiet || git commit -m "fix: exibe Google Maps como link curto no Motorista"
+          git push

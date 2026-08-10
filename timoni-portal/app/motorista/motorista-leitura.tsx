@@ -45,6 +45,15 @@ function horaCurta(hora?: string) {
   return hora ? hora.slice(0, 5) : "--:--";
 }
 
+function separarEndereco(endereco?: string) {
+  const valor = endereco || "";
+  const match = valor.match(/\nLink:\s*(https?:\/\/\S+)/i);
+  return {
+    texto: valor.replace(/\nLink:\s*https?:\/\/\S+/i, "").trim(),
+    link: match?.[1] || "",
+  };
+}
+
 function diaSemanaCurto(d: Date) {
   return ["dom", "2ªf", "3ªf", "4ªf", "5ªf", "6ªf", "sáb"][d.getDay()];
 }
@@ -162,7 +171,8 @@ export default function MotoristaLeitura() {
                   ) : (
                     itens.map((v, index) => {
                       const bloqueio = v.tipoHorario === "Bloqueio";
-                      const endereco = [v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ");
+                      const enderecoInfo = separarEndereco(v.endereco);
+                      const endereco = [enderecoInfo.texto, v.numero, v.complemento].filter(Boolean).join(" - ");
                       return (
                         <article key={v.id} className={`print-item rounded-xl border p-3 ${bloqueio ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
                           <div className="flex items-start gap-3">
@@ -176,6 +186,7 @@ export default function MotoristaLeitura() {
                                 <>
                                   <p className="mt-2 text-sm font-medium text-slate-900 print:mt-1 print:text-[11pt] print:font-normal print:text-black">{v.clienteFornecedor || ""} {v.numeroPedido || ""} {v.volumes ? `Volume: ${v.volumes}` : "Volume:"}</p>
                                   {endereco && <p className="mt-1 text-sm text-slate-700 print:text-[11pt] print:text-black">{endereco}</p>}
+                        {enderecoInfo.link && <a href={enderecoInfo.link} target="_blank" rel="noreferrer" className="no-print mt-2 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Abrir no Google Maps</a>}
                                   {(v.contatoNome || v.contatoWhats) && <p className="mt-1 text-sm text-slate-700 print:text-[11pt] print:text-black">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
                                 </>
                               )}

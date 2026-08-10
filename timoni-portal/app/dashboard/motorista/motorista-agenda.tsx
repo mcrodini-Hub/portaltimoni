@@ -149,6 +149,15 @@ function horaCurta(hora?: string) {
   return hora ? hora.slice(0, 5) : "--:--";
 }
 
+function separarEndereco(endereco?: string) {
+  const valor = endereco || "";
+  const match = valor.match(/\nLink:\s*(https?:\/\/\S+)/i);
+  return {
+    texto: valor.replace(/\nLink:\s*https?:\/\/\S+/i, "").trim(),
+    link: match?.[1] || "",
+  };
+}
+
 function formatarCep(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 8);
   return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
@@ -410,7 +419,10 @@ export default function MotoristaAgenda() {
                     <p className="font-semibold text-slate-950">{index + 1}. {v.tipoHorario || "Viagem"} {lojaLabel(v.loja)} | {horaCurta(v.horario)}{v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}{v.vendedor ? ` | Vendedor: ${v.vendedor}` : ""}</p>
                     {v.tipoHorario !== "Bloqueio" && <>
                       <p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{v.numeroPedido ? ` · ${v.numeroPedido}` : ""}{v.volumes ? ` · Volume: ${v.volumes}` : ""}</p>
-                      {v.endereco && <p className="mt-3 text-slate-700">{[v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ")}</p>}
+                      {v.endereco && <p className="mt-3 text-slate-700">
+              {[separarEndereco(v.endereco).texto, v.numero, v.complemento].filter(Boolean).join(" - ")}
+              {separarEndereco(v.endereco).link && <>{" · "}<a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a></>}
+            </p>}
                       {(v.contatoNome || v.contatoWhats) && <p className="mt-3 text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
                     </>}
                     {v.info && <p className="mt-3 text-slate-600">Observação: {v.info}</p>}

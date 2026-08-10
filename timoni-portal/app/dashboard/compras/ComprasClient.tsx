@@ -483,6 +483,19 @@ export default function ComprasClient() {
             <input type="date" value={dataEntrega} onChange={(event) => setDataEntrega(event.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm" />
           </label>
         </div>
+        {!canFinalize && (
+          <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+            {!selectedSupplier
+              ? "Falta selecionar o fornecedor."
+              : !items.length
+                ? "Falta filtrar os itens da planilha. Volte à etapa 2 e clique em Filtrar itens do pedido."
+                : !finalTitle.trim()
+                  ? "Falta informar o título final do cartão."
+                  : !dataEnvio
+                    ? "Falta informar a data de envio."
+                    : "Falta informar a previsão de entrega."}
+          </p>
+        )}
         <button
           type="button"
           onClick={() => void finalizePurchase()}

@@ -56,7 +56,7 @@ export default function EspacoEquipeForm({ members }: { members: TeamMember[] })
         <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Espaço Equipe</p>
         <h2 className="mt-2 text-xl font-semibold text-slate-950">Sua contribuição ajuda a melhorar nosso dia a dia</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
-          Use este espaço para enviar sugestões, reclamações, dificuldades ou ideias de melhoria. Os registros serão analisados pela gestão e poderão ser considerados nas pautas das reuniões.
+          Use este espaço para enviar sugestões, reclamações, dificuldades ou ideias de melhoria.
         </p>
       </div>
 

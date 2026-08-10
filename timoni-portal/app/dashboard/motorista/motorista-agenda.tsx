@@ -258,7 +258,9 @@ export default function MotoristaAgenda() {
       const data = await response.json();
       if (!response.ok || data.erro) throw new Error("CEP não encontrado.");
       const endereco = [data.logradouro, data.bairro, [data.localidade, data.uf].filter(Boolean).join("/")].filter(Boolean).join(" - ");
+      const linkMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}`;
       set("endereco", endereco);
+      set("linkEndereco", linkMaps);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível buscar o CEP.");
     }

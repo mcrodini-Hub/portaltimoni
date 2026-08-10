@@ -1,0 +1,121 @@
+name: Corrigir reativacao da Conferencia
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/fix-conferencia-reconfig.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ajustar recuperacao da configuracao
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('timoni-portal/app/dashboard/conferencia-pedidos/ConferenciaPedidosClient.tsx')
+          text = path.read_text(encoding='utf-8')
+
+          text = text.replace(
+            '  const [result, setResult] = useState<ConferenciaResult | null>(null);',
+            '  const [result, setResult] = useState<ConferenciaResult | null>(null);\n  const [needsGeminiSetup, setNeedsGeminiSetup] = useState(false);',
+            1,
+          )
+
+          text = text.replace(
+            '    setError("");\n    setResult(null);',
+            '    setError("");\n    setResult(null);\n    setNeedsGeminiSetup(false);',
+            1,
+          )
+
+          old = '''      const payload = await response.json();
+      if (!response.ok) {
+        throw new Error(payload?.error || "Não foi possível concluir a conferência.");
+      }
+'''
+          new = '''      const payload = await response.json();
+      if (!response.ok) {
+        if (payload?.code === "GEMINI_NOT_CONFIGURED") {
+          setNeedsGeminiSetup(true);
+          throw new Error(
+            "A análise precisa ser reativada neste navegador antes de continuar.",
+          );
+        }
+        throw new Error(payload?.error || "Não foi possível concluir a conferência.");
+      }
+'''
+          if old not in text:
+            raise SystemExit('Bloco de resposta nao encontrado')
+          text = text.replace(old, new, 1)
+
+          text = text.replace(
+            '    setStatus("");\n  }',
+            '    setStatus("");\n    setNeedsGeminiSetup(false);\n  }',
+            1,
+          )
+
+          old_error = '''      {error && (
+        <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">
+          {error}
+        </div>
+      )}
+'''
+          new_error = '''      {error && (
+        <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">
+          <p>{error}</p>
+          {needsGeminiSetup && (
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              <a
+                href="/dashboard/conferencia-pedidos/configurar"
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-10 items-center justify-center rounded-xl bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800"
+              >
+                Reativar análise
+              </a>
+              <span className="text-xs font-normal text-rose-700">
+                Abra em nova aba, salve a chave e depois tente novamente. Seus arquivos permanecem nesta tela.
+              </span>
+            </div>
+          )}
+        </div>
+      )}
+'''
+          if old_error not in text:
+            raise SystemExit('Bloco de erro nao encontrado')
+          text = text.replace(old_error, new_error, 1)
+          path.write_text(text, encoding='utf-8')
+
+          config = Path('timoni-portal/app/dashboard/conferencia-pedidos/configurar/ConfigurarGeminiClient.tsx')
+          config_text = config.read_text(encoding='utf-8')
+          config_text = config_text.replace('Configuração única', 'Configuração deste navegador')
+          config_text = config_text.replace(
+            'Depois disso, a conferência funciona normalmente neste navegador.',
+            'Depois disso, a conferência funciona normalmente enquanto esta configuração permanecer salva no navegador.',
+          )
+          config.write_text(config_text, encoding='utf-8')
+          PY
+
+      - name: Validar build
+        working-directory: timoni-portal
+        run: npm ci && npm run build
+
+      - name: Publicar correcao
+        run: |
+          rm .github/workflows/fix-conferencia-reconfig.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add timoni-portal/app/dashboard/conferencia-pedidos/ConferenciaPedidosClient.tsx \
+                  timoni-portal/app/dashboard/conferencia-pedidos/configurar/ConfigurarGeminiClient.tsx \
+                  .github/workflows/fix-conferencia-reconfig.yml
+          git commit -m "Improve conference Gemini recovery flow"
+          git push origin main

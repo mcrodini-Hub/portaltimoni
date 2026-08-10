@@ -60,7 +60,6 @@ export default function PainelNotificationsClient({ email }: { email: string }) 
     const notification = new Notification(item.title, {
       body: item.body,
       tag: item.id,
-      renotify: false,
     });
 
     notification.onclick = () => {

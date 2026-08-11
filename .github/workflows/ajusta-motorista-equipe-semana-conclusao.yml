@@ -1,0 +1,361 @@
+name: Ajusta Motorista equipe semana e conclusao
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/ajusta-motorista-equipe-semana-conclusao.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  ajustar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Ajustar apenas modulo da equipe
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('timoni-portal/app/dashboard/motorista/motorista-agenda.tsx')
+          s = p.read_text(encoding='utf-8')
+
+          # Regra de separacao fixa.
+          s = s.replace(
+            '// MOTORISTA EQUIPE: manter Dia, Semana e Mês. A rota /motorista é leitura e não deve ser alterada por mudanças deste módulo.',
+            '// MOTORISTA EQUIPE: manter Semana, Mês e Ano. A rota /motorista é leitura e NÃO deve ser alterada por mudanças deste módulo.'
+          )
+
+          # Tipos e estado principal.
+          s = s.replace('  preenchidoPor?: string;\n};', '  preenchidoPor?: string;\n  notasJson?: string;\n};', 1)
+          s = s.replace('type Modo = "dia" | "semana" | "mes";', 'type Modo = "semana" | "mes" | "ano";')
+          s = s.replace('const [modo, setModo] = useState<Modo>("dia");', 'const [modo, setModo] = useState<Modo>("semana");')
+
+          state_anchor = '  const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());\n'
+          if 'concluindoId' not in s:
+            s = s.replace(state_anchor, state_anchor + '  const [concluindoId, setConcluindoId] = useState<string | null>(null);\n  const [observacaoConclusao, setObservacaoConclusao] = useState("");\n  const [salvandoConclusao, setSalvandoConclusao] = useState(false);\n  const [resumoAno, setResumoAno] = useState<Record<string, number>>({});\n')
+
+          # Helpers de conclusao usando notasJson, sem mudar a planilha.
+          helper_anchor = '''function separarEndereco(endereco?: string) {
+  const valor = endereco || "";
+  const match = valor.match(/\\nLink:\\s*(https?:\\/\\/\\S+)/i);
+  return {
+    texto: valor.replace(/\\nLink:\\s*https?:\\/\\/\\S+/i, "").trim(),
+    link: match?.[1] || "",
+  };
+}
+'''
+          helper = '''
+function dadosConclusao(v?: Viagem) {
+  try {
+    const parsed = JSON.parse(v?.notasJson || "{}");
+    if (parsed && !Array.isArray(parsed) && typeof parsed === "object") return parsed as { status?: string; observacaoConclusao?: string; concluidoEm?: string };
+  } catch {}
+  return {} as { status?: string; observacaoConclusao?: string; concluidoEm?: string };
+}
+
+function viagemConcluida(v?: Viagem) {
+  return dadosConclusao(v).status === "concluida";
+}
+'''
+          if 'function viagemConcluida(' not in s:
+            if helper_anchor not in s:
+              raise SystemExit('helper separarEndereco nao encontrado')
+            s = s.replace(helper_anchor, helper_anchor + helper)
+
+          # Carregamento do ano via resumo mensal (12 chamadas, sem 365 leituras).
+          load_anchor = '''  async function carregarMes() {
+'''
+          year_func = '''  async function carregarAno(ano = dateFromString(selecionado).getFullYear()) {
+    setLoading(true);
+    setErro("");
+    try {
+      const pares = await Promise.all(
+        Array.from({ length: 12 }, async (_, index) => {
+          const mes = String(index + 1).padStart(2, "0");
+          const response = await fetch(`/api/agenda-motorista?action=mes&ano=${ano}&mes=${mes}`, { cache: "no-store" });
+          const body = await parseResponse(response);
+          const total = Object.values(body.resumo || {}).reduce((acc: number, item: any) => acc + Number(item?.entregas || 0) + Number(item?.retiradas || 0), 0);
+          return [mes, total] as const;
+        }),
+      );
+      setResumoAno(Object.fromEntries(pares));
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível carregar o ano.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+'''
+          if 'async function carregarAno(' not in s:
+            s = s.replace(load_anchor, year_func + load_anchor, 1)
+
+          # useEffect: semana / mes / ano.
+          start = s.find('  useEffect(() => {')
+          end_marker = '  function abrirNova('
+          end = s.find(end_marker, start)
+          if start < 0 or end < 0:
+            raise SystemExit('useEffect principal nao encontrado')
+          old_effect = s[start:end]
+          new_effect = '''  useEffect(() => {
+    if (modo === "semana") {
+      void (async () => {
+        setLoading(true);
+        setErro("");
+        try {
+          const pares = await Promise.all(
+            diasSemana.map(async (d) => {
+              const data = localDateString(d);
+              const response = await fetch(`/api/agenda-motorista?action=dia&data=${data}`, { cache: "no-store" });
+              const body = await parseResponse(response);
+              return [data, body.viagens || []] as const;
+            }),
+          );
+          setViagens((current) => ({ ...current, ...Object.fromEntries(pares) }));
+        } catch (e) {
+          setErro(e instanceof Error ? e.message : "Não foi possível carregar a semana.");
+        } finally {
+          setLoading(false);
+        }
+      })();
+    } else if (modo === "mes") {
+      void carregarMes();
+    } else {
+      void carregarAno(dateFromString(selecionado).getFullYear());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [modo, selecionado, mesBase, diasSemana]);
+
+'''
+          s = s[:start] + new_effect + s[end:]
+
+          # Ao salvar, preservar modo e recarregar corretamente.
+          s = s.replace(
+            '      if (modo === "mes") await carregarMes();\n      else await carregarDia(form.data);',
+            '      if (modo === "mes") await carregarMes();\n      else if (modo === "ano") await carregarAno(dateFromString(form.data).getFullYear());\n      else { setSelecionado(form.data); }'
+          )
+
+          # Clicar em dia no mes leva para a semana correspondente, nunca para Dia.
+          s = s.replace('    setModo("dia");', '    setModo("semana");')
+
+          # Funcao de conclusao.
+          anchor = '  function imprimirDia() {'
+          concluir_func = '''  async function concluirViagem() {
+    if (!concluindoId) return;
+    const viagem = Object.values(viagens).flat().find((item) => item.id === concluindoId);
+    if (!viagem) return;
+    setSalvandoConclusao(true);
+    setErro("");
+    try {
+      const payload = new URLSearchParams({
+        action: "atualizar",
+        id: viagem.id,
+        notasJson: JSON.stringify({
+          status: "concluida",
+          observacaoConclusao: observacaoConclusao.trim(),
+          concluidoEm: new Date().toISOString(),
+        }),
+      });
+      const response = await fetch("/api/agenda-motorista", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        body: payload,
+      });
+      await parseResponse(response);
+      setViagens((current) => {
+        const next: Record<string, Viagem[]> = {};
+        Object.entries(current).forEach(([data, lista]) => {
+          next[data] = lista.map((item) => item.id === viagem.id ? { ...item, notasJson: payload.get("notasJson") || "" } : item);
+        });
+        return next;
+      });
+      setConcluindoId(null);
+      setObservacaoConclusao("");
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível concluir a viagem.");
+    } finally {
+      setSalvandoConclusao(false);
+    }
+  }
+
+'''
+          if 'async function concluirViagem()' not in s:
+            s = s.replace(anchor, concluir_func + anchor, 1)
+
+          # Barra principal: somente Semana / Mes / Ano.
+          old_buttons = '''            <button type="button" onClick={() => setModo("dia")} className={`rounded-lg px-3 py-2 text-sm font-medium ${modo === "dia" ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>Dia</button>
+            <button type="button" onClick={() => setModo("semana")} className={`rounded-lg px-3 py-2 text-sm font-medium ${modo === "semana" ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>Semana</button>
+            <button type="button" onClick={() => setModo("mes")} className={`rounded-lg px-3 py-2 text-sm font-medium ${modo === "mes" ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>Mês</button>'''
+          new_buttons = '''            <button type="button" onClick={() => setModo("semana")} className={`rounded-lg px-3 py-2 text-sm font-medium ${modo === "semana" ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>Semana</button>
+            <button type="button" onClick={() => { setMesBase(dateFromString(selecionado)); setModo("mes"); }} className={`rounded-lg px-3 py-2 text-sm font-medium ${modo === "mes" ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>Mês</button>
+            <button type="button" onClick={() => setModo("ano")} className={`rounded-lg px-3 py-2 text-sm font-medium ${modo === "ano" ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>Ano</button>'''
+          if old_buttons not in s:
+            raise SystemExit('barra Dia/Semana/Mes nao encontrada')
+          s = s.replace(old_buttons, new_buttons, 1)
+
+          # Cabeçalho: remover ramo Dia e adicionar Ano.
+          hstart = s.find('          {modo === "dia" ? (')
+          hend = s.find('        </div>\n\n        {erro && !modal', hstart)
+          if hstart < 0 or hend < 0:
+            raise SystemExit('cabecalho de modos nao encontrado')
+          new_header = '''          {modo === "semana" ? (
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Agenda da semana</p>
+                <p className="mt-1 text-sm text-slate-600">Segunda a domingo</p>
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => { const d = dateFromString(selecionado); d.setDate(d.getDate() - 7); setSelecionado(localDateString(d)); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">← Semana anterior</button>
+                <button type="button" onClick={() => setSelecionado(hoje)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">Hoje</button>
+                <button type="button" onClick={() => { const d = dateFromString(selecionado); d.setDate(d.getDate() + 7); setSelecionado(localDateString(d)); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">Próxima semana →</button>
+              </div>
+            </div>
+          ) : modo === "mes" ? (
+            <div className="flex items-center justify-between gap-3">
+              <button type="button" onClick={() => setMesBase((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">←</button>
+              <p className="text-lg font-semibold capitalize text-slate-950">{mesBase.toLocaleDateString("pt-BR", { month: "long", year: "numeric" })}</p>
+              <button type="button" onClick={() => setMesBase((d) => new Date(d.getFullYear(), d.getMonth() + 1, 1))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">→</button>
+            </div>
+          ) : (
+            <div className="flex items-center justify-between gap-3">
+              <button type="button" onClick={() => { const d = dateFromString(selecionado); d.setFullYear(d.getFullYear() - 1); setSelecionado(localDateString(d)); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">←</button>
+              <p className="text-lg font-semibold text-slate-950">{dateFromString(selecionado).getFullYear()}</p>
+              <button type="button" onClick={() => { const d = dateFromString(selecionado); d.setFullYear(d.getFullYear() + 1); setSelecionado(localDateString(d)); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">→</button>
+            </div>
+          )}
+'''
+          s = s[:hstart] + new_header + s[hend:]
+
+          # Conteudo: remove Dia, mantem Semana/Mes e cria Ano.
+          cstart = s.find('        {modo === "semana" ? (')
+          cend = s.find('      </section>\n\n      {modal && (', cstart)
+          if cstart < 0 or cend < 0:
+            raise SystemExit('conteudo principal dos modos nao encontrado')
+          old_content = s[cstart:cend]
+
+          # Extrai o bloco de semana atual ate o ramo Dia.
+          semana_start = old_content.find('{modo === "semana" ? (')
+          dia_marker = ') : modo === "dia" ? ('
+          dia_pos = old_content.find(dia_marker)
+          if dia_pos < 0:
+            # versao pode ter semana -> dia como segundo ramo
+            dia_marker = ') : ('
+            dia_pos = old_content.find(dia_marker)
+          # Em vez de depender da arvore antiga, gera os tres modos de forma controlada.
+          new_content = '''        {modo === "semana" ? (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+            {diasSemana.map((d) => {
+              const data = localDateString(d);
+              const itens = (viagens[data] || []).slice().sort((a, b) => (a.horario || "").localeCompare(b.horario || ""));
+              return (
+                <section key={data} className={`rounded-2xl border bg-white p-4 ${data === hoje ? "border-blue-300 bg-blue-50/40" : "border-slate-200"}`}>
+                  <div>
+                    <p className="text-xs font-semibold uppercase text-slate-500">{d.toLocaleDateString("pt-BR", { weekday: "long" })}</p>
+                    <p className="mt-1 font-semibold text-slate-950">{d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}</p>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itens.length === 0 ? <p className="text-sm text-slate-400">Sem viagens.</p> : itens.map((v, index) => {
+                      const concluida = viagemConcluida(v);
+                      const conclusao = dadosConclusao(v);
+                      return (
+                        <article key={v.id} className={`rounded-xl border p-3 ${concluida ? "border-emerald-200 bg-emerald-50" : "border-slate-200 bg-slate-50"}`}>
+                          <p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario || "Viagem"} {lojaLabel(v.loja)} | {horaCurta(v.horario)}{v.vendedor ? ` | Vendedor: ${v.vendedor}` : ""}</p>
+                          {v.clienteFornecedor && <p className="mt-1 text-xs text-slate-600">{v.clienteFornecedor}{v.numeroPedido ? ` · ${v.numeroPedido}` : ""}{v.volumes ? ` · Volume: ${v.volumes}` : ""}</p>}
+                          {concluida ? (
+                            <div className="mt-2">
+                              <span className="inline-flex rounded-full bg-emerald-100 px-2 py-1 text-[11px] font-semibold text-emerald-800">Concluída</span>
+                              {conclusao.observacaoConclusao && <p className="mt-2 text-xs text-slate-600">Observação final: {conclusao.observacaoConclusao}</p>}
+                            </div>
+                          ) : v.tipoHorario !== "Bloqueio" ? (
+                            <div className="mt-3 flex gap-2">
+                              <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Editar</button>
+                              <button type="button" onClick={() => { setConcluindoId(v.id); setObservacaoConclusao(""); }} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white">Concluir</button>
+                            </div>
+                          ) : (
+                            <button type="button" onClick={() => abrirEditar(v)} className="mt-3 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Editar</button>
+                          )}
+                        </article>
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            })}
+          </div>
+        ) : modo === "mes" ? (
+          <div className="mt-4">
+            <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-semibold uppercase text-slate-400"><span>Dom</span><span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span></div>
+            <div className="mt-1 grid grid-cols-7 gap-1">
+              {diasMes.map((d) => {
+                const data = localDateString(d);
+                const itens = viagens[data] || [];
+                const fora = d.getMonth() !== mesBase.getMonth();
+                return <button key={data} type="button" onClick={() => selecionarDia(data)} className={`min-h-24 rounded-xl border p-2 text-left ${fora ? "border-slate-100 bg-slate-50 text-slate-300" : data === hoje ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white"}`}>
+                  <p className="text-sm font-semibold">{d.getDate()}</p>
+                  <div className="mt-1 space-y-1">{itens.slice(0, 3).map((v) => <p key={v.id} className={`truncate text-[10px] ${viagemConcluida(v) ? "text-emerald-700 line-through" : "text-slate-600"}`}>{horaCurta(v.horario)} {v.clienteFornecedor || v.tipoHorario}</p>)}{itens.length > 3 && <p className="text-[10px] text-slate-400">+{itens.length - 3}</p>}</div>
+                </button>;
+              })}
+            </div>
+          </div>
+        ) : (
+          <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {Array.from({ length: 12 }, (_, index) => {
+              const mes = String(index + 1).padStart(2, "0");
+              const ano = dateFromString(selecionado).getFullYear();
+              const base = new Date(ano, index, 1);
+              return (
+                <button key={mes} type="button" onClick={() => { setMesBase(base); setModo("mes"); }} className="rounded-2xl border border-slate-200 bg-white p-4 text-left hover:bg-slate-50">
+                  <p className="font-semibold capitalize text-slate-950">{base.toLocaleDateString("pt-BR", { month: "long" })}</p>
+                  <p className="mt-2 text-2xl font-semibold text-blue-800">{resumoAno[mes] ?? 0}</p>
+                  <p className="text-xs text-slate-500">agendamentos</p>
+                </button>
+              );
+            })}
+          </div>
+        )}
+'''
+          s = s[:cstart] + new_content + s[cend:]
+
+          # Modal de conclusao independente do formulario de edicao.
+          modal_anchor = '      {modal && ('
+          conclusion_modal = '''      {concluindoId && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-slate-950/50 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-5 shadow-2xl">
+            <h2 className="text-lg font-semibold text-slate-950">Concluir viagem</h2>
+            <p className="mt-1 text-sm text-slate-600">A observação final é opcional.</p>
+            <label className="mt-4 block text-sm font-medium text-slate-700">Observação final
+              <textarea value={observacaoConclusao} onChange={(e) => setObservacaoConclusao(e.target.value)} rows={4} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100" placeholder="Ex.: entregue ao cliente, faltou assinatura, material devolvido..." />
+            </label>
+            <div className="mt-5 flex justify-end gap-2">
+              <button type="button" onClick={() => { setConcluindoId(null); setObservacaoConclusao(""); }} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700">Cancelar</button>
+              <button type="button" onClick={concluirViagem} disabled={salvandoConclusao} className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">{salvandoConclusao ? "Concluindo..." : "Confirmar conclusão"}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+'''
+          if conclusion_modal not in s:
+            s = s.replace(modal_anchor, conclusion_modal + modal_anchor, 1)
+
+          # Remover variaveis exclusivas da antiga visualizacao Dia se ainda estiverem sem uso.
+          s = s.replace('  const itensDia = (viagens[selecionado] || []).slice().sort((a, b) => (a.horario || "").localeCompare(b.horario || ""));\n  const dataSelecionada = dateFromString(selecionado);\n', '')
+
+          p.write_text(s, encoding='utf-8')
+          PY
+      - name: Validar TypeScript basico
+        run: |
+          cd timoni-portal
+          npm ci --silent
+          npm run build
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add timoni-portal/app/dashboard/motorista/motorista-agenda.tsx
+          git diff --cached --quiet || git commit -m "feat: semana principal e conclusao no Motorista equipe"
+          git push

@@ -140,6 +140,7 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
   const registerButtonRef = useRef<HTMLButtonElement>(null);
   const notificationInitializedRef = useRef(false);
   const notifiedNeedIdsRef = useRef<Set<string>>(new Set());
+  const responseDraftsRef = useRef<Record<string, string>>({});
 
   useEffect(() => {
     if (!safeAllowedUnits.includes(newUnit)) {
@@ -245,7 +246,7 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
   }
 
   async function observe(need: Need) {
-    const text = (responseDrafts[need.id] ?? need.observacao ?? "").trim();
+    const text = (responseDraftsRef.current[need.id] ?? responseDrafts[need.id] ?? need.observacao ?? "").trim();
     if (!text) {
       setError("Escreva a observação/resposta da necessidade.");
       return;
@@ -377,8 +378,8 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
             <label className="block">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Observação / resposta da necessidade</span>
               <textarea
-                value={draft}
-                onChange={(event) => setResponseDrafts((current) => ({ ...current, [need.id]: event.target.value }))}
+                defaultValue={draft}
+                onChange={(event) => { responseDraftsRef.current[need.id] = event.target.value; }}
                 rows={3}
                 placeholder="Registre aqui a resposta, orientação ou observação sobre esta necessidade."
                 className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"

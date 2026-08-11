@@ -187,7 +187,7 @@ function formatarTelefone(value: string) {
 
 export default function MotoristaAgenda() {
   const hoje = localDateString();
-  const [modo, setModo] = useState<Modo>("dia");
+  const [modo, setModo] = useState<Modo>("semana");
   const [selecionado, setSelecionado] = useState(hoje);
   const [mesBase, setMesBase] = useState(() => new Date());
   const [viagens, setViagens] = useState<Record<string, Viagem[]>>({});
@@ -488,7 +488,7 @@ export default function MotoristaAgenda() {
               <article key={v.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="font-[Arial] text-[11pt] leading-[1.35]">
-                    <p className="font-semibold text-slate-950">{index + 1}. {v.tipoHorario || "Viagem"} {lojaLabel(v.loja)} | {horaCurta(v.horario)}{v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}{v.vendedor ? ` | Vendedor: ${v.vendedor}` : ""}</p>
+                    <p className="font-semibold text-slate-950">{index + 1}. {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
                     {v.tipoHorario !== "Bloqueio" && <>
                       <p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{v.numeroPedido ? ` · ${v.numeroPedido}` : ""}{v.volumes ? ` · Volume: ${v.volumes}` : ""}</p>
                       {v.endereco && <p className="mt-3 text-slate-700">

@@ -42,7 +42,7 @@ function lojaLabel(loja?: string) {
 }
 
 function horaCurta(hora?: string) {
-  return hora ? hora.slice(0, 5) : "--:--";
+  return hora ? hora.slice(0, 5) : "";
 }
 
 function separarEndereco(endereco?: string) {
@@ -141,9 +141,8 @@ export default function MotoristaLeitura() {
                             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow-sm">{index + 1}</span>
                             <div className="min-w-0 flex-1">
                               <p className="text-sm font-semibold text-slate-950">
-                                {horaCurta(v.horario)}{v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""} {v.tipoHorario || "Viagem"} {lojaLabel(v.loja).toLowerCase()} {v.vendedor ? `- Vendedor: ${v.vendedor}` : ""}
+                                {bloqueio ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}
                               </p>
-                              <p className="mt-0.5 text-xs text-slate-600">{v.vendedor ? `Vendedor: ${v.vendedor}` : ""}</p>
                               {!bloqueio && (
                                 <>
                                   <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""} {v.numeroPedido || ""} {v.volumes ? `Volume: ${v.volumes}` : "Volume:"}</p>

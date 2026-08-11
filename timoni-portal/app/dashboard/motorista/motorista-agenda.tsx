@@ -241,7 +241,7 @@ export default function MotoristaAgenda() {
   useEffect(() => {
     void (async () => {
       try {
-        const response = await fetch("/api/estoque", { cache: "no-store" });
+        const response = await fetch("/api/agenda-motorista-vendedores", { cache: "no-store" });
         const payload = await response.json();
         if (response.ok && payload?.ok && Array.isArray(payload.vendedores)) setSellers(payload.vendedores);
       } catch {}

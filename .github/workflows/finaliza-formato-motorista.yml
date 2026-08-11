@@ -10,34 +10,16 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Ajustar formato semanal da equipe
+      - name: Ajustar vendedor e hora no card semanal
         shell: python
         run: |
           from pathlib import Path
           p = Path('timoni-portal/app/dashboard/motorista/motorista-agenda.tsx')
           s = p.read_text(encoding='utf-8')
-
-          old = '''                      <button key={v.id} type="button" onClick={() => abrirEditar(v)} className="block w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left hover:bg-slate-100">
-                        <p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario || "Viagem"} {lojaLabel(v.loja)} | {horaCurta(v.horario)}{v.vendedor ? ` | ${v.vendedor}` : ""}</p>
-                        {v.clienteFornecedor && <p className="mt-1 truncate text-xs text-slate-600">{v.clienteFornecedor}</p>}
-                      </button>'''
-
-          new = '''                      <article key={v.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3 font-[Arial] text-[11pt] leading-[1.35]">
-                        <button type="button" onClick={() => abrirEditar(v)} className="block w-full text-left">
-                          <p className="font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}` : ""}</p>
-                          {v.tipoHorario !== "Bloqueio" && <>
-                            <p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{v.numeroPedido ? ` · ${v.numeroPedido}` : ""}{v.volumes ? ` · Volume: ${v.volumes}` : ""}</p>
-                            {v.endereco && <p className="mt-3 text-slate-700">End.: {[separarEndereco(v.endereco).texto, v.numero, v.complemento].filter(Boolean).join(" - ")}</p>}
-                            {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="mt-2 inline-flex font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}
-                            {(v.contatoNome || v.contatoWhats) && <p className="mt-3 text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
-                          </>}
-                          {v.info && <p className="mt-3 text-slate-600">Observação: {v.info}</p>}
-                          {v.preenchidoPor && <p className="mt-3 text-[10pt] text-slate-500">Preenchido: {v.preenchidoPor}</p>}
-                        </button>
-                      </article>'''
-
+          old = '<p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario || "Viagem"} {lojaLabel(v.loja)} | {horaCurta(v.horario)}{v.vendedor ? ` | ${v.vendedor}` : ""}</p>'
+          new = '<p className="text-sm font-semibold text-slate-950">{index + 1}. {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}` : ""}</p>'
           if old not in s:
-            raise SystemExit('Card semanal esperado não encontrado; nenhuma alteração aplicada.')
+            raise SystemExit('Linha semanal esperada não encontrada; nenhuma alteração aplicada.')
           s = s.replace(old, new, 1)
           p.write_text(s, encoding='utf-8')
       - name: Commit
@@ -45,6 +27,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add timoni-portal/app/dashboard/motorista/motorista-agenda.tsx
-          if git diff --cached --quiet; then exit 0; fi
-          git commit -m "fix: formata cards semanais do Motorista equipe"
+          git diff --cached --quiet || git commit -m "fix: abrevia vendedor e oculta hora vazia no Motorista equipe"
           git push

@@ -141,3 +141,7 @@ export function hasModuleAccess(email: string | null | undefined, module: Portal
 export function isReadOnlyUser(email?: string | null) {
   return getPortalUser(email)?.readOnly === true;
 }
+
+export function isCicaAdmin(email?: string | null) {
+  return normalizeEmail(email) === "mcrodini@gmail.com";
+}

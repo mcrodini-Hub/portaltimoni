@@ -1,0 +1,43 @@
+name: Valida acessos somente leitura
+on:
+  push:
+    branches: [ajuste-acessos-somente-leitura]
+    paths:
+      - '.github/workflows/valida-acessos-somente-leitura.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Bloquear gravação no Estoque para leitura
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('timoni-portal/app/api/estoque/route.ts')
+          s = p.read_text()
+          s = s.replace('import { hasModuleAccess } from "@/lib/access-control";', 'import { hasModuleAccess, isReadOnlyUser } from "@/lib/access-control";')
+          old = '''export async function POST(request: Request) {\n  try {\n    const sheets = await getSheets();'''
+          new = '''export async function POST(request: Request) {\n  try {\n    const session = await auth();\n    if (isReadOnlyUser(session?.user?.email)) {\n      return NextResponse.json({ ok: false, error: "Acesso somente leitura." }, { status: 403 });\n    }\n    const sheets = await getSheets();'''
+          if old not in s:
+              raise SystemExit('Trecho POST esperado não encontrado')
+          s = s.replace(old, new, 1)
+          p.write_text(s)
+          PY
+      - name: Instalar dependências
+        working-directory: timoni-portal
+        run: npm ci
+      - name: Validar build
+        working-directory: timoni-portal
+        run: npm run build
+      - name: Commit na branch isolada
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add timoni-portal/app/api/estoque/route.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "fix: bloqueia gravação para leitura no Estoque"
+          git push

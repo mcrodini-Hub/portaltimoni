@@ -158,16 +158,41 @@ function lojaLabel(loja?: string) {
 }
 
 function horaCurta(hora?: string) {
-  return hora ? hora.slice(0, 5) : "--:--";
+  return hora ? hora.slice(0, 5) : "";
 }
 
 function separarEndereco(endereco?: string) {
-  const valor = endereco || "";
+  const valor = String(endereco ?? "");
   const match = valor.match(/\nLink:\s*(https?:\/\/\S+)/i);
   return {
     texto: valor.replace(/\nLink:\s*https?:\/\/\S+/i, "").trim(),
     link: match?.[1] || "",
   };
+}
+
+function escaparRegex(valor: string) {
+  return valor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function formatarEnderecoExibicao(endereco?: string, numero?: string, complemento?: string) {
+  const texto = separarEndereco(endereco).texto;
+  const num = String(numero ?? "").trim();
+  const comp = String(complemento ?? "").trim();
+  let partes = texto.split(/\s+-\s+/).map((parte) => parte.trim()).filter(Boolean);
+  if (num) {
+    partes = partes.filter((parte) => parte !== num);
+    if (partes[0]) {
+      const fim = new RegExp(`(?:\\s*[,\-]?\\s*${escaparRegex(num)})+$`);
+      partes[0] = partes[0].replace(fim, "").replace(/[\s,-]+$/, "").trim();
+    }
+  }
+  const rua = partes.shift() || "";
+  const inicio = rua && num ? `${rua}, ${num}` : rua || num;
+  return [inicio, ...partes, comp && comp !== num ? comp : ""].filter(Boolean).join(" - ");
+}
+
+function pedidoTexto(valor?: string) {
+  return String(valor ?? "").replace(/\s*\/\s*/g, " ").replace(/\s+/g, " ").trim();
 }
 
 function formatarCep(value: string) {
@@ -472,10 +497,18 @@ export default function MotoristaAgenda() {
                   </button>
                   <div className="mt-3 space-y-2">
                     {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itens.length === 0 ? <p className="text-sm text-slate-400">Sem viagens.</p> : itens.map((v, index) => (
-                      <button key={v.id} type="button" onClick={() => abrirEditar(v)} className="block w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left hover:bg-slate-100">
-                        <p className="text-sm font-semibold text-slate-950">{index + 1}. {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}` : ""}</p>
-                        {v.clienteFornecedor && <p className="mt-1 truncate text-xs text-slate-600">{v.clienteFornecedor}</p>}
-                      </button>
+                      <article key={v.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                        <p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
+                        {v.tipoHorario !== "Bloqueio" && <>
+                          <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>
+                          {v.endereco && <p className="mt-1 text-sm text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
+                          {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}
+                          {(v.contatoNome || v.contatoWhats) && <p className="mt-2 text-sm text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
+                        </>}
+                        {v.info && <p className="mt-2 text-sm text-slate-600">Observação: {v.info}</p>}
+                        {v.preenchidoPor && <p className="mt-2 text-xs text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
+                        <button type="button" onClick={() => abrirEditar(v)} className="mt-2 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50">Editar</button>
+                      </article>
                     ))}
                   </div>
                 </section>
@@ -488,13 +521,11 @@ export default function MotoristaAgenda() {
               <article key={v.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="font-[Arial] text-[11pt] leading-[1.35]">
-                    <p className="font-semibold text-slate-950">{index + 1}. {v.tipoHorario || "Viagem"} {lojaLabel(v.loja)} | {horaCurta(v.horario)}{v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}{v.vendedor ? ` | Vendedor: ${v.vendedor}` : ""}</p>
+                    <p className="font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
                     {v.tipoHorario !== "Bloqueio" && <>
-                      <p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{v.numeroPedido ? ` · ${v.numeroPedido}` : ""}{v.volumes ? ` · Volume: ${v.volumes}` : ""}</p>
-                      {v.endereco && <p className="mt-3 text-slate-700">
-              {[separarEndereco(v.endereco).texto, v.numero, v.complemento].filter(Boolean).join(" - ")}
-              {separarEndereco(v.endereco).link && <>{" · "}<a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a></>}
-            </p>}
+                      <p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>
+                      {v.endereco && <p className="mt-3 text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
+                      {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}
                       {(v.contatoNome || v.contatoWhats) && <p className="mt-3 text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
                     </>}
                     {v.info && <p className="mt-3 text-slate-600">Observação: {v.info}</p>}

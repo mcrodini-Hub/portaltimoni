@@ -46,12 +46,37 @@ function horaCurta(hora?: string) {
 }
 
 function separarEndereco(endereco?: string) {
-  const valor = endereco || "";
+  const valor = String(endereco ?? "");
   const match = valor.match(/\nLink:\s*(https?:\/\/\S+)/i);
   return {
     texto: valor.replace(/\nLink:\s*https?:\/\/\S+/i, "").trim(),
     link: match?.[1] || "",
   };
+}
+
+function escaparRegex(valor: string) {
+  return valor.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function formatarEnderecoExibicao(endereco?: string, numero?: string, complemento?: string) {
+  const texto = separarEndereco(endereco).texto;
+  const num = String(numero ?? "").trim();
+  const comp = String(complemento ?? "").trim();
+  let partes = texto.split(/\s+-\s+/).map((parte) => parte.trim()).filter(Boolean);
+  if (num) {
+    partes = partes.filter((parte) => parte !== num);
+    if (partes[0]) {
+      const fim = new RegExp(`(?:\\s*[,\-]?\\s*${escaparRegex(num)})+$`);
+      partes[0] = partes[0].replace(fim, "").replace(/[\s,-]+$/, "").trim();
+    }
+  }
+  const rua = partes.shift() || "";
+  const inicio = rua && num ? `${rua}, ${num}` : rua || num;
+  return [inicio, ...partes, comp && comp !== num ? comp : ""].filter(Boolean).join(" - ");
+}
+
+function pedidoTexto(valor?: string) {
+  return String(valor ?? "").replace(/\s*\/\s*/g, " ").replace(/\s+/g, " ").trim();
 }
 
 export default function MotoristaLeitura() {
@@ -134,7 +159,7 @@ export default function MotoristaLeitura() {
                     itens.map((v, index) => {
                       const bloqueio = v.tipoHorario === "Bloqueio";
                       const enderecoInfo = separarEndereco(v.endereco);
-                      const endereco = [enderecoInfo.texto, v.numero, v.complemento].filter(Boolean).join(" - ");
+                      const endereco = formatarEnderecoExibicao(v.endereco, v.numero, v.complemento);
                       return (
                         <article key={v.id} className={`rounded-xl border p-3 ${bloqueio ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
                           <div className="flex items-start gap-3">
@@ -145,8 +170,8 @@ export default function MotoristaLeitura() {
                               </p>
                               {!bloqueio && (
                                 <>
-                                  <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""} {v.numeroPedido || ""} {v.volumes ? `Volume: ${v.volumes}` : "Volume:"}</p>
-                                  {endereco && <p className="mt-1 text-sm text-slate-700">{endereco}</p>}
+                                  <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>
+                                  {endereco && <p className="mt-1 text-sm text-slate-700">End.: {endereco}</p>}
                                   {enderecoInfo.link && <a href={enderecoInfo.link} target="_blank" rel="noreferrer" className="mt-2 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Abrir no Google Maps</a>}
                                   {(v.contatoNome || v.contatoWhats) && <p className="mt-1 text-sm text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
                                 </>

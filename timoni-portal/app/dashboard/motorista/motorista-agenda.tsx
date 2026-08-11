@@ -22,6 +22,7 @@ type Viagem = {
   complemento?: string;
   info?: string;
   preenchidoPor?: string;
+  notasJson?: string;
 };
 
 type FormState = {
@@ -43,9 +44,11 @@ type FormState = {
   linkEndereco: string;
   observacao: string;
   preenchidoPor: string;
+  notasJson: string;
 };
 
 type Modo = "dia" | "semana" | "mes";
+type Seller = { nome: string; unidade: string };
 
 const AUTORIZADOS = ["Ciça", "Thais", "Jaqueline", "Jeovana", "Margareth", "Reginaldo", "Carol Araras"] as const;
 
@@ -116,6 +119,7 @@ function emptyForm(data = localDateString()): FormState {
     linkEndereco: "",
     observacao: "",
     preenchidoPor: "",
+    notasJson: "[]",
   };
 }
 
@@ -142,6 +146,7 @@ function formFromViagem(v: Viagem): FormState {
     linkEndereco: match?.[1] || "",
     observacao: v.info || "",
     preenchidoPor: v.preenchidoPor || "",
+    notasJson: v.notasJson || "[]",
   };
 }
 
@@ -195,6 +200,23 @@ function pedidoTexto(valor?: string) {
   return String(valor ?? "").replace(/\s*\/\s*/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function lerConclusao(notasJson?: string) {
+  try {
+    const parsed = JSON.parse(String(notasJson || "[]"));
+    if (parsed && !Array.isArray(parsed) && parsed.status === "concluida") return parsed as { status: string; observacaoConclusao?: string; concluidoEm?: string };
+  } catch {}
+  return null;
+}
+
+function notasComConclusao(notasJson: string | undefined, observacao: string) {
+  let base: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(String(notasJson || "[]"));
+    base = Array.isArray(parsed) ? { legado: parsed } : parsed && typeof parsed === "object" ? parsed : {};
+  } catch {}
+  return JSON.stringify({ ...base, status: "concluida", observacaoConclusao: observacao.trim(), concluidoEm: new Date().toISOString() });
+}
+
 function formatarCep(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 8);
   return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
@@ -223,9 +245,26 @@ export default function MotoristaAgenda() {
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState("");
   const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());
+  const [sellers, setSellers] = useState<Seller[]>([]);
 
   const diasMes = useMemo(() => monthDays(mesBase), [mesBase]);
   const diasSemana = useMemo(() => weekDays(selecionado), [selecionado]);
+  const sellerOptions = useMemo(() => {
+    const unidade = form.loja === "rio_claro" ? "rio_claro" : form.loja === "araras" ? "araras" : "";
+    return unidade ? sellers.filter((seller) => seller.unidade === unidade) : sellers;
+  }, [sellers, form.loja]);
+
+  useEffect(() => {
+    let ativo = true;
+    void (async () => {
+      try {
+        const response = await fetch("/api/agenda-motorista-vendedores", { cache: "no-store" });
+        const payload = await response.json().catch(() => null);
+        if (ativo && response.ok && payload?.ok && Array.isArray(payload.vendedores)) setSellers(payload.vendedores);
+      } catch {}
+    })();
+    return () => { ativo = false; };
+  }, []);
 
   async function carregarDia(data = selecionado) {
     setLoading(true);
@@ -386,7 +425,7 @@ export default function MotoristaAgenda() {
         info: form.observacao,
         preenchidoPor: form.preenchidoPor,
         dividir: "0",
-        notasJson: "[]",
+        notasJson: form.notasJson || "[]",
       });
       const response = await fetch("/api/agenda-motorista", {
         method: "POST",
@@ -400,6 +439,32 @@ export default function MotoristaAgenda() {
       else await carregarDia(form.data);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function concluirViagem(v: Viagem) {
+    if (v.tipoHorario === "Bloqueio" || lerConclusao(v.notasJson)) return;
+    const observacao = window.prompt("Observação da conclusão (opcional):", "");
+    if (observacao === null) return;
+    setSaving(true);
+    setErro("");
+    try {
+      const payload = new URLSearchParams({
+        action: "atualizar",
+        id: v.id,
+        notasJson: notasComConclusao(v.notasJson, observacao),
+      });
+      const response = await fetch("/api/agenda-motorista", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        body: payload,
+      });
+      await parseResponse(response);
+      await carregarDia(v.data);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível concluir a viagem.");
     } finally {
       setSaving(false);
     }
@@ -507,7 +572,11 @@ export default function MotoristaAgenda() {
                         </>}
                         {v.info && <p className="mt-2 text-sm text-slate-600">Observação: {v.info}</p>}
                         {v.preenchidoPor && <p className="mt-2 text-xs text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
-                        <button type="button" onClick={() => abrirEditar(v)} className="mt-2 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50">Editar</button>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {v.tipoHorario !== "Bloqueio" && (lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">Concluído</span> : <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">Concluir</button>)}
+                          <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50">Editar</button>
+                        </div>
+                        {lerConclusao(v.notasJson)?.observacaoConclusao && <p className="mt-2 text-xs text-emerald-800">Conclusão: {lerConclusao(v.notasJson)?.observacaoConclusao}</p>}
                       </article>
                     ))}
                   </div>
@@ -531,7 +600,10 @@ export default function MotoristaAgenda() {
                     {v.info && <p className="mt-3 text-slate-600">Observação: {v.info}</p>}
                     {v.preenchidoPor && <p className="mt-3 font-[Arial] text-[10pt] text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
                   </div>
-                  <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50">Editar</button>
+                  <div className="flex flex-wrap gap-2">
+                    {v.tipoHorario !== "Bloqueio" && (lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-2 text-sm font-semibold text-emerald-800">Concluído</span> : <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Concluir</button>)}
+                    <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50">Editar</button>
+                  </div>
                 </div>
               </article>
             ))}
@@ -564,7 +636,7 @@ export default function MotoristaAgenda() {
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <label className="text-sm font-medium text-slate-700">* Loja<select value={form.loja} onChange={(e) => set("loja", e.target.value)} className={fieldClass("loja")}><option value="">Selecione</option><option value="araras">Araras</option><option value="rio_claro">Rio Claro</option></select></label>
-              <label className="text-sm font-medium text-slate-700">* Vendedor<select value={form.vendedor} onChange={(e) => set("vendedor", e.target.value)} className={fieldClass("vendedor")}><option value="">Selecione</option>{form.vendedor && !AUTORIZADOS.includes(form.vendedor as (typeof AUTORIZADOS)[number]) && <option value={form.vendedor}>{form.vendedor}</option>}{AUTORIZADOS.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>
+              <label className="text-sm font-medium text-slate-700">* Vendedor<select value={form.vendedor} onChange={(e) => set("vendedor", e.target.value)} className={fieldClass("vendedor")}><option value="">Selecione</option>{form.vendedor && !sellerOptions.some((seller) => seller.nome === form.vendedor) && <option value={form.vendedor}>{form.vendedor}</option>}{sellerOptions.map((seller) => <option key={`${seller.nome}-${seller.unidade}`} value={seller.nome}>{seller.nome}</option>)}</select></label>
               <label className="text-sm font-medium text-slate-700">* Data<input type="date" value={form.data} onChange={(e) => set("data", e.target.value)} className={fieldClass("data")} /></label>
               <label className="text-sm font-medium text-slate-700">Hora<input type="time" value={form.hora} onChange={(e) => set("hora", e.target.value)} disabled={form.bloquear} className={`${fieldClass("hora")} disabled:bg-slate-100`} /></label>
             </div>

@@ -27,7 +27,6 @@ export const TEAM_MEMBERS: TeamMember[] = [
   { name: "Jaqueline", unit: "Rio Claro" },
   { name: "Jeovana", unit: "Rio Claro" },
   { name: "João", unit: "Rio Claro" },
-  { name: "José Carlos", unit: "Rio Claro" },
   { name: "José Roberto", unit: "Rio Claro" },
   { name: "Lucas", unit: "Rio Claro" },
   { name: "Nathan", unit: "Rio Claro" },

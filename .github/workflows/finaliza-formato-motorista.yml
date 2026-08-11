@@ -10,33 +10,61 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Corrigir visualizacao inicial e formato dos cards
+      - name: Padronizar agenda e leitura
         shell: python
         run: |
           from pathlib import Path
-          p = Path('timoni-portal/app/dashboard/motorista/motorista-agenda.tsx')
-          s = p.read_text(encoding='utf-8')
 
-          # A agenda dos colaboradores abre na Semana.
-          s = s.replace('const [modo, setModo] = useState<Modo>("dia");', 'const [modo, setModo] = useState<Modo>("semana");')
+          agenda = Path('timoni-portal/app/dashboard/motorista/motorista-agenda.tsx')
+          s = agenda.read_text(encoding='utf-8')
 
-          # Card semanal: Vend. + hora somente quando preenchida.
-          s = s.replace(
-            '<p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario || "Viagem"} {lojaLabel(v.loja)} | {horaCurta(v.horario)}{v.vendedor ? ` | ${v.vendedor}` : ""}</p>',
-            '<p className="text-sm font-semibold text-slate-950">{index + 1}. {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}` : ""}</p>'
-          )
+          s = s.replace('type Modo = "dia" | "semana" | "mes";\n', 'type Modo = "dia" | "semana" | "mes";\ntype Seller = { nome: string; unidade: string };\n', 1)
+          s = s.replace('  const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());\n', '  const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());\n  const [sellers, setSellers] = useState<Seller[]>([]);\n', 1)
 
-          # Card de Dia remanescente: mesma regra, para evitar diferença visual.
-          s = s.replace(
-            '<p className="font-semibold text-slate-950">{index + 1}. {v.tipoHorario || "Viagem"} {lojaLabel(v.loja)} | {horaCurta(v.horario)}{v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}{v.vendedor ? ` | Vendedor: ${v.vendedor}` : ""}</p>',
-            '<p className="font-semibold text-slate-950">{index + 1}. {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>'
-          )
+          anchor = '  const diasSemana = useMemo(() => weekDays(selecionado), [selecionado]);\n'
+          if 'const sellerOptions = useMemo(' not in s:
+            s = s.replace(anchor, anchor + '''\n  const sellerOptions = useMemo(\n    () => sellers.filter((item) => !item.unidade || item.unidade === form.loja || item.unidade === "todas"),\n    [sellers, form.loja],\n  );\n\n  useEffect(() => {\n    void (async () => {\n      try {\n        const response = await fetch("/api/estoque", { cache: "no-store" });\n        const payload = await response.json();\n        if (response.ok && payload?.ok && Array.isArray(payload.vendedores)) setSellers(payload.vendedores);\n      } catch {}\n    })();\n  }, []);\n''', 1)
 
-          p.write_text(s, encoding='utf-8')
+          helper = '''function separarEndereco(endereco?: string) {\n  const valor = endereco || "";\n  const match = valor.match(/\\nLink:\\s*(https?:\\/\\/\\S+)/i);\n  return {\n    texto: valor.replace(/\\nLink:\\s*https?:\\/\\/\\S+/i, "").trim(),\n    link: match?.[1] || "",\n  };\n}\n'''
+          extra = '''\nfunction formatarEnderecoExibicao(endereco?: string, numero?: string, complemento?: string) {\n  const info = separarEndereco(endereco);\n  const num = (numero || "").trim();\n  let partes = info.texto.split(/\\s+-\\s+/).map((parte) => parte.trim()).filter(Boolean);\n  if (num) {\n    partes = partes.filter((parte) => parte !== num);\n    if (partes[0]) {\n      const sufixos = [`, ${num}`, ` - ${num}`, ` ${num}`];\n      for (const sufixo of sufixos) {\n        while (partes[0].endsWith(sufixo)) partes[0] = partes[0].slice(0, -sufixo.length).trim();\n      }\n    }\n  }\n  const rua = partes.shift() || "";\n  const inicio = num && rua ? `${rua}, ${num}` : rua || num;\n  return [inicio, ...partes, complemento].filter(Boolean).join(" - ");\n}\n\nfunction limparEnderecoFormulario(endereco?: string, numero?: string) {\n  const exibido = formatarEnderecoExibicao(endereco, numero);\n  return numero ? exibido.replace(`, ${numero}`, "") : exibido;\n}\n\nfunction pedidoTexto(valor?: string) {\n  return (valor || "").replace(/\\s*\\/\\s*/g, " ").replace(/\\s+/g, " ").trim();\n}\n'''
+          if 'function formatarEnderecoExibicao(' not in s:
+            s = s.replace(helper, helper + extra, 1)
+
+          s = s.replace('  const enderecoCompleto = [v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ");\n  const match = enderecoCompleto.match(/\\nLink:\\s*(https?:\\/\\/\\S+)/i);', '  const enderecoBase = v.endereco || "";\n  const match = enderecoBase.match(/\\nLink:\\s*(https?:\\/\\/\\S+)/i);\n  const enderecoLimpo = limparEnderecoFormulario(enderecoBase, v.numero);\n  const cepEncontrado = enderecoLimpo.match(/\\b\\d{5}-?\\d{3}\\b/)?.[0] || "";', 1)
+          s = s.replace('    cep: "",\n    endereco: enderecoCompleto.replace(/\\nLink:\\s*https?:\\/\\/\\S+/i, "").trim(),', '    cep: cepEncontrado,\n    endereco: enderecoLimpo.replace(/\\nLink:\\s*https?:\\/\\/\\S+/i, "").trim(),', 1)
+
+          old_cep = '''      const endereco = [data.logradouro, data.bairro, [data.localidade, data.uf].filter(Boolean).join("/")].filter(Boolean).join(" - ");\n      const linkMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}`;\n      set("endereco", endereco);\n      set("numeroEndereco", "");\n      set("linkEndereco", "");\n      setErro("CEP localizado. Confirme o número do endereço para gerar o link do Google Maps.");\n      set("linkEndereco", linkMaps);'''
+          new_cep = '''      const endereco = [data.logradouro, data.bairro, [data.localidade, data.uf].filter(Boolean).join("/"), formatarCep(cep)].filter(Boolean).join(" - ");\n      set("endereco", endereco);\n      set("numeroEndereco", "");\n      set("linkEndereco", "");\n      setErro("CEP localizado. Confirme o número do endereço para gerar o link do Google Maps.");'''
+          s = s.replace(old_cep, new_cep, 1)
+          s = s.replace('      const linkMaps = form.linkEndereco || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoCompleto)}`;', '      const linkMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoCompleto)}`;', 1)
+
+          old_seller = '<label className="text-sm font-medium text-slate-700">* Vendedor<select value={form.vendedor} onChange={(e) => set("vendedor", e.target.value)} className={fieldClass("vendedor")}><option value="">Selecione</option>{form.vendedor && !AUTORIZADOS.includes(form.vendedor as (typeof AUTORIZADOS)[number]) && <option value={form.vendedor}>{form.vendedor}</option>}{AUTORIZADOS.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>'
+          new_seller = '<label className="text-sm font-medium text-slate-700">* Vendedor<select value={form.vendedor} onChange={(e) => set("vendedor", e.target.value)} className={fieldClass("vendedor")}><option value="">Selecione</option>{form.vendedor && !sellerOptions.some((item) => item.nome === form.vendedor) && <option value={form.vendedor}>{form.vendedor}</option>}{sellerOptions.map((item) => <option key={`${item.nome}-${item.unidade}`} value={item.nome}>{item.nome}</option>)}</select></label>'
+          s = s.replace(old_seller, new_seller, 1)
+          s = s.replace('<label className="text-sm font-medium text-slate-700">* Loja<select value={form.loja} onChange={(e) => set("loja", e.target.value)}', '<label className="text-sm font-medium text-slate-700">* Loja<select value={form.loja} onChange={(e) => { set("loja", e.target.value); set("vendedor", ""); }}', 1)
+
+          s = s.replace('<p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{v.numeroPedido ? ` · ${v.numeroPedido}` : ""}{v.volumes ? ` · Volume: ${v.volumes}` : ""}</p>', '<p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>', 1)
+          s = s.replace('{[separarEndereco(v.endereco).texto, v.numero, v.complemento].filter(Boolean).join(" - ")}', '{formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}', 1)
+
+          old_week = '''                      <button key={v.id} type="button" onClick={() => abrirEditar(v)} className="block w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left hover:bg-slate-100">\n                        <p className="text-sm font-semibold text-slate-950">{index + 1}. {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}` : ""}</p>\n                        {v.clienteFornecedor && <p className="mt-1 truncate text-xs text-slate-600">{v.clienteFornecedor}</p>}\n                      </button>'''
+          new_week = '''                      <button key={v.id} type="button" onClick={() => abrirEditar(v)} className="block w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left hover:bg-slate-100">\n                        <p className="text-sm font-semibold text-slate-950">{index + 1}. {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}` : ""}</p>\n                        {v.tipoHorario !== "Bloqueio" && <>\n                          <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>\n                          {v.endereco && <p className="mt-1 text-sm text-slate-700">{formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}\n                          {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-semibold text-blue-800 underline">Abrir no Google Maps</a>}\n                          {(v.contatoNome || v.contatoWhats) && <p className="mt-2 text-sm text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}\n                        </>}\n                        {v.info && <p className="mt-2 text-sm text-slate-600">Observação: {v.info}</p>}\n                        {v.preenchidoPor && <p className="mt-2 text-[10px] text-slate-500">Preenchido: {v.preenchidoPor}</p>}\n                      </button>'''
+          s = s.replace(old_week, new_week, 1)
+          agenda.write_text(s, encoding='utf-8')
+
+          leitura = Path('timoni-portal/app/motorista/motorista-leitura.tsx')
+          t = leitura.read_text(encoding='utf-8')
+          if 'function formatarEnderecoExibicao(' not in t:
+            t = t.replace(helper, helper + extra.replace('function limparEnderecoFormulario(endereco?: string, numero?: string) {\n  const exibido = formatarEnderecoExibicao(endereco, numero);\n  return numero ? exibido.replace(`, ${numero}`, "") : exibido;\n}\n\n', ''), 1)
+          t = t.replace('                      const endereco = [enderecoInfo.texto, v.numero, v.complemento].filter(Boolean).join(" - ");', '                      const endereco = formatarEnderecoExibicao(v.endereco, v.numero, v.complemento);', 1)
+          t = t.replace('<p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""} {v.numeroPedido || ""} {v.volumes ? `Volume: ${v.volumes}` : "Volume:"}</p>', '<p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>', 1)
+          t = t.replace('Preenchido por: {v.preenchidoPor}', 'Preenchido: {v.preenchidoPor}', 1)
+          leitura.write_text(t, encoding='utf-8')
+
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add timoni-portal/app/dashboard/motorista/motorista-agenda.tsx
-          git diff --cached --quiet || git commit -m "fix: abre Semana e padroniza vendedor/hora no Motorista equipe"
+          git add timoni-portal/app/dashboard/motorista/motorista-agenda.tsx timoni-portal/app/motorista/motorista-leitura.tsx
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "fix: padroniza cards endereco e vendedores do motorista"
           git push

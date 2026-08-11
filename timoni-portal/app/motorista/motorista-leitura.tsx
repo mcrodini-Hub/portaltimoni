@@ -20,6 +20,7 @@ type Viagem = {
   complemento?: string;
   info?: string;
   preenchidoPor?: string;
+  notasJson?: string;
 };
 
 function localDateString(d = new Date()) {
@@ -77,6 +78,15 @@ function formatarEnderecoExibicao(endereco?: string, numero?: string, complement
 
 function pedidoTexto(valor?: string) {
   return String(valor ?? "").replace(/\s*\/\s*/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function concluida(notasJson?: string) {
+  try {
+    const parsed = JSON.parse(String(notasJson || "[]"));
+    return Boolean(parsed && !Array.isArray(parsed) && parsed.status === "concluida");
+  } catch {
+    return false;
+  }
 }
 
 export default function MotoristaLeitura() {
@@ -165,9 +175,12 @@ export default function MotoristaLeitura() {
                           <div className="flex items-start gap-3">
                             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow-sm">{index + 1}</span>
                             <div className="min-w-0 flex-1">
-                              <p className="text-sm font-semibold text-slate-950">
-                                {bloqueio ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}
-                              </p>
+                              <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-semibold text-slate-950">
+                                  {bloqueio ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}
+                                </p>
+                                {!bloqueio && concluida(v.notasJson) && <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">Concluído</span>}
+                              </div>
                               {!bloqueio && (
                                 <>
                                   <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>

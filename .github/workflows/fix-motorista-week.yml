@@ -1,0 +1,19 @@
+name: Fix Motorista Week
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-motorista-week.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python .github/scripts/fix_motorista_week.py
+      - run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add timoni-portal/app/dashboard/motorista/motorista-agenda.tsx
+          git diff --cached --quiet || git commit -m "fix: restaura visualização Semana no Motorista equipe"
+          git push

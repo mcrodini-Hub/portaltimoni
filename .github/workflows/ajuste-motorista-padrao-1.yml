@@ -1,0 +1,74 @@
+name: Valida padrão 1 Motorista isolado
+on:
+  push:
+    branches: [ajuste-motorista-padrao-1]
+    paths:
+      - '.github/workflows/ajuste-motorista-padrao-1.yml'
+permissions:
+  contents: write
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ajuste-motorista-padrao-1
+      - name: Aplicar padrão 1
+        shell: python
+        run: |
+          from pathlib import Path
+
+          equipe = Path('timoni-portal/app/dashboard/motorista/motorista-agenda.tsx')
+          leitura = Path('timoni-portal/app/motorista/motorista-leitura.tsx')
+          e = equipe.read_text()
+          l = leitura.read_text()
+
+          old_helpers_public = '''function separarEndereco(endereco?: string) {\n  const valor = endereco || "";\n  const match = valor.match(/\\nLink:\\s*(https?:\\/\\/\\S+)/i);\n  return {\n    texto: valor.replace(/\\nLink:\\s*https?:\\/\\/\\S+/i, "").trim(),\n    link: match?.[1] || "",\n  };\n}\n'''
+          new_helpers_public = '''function separarEndereco(endereco?: string) {\n  const valor = String(endereco ?? "");\n  const match = valor.match(/\\nLink:\\s*(https?:\\/\\/\\S+)/i);\n  return {\n    texto: valor.replace(/\\nLink:\\s*https?:\\/\\/\\S+/i, "").trim(),\n    link: match?.[1] || "",\n  };\n}\n\nfunction escaparRegex(valor: string) {\n  return valor.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&");\n}\n\nfunction formatarEnderecoExibicao(endereco?: string, numero?: string, complemento?: string) {\n  const texto = separarEndereco(endereco).texto;\n  const num = String(numero ?? "").trim();\n  const comp = String(complemento ?? "").trim();\n  let partes = texto.split(/\\s+-\\s+/).map((parte) => parte.trim()).filter(Boolean);\n  if (num) {\n    partes = partes.filter((parte) => parte !== num);\n    if (partes[0]) {\n      const fim = new RegExp(`(?:\\\\s*[,\\-]?\\\\s*${escaparRegex(num)})+$`);\n      partes[0] = partes[0].replace(fim, "").replace(/[\\s,-]+$/, "").trim();\n    }\n  }\n  const rua = partes.shift() || "";\n  const inicio = rua && num ? `${rua}, ${num}` : rua || num;\n  return [inicio, ...partes, comp && comp !== num ? comp : ""].filter(Boolean).join(" - ");\n}\n\nfunction pedidoTexto(valor?: string) {\n  return String(valor ?? "").replace(/\\s*\\/\\s*/g, " ").replace(/\\s+/g, " ").trim();\n}\n'''
+          if old_helpers_public not in l:
+            raise SystemExit('helpers leitura não encontrados')
+          l = l.replace(old_helpers_public, new_helpers_public, 1)
+          l = l.replace('const endereco = [enderecoInfo.texto, v.numero, v.complemento].filter(Boolean).join(" - ");', 'const endereco = formatarEnderecoExibicao(v.endereco, v.numero, v.complemento);', 1)
+          l = l.replace('<p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""} {v.numeroPedido || ""} {v.volumes ? `Volume: ${v.volumes}` : "Volume:"}</p>', '<p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>', 1)
+          l = l.replace('{endereco && <p className="mt-1 text-sm text-slate-700">{endereco}</p>}', '{endereco && <p className="mt-1 text-sm text-slate-700">End.: {endereco}</p>}', 1)
+
+          old_helpers_team = '''function horaCurta(hora?: string) {\n  return hora ? hora.slice(0, 5) : "--:--";\n}\n\nfunction separarEndereco(endereco?: string) {\n  const valor = endereco || "";\n  const match = valor.match(/\\nLink:\\s*(https?:\\/\\/\\S+)/i);\n  return {\n    texto: valor.replace(/\\nLink:\\s*https?:\\/\\/\\S+/i, "").trim(),\n    link: match?.[1] || "",\n  };\n}\n'''
+          new_helpers_team = '''function horaCurta(hora?: string) {\n  return hora ? hora.slice(0, 5) : "";\n}\n\nfunction separarEndereco(endereco?: string) {\n  const valor = String(endereco ?? "");\n  const match = valor.match(/\\nLink:\\s*(https?:\\/\\/\\S+)/i);\n  return {\n    texto: valor.replace(/\\nLink:\\s*https?:\\/\\/\\S+/i, "").trim(),\n    link: match?.[1] || "",\n  };\n}\n\nfunction escaparRegex(valor: string) {\n  return valor.replace(/[.*+?^${}()|[\\]\\\\]/g, "\\\\$&");\n}\n\nfunction formatarEnderecoExibicao(endereco?: string, numero?: string, complemento?: string) {\n  const texto = separarEndereco(endereco).texto;\n  const num = String(numero ?? "").trim();\n  const comp = String(complemento ?? "").trim();\n  let partes = texto.split(/\\s+-\\s+/).map((parte) => parte.trim()).filter(Boolean);\n  if (num) {\n    partes = partes.filter((parte) => parte !== num);\n    if (partes[0]) {\n      const fim = new RegExp(`(?:\\\\s*[,\\-]?\\\\s*${escaparRegex(num)})+$`);\n      partes[0] = partes[0].replace(fim, "").replace(/[\\s,-]+$/, "").trim();\n    }\n  }\n  const rua = partes.shift() || "";\n  const inicio = rua && num ? `${rua}, ${num}` : rua || num;\n  return [inicio, ...partes, comp && comp !== num ? comp : ""].filter(Boolean).join(" - ");\n}\n\nfunction pedidoTexto(valor?: string) {\n  return String(valor ?? "").replace(/\\s*\\/\\s*/g, " ").replace(/\\s+/g, " ").trim();\n}\n'''
+          if old_helpers_team not in e:
+            raise SystemExit('helpers equipe não encontrados')
+          e = e.replace(old_helpers_team, new_helpers_team, 1)
+
+          old_week = '''                      <button key={v.id} type="button" onClick={() => abrirEditar(v)} className="block w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left hover:bg-slate-100">\n                        <p className="text-sm font-semibold text-slate-950">{index + 1}. {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}` : ""}</p>\n                        {v.clienteFornecedor && <p className="mt-1 truncate text-xs text-slate-600">{v.clienteFornecedor}</p>}\n                      </button>'''
+          new_week = '''                      <article key={v.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">\n                        <p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>\n                        {v.tipoHorario !== "Bloqueio" && <>\n                          <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>\n                          {v.endereco && <p className="mt-1 text-sm text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}\n                          {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}\n                          {(v.contatoNome || v.contatoWhats) && <p className="mt-2 text-sm text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}\n                        </>}\n                        {v.info && <p className="mt-2 text-sm text-slate-600">Observação: {v.info}</p>}\n                        {v.preenchidoPor && <p className="mt-2 text-xs text-slate-500">Preenchido por: {v.preenchidoPor}</p>}\n                        <button type="button" onClick={() => abrirEditar(v)} className="mt-2 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50">Editar</button>\n                      </article>'''
+          if old_week not in e:
+            raise SystemExit('card semanal não encontrado')
+          e = e.replace(old_week, new_week, 1)
+
+          old_day_head = '<p className="font-semibold text-slate-950">{index + 1}. {v.tipoHorario || "Viagem"} {lojaLabel(v.loja)} | {horaCurta(v.horario)}{v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}{v.vendedor ? ` | Vendedor: ${v.vendedor}` : ""}</p>'
+          new_day_head = '<p className="font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>'
+          if old_day_head not in e:
+            raise SystemExit('cabeçalho dia não encontrado')
+          e = e.replace(old_day_head, new_day_head, 1)
+
+          e = e.replace('<p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{v.numeroPedido ? ` · ${v.numeroPedido}` : ""}{v.volumes ? ` · Volume: ${v.volumes}` : ""}</p>', '<p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>', 1)
+          old_day_addr = '''                      {v.endereco && <p className="mt-3 text-slate-700">\n              {[separarEndereco(v.endereco).texto, v.numero, v.complemento].filter(Boolean).join(" - ")}\n              {separarEndereco(v.endereco).link && <>{" · "}<a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a></>}\n            </p>}'''
+          new_day_addr = '''                      {v.endereco && <p className="mt-3 text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}\n                      {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}'''
+          if old_day_addr not in e:
+            raise SystemExit('endereço dia não encontrado')
+          e = e.replace(old_day_addr, new_day_addr, 1)
+
+          equipe.write_text(e)
+          leitura.write_text(l)
+      - name: Instalar dependências
+        working-directory: timoni-portal
+        run: npm ci
+      - name: Validar build
+        working-directory: timoni-portal
+        run: npm run build
+      - name: Commit na branch isolada
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add timoni-portal/app/dashboard/motorista/motorista-agenda.tsx timoni-portal/app/motorista/motorista-leitura.tsx
+          git commit -m "test: aplica padrão 1 do Motorista isolado"
+          git push origin HEAD:ajuste-motorista-padrao-1

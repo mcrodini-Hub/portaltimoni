@@ -363,30 +363,6 @@ function MeetingCard({ title, meetings }: { title: string; meetings: FixedMeetin
   );
 }
 
-function MeetingSummaryCard({ araras, rioClaro }: { araras: FixedMeeting[]; rioClaro: FixedMeeting[] }) {
-  const renderUnit = (title: string, meetings: FixedMeeting[]) => (
-    <div>
-      <p className="font-semibold text-violet-800">{title}</p>
-      {meetings.length ? meetings.map((meeting, index) => (
-        <p key={meeting.start} className="mt-1">
-          <span className="font-medium">{index === 0 ? "Próxima:" : "Seguinte:"}</span> {formatFixedMeetingDateTime(meeting)}
-        </p>
-      )) : <p className="mt-1">Nenhuma reunião programada.</p>}
-    </div>
-  );
-
-  return (
-    <article className="rounded-3xl border border-violet-200 bg-violet-50 p-6 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Reuniões</p>
-      <h2 className="mt-3 text-xl font-semibold text-slate-950">Araras / Rio Claro</h2>
-      <div className="mt-3 space-y-3 text-sm leading-6 text-slate-600">
-        {renderUnit("Araras", araras)}
-        <div className="border-t border-violet-200 pt-3">{renderUnit("Rio Claro", rioClaro)}</div>
-      </div>
-    </article>
-  );
-}
-
 function EventListCard({ title, tone, events, emptyMessage, formatSummary }: {
   title: string;
   tone: "pink" | "amber";
@@ -501,11 +477,14 @@ export default async function ColaboradoresPage() {
         )}
 
         {panelStore === "geral" ? (
-          <MeetingSummaryCard araras={nextArarasMeetings} rioClaro={nextRioClaroMeetings} />
+          <>
+            <MeetingCard title="Reunião de Araras" meetings={nextArarasMeetings} />
+            <MeetingCard title="Reunião de Rio Claro" meetings={nextRioClaroMeetings} />
+          </>
         ) : (
           <>
-            {showAraras && <MeetingCard title="Araras" meetings={nextArarasMeetings} />}
-            {showRioClaro && <MeetingCard title="Rio Claro" meetings={nextRioClaroMeetings} />}
+            {showAraras && <MeetingCard title="Reunião de Araras" meetings={nextArarasMeetings} />}
+            {showRioClaro && <MeetingCard title="Reunião de Rio Claro" meetings={nextRioClaroMeetings} />}
           </>
         )}
 

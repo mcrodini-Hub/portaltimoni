@@ -106,6 +106,10 @@ function timestamp(value: string) {
   return Number.isNaN(parsed) ? 0 : parsed;
 }
 
+function canUseNotifications() {
+  return typeof window !== "undefined" && "Notification" in window;
+}
+
 export default function EstoqueClient({ isManager = false, defaultUnit = "rio_claro", allowedUnits = ["rio_claro", "araras"] }: EstoqueClientProps) {
   const safeAllowedUnits = allowedUnits.length ? allowedUnits : [defaultUnit];
   const [loading, setLoading] = useState(true);
@@ -125,6 +129,8 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
   const [quantity, setQuantity] = useState("");
   const [note, setNote] = useState("");
   const [waiting, setWaiting] = useState(false);
+  const [responseDrafts, setResponseDrafts] = useState<Record<string, string>>({});
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
 
   const codeInputRef = useRef<HTMLInputElement>(null);
   const descriptionInputRef = useRef<HTMLInputElement>(null);
@@ -132,6 +138,8 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
   const noteInputRef = useRef<HTMLInputElement>(null);
   const waitingInputRef = useRef<HTMLInputElement>(null);
   const registerButtonRef = useRef<HTMLButtonElement>(null);
+  const notificationInitializedRef = useRef(false);
+  const notifiedNeedIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (!safeAllowedUnits.includes(newUnit)) {
@@ -140,6 +148,10 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
     }
     if (!isManager && unit !== safeAllowedUnits[0]) setUnit(safeAllowedUnits[0]);
   }, [isManager, newUnit, safeAllowedUnits, unit]);
+
+  useEffect(() => {
+    if (canUseNotifications()) setNotificationPermission(Notification.permission);
+  }, []);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -163,6 +175,47 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
     void refresh();
   }, [refresh]);
 
+  useEffect(() => {
+    if (!isManager) return undefined;
+    const timer = window.setInterval(() => {
+      void refresh();
+    }, 60000);
+    return () => window.clearInterval(timer);
+  }, [isManager, refresh]);
+
+  useEffect(() => {
+    if (!isManager) return;
+    const activeNeeds = needs.filter((need) => need.status !== "chegou");
+    const currentIds = new Set(activeNeeds.map((need) => need.id));
+
+    if (!notificationInitializedRef.current) {
+      notifiedNeedIdsRef.current = currentIds;
+      notificationInitializedRef.current = true;
+      return;
+    }
+
+    const newNeeds = activeNeeds.filter((need) => !notifiedNeedIdsRef.current.has(need.id));
+    notifiedNeedIdsRef.current = currentIds;
+
+    if (!newNeeds.length || !canUseNotifications() || Notification.permission !== "granted") return;
+
+    for (const need of newNeeds.slice(0, 3)) {
+      new Notification("Nova necessidade no Estoque", {
+        body: `${unitLabel(need.unidade)} · ${need.codigo} ${need.descricao}`,
+      });
+    }
+  }, [isManager, needs]);
+
+  async function requestNotifications() {
+    if (!canUseNotifications()) {
+      setNotice("Este navegador não permite notificações do Portal.");
+      return;
+    }
+    const permission = await Notification.requestPermission();
+    setNotificationPermission(permission);
+    setNotice(permission === "granted" ? "Notificações do Estoque ativadas neste aparelho." : "Notificações não foram autorizadas neste aparelho.");
+  }
+
   async function post(body: Record<string, unknown>, id = "geral") {
     setBusy(id);
     setError("");
@@ -175,7 +228,7 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
       });
       const payload = (await response.json()) as { ok?: boolean; error?: string; existing?: boolean };
       if (!response.ok || !payload.ok) throw new Error(payload.error || "Falha ao atualizar");
-      setNotice(payload.existing ? "Produto já ativo; solicitação mantida." : "Solicitação registrada.");
+      setNotice(payload.existing ? "Produto já ativo; solicitação mantida." : "Atualização registrada.");
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao atualizar");
@@ -193,8 +246,12 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
   }
 
   async function observe(need: Need) {
-    const text = window.prompt("Resposta ao vendedor:", need.observacao || "");
-    if (text !== null) await post({ action: "observacao", id: need.id, texto: text }, need.id);
+    const text = (responseDrafts[need.id] ?? need.observacao ?? "").trim();
+    if (!text) {
+      setError("Escreva a observação/resposta da necessidade.");
+      return;
+    }
+    await post({ action: "observacao", id: need.id, texto: text }, need.id);
   }
 
   async function arrived(need: Need) {
@@ -301,6 +358,8 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
 
   function NeedCard({ need }: { need: Need }) {
     const disabled = busy === need.id;
+    const draft = responseDrafts[need.id] ?? need.observacao ?? "";
+
     return (
       <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-2">
@@ -315,11 +374,23 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
         {need.status === "pedido_existente" && <p className="mt-3 text-sm">Pedido <strong>{need.numeroPedido}</strong> · previsão {need.previsaoEntrega || "não informada"}</p>}
         <p className="mt-3 text-xs text-slate-400">{date(need.criadoEm)}</p>
         {need.status !== "chegou" && isManager && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {["pendente", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void post({ action: "em_compra", id: need.id }, need.id)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Relação de compra</button>}
-            {["pendente", "em_compra", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void order(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Pedido feito</button>}
-            {["pendente", "em_compra", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void observe(need)} className="rounded-lg border px-3 py-2 text-xs font-semibold">Outra resposta</button>}
-            {need.status === "pedido_existente" && <button disabled={disabled} onClick={() => void arrived(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Produto chegou</button>}
+          <div className="mt-4 space-y-3">
+            <label className="block">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Observação / resposta da necessidade</span>
+              <textarea
+                value={draft}
+                onChange={(event) => setResponseDrafts((current) => ({ ...current, [need.id]: event.target.value }))}
+                rows={3}
+                placeholder="Registre aqui a resposta, orientação ou observação sobre esta necessidade."
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              />
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {["pendente", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void post({ action: "em_compra", id: need.id }, need.id)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Relação de compra</button>}
+              {["pendente", "em_compra", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void order(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Pedido feito</button>}
+              {["pendente", "em_compra", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void observe(need)} className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50">Salvar observação</button>}
+              {need.status === "pedido_existente" && <button disabled={disabled} onClick={() => void arrived(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Produto chegou</button>}
+            </div>
           </div>
         )}
       </article>
@@ -438,9 +509,13 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
             <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Módulo Estoque</p>
             <h1 className="mt-2 text-3xl font-semibold">Estoque CT</h1>
             <p className="mt-3 text-sm text-slate-600">Uso direto no Portal Timoni, no computador ou celular.</p>
+            <p className="mt-2 text-xs text-slate-500">As notificações aparecem quando o Portal estiver aberto neste aparelho e o navegador permitir avisos.</p>
           </div>
           <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
             <button onClick={() => void refresh()} className={primary}>Atualizar informações</button>
+            <button onClick={() => void requestNotifications()} className={secondary}>
+              {notificationPermission === "granted" ? "Notificações ativadas" : "Ativar notificações"}
+            </button>
             <a href={SHEET_URL} target="_blank" rel="noreferrer" className={secondary + " text-center"}>Abrir planilha</a>
           </div>
         </section>

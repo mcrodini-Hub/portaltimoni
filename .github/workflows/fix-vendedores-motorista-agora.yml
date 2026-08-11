@@ -1,0 +1,31 @@
+name: Corrige vendedores Motorista agora
+on:
+  push:
+    paths:
+      - '.github/workflows/fix-vendedores-motorista-agora.yml'
+permissions:
+  contents: write
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Corrigir endpoint de vendedores
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('timoni-portal/app/dashboard/motorista/motorista-agenda.tsx')
+          s = p.read_text(encoding='utf-8')
+          old = 'const response = await fetch("/api/estoque", { cache: "no-store" });'
+          new = 'const response = await fetch("/api/agenda-motorista-vendedores", { cache: "no-store" });'
+          if old not in s:
+              raise SystemExit('endpoint antigo não encontrado')
+          p.write_text(s.replace(old, new, 1), encoding='utf-8')
+          PY
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add timoni-portal/app/dashboard/motorista/motorista-agenda.tsx
+          git commit -m "fix: usa endpoint próprio de vendedores no Motorista"
+          git push

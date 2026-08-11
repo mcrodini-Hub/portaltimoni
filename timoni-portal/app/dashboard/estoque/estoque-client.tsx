@@ -483,9 +483,11 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
       <section className="rounded-3xl border bg-white p-5 shadow-sm">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-xl font-semibold">Necessidades do estoque</h2>
-          <div className="flex rounded-xl bg-slate-100 p-1">
-            {(["todas", "rio_claro", "araras"] as Unit[]).map((item) => <button key={item} onClick={() => setUnit(item)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${unit === item ? "bg-white shadow-sm" : "text-slate-500"}`}>{item === "todas" ? "Todas" : unitLabel(item)}</button>)}
-          </div>
+          {isManager && (
+            <div className="flex rounded-xl bg-slate-100 p-1">
+              {(["todas", "rio_claro", "araras"] as Unit[]).map((item) => <button key={item} onClick={() => setUnit(item)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${unit === item ? "bg-white shadow-sm" : "text-slate-500"}`}>{item === "todas" ? "Todas" : unitLabel(item)}</button>)}
+            </div>
+          )}
         </div>
         <div className="mt-5 grid gap-5 xl:grid-cols-2">
           <div>
@@ -526,7 +528,7 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
 
       {!isManager ? (
         <div className="space-y-5">
-          {TrackingSection()}
+          {NeedsSection()}
           {RequestForm()}
         </div>
       ) : (

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import MotoristaAgenda from "./motorista-agenda";
 
 export const metadata: Metadata = {
-  title: "Motorista | Portal Timoni",
+  title: "Agenda Motorista",
 };
 
 export default function MotoristaPage() {

@@ -110,7 +110,7 @@ export const portalUsers: Record<string, PortalUser> = {
   "balcaotimoni@gmail.com": {
     name: "Vendedores - Rio Claro",
     email: "balcaotimoni@gmail.com",
-    modules: withStock(["painel"]),
+    modules: withStock(["painel", "motorista"]),
     requiresPassword: false,
     readOnly: true,
   },

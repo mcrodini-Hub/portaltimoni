@@ -14,6 +14,7 @@ type PortalUser = {
   email: string;
   modules: PortalModule[];
   requiresPassword: boolean;
+  readOnly?: boolean;
 };
 
 const allModules: PortalModule[] = [
@@ -78,6 +79,7 @@ export const portalUsers: Record<string, PortalUser> = {
     email: "comercialara@casatimoni.com.br",
     modules: withStock(["painel", "motorista"]),
     requiresPassword: false,
+    readOnly: true,
   },
   "casatimoniararas@gmail.com": {
     name: "Casa Timoni Araras",
@@ -96,18 +98,21 @@ export const portalUsers: Record<string, PortalUser> = {
     email: "estoquetimoni@gmail.com",
     modules: operationalModules,
     requiresPassword: false,
+    readOnly: true,
   },
   "fotoscasatimoni@gmail.com": {
     name: "Lucas e Vendedores - Araras",
     email: "fotoscasatimoni@gmail.com",
     modules: operationalModules,
     requiresPassword: false,
+    readOnly: true,
   },
   "balcaotimoni@gmail.com": {
     name: "Vendedores - Rio Claro",
     email: "balcaotimoni@gmail.com",
     modules: withStock(["painel"]),
     requiresPassword: false,
+    readOnly: true,
   },
   "caixatimonirioclaro@gmail.com": {
     name: "Thais - Rio Claro",
@@ -131,4 +136,8 @@ export function getPortalUser(email?: string | null) {
 
 export function hasModuleAccess(email: string | null | undefined, module: PortalModule) {
   return getPortalUser(email)?.modules.includes(module) ?? false;
+}
+
+export function isReadOnlyUser(email?: string | null) {
+  return getPortalUser(email)?.readOnly === true;
 }

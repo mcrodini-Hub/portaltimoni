@@ -29,6 +29,7 @@ type Data = { ok: boolean; necessidades: Need[]; produtos: Product[]; vendedores
 
 type EstoqueClientProps = {
   isManager?: boolean;
+  canDelete?: boolean;
   defaultUnit?: RequestUnit;
   allowedUnits?: RequestUnit[];
 };
@@ -110,7 +111,7 @@ function canUseNotifications() {
   return typeof window !== "undefined" && "Notification" in window;
 }
 
-export default function EstoqueClient({ isManager = false, defaultUnit = "rio_claro", allowedUnits = ["rio_claro", "araras"] }: EstoqueClientProps) {
+export default function EstoqueClient({ isManager = false, canDelete = false, defaultUnit = "rio_claro", allowedUnits = ["rio_claro", "araras"] }: EstoqueClientProps) {
   const safeAllowedUnits = allowedUnits.length ? allowedUnits : [defaultUnit];
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
@@ -258,6 +259,11 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
     if (window.confirm(`Confirmar chegada de ${need.codigo}?`)) await post({ action: "chegou", id: need.id }, need.id);
   }
 
+  async function remove(need: Need) {
+    if (!window.confirm(`Excluir definitivamente a solicitação ${need.codigo} - ${need.descricao}?`)) return;
+    await post({ action: "excluir", id: need.id }, need.id);
+  }
+
   function selectProduct(product: Product) {
     setSelected(product.codigo);
     setCodeSearch(product.codigo);
@@ -392,6 +398,11 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
               {need.status === "pedido_existente" && <button disabled={disabled} onClick={() => void arrived(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Produto chegou</button>}
             </div>
           </div>
+        )}
+        {canDelete && (
+          <button disabled={disabled} onClick={() => void remove(need)} className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50">
+            Excluir
+          </button>
         )}
       </article>
     );

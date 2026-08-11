@@ -473,7 +473,7 @@ export default function MotoristaAgenda() {
                   <div className="mt-3 space-y-2">
                     {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itens.length === 0 ? <p className="text-sm text-slate-400">Sem viagens.</p> : itens.map((v, index) => (
                       <button key={v.id} type="button" onClick={() => abrirEditar(v)} className="block w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left hover:bg-slate-100">
-                        <p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario || "Viagem"} {lojaLabel(v.loja)} | {horaCurta(v.horario)}{v.vendedor ? ` | ${v.vendedor}` : ""}</p>
+                        <p className="text-sm font-semibold text-slate-950">{index + 1}. {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}` : ""}</p>
                         {v.clienteFornecedor && <p className="mt-1 truncate text-xs text-slate-600">{v.clienteFornecedor}</p>}
                       </button>
                     ))}

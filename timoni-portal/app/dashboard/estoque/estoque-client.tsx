@@ -120,7 +120,7 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
   const [products, setProducts] = useState<Product[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [summary, setSummary] = useState<Summary>(emptySummary);
-  const [unit, setUnit] = useState<Unit>(isManager ? "todas" : defaultUnit);
+  const [unit, setUnit] = useState<Unit>("todas");
   const [newUnit, setNewUnit] = useState<RequestUnit>(defaultUnit);
   const [seller, setSeller] = useState("");
   const [codeSearch, setCodeSearch] = useState("");
@@ -146,8 +146,7 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
       setNewUnit(safeAllowedUnits[0]);
       setSeller("");
     }
-    if (!isManager && unit !== safeAllowedUnits[0]) setUnit(safeAllowedUnits[0]);
-  }, [isManager, newUnit, safeAllowedUnits, unit]);
+  }, [newUnit, safeAllowedUnits]);
 
   useEffect(() => {
     if (canUseNotifications()) setNotificationPermission(Notification.permission);

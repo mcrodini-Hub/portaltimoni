@@ -1,11 +1,17 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { auth } from "@/lib/auth";
+import { isReadOnlyUser } from "@/lib/access-control";
 import MotoristaAgenda from "./motorista-agenda";
 
 export const metadata: Metadata = {
   title: "Agenda Motorista",
 };
 
-export default function MotoristaPage() {
+export default async function MotoristaPage() {
+  const session = await auth();
+  if (isReadOnlyUser(session?.user?.email)) redirect("/motorista");
+
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4">
       <header>

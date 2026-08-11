@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { hasModuleAccess } from "@/lib/access-control";
+import { hasModuleAccess, isReadOnlyUser } from "@/lib/access-control";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,6 +14,11 @@ async function autorizado() {
   const session = await auth();
   const email = session?.user?.email;
   return Boolean(email && hasModuleAccess(email, "motorista"));
+}
+
+async function acessoLeitura() {
+  const session = await auth();
+  return isReadOnlyUser(session?.user?.email);
 }
 
 async function encaminhar(url: string, init: RequestInit) {
@@ -64,6 +69,9 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   if (!(await autorizado())) {
     return NextResponse.json({ ok: false, erro: "Não autorizado." }, { status: 401 });
+  }
+  if (await acessoLeitura()) {
+    return NextResponse.json({ ok: false, erro: "Acesso somente leitura." }, { status: 403 });
   }
 
   const corpo = await request.text();

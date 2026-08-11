@@ -46,6 +46,7 @@ type FormState = {
 };
 
 type Modo = "dia" | "semana" | "mes";
+type Seller = { nome: string; unidade: string };
 
 const AUTORIZADOS = ["Ciça", "Thais", "Jaqueline", "Jeovana", "Margareth", "Reginaldo", "Carol Araras"] as const;
 
@@ -121,8 +122,10 @@ function emptyForm(data = localDateString()): FormState {
 
 function formFromViagem(v: Viagem): FormState {
   const bloqueio = v.tipoHorario === "Bloqueio";
-  const enderecoCompleto = [v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ");
-  const match = enderecoCompleto.match(/\nLink:\s*(https?:\/\/\S+)/i);
+  const enderecoBase = v.endereco || "";
+  const match = enderecoBase.match(/\nLink:\s*(https?:\/\/\S+)/i);
+  const enderecoLimpo = limparEnderecoFormulario(enderecoBase, v.numero);
+  const cepEncontrado = enderecoLimpo.match(/\b\d{5}-?\d{3}\b/)?.[0] || "";
   return {
     loja: v.loja || "",
     vendedor: v.vendedor || "",
@@ -136,8 +139,8 @@ function formFromViagem(v: Viagem): FormState {
     volumes: v.volumes || "",
     contatoNome: v.contatoNome || "",
     contatoWhats: v.contatoWhats || "",
-    cep: "",
-    endereco: enderecoCompleto.replace(/\nLink:\s*https?:\/\/\S+/i, "").trim(),
+    cep: cepEncontrado,
+    endereco: enderecoLimpo.replace(/\nLink:\s*https?:\/\/\S+/i, "").trim(),
     numeroEndereco: v.numero || "",
     linkEndereco: match?.[1] || "",
     observacao: v.info || "",
@@ -170,6 +173,33 @@ function separarEndereco(endereco?: string) {
   };
 }
 
+function formatarEnderecoExibicao(endereco?: string, numero?: string, complemento?: string) {
+  const info = separarEndereco(endereco);
+  const num = (numero || "").trim();
+  let partes = info.texto.split(/\s+-\s+/).map((parte) => parte.trim()).filter(Boolean);
+  if (num) {
+    partes = partes.filter((parte) => parte !== num);
+    if (partes[0]) {
+      const sufixos = [`, ${num}`, ` - ${num}`, ` ${num}`];
+      for (const sufixo of sufixos) {
+        while (partes[0].endsWith(sufixo)) partes[0] = partes[0].slice(0, -sufixo.length).trim();
+      }
+    }
+  }
+  const rua = partes.shift() || "";
+  const inicio = num && rua ? `${rua}, ${num}` : rua || num;
+  return [inicio, ...partes, complemento].filter(Boolean).join(" - ");
+}
+
+function limparEnderecoFormulario(endereco?: string, numero?: string) {
+  const exibido = formatarEnderecoExibicao(endereco, numero);
+  return numero ? exibido.replace(`, ${numero}`, "") : exibido;
+}
+
+function pedidoTexto(valor?: string) {
+  return (valor || "").replace(/\s*\/\s*/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function formatarCep(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 8);
   return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
@@ -198,9 +228,25 @@ export default function MotoristaAgenda() {
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState("");
   const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());
+  const [sellers, setSellers] = useState<Seller[]>([]);
 
   const diasMes = useMemo(() => monthDays(mesBase), [mesBase]);
   const diasSemana = useMemo(() => weekDays(selecionado), [selecionado]);
+
+  const sellerOptions = useMemo(
+    () => sellers.filter((item) => !item.unidade || item.unidade === form.loja || item.unidade === "todas"),
+    [sellers, form.loja],
+  );
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const response = await fetch("/api/estoque", { cache: "no-store" });
+        const payload = await response.json();
+        if (response.ok && payload?.ok && Array.isArray(payload.vendedores)) setSellers(payload.vendedores);
+      } catch {}
+    })();
+  }, []);
 
   async function carregarDia(data = selecionado) {
     setLoading(true);
@@ -306,13 +352,11 @@ export default function MotoristaAgenda() {
       const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
       const data = await response.json();
       if (!response.ok || data.erro) throw new Error("CEP não encontrado.");
-      const endereco = [data.logradouro, data.bairro, [data.localidade, data.uf].filter(Boolean).join("/")].filter(Boolean).join(" - ");
-      const linkMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}`;
+      const endereco = [data.logradouro, data.bairro, [data.localidade, data.uf].filter(Boolean).join("/"), formatarCep(cep)].filter(Boolean).join(" - ");
       set("endereco", endereco);
       set("numeroEndereco", "");
       set("linkEndereco", "");
       setErro("CEP localizado. Confirme o número do endereço para gerar o link do Google Maps.");
-      set("linkEndereco", linkMaps);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível buscar o CEP.");
     }
@@ -338,7 +382,7 @@ export default function MotoristaAgenda() {
     setErro("");
     try {
       const enderecoCompleto = [form.endereco, form.numeroEndereco].filter(Boolean).join(", ");
-      const linkMaps = form.linkEndereco || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoCompleto)}`;
+      const linkMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoCompleto)}`;
       const detalhesEndereco = `${form.endereco}\nLink: ${linkMaps}`;
       const payload = new URLSearchParams({
         action: editandoId ? "atualizar" : "criar",
@@ -474,7 +518,14 @@ export default function MotoristaAgenda() {
                     {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itens.length === 0 ? <p className="text-sm text-slate-400">Sem viagens.</p> : itens.map((v, index) => (
                       <button key={v.id} type="button" onClick={() => abrirEditar(v)} className="block w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left hover:bg-slate-100">
                         <p className="text-sm font-semibold text-slate-950">{index + 1}. {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}` : ""}</p>
-                        {v.clienteFornecedor && <p className="mt-1 truncate text-xs text-slate-600">{v.clienteFornecedor}</p>}
+                        {v.tipoHorario !== "Bloqueio" && <>
+                          <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>
+                          {v.endereco && <p className="mt-1 text-sm text-slate-700">{formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
+                          {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} onClick={(e) => e.stopPropagation()} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-semibold text-blue-800 underline">Abrir no Google Maps</a>}
+                          {(v.contatoNome || v.contatoWhats) && <p className="mt-2 text-sm text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
+                        </>}
+                        {v.info && <p className="mt-2 text-sm text-slate-600">Observação: {v.info}</p>}
+                        {v.preenchidoPor && <p className="mt-2 text-[10px] text-slate-500">Preenchido: {v.preenchidoPor}</p>}
                       </button>
                     ))}
                   </div>
@@ -490,9 +541,9 @@ export default function MotoristaAgenda() {
                   <div className="font-[Arial] text-[11pt] leading-[1.35]">
                     <p className="font-semibold text-slate-950">{index + 1}. {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
                     {v.tipoHorario !== "Bloqueio" && <>
-                      <p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{v.numeroPedido ? ` · ${v.numeroPedido}` : ""}{v.volumes ? ` · Volume: ${v.volumes}` : ""}</p>
+                      <p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>
                       {v.endereco && <p className="mt-3 text-slate-700">
-              {[separarEndereco(v.endereco).texto, v.numero, v.complemento].filter(Boolean).join(" - ")}
+              {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}
               {separarEndereco(v.endereco).link && <>{" · "}<a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a></>}
             </p>}
                       {(v.contatoNome || v.contatoWhats) && <p className="mt-3 text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
@@ -532,8 +583,8 @@ export default function MotoristaAgenda() {
             </div>
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <label className="text-sm font-medium text-slate-700">* Loja<select value={form.loja} onChange={(e) => set("loja", e.target.value)} className={fieldClass("loja")}><option value="">Selecione</option><option value="araras">Araras</option><option value="rio_claro">Rio Claro</option></select></label>
-              <label className="text-sm font-medium text-slate-700">* Vendedor<select value={form.vendedor} onChange={(e) => set("vendedor", e.target.value)} className={fieldClass("vendedor")}><option value="">Selecione</option>{form.vendedor && !AUTORIZADOS.includes(form.vendedor as (typeof AUTORIZADOS)[number]) && <option value={form.vendedor}>{form.vendedor}</option>}{AUTORIZADOS.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>
+              <label className="text-sm font-medium text-slate-700">* Loja<select value={form.loja} onChange={(e) => { set("loja", e.target.value); set("vendedor", ""); }} className={fieldClass("loja")}><option value="">Selecione</option><option value="araras">Araras</option><option value="rio_claro">Rio Claro</option></select></label>
+              <label className="text-sm font-medium text-slate-700">* Vendedor<select value={form.vendedor} onChange={(e) => set("vendedor", e.target.value)} className={fieldClass("vendedor")}><option value="">Selecione</option>{form.vendedor && !sellerOptions.some((item) => item.nome === form.vendedor) && <option value={form.vendedor}>{form.vendedor}</option>}{sellerOptions.map((item) => <option key={`${item.nome}-${item.unidade}`} value={item.nome}>{item.nome}</option>)}</select></label>
               <label className="text-sm font-medium text-slate-700">* Data<input type="date" value={form.data} onChange={(e) => set("data", e.target.value)} className={fieldClass("data")} /></label>
               <label className="text-sm font-medium text-slate-700">Hora<input type="time" value={form.hora} onChange={(e) => set("hora", e.target.value)} disabled={form.bloquear} className={`${fieldClass("hora")} disabled:bg-slate-100`} /></label>
             </div>

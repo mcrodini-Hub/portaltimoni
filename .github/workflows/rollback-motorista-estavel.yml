@@ -1,0 +1,25 @@
+name: Rollback Motorista estavel
+on:
+  push:
+    paths:
+      - '.github/workflows/rollback-motorista-estavel.yml'
+permissions:
+  contents: write
+jobs:
+  rollback:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Restaurar arquivos estaveis
+        run: |
+          git checkout 4cc1d7e334fcc64980536370a24480dc1b7f4fee -- timoni-portal/app/dashboard/motorista/motorista-agenda.tsx
+          git checkout 698b79d97f10168da322d3f8587a571758715cac -- timoni-portal/app/motorista/motorista-leitura.tsx
+      - name: Commit rollback
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add timoni-portal/app/dashboard/motorista/motorista-agenda.tsx timoni-portal/app/motorista/motorista-leitura.tsx
+          git diff --cached --quiet || git commit -m "fix: restaura Motorista para versoes estaveis"
+          git push

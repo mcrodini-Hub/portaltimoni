@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { hasModuleAccess, isReadOnlyUser } from "@/lib/access-control";
+import { hasModuleAccess, isCicaAdmin, isReadOnlyUser } from "@/lib/access-control";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -75,6 +75,13 @@ export async function POST(request: NextRequest) {
   }
 
   const corpo = await request.text();
+  const action = new URLSearchParams(corpo).get("action");
+  if (action === "excluir") {
+    const session = await auth();
+    if (!isCicaAdmin(session?.user?.email)) {
+      return NextResponse.json({ ok: false, erro: "Somente Ciça pode excluir viagens." }, { status: 403 });
+    }
+  }
   return encaminhar(WEBAPP_URL, {
     method: "POST",
     body: corpo,

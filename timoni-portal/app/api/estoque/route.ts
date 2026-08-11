@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { hasModuleAccess } from "@/lib/access-control";
+import { hasModuleAccess, isCicaAdmin } from "@/lib/access-control";
 import { google, type sheets_v4 } from "googleapis";
 import { NextResponse } from "next/server";
 
@@ -158,10 +158,15 @@ function normalizeUnit(input: unknown): "rio_claro" | "araras" {
 
 export async function POST(request: Request) {
   try {
+    const session = await auth();
     const sheets = await getSheets();
     const body = (await request.json()) as Record<string, unknown>;
     const action = String(body.action ?? "");
     const data = await readAll(sheets);
+
+    if (action === "excluir" && !isCicaAdmin(session?.user?.email)) {
+      throw new Error("Somente Ciça pode excluir registros do Estoque.");
+    }
 
     if (action === "criar") {
       const codigo = String(body.codigo ?? "").trim();
@@ -204,6 +209,17 @@ export async function POST(request: Request) {
     if (rowIndex < 0) throw new Error("Solicitação não encontrada.");
     const rowNumber = rowIndex + 2;
     const now = new Date().toISOString();
+
+    if (action === "excluir") {
+      const metadata = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID, fields: "sheets.properties" });
+      const sheetId = metadata.data.sheets?.find((sheet) => sheet.properties?.title === "Necessidades")?.properties?.sheetId;
+      if (sheetId === undefined || sheetId === null) throw new Error("Aba Necessidades não encontrada.");
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SPREADSHEET_ID,
+        requestBody: { requests: [{ deleteDimension: { range: { sheetId, dimension: "ROWS", startIndex: rowNumber - 1, endIndex: rowNumber } } }] },
+      });
+      return NextResponse.json({ ok: true });
+    }
 
     if (action === "em_compra") {
       await updateCells(sheets, [

@@ -76,7 +76,7 @@ export default function ComprasClient() {
     [selectedId, suppliers],
   );
   const summary = trello.summary;
-  const canFinalize = Boolean(selectedSupplier && items.length && finalTitle.trim() && dataEnvio && dataEntrega);
+  const canFinalize = Boolean(selectedSupplier && finalTitle.trim() && dataEnvio && dataEntrega);
 
   const loadTrello = useCallback(async () => {
     setLoadingTrello(true);
@@ -189,10 +189,6 @@ export default function ComprasClient() {
       setError("Selecione o fornecedor.");
       return;
     }
-    if (!items.length) {
-      setError("Filtre os itens da planilha antes de atualizar o Trello.");
-      return;
-    }
     if (!finalTitle.trim() || !dataEnvio || !dataEntrega) {
       setError("Informe o título final, a data de envio e a previsão de entrega.");
       return;
@@ -237,7 +233,7 @@ export default function ComprasClient() {
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Módulo operacional</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Compras</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-              Fluxo manual e rápido: filtre a planilha, preencha os dados do pedido e atualize o Trello.
+              Fluxo flexível: selecione o fornecedor, use a planilha quando precisar e atualize o Trello.
             </p>
           </div>
           <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
@@ -346,10 +342,10 @@ export default function ComprasClient() {
         </article>
 
         <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">2. Itens do pedido</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">2. Itens do pedido · opcional</p>
           <h2 className="mt-2 text-xl font-semibold text-slate-950">Planilha do pedido</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Cole o link da planilha. Padrão atual: código B, descrição C e quantidade L.
+            Use quando quiser gravar os itens no cartão. Padrão atual: código B, descrição C e quantidade L.
           </p>
 
           <label className="mt-4 block text-sm font-semibold text-slate-800">
@@ -448,7 +444,7 @@ export default function ComprasClient() {
         <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">4. Atualizar Trello</p>
         <h2 className="mt-2 text-xl font-semibold text-slate-950">Finalizar o cartão</h2>
         <p className="mt-2 text-sm text-slate-600">
-          Preencha manualmente. O Portal grava os itens, aplica a etiqueta Enviado e move o cartão para o topo da lista correta.
+          O Portal aplica a etiqueta Enviado e move o cartão para o topo da lista correta. Itens filtrados, quando houver, também são gravados.
         </p>
 
         <label className="mt-4 block text-sm font-semibold text-slate-800">
@@ -489,13 +485,11 @@ export default function ComprasClient() {
           <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
             {!selectedSupplier
               ? "Falta selecionar o fornecedor."
-              : !items.length
-                ? "Falta filtrar os itens da planilha. Volte à etapa 2 e clique em Filtrar itens do pedido."
-                : !finalTitle.trim()
-                  ? "Falta informar o título final do cartão."
-                  : !dataEnvio
-                    ? "Falta informar a data de envio."
-                    : "Falta informar a previsão de entrega."}
+              : !finalTitle.trim()
+                ? "Falta informar o título final do cartão."
+                : !dataEnvio
+                  ? "Falta informar a data de envio."
+                  : "Falta informar a previsão de entrega."}
           </p>
         )}
         <button
@@ -511,7 +505,7 @@ export default function ComprasClient() {
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">Fluxo do módulo</p>
         <ol className="mt-4 grid gap-3 md:grid-cols-4">
-          {["Selecionar fornecedor", "Filtrar itens pela planilha", "Preencher dados manualmente", "Atualizar Trello"].map((step, index) => (
+          {["Selecionar fornecedor", "Filtrar itens (opcional)", "Preencher dados manualmente", "Atualizar Trello"].map((step, index) => (
             <li key={step} className="rounded-2xl bg-slate-50 p-4 text-sm font-medium text-slate-700">
               <span className="mb-2 flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">{index + 1}</span>
               {step}

@@ -143,7 +143,6 @@ export async function POST(request: Request) {
     if (!finalTitle) throw new Error("Informe o título final do cartão, incluindo o número do pedido.");
     if (!dataEnvio) throw new Error("Informe a data de envio.");
     if (!dataEntrega) throw new Error("Informe a previsão de entrega.");
-    if (!items.length) throw new Error("Extraia os itens da planilha antes de finalizar.");
     if (unit !== "rio_claro" && unit !== "araras") {
       throw new Error("Selecione Rio Claro ou Araras.");
     }
@@ -173,7 +172,9 @@ export async function POST(request: Request) {
     const card = await trelloFetch<TrelloCard>(`/cards/${encodeURIComponent(cardId)}`, {
       params: { fields: "name,url,idLabels" },
     });
-    const description = buildDescription(items, dataEnvio, dataEntrega);
+    const description = items.length
+      ? buildDescription(items, dataEnvio, dataEntrega)
+      : undefined;
     const updatedCard = await trelloFetch<TrelloCard>(`/cards/${encodeURIComponent(cardId)}`, {
       method: "PUT",
       params: {
@@ -217,6 +218,7 @@ export async function POST(request: Request) {
       attachmentAdded: printAdded || orderFileAdded,
       printAdded,
       orderFileAdded,
+      itemsIncluded: items.length > 0,
       destination: destination.name,
     });
   } catch (error) {

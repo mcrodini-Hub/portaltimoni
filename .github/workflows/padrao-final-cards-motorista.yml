@@ -1,0 +1,70 @@
+name: Padrao final cards Motorista
+on:
+  push:
+    paths:
+      - '.github/workflows/padrao-final-cards-motorista.yml'
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Aplicar padrao final dos cards
+        shell: python
+        run: |
+          from pathlib import Path
+
+          equipe = Path('timoni-portal/app/dashboard/motorista/motorista-agenda.tsx')
+          leitura = Path('timoni-portal/app/motorista/motorista-leitura.tsx')
+
+          e = equipe.read_text()
+          l = leitura.read_text()
+
+          # Lista de vendedores deve ser exatamente a mesma da aba Vendedores do Estoque.
+          extras = '''  { nome: "Ciça", unidade: "araras" },\n  { nome: "Marcelo", unidade: "araras" },\n'''
+          if extras not in e:
+              raise SystemExit('Trecho de vendedores extras nao encontrado')
+          e = e.replace(extras, '')
+
+          old_week = '''                      <button key={v.id} type="button" onClick={() => abrirEditar(v)} className="block w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left hover:bg-slate-100">\n                        <p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}` : ""}</p>\n                        {v.tipoHorario !== "Bloqueio" && <>\n                          <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>\n                          {v.endereco && <p className="mt-1 text-sm text-slate-700">{formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}\n                        </>}\n                      </button>'''
+          new_week = '''                      <article key={v.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">\n                        <p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>\n                        {v.tipoHorario !== "Bloqueio" && <>\n                          <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>\n                          {v.endereco && <p className="mt-1 text-sm text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}\n                          {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}\n                          {(v.contatoNome || v.contatoWhats) && <p className="mt-2 text-sm text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}\n                        </>}\n                        {v.info && <p className="mt-2 text-sm text-slate-600">Observação: {v.info}</p>}\n                        {v.preenchidoPor && <p className="mt-2 font-[Arial] text-[10pt] text-slate-500">Preenchido por: {v.preenchidoPor}</p>}\n                        <button type="button" onClick={() => abrirEditar(v)} className="mt-2 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50">Editar</button>\n                      </article>'''
+          if old_week not in e:
+              raise SystemExit('Card semanal esperado nao encontrado')
+          e = e.replace(old_week, new_week, 1)
+
+          old_day_addr = '''                      {v.endereco && <p className="mt-3 text-slate-700">\n              {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}\n              {separarEndereco(v.endereco).link && <>{" · "}<a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a></>}\n            </p>}'''
+          new_day_addr = '''                      {v.endereco && <p className="mt-3 text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}\n                      {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}'''
+          if old_day_addr not in e:
+              raise SystemExit('Endereco do card Dia nao encontrado')
+          e = e.replace(old_day_addr, new_day_addr, 1)
+
+          old_public_addr = '''                                  {endereco && <p className="mt-1 text-sm text-slate-700">{endereco}</p>}'''
+          new_public_addr = '''                                  {endereco && <p className="mt-1 text-sm text-slate-700">End.: {endereco}</p>}'''
+          if old_public_addr not in l:
+              raise SystemExit('Endereco do Motorista leitura nao encontrado')
+          l = l.replace(old_public_addr, new_public_addr, 1)
+
+          # Marcador permanente do padrao aprovado.
+          marker = '// PADRAO CARD MOTORISTA: loja | Vend. | hora opcional; cliente | pedido | volume; End.; Maps; Contato; Observacao; Preenchido por.\n'
+          if marker not in e:
+              e = e.replace('"use client";\n', '"use client";\n\n' + marker, 1)
+          if marker not in l:
+              l = l.replace('"use client";\n', '"use client";\n\n' + marker, 1)
+
+          equipe.write_text(e)
+          leitura.write_text(l)
+      - name: Validar build
+        working-directory: timoni-portal
+        run: npm run build
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add timoni-portal/app/dashboard/motorista/motorista-agenda.tsx timoni-portal/app/motorista/motorista-leitura.tsx
+          if git diff --cached --quiet; then
+            echo "Sem alteracoes"
+            exit 0
+          fi
+          git commit -m "fix: consolida padrao dos cards do Motorista"
+          git push

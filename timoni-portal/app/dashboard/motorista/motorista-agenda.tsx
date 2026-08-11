@@ -1,7 +1,5 @@
 "use client";
 
-// PADRAO CARD MOTORISTA: loja | Vend. | hora opcional; cliente | pedido | volume; End.; Maps; Contato; Observacao; Preenchido por.
-
 // MOTORISTA EQUIPE: manter Dia, Semana e Mês. A rota /motorista é leitura e não deve ser alterada por mudanças deste módulo.
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
@@ -69,6 +67,8 @@ const VENDEDORES_ESTOQUE = [
   { nome: "Paulo", unidade: "araras" },
   { nome: "Reginaldo", unidade: "araras" },
   { nome: "Reinaldo", unidade: "araras" },
+  { nome: "Ciça", unidade: "araras" },
+  { nome: "Marcelo", unidade: "araras" },
 ] as const;
 
 const REQUIRED: Array<keyof FormState> = [
@@ -525,18 +525,13 @@ export default function MotoristaAgenda() {
                   </button>
                   <div className="mt-3 space-y-2">
                     {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itens.length === 0 ? <p className="text-sm text-slate-400">Sem viagens.</p> : itens.map((v, index) => (
-                      <article key={v.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
+                      <button key={v.id} type="button" onClick={() => abrirEditar(v)} className="block w-full rounded-xl border border-slate-200 bg-slate-50 p-3 text-left hover:bg-slate-100">
+                        <p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}` : ""}</p>
                         {v.tipoHorario !== "Bloqueio" && <>
                           <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>
-                          {v.endereco && <p className="mt-1 text-sm text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
-                          {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}
-                          {(v.contatoNome || v.contatoWhats) && <p className="mt-2 text-sm text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
+                          {v.endereco && <p className="mt-1 text-sm text-slate-700">{formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
                         </>}
-                        {v.info && <p className="mt-2 text-sm text-slate-600">Observação: {v.info}</p>}
-                        {v.preenchidoPor && <p className="mt-2 font-[Arial] text-[10pt] text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
-                        <button type="button" onClick={() => abrirEditar(v)} className="mt-2 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50">Editar</button>
-                      </article>
+                      </button>
                     ))}
                   </div>
                 </section>
@@ -552,8 +547,10 @@ export default function MotoristaAgenda() {
                     <p className="font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
                     {v.tipoHorario !== "Bloqueio" && <>
                       <p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>
-                      {v.endereco && <p className="mt-3 text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
-                      {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}
+                      {v.endereco && <p className="mt-3 text-slate-700">
+              {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}
+              {separarEndereco(v.endereco).link && <>{" · "}<a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a></>}
+            </p>}
                       {(v.contatoNome || v.contatoWhats) && <p className="mt-3 text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
                     </>}
                     {v.info && <p className="mt-3 text-slate-600">Observação: {v.info}</p>}

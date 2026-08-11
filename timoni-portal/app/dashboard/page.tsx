@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { auth } from "@/lib/auth";
-import { hasModuleAccess, type PortalModule } from "@/lib/access-control";
+import { hasModuleAccess, isReadOnlyUser, type PortalModule } from "@/lib/access-control";
 
 const modules: Array<{
   module: PortalModule;
@@ -26,6 +26,7 @@ export default async function DashboardPage() {
   const session = await auth();
   const email = session?.user?.email ?? "";
   const visible = modules.filter((item) => hasModuleAccess(email, item.module));
+  const readOnly = isReadOnlyUser(email);
 
   return (
     <div className="pb-4">
@@ -33,6 +34,7 @@ export default async function DashboardPage() {
         <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-blue-700">Casa Timoni</p>
         <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Portal Timoni</h1>
         <p className="mt-1 max-w-2xl text-sm leading-5 text-slate-600">Acesso centralizado aos módulos de trabalho e comunicação interna.</p>
+        {readOnly && <p className="mt-2 inline-flex rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Acesso somente leitura</p>}
       </header>
 
       <section>
@@ -47,7 +49,7 @@ export default async function DashboardPage() {
               <>
                 <div className="flex items-start justify-between gap-3">
                   <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-xl shadow-sm">{item.icon}</span>
-                  <span className="rounded-full bg-white px-2.5 py-0.5 text-[10px] font-semibold text-emerald-700 shadow-sm">Ativo</span>
+                  <span className={`rounded-full bg-white px-2.5 py-0.5 text-[10px] font-semibold shadow-sm ${readOnly ? "text-slate-700" : "text-emerald-700"}`}>{readOnly ? "Somente leitura" : "Ativo"}</span>
                 </div>
                 <h3 className="mt-3 text-base font-semibold text-slate-950">{item.name}</h3>
                 <p className="mt-1 min-h-9 overflow-hidden text-sm leading-5 text-slate-600 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:2]">{item.description}</p>

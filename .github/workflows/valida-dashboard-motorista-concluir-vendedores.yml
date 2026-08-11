@@ -1,0 +1,135 @@
+name: Valida dashboard Motorista concluir e vendedores
+on:
+  push:
+    branches: [ajuste-dashboard-motorista-concluir-vendedores]
+    paths:
+      - '.github/workflows/valida-dashboard-motorista-concluir-vendedores.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Aplicar ajustes
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('timoni-portal/app/dashboard/motorista/motorista-agenda.tsx')
+          s = p.read_text()
+
+          def repl(old, new, count=1):
+              global s
+              n = s.count(old)
+              if n < count:
+                  raise SystemExit(f'Trecho esperado não encontrado: {old[:90]!r} (achou {n})')
+              s = s.replace(old, new, count)
+
+          repl('  preenchidoPor?: string;\n};', '  preenchidoPor?: string;\n  notasJson?: string;\n};')
+          repl('type Modo = "dia" | "semana" | "mes";\n', 'type Modo = "dia" | "semana" | "mes";\ntype Seller = { nome: string; unidade: string };\n')
+          repl('  preenchidoPor: string;\n};', '  preenchidoPor: string;\n  notasJson: string;\n};')
+          repl('    preenchidoPor: "",\n  };', '    preenchidoPor: "",\n    notasJson: "[]",\n  };')
+          repl('    preenchidoPor: v.preenchidoPor || "",\n  };', '    preenchidoPor: v.preenchidoPor || "",\n    notasJson: v.notasJson || "[]",\n  };')
+          repl('function formatarCep(value: string) {', '''function lerConclusao(notasJson?: string) {
+  try {
+    const parsed = JSON.parse(String(notasJson || "[]"));
+    if (parsed && !Array.isArray(parsed) && parsed.status === "concluida") return parsed as { status: string; observacaoConclusao?: string; concluidoEm?: string };
+  } catch {}
+  return null;
+}
+
+function notasComConclusao(notasJson: string | undefined, observacao: string) {
+  let base: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(String(notasJson || "[]"));
+    base = Array.isArray(parsed) ? { legado: parsed } : parsed && typeof parsed === "object" ? parsed : {};
+  } catch {}
+  return JSON.stringify({ ...base, status: "concluida", observacaoConclusao: observacao.trim(), concluidoEm: new Date().toISOString() });
+}
+
+function formatarCep(value: string) {''')
+          repl('  const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());\n', '  const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());\n  const [sellers, setSellers] = useState<Seller[]>([]);\n')
+          repl('  const diasSemana = useMemo(() => weekDays(selecionado), [selecionado]);\n', '''  const diasSemana = useMemo(() => weekDays(selecionado), [selecionado]);
+  const sellerOptions = useMemo(() => {
+    const unidade = form.loja === "rio_claro" ? "rio_claro" : form.loja === "araras" ? "araras" : "";
+    return unidade ? sellers.filter((seller) => seller.unidade === unidade) : sellers;
+  }, [sellers, form.loja]);
+
+  useEffect(() => {
+    let ativo = true;
+    void (async () => {
+      try {
+        const response = await fetch("/api/agenda-motorista-vendedores", { cache: "no-store" });
+        const payload = await response.json().catch(() => null);
+        if (ativo && response.ok && payload?.ok && Array.isArray(payload.vendedores)) setSellers(payload.vendedores);
+      } catch {}
+    })();
+    return () => { ativo = false; };
+  }, []);
+''')
+          repl('        notasJson: "[]",', '        notasJson: form.notasJson || "[]",')
+          repl('  function selecionarDia(data: string) {', '''  async function concluirViagem(v: Viagem) {
+    if (v.tipoHorario === "Bloqueio" || lerConclusao(v.notasJson)) return;
+    const observacao = window.prompt("Observação da conclusão (opcional):", "");
+    if (observacao === null) return;
+    setSaving(true);
+    setErro("");
+    try {
+      const payload = new URLSearchParams({
+        action: "atualizar",
+        id: v.id,
+        notasJson: notasComConclusao(v.notasJson, observacao),
+      });
+      const response = await fetch("/api/agenda-motorista", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        body: payload,
+      });
+      await parseResponse(response);
+      await carregarDia(v.data);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível concluir a viagem.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function selecionarDia(data: string) {''')
+
+          old_week = '<button type="button" onClick={() => abrirEditar(v)} className="mt-2 rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50">Editar</button>'
+          new_week = '''<div className="mt-2 flex flex-wrap gap-2">
+                          {v.tipoHorario !== "Bloqueio" && (lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">Concluído</span> : <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">Concluir</button>)}
+                          <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50">Editar</button>
+                        </div>
+                        {lerConclusao(v.notasJson)?.observacaoConclusao && <p className="mt-2 text-xs text-emerald-800">Conclusão: {lerConclusao(v.notasJson)?.observacaoConclusao}</p>}'''
+          repl(old_week, new_week)
+
+          old_day = '<button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50">Editar</button>'
+          new_day = '''<div className="flex flex-wrap gap-2">
+                    {v.tipoHorario !== "Bloqueio" && (lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-2 text-sm font-semibold text-emerald-800">Concluído</span> : <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Concluir</button>)}
+                    <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50">Editar</button>
+                  </div>'''
+          repl(old_day, new_day)
+
+          old_select = '<label className="text-sm font-medium text-slate-700">* Vendedor<select value={form.vendedor} onChange={(e) => set("vendedor", e.target.value)} className={fieldClass("vendedor")}><option value="">Selecione</option>{form.vendedor && !AUTORIZADOS.includes(form.vendedor as (typeof AUTORIZADOS)[number]) && <option value={form.vendedor}>{form.vendedor}</option>}{AUTORIZADOS.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>'
+          new_select = '<label className="text-sm font-medium text-slate-700">* Vendedor<select value={form.vendedor} onChange={(e) => set("vendedor", e.target.value)} className={fieldClass("vendedor")}><option value="">Selecione</option>{form.vendedor && !sellerOptions.some((seller) => seller.nome === form.vendedor) && <option value={form.vendedor}>{form.vendedor}</option>}{sellerOptions.map((seller) => <option key={`${seller.nome}-${seller.unidade}`} value={seller.nome}>{seller.nome}</option>)}</select></label>'
+          repl(old_select, new_select)
+
+          p.write_text(s)
+          PY
+      - name: Instalar dependências
+        working-directory: timoni-portal
+        run: npm ci
+      - name: Validar build
+        working-directory: timoni-portal
+        run: npm run build
+      - name: Commit na branch isolada
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add timoni-portal/app/dashboard/motorista/motorista-agenda.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "feat: adiciona concluir e vendedores do Estoque no Motorista"
+          git push

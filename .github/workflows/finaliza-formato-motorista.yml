@@ -10,22 +10,33 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Ajustar vendedor e hora no card semanal
+      - name: Corrigir visualizacao inicial e formato dos cards
         shell: python
         run: |
           from pathlib import Path
           p = Path('timoni-portal/app/dashboard/motorista/motorista-agenda.tsx')
           s = p.read_text(encoding='utf-8')
-          old = '<p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario || "Viagem"} {lojaLabel(v.loja)} | {horaCurta(v.horario)}{v.vendedor ? ` | ${v.vendedor}` : ""}</p>'
-          new = '<p className="text-sm font-semibold text-slate-950">{index + 1}. {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}` : ""}</p>'
-          if old not in s:
-            raise SystemExit('Linha semanal esperada não encontrada; nenhuma alteração aplicada.')
-          s = s.replace(old, new, 1)
+
+          # A agenda dos colaboradores abre na Semana.
+          s = s.replace('const [modo, setModo] = useState<Modo>("dia");', 'const [modo, setModo] = useState<Modo>("semana");')
+
+          # Card semanal: Vend. + hora somente quando preenchida.
+          s = s.replace(
+            '<p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario || "Viagem"} {lojaLabel(v.loja)} | {horaCurta(v.horario)}{v.vendedor ? ` | ${v.vendedor}` : ""}</p>',
+            '<p className="text-sm font-semibold text-slate-950">{index + 1}. {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}` : ""}</p>'
+          )
+
+          # Card de Dia remanescente: mesma regra, para evitar diferença visual.
+          s = s.replace(
+            '<p className="font-semibold text-slate-950">{index + 1}. {v.tipoHorario || "Viagem"} {lojaLabel(v.loja)} | {horaCurta(v.horario)}{v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}{v.vendedor ? ` | Vendedor: ${v.vendedor}` : ""}</p>',
+            '<p className="font-semibold text-slate-950">{index + 1}. {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>'
+          )
+
           p.write_text(s, encoding='utf-8')
       - name: Commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add timoni-portal/app/dashboard/motorista/motorista-agenda.tsx
-          git diff --cached --quiet || git commit -m "fix: abrevia vendedor e oculta hora vazia no Motorista equipe"
+          git diff --cached --quiet || git commit -m "fix: abre Semana e padroniza vendedor/hora no Motorista equipe"
           git push

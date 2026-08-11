@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { auth } from "@/lib/auth";
 import EstoqueClient from "./estoque-client";
+import { isCicaAdmin } from "@/lib/access-control";
 
 export const metadata: Metadata = {
   title: "Estoque",
@@ -50,5 +51,5 @@ export default async function EstoquePage() {
   const defaultUnit = resolveDefaultUnit(email);
   const allowedUnits = resolveAllowedUnits(email, isManager);
 
-  return <EstoqueClient isManager={isManager} defaultUnit={defaultUnit} allowedUnits={allowedUnits} />;
+  return <EstoqueClient isManager={isManager} canDelete={isCicaAdmin(email)} defaultUnit={defaultUnit} allowedUnits={allowedUnits} />;
 }

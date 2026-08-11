@@ -54,6 +54,9 @@ jobs:
 
           equipe.write_text(e)
           leitura.write_text(l)
+      - name: Instalar dependencias
+        working-directory: timoni-portal
+        run: npm ci
       - name: Validar build
         working-directory: timoni-portal
         run: npm run build

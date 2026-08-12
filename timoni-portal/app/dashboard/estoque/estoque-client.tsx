@@ -23,9 +23,10 @@ type Need = {
 };
 type Product = { codigo: string; descricao: string; unidade: string };
 type Seller = { nome: string; unidade: string };
+type SentOrder = { id: string; nome: string; enviadoEm: string; previsaoEntrega: string; unidade: RequestUnit };
 type Counts = { emAberto: number; aguardandoCompra: number; aguardandoChegada: number; finalizadas: number };
 type Summary = { geral: Counts; porUnidade: { rio_claro: Counts; araras: Counts } };
-type Data = { ok: boolean; necessidades: Need[]; produtos: Product[]; vendedores: Seller[]; summary: Summary; error?: string };
+type Data = { ok: boolean; necessidades: Need[]; produtos: Product[]; vendedores: Seller[]; pedidosEnviados: SentOrder[]; summary: Summary; error?: string };
 
 type EstoqueClientProps = {
   isManager?: boolean;
@@ -101,6 +102,19 @@ function date(value: string) {
       }).format(d);
 }
 
+function dateOnly(value: string) {
+  if (!value) return "—";
+  const d = new Date(value);
+  return Number.isNaN(d.getTime())
+    ? value
+    : new Intl.DateTimeFormat("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+      }).format(d);
+}
+
 function timestamp(value: string) {
   if (!value) return 0;
   const parsed = new Date(value).getTime();
@@ -120,6 +134,7 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
   const [needs, setNeeds] = useState<Need[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
+  const [sentOrders, setSentOrders] = useState<SentOrder[]>([]);
   const [summary, setSummary] = useState<Summary>(emptySummary);
   const [unit, setUnit] = useState<Unit>("todas");
   const [newUnit, setNewUnit] = useState<RequestUnit>(defaultUnit);
@@ -164,6 +179,7 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
       setNeeds(payload.necessidades);
       setProducts(payload.produtos);
       setSellers(payload.vendedores);
+      setSentOrders(payload.pedidosEnviados || []);
       setSummary(payload.summary);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao carregar");
@@ -453,25 +469,6 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
     );
   }
 
-  function TrackingSection() {
-    return (
-      <section className="rounded-3xl border bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Acompanhamento</p>
-            <h2 className="mt-1 text-xl font-semibold">Solicitações registradas</h2>
-          </div>
-          {isManager && <button onClick={() => void refresh()} className={secondary}>Atualizar</button>}
-        </div>
-        <div className="mt-4 space-y-3">
-          {trackingNeeds.map((need) => <NeedCard key={need.id} need={need} />)}
-          {!loading && !trackingNeeds.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhuma solicitação em acompanhamento.</p>}
-          {loading && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Carregando solicitações...</p>}
-        </div>
-      </section>
-    );
-  }
-
   function UnitSwitch() {
     if (!isManager) return null;
     return (
@@ -518,6 +515,26 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
     );
   }
 
+  function SentOrdersSection() {
+    return (
+      <section className="rounded-3xl border bg-white p-5 shadow-sm">
+        <h2 className="text-xl font-semibold uppercase tracking-wide">Pedidos enviados</h2>
+        <div className="mt-4 divide-y divide-slate-100">
+          {sentOrders.map((order) => (
+            <article key={order.id} className="py-4 first:pt-0 last:pb-0">
+              <p className="font-semibold text-slate-950">{order.nome}</p>
+              <p className="mt-1 text-sm text-slate-600">
+                Enviado dia: {dateOnly(order.enviadoEm)} | Previsão de Entrega: {dateOnly(order.previsaoEntrega)}
+              </p>
+            </article>
+          ))}
+          {!loading && !sentOrders.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhum pedido enviado aguardando entrega.</p>}
+          {loading && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Carregando pedidos enviados...</p>}
+        </div>
+      </section>
+    );
+  }
+
   return (
     <div className="pb-10">
       {isManager && (
@@ -544,12 +561,14 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
       {!isManager ? (
         <div className="space-y-5">
           {NeedsSection()}
+          {SentOrdersSection()}
           {RequestForm()}
         </div>
       ) : (
         <div className="mt-5 space-y-5">
           {UnitSwitch()}
           {NeedsSection()}
+          {SentOrdersSection()}
 
           <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             {cards.map(([key, title]) => <article key={key} className="rounded-2xl border bg-white p-4 shadow-sm"><p className="text-3xl font-semibold">{loading ? "—" : summary.geral[key]}</p><p className="mt-2 text-sm text-slate-500">{title}</p></article>)}

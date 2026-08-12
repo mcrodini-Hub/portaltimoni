@@ -30,6 +30,19 @@ function buildUrl(
   return url;
 }
 
+function isOptionalStockSentOrdersRead(
+  path: string,
+  params?: Record<string, string | number | boolean | undefined>,
+) {
+  return (
+    path === `/boards/${TRELLO_BOARD_SHORT_LINK}` &&
+    params?.fields === "name" &&
+    params?.lists === "open" &&
+    params?.list_fields === "name,closed" &&
+    params?.labels === undefined
+  );
+}
+
 export async function trelloFetch<T>(
   path: string,
   options: {
@@ -40,7 +53,12 @@ export async function trelloFetch<T>(
   } = {},
 ): Promise<T> {
   const credentials = options.credentials || (await getStoredTrelloCredentials());
-  if (!credentials) throw new Error("Trello ainda não configurado neste navegador.");
+  if (!credentials) {
+    if (isOptionalStockSentOrdersRead(path, options.params)) {
+      return { lists: [] } as T;
+    }
+    throw new Error("Trello ainda não configurado neste navegador.");
+  }
 
   const response = await fetch(buildUrl(path, credentials, options.params), {
     method: options.method || "GET",

@@ -49,6 +49,7 @@ type SentOrder = {
 type TrelloList = { id: string; name: string; closed?: boolean };
 type TrelloBoard = { lists?: TrelloList[] };
 type TrelloCard = { id: string; name: string; start?: string | null; due?: string | null; closed?: boolean };
+type SentTarget = { list: TrelloList; unidade: "rio_claro" | "araras" };
 
 const fixedSellers: Seller[] = [
   { nome: "Ciça", unidade: "araras" },
@@ -120,12 +121,15 @@ async function readSentOrders(): Promise<SentOrder[]> {
     params: { fields: "name", lists: "open", list_fields: "name,closed" },
   });
   const lists = (board.lists || []).filter((list) => !list.closed);
-  const targets = lists.flatMap((list) => {
+  const targets: SentTarget[] = [];
+  for (const list of lists) {
     const normalized = normalizeTrelloText(list.name || "");
-    if (hasAllTokens(normalized, ["pedidos", "enviado", "rio", "claro"])) return [{ list, unidade: "rio_claro" as const }];
-    if (hasAllTokens(normalized, ["pedidos", "enviado", "araras"])) return [{ list, unidade: "araras" as const }];
-    return [];
-  });
+    if (hasAllTokens(normalized, ["pedidos", "enviado", "rio", "claro"])) {
+      targets.push({ list, unidade: "rio_claro" });
+    } else if (hasAllTokens(normalized, ["pedidos", "enviado", "araras"])) {
+      targets.push({ list, unidade: "araras" });
+    }
+  }
 
   const groups = await Promise.all(
     targets.map(async ({ list, unidade }) => {

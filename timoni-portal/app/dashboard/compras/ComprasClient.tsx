@@ -393,9 +393,9 @@ export default function ComprasClient() {
             </h2>
             <p className="mt-1 text-sm text-slate-500">Confira e ajuste manualmente quando necessário.</p>
           </div>
-          <div className="mt-4 max-h-96 overflow-auto rounded-2xl border border-slate-200">
+          <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200">
             <table className="w-full min-w-[760px] border-collapse text-sm">
-              <thead className="sticky top-0 bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600">
+              <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600">
                 <tr>
                   <th className="px-3 py-3">Código</th>
                   <th className="px-3 py-3">Descrição</th>

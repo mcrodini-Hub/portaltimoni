@@ -1,8 +1,8 @@
-import Link from "next/link";
 import { auth } from "@/lib/auth";
-import { hasModuleAccess } from "@/lib/access-control";
 import { listEventsInRange } from "@/lib/google-calendar";
 import type { CalendarEventDTO } from "@/lib/types";
+import ComunicadosFeed from "@/app/colaboradores/comunicados-feed";
+import ComunicadosAdmin from "@/app/colaboradores/comunicados-admin";
 
 type PanelStore = "geral" | "rio claro" | "araras";
 type Store = "rio claro" | "araras";
@@ -25,10 +25,6 @@ function normalizeText(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
 }
 
-function normalizeMeetingTitle(value: string) {
-  return normalizeText(value).replace(/\s+/g, " ").trim();
-}
-
 function getPanelStore(email: string): PanelStore {
   const normalized = email.trim().toLowerCase();
   if (["mcrodini@gmail.com", "mrodini@gmail.com"].includes(normalized)) return "geral";
@@ -39,16 +35,6 @@ function getPanelStore(email: string): PanelStore {
     "casatimoniararas@gmail.com",
   ].includes(normalized)) return "araras";
   return "rio claro";
-}
-
-function isPanelMeeting(event: CalendarEventDTO) {
-  const title = normalizeMeetingTitle(event.summary);
-  return title.startsWith("reuniao ") && (title.endsWith(" araras") || title.endsWith(" rio claro"));
-}
-
-function isMeetingForUnit(event: CalendarEventDTO, unit: Store) {
-  const title = normalizeMeetingTitle(event.summary);
-  return isPanelMeeting(event) && title.endsWith(` ${unit}`);
 }
 
 function parseEventDate(value: string) {
@@ -65,16 +51,6 @@ function formatDate(value: string | Date) {
   }).format(date);
 }
 
-function formatDateTime(event: CalendarEventDTO) {
-  if (!event.start.includes("T")) return formatDate(event.start);
-  const time = new Intl.DateTimeFormat("pt-BR", {
-    timeZone: "America/Sao_Paulo",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(parseEventDate(event.start));
-  return `${formatDate(event.start)} às ${time}`;
-}
-
 function formatFixedMeetingDateTime(meeting: FixedMeeting) {
   const date = parseEventDate(meeting.start);
   const weekday = new Intl.DateTimeFormat("pt-BR", {
@@ -87,16 +63,6 @@ function formatFixedMeetingDateTime(meeting: FixedMeeting) {
     minute: "2-digit",
   }).format(date);
   return `${formatDate(date)} · ${weekday} · ${time}`;
-}
-
-function formatMeetingTitle(summary: string) {
-  return summary.replace(/^ci[cç]a\s*[-–—]\s*/i, "").trim();
-}
-
-function nextEvent(events: CalendarEventDTO[], predicate: (event: CalendarEventDTO) => boolean) {
-  return events
-    .filter(predicate)
-    .sort((a, b) => parseEventDate(a.start).getTime() - parseEventDate(b.start).getTime())[0];
 }
 
 function upcomingEvents(events: CalendarEventDTO[], predicate: (event: CalendarEventDTO) => boolean, limit = 4) {
@@ -198,7 +164,6 @@ const announcementByStore = {
     label: "Rio Claro",
     title: "Comunicados Rio Claro",
     logins: [],
-    responders: ["Lucas Rio Claro", "Ciça"],
   },
   araras: {
     label: "Araras",
@@ -209,24 +174,8 @@ const announcementByStore = {
       "comercialara@casatimoni.com.br",
       "casatimoniararas@gmail.com",
     ],
-    responders: ["Lucas Araras", "Reginaldo", "Lucas Rio Claro", "Ciça"],
   },
-} satisfies Record<Store, { label: string; title: string; logins: string[]; responders: string[] }>;
-
-function StockFlow() {
-  return (
-    <div className="mt-6 border-t border-emerald-200 pt-5">
-      <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Fluxo do Estoque</p>
-      <h3 className="mt-2 text-base font-semibold text-slate-950">Solicitação de produto</h3>
-      <ol className="mt-3 space-y-2 text-sm leading-6 text-slate-700">
-        <li><strong>1.</strong> Consultar pelo código ou descrição.</li>
-        <li><strong>2.</strong> Informar quantidade e unidade.</li>
-        <li><strong>3.</strong> Registrar a necessidade.</li>
-        <li><strong>4.</strong> Acompanhar o status até finalizar.</li>
-      </ol>
-    </div>
-  );
-}
+} satisfies Record<Store, { label: string; title: string; logins: string[] }>;
 
 function NewToolAnnouncement({ store }: { store: Store }) {
   const announcement = announcementByStore[store];
@@ -234,16 +183,16 @@ function NewToolAnnouncement({ store }: { store: Store }) {
   return (
     <div className="rounded-2xl bg-white/70 p-4 text-sm leading-6 text-slate-700">
       <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Comunicado 1</p>
-      <h3 className="mt-1 text-lg font-semibold text-slate-950">Nova Ferramenta: Painel Timoni e Estoque</h3>
+      <h3 className="mt-1 text-lg font-semibold text-slate-950">Nova Ferramenta: Painel Timoni</h3>
       <p className="mt-2 line-clamp-3">
-        Esta é a nova comunicação interna da Casa Timoni. O acesso principal é pelo Painel Timoni, com avisos para a equipe, e pelo Módulo Estoque para consultar ou solicitar produtos.
+        Esta é a nova comunicação interna da Casa Timoni para avisos e informações da equipe.
       </p>
       <details className="mt-3 group">
         <summary className="cursor-pointer text-sm font-semibold text-blue-800 marker:text-blue-800">Ver comunicado completo →</summary>
         <div className="mt-3 space-y-4 border-t border-blue-100 pt-3">
           <p className="font-semibold italic text-slate-950">Esta é a nova comunicação interna da Casa Timoni.</p>
           <p>
-            Vocês vão usar o Portal Timoni pelo Chrome. O acesso principal é pelo Painel Timoni com avisos e comunicados para a equipe e o link para o Módulo Estoque: canal exclusivo para consultarem ou solicitarem produtos. Assim, a comunicação que hoje fica solta no WhatsApp passa a ficar registrada no Portal.
+            O Painel Timoni passa a concentrar avisos, comunicados, reuniões, aniversários, férias e informações importantes para a equipe.
           </p>
           {announcement.logins.length > 0 && (
             <div>
@@ -253,21 +202,6 @@ function NewToolAnnouncement({ store }: { store: Store }) {
               </div>
             </div>
           )}
-          <div>
-            <p className="font-semibold text-slate-950">Fluxo do Estoque:</p>
-            <ol className="mt-2 list-decimal space-y-1 pl-5">
-              <li>Consultar pelo código ou descrição.</li>
-              <li>Informar quantidade e unidade.</li>
-              <li>Registrar a necessidade.</li>
-              <li>Acompanhar o status até finalizar.</li>
-            </ol>
-          </div>
-          <div>
-            <p className="font-semibold text-slate-950">Quem responde segue essa ordem:</p>
-            <ol className="mt-2 list-decimal space-y-1 pl-5">
-              {announcement.responders.map((responder) => <li key={responder}>{responder}</li>)}
-            </ol>
-          </div>
         </div>
       </details>
     </div>
@@ -298,23 +232,6 @@ function VendasEmpresasCard() {
         </div>
       </details>
     </div>
-  );
-}
-
-function GeneralAnnouncementCard() {
-  return (
-    <article className="rounded-3xl border border-orange-200 bg-orange-50 p-6 shadow-sm md:col-span-2 xl:col-span-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-orange-700">Comunicado geral</p>
-          <h2 className="mt-2 text-xl font-semibold text-slate-950">Casa Timoni Araras fechada dia 15/08, sábado</h2>
-        </div>
-        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-orange-800 shadow-sm">15/08/2026</span>
-      </div>
-      <p className="mt-4 text-sm leading-6 text-slate-700">
-        No dia <strong>15 de agosto</strong>, a cidade de Araras (SP) comemora seu aniversário de fundação, completando <strong>164 anos em 2026</strong>, e o <strong>Dia de Nossa Senhora do Patrocínio</strong>, padroeira do município.
-      </p>
-    </article>
   );
 }
 
@@ -433,9 +350,10 @@ function StoreLabel({ store }: { store: PanelStore }) {
 export default async function ColaboradoresPage() {
   const session = await auth();
   const email = session?.user?.email ?? "";
+  const normalizedEmail = email.trim().toLowerCase();
   const panelStore = getPanelStore(email);
+  const isCica = normalizedEmail === "mcrodini@gmail.com";
   const now = new Date();
-  let allEvents: CalendarEventDTO[] = [];
   let timoniEvents: CalendarEventDTO[] = [];
 
   if (session?.accessToken && session.error !== "RefreshAccessTokenError") {
@@ -444,14 +362,13 @@ export default async function ColaboradoresPage() {
       timeMin.setDate(timeMin.getDate() - 45);
       const timeMax = new Date(now);
       timeMax.setFullYear(timeMax.getFullYear() + 1);
-      allEvents = await listEventsInRange(session.accessToken, {
+      const events = await listEventsInRange(session.accessToken, {
         timeMin: timeMin.toISOString(),
         timeMax: timeMax.toISOString(),
         maxResults: 500,
       });
-      timoniEvents = allEvents.filter((event) => event.calendarKey === "timoni");
+      timoniEvents = events.filter((event) => event.calendarKey === "timoni");
     } catch {
-      allEvents = [];
       timoniEvents = [];
     }
   }
@@ -466,7 +383,6 @@ export default async function ColaboradoresPage() {
   const birthdays = uniqueDateItems([...fixedPanelBirthdays, ...calendarBirthdays]);
   const vacations = uniqueDateItems([...fixedPanelVacations, ...calendarVacations]);
 
-  const canAccessStock = hasModuleAccess(email, "estoque");
   const showRioClaro = panelStore === "geral" || panelStore === "rio claro";
   const showAraras = panelStore === "geral" || panelStore === "araras";
   const mainStore: Store = panelStore === "araras" ? "araras" : "rio claro";
@@ -479,9 +395,9 @@ export default async function ColaboradoresPage() {
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-600"><StoreLabel store={panelStore} /></p>
       </header>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <GeneralAnnouncementCard />
+      <ComunicadosFeed store={panelStore} />
 
+      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {panelStore === "geral" ? (
           <>
             <AnnouncementCard store="rio claro" variant="full" />
@@ -489,23 +405,6 @@ export default async function ColaboradoresPage() {
           </>
         ) : (
           <AnnouncementCard store={mainStore} />
-        )}
-
-        {canAccessStock ? (
-          <Link href="/dashboard/estoque" className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Estoque</p>
-            <h2 className="mt-3 text-xl font-semibold text-slate-950">Consulta de produtos</h2>
-            <p className="mt-3 text-sm leading-6 text-slate-600">Consultar produtos e registrar necessidades da unidade.</p>
-            <p className="mt-5 text-sm font-semibold text-blue-800">Acessar Estoque →</p>
-            <StockFlow />
-          </Link>
-        ) : (
-          <article className="rounded-3xl border border-emerald-200 bg-emerald-50 p-6 shadow-sm">
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Estoque</p>
-            <h2 className="mt-3 text-xl font-semibold text-slate-950">Consulta de produtos</h2>
-            <p className="mt-3 text-sm leading-6 text-slate-600">Acesso disponível conforme liberação do Portal.</p>
-            <StockFlow />
-          </article>
         )}
 
         {panelStore === "geral" ? (
@@ -533,6 +432,8 @@ export default async function ColaboradoresPage() {
           formatSummary={cleanPanelSummary}
         />
       </section>
+
+      {isCica && <ComunicadosAdmin />}
 
       <p className="mt-10 text-center text-xs text-slate-400">
         Idealizado por Ciça Rodini para fortalecer a comunicação interna da Casa Timoni.

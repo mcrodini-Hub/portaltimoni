@@ -1,0 +1,240 @@
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
+
+type Comunicado = {
+  id: string;
+  createdAt: string;
+  unit: "geral" | "araras" | "rio claro";
+  title: string;
+  message: string;
+  status: "ativo" | "arquivado";
+  updatedAt: string;
+};
+
+type FormState = {
+  id: string;
+  unit: Comunicado["unit"];
+  title: string;
+  message: string;
+};
+
+const EMPTY_FORM: FormState = { id: "", unit: "geral", title: "", message: "" };
+
+function formatDate(value: string) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value));
+}
+
+function unitLabel(unit: Comunicado["unit"]) {
+  if (unit === "araras") return "Araras";
+  if (unit === "rio claro") return "Rio Claro";
+  return "Geral";
+}
+
+export default function ComunicadosAdmin() {
+  const [items, setItems] = useState<Comunicado[]>([]);
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  async function load() {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await fetch("/api/comunicados", { cache: "no-store" });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || "Erro ao carregar comunicados.");
+      setItems(data.items || []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao carregar comunicados.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const active = useMemo(() => items.filter((item) => item.status === "ativo"), [items]);
+  const archived = useMemo(() => items.filter((item) => item.status === "arquivado"), [items]);
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const response = await fetch("/api/comunicados", {
+        method: form.id ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: form.id || undefined,
+          unit: form.unit,
+          title: form.title,
+          message: form.message,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || "Não foi possível salvar.");
+      setForm(EMPTY_FORM);
+      await load();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível salvar.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function archive(id: string) {
+    setError("");
+    const response = await fetch("/api/comunicados", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, action: "archive" }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      setError(data?.error || "Não foi possível concluir.");
+      return;
+    }
+    if (form.id === id) setForm(EMPTY_FORM);
+    await load();
+  }
+
+  async function remove(id: string) {
+    if (!window.confirm("Excluir este comunicado definitivamente?")) return;
+    setError("");
+    const response = await fetch("/api/comunicados", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      setError(data?.error || "Não foi possível excluir.");
+      return;
+    }
+    if (form.id === id) setForm(EMPTY_FORM);
+    await load();
+  }
+
+  function edit(item: Comunicado) {
+    setForm({ id: item.id, unit: item.unit, title: item.title, message: item.message });
+    window.setTimeout(() => document.getElementById("novo-comunicado")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+  }
+
+  return (
+    <section className="mt-6 rounded-3xl border border-blue-200 bg-white p-6 shadow-sm">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Gerenciar comunicados</p>
+          <h2 className="mt-2 text-2xl font-semibold text-slate-950">Comunicados do Painel</h2>
+          <p className="mt-2 text-sm text-slate-600">Somente no seu acesso. Escolha Geral, Araras ou Rio Claro.</p>
+        </div>
+      </div>
+
+      <form id="novo-comunicado" onSubmit={submit} className="mt-5 grid gap-4 rounded-2xl bg-blue-50 p-4 lg:grid-cols-[180px_1fr]">
+        <label className="text-sm font-medium text-slate-700">
+          Público
+          <select
+            value={form.unit}
+            onChange={(event) => setForm((current) => ({ ...current, unit: event.target.value as Comunicado["unit"] }))}
+            className="mt-1 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 outline-none focus:border-blue-500"
+          >
+            <option value="geral">Geral</option>
+            <option value="araras">Araras</option>
+            <option value="rio claro">Rio Claro</option>
+          </select>
+        </label>
+
+        <label className="text-sm font-medium text-slate-700">
+          Título
+          <input
+            value={form.title}
+            onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
+            className="mt-1 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 outline-none focus:border-blue-500"
+            placeholder="Título do comunicado"
+            required
+          />
+        </label>
+
+        <label className="text-sm font-medium text-slate-700 lg:col-span-2">
+          Comunicado
+          <textarea
+            value={form.message}
+            onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))}
+            className="mt-1 min-h-32 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 outline-none focus:border-blue-500"
+            placeholder="Digite a mensagem para a equipe"
+            required
+          />
+        </label>
+
+        <div className="flex flex-wrap gap-2 lg:col-span-2">
+          <button type="submit" disabled={saving} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+            {saving ? "Salvando..." : form.id ? "Salvar edição" : "Registrar"}
+          </button>
+          {form.id && (
+            <button type="button" onClick={() => setForm(EMPTY_FORM)} className="rounded-xl border border-slate-300 bg-white px-5 py-2.5 text-sm font-semibold text-slate-700">
+              Cancelar edição
+            </button>
+          )}
+        </div>
+      </form>
+
+      {error && <p className="mt-4 text-sm font-medium text-red-700">{error}</p>}
+
+      <div className="mt-6">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Ativos</p>
+        {loading ? (
+          <p className="mt-3 text-sm text-slate-500">Carregando...</p>
+        ) : active.length === 0 ? (
+          <p className="mt-3 text-sm text-slate-500">Nenhum comunicado ativo.</p>
+        ) : (
+          <div className="mt-3 grid gap-3">
+            {active.map((item) => (
+              <article key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">{unitLabel(item.unit)} · {formatDate(item.createdAt)}</p>
+                    <h3 className="mt-1 text-lg font-semibold text-slate-950">{item.title}</h3>
+                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.message}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button type="button" onClick={() => edit(item)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800">Editar</button>
+                    <button type="button" onClick={() => archive(item.id)} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800">Concluir</button>
+                    <button type="button" onClick={() => remove(item.id)} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">Excluir</button>
+                  </div>
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </div>
+
+      <details className="mt-6 border-t border-slate-200 pt-4">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-700">Arquivados ({archived.length})</summary>
+        <div className="mt-3 grid gap-3">
+          {archived.length === 0 ? (
+            <p className="text-sm text-slate-500">Nenhum comunicado arquivado.</p>
+          ) : archived.map((item) => (
+            <article key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 opacity-80">
+              <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{unitLabel(item.unit)} · {formatDate(item.createdAt)}</p>
+              <h3 className="mt-1 font-semibold text-slate-900">{item.title}</h3>
+              <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{item.message}</p>
+              <button type="button" onClick={() => remove(item.id)} className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">Excluir</button>
+            </article>
+          ))}
+        </div>
+      </details>
+    </section>
+  );
+}

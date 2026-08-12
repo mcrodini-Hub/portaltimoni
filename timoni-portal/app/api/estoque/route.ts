@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
 import { hasModuleAccess } from "@/lib/access-control";
+import { normalizeTrelloText, trelloFetch, TRELLO_BOARD_SHORT_LINK } from "@/lib/trello";
 import { google, type sheets_v4 } from "googleapis";
 import { NextResponse } from "next/server";
 
@@ -38,6 +39,16 @@ type Need = {
 type Product = { codigo: string; descricao: string; unidade: string };
 type Seller = { nome: string; unidade: string };
 type Counts = { emAberto: number; aguardandoCompra: number; aguardandoChegada: number; finalizadas: number };
+type SentOrder = {
+  id: string;
+  nome: string;
+  enviadoEm: string;
+  previsaoEntrega: string;
+  unidade: "rio_claro" | "araras";
+};
+type TrelloList = { id: string; name: string; closed?: boolean };
+type TrelloBoard = { lists?: TrelloList[] };
+type TrelloCard = { id: string; name: string; start?: string | null; due?: string | null; closed?: boolean };
 
 const fixedSellers: Seller[] = [
   { nome: "Ciça", unidade: "araras" },
@@ -99,6 +110,50 @@ function summarize(needs: Need[]) {
   return { geral, porUnidade };
 }
 
+function hasAllTokens(value: string, tokens: string[]) {
+  const normalized = normalizeTrelloText(value);
+  return tokens.every((token) => normalized.includes(token));
+}
+
+async function readSentOrders(): Promise<SentOrder[]> {
+  const board = await trelloFetch<TrelloBoard>(`/boards/${TRELLO_BOARD_SHORT_LINK}`, {
+    params: { fields: "name", lists: "open", list_fields: "name,closed" },
+  });
+  const lists = (board.lists || []).filter((list) => !list.closed);
+  const targets = lists.flatMap((list) => {
+    const normalized = normalizeTrelloText(list.name || "");
+    if (hasAllTokens(normalized, ["pedidos", "enviado", "rio", "claro"])) return [{ list, unidade: "rio_claro" as const }];
+    if (hasAllTokens(normalized, ["pedidos", "enviado", "araras"])) return [{ list, unidade: "araras" as const }];
+    return [];
+  });
+
+  const groups = await Promise.all(
+    targets.map(async ({ list, unidade }) => {
+      const cards = await trelloFetch<TrelloCard[]>(`/lists/${encodeURIComponent(list.id)}/cards`, {
+        params: { fields: "name,start,due,closed" },
+      });
+      return (cards || [])
+        .filter((card) => !card.closed)
+        .map((card) => ({
+          id: card.id,
+          nome: card.name,
+          enviadoEm: card.start || "",
+          previsaoEntrega: card.due || "",
+          unidade,
+        }));
+    }),
+  );
+
+  return groups
+    .flat()
+    .sort((a, b) => {
+      const aTime = a.previsaoEntrega ? new Date(a.previsaoEntrega).getTime() : Number.MAX_SAFE_INTEGER;
+      const bTime = b.previsaoEntrega ? new Date(b.previsaoEntrega).getTime() : Number.MAX_SAFE_INTEGER;
+      if (aTime !== bTime) return aTime - bTime;
+      return a.nome.localeCompare(b.nome, "pt-BR");
+    });
+}
+
 async function getSheets() {
   const session = await auth();
   if (!session?.user?.email || !hasModuleAccess(session.user.email, "estoque")) {
@@ -146,8 +201,8 @@ function apiError(error: unknown) {
 export async function GET() {
   try {
     const sheets = await getSheets();
-    const data = await readAll(sheets);
-    return NextResponse.json({ ok: true, ...data, needRows: undefined }, { headers: { "Cache-Control": "no-store" } });
+    const [data, pedidosEnviados] = await Promise.all([readAll(sheets), readSentOrders()]);
+    return NextResponse.json({ ok: true, ...data, pedidosEnviados, needRows: undefined }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return apiError(error);
   }

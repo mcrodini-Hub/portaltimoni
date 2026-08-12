@@ -49,6 +49,7 @@ export default async function EstoquePage() {
   const isManager = ESTOQUE_GESTAO_EMAILS.has(email);
   const defaultUnit = resolveDefaultUnit(email);
   const allowedUnits = resolveAllowedUnits(email, isManager);
+  const canDelete = email === "mcrodini@gmail.com";
 
-  return <EstoqueClient isManager={isManager} defaultUnit={defaultUnit} allowedUnits={allowedUnits} />;
+  return <EstoqueClient isManager={isManager} canDelete={canDelete} defaultUnit={defaultUnit} allowedUnits={allowedUnits} />;
 }

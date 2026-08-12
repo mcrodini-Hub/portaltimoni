@@ -29,6 +29,7 @@ type Data = { ok: boolean; necessidades: Need[]; produtos: Product[]; vendedores
 
 type EstoqueClientProps = {
   isManager?: boolean;
+  canDelete?: boolean;
   defaultUnit?: RequestUnit;
   allowedUnits?: RequestUnit[];
 };
@@ -110,7 +111,7 @@ function canUseNotifications() {
   return typeof window !== "undefined" && "Notification" in window;
 }
 
-export default function EstoqueClient({ isManager = false, defaultUnit = "rio_claro", allowedUnits = ["rio_claro", "araras"] }: EstoqueClientProps) {
+export default function EstoqueClient({ isManager = false, canDelete = false, defaultUnit = "rio_claro", allowedUnits = ["rio_claro", "araras"] }: EstoqueClientProps) {
   const safeAllowedUnits = allowedUnits.length ? allowedUnits : [defaultUnit];
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
@@ -258,6 +259,14 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
     if (window.confirm(`Confirmar chegada de ${need.codigo}?`)) await post({ action: "chegou", id: need.id }, need.id);
   }
 
+  async function remove(need: Need) {
+    const confirmed = window.confirm(
+      `Excluir definitivamente o registro de teste ${need.codigo} - ${need.descricao}?\n\nEsta ação não pode ser desfeita.`,
+    );
+    if (!confirmed) return;
+    await post({ action: "excluir", id: need.id }, need.id);
+  }
+
   function selectProduct(product: Product) {
     setSelected(product.codigo);
     setCodeSearch(product.codigo);
@@ -390,7 +399,13 @@ export default function EstoqueClient({ isManager = false, defaultUnit = "rio_cl
               {["pendente", "em_compra", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void order(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Pedido feito</button>}
               {["pendente", "em_compra", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void observe(need)} className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50">Salvar observação</button>}
               {need.status === "pedido_existente" && <button disabled={disabled} onClick={() => void arrived(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Produto chegou</button>}
+              {canDelete && <button disabled={disabled} onClick={() => void remove(need)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50">Excluir</button>}
             </div>
+          </div>
+        )}
+        {need.status === "chegou" && canDelete && (
+          <div className="mt-4">
+            <button disabled={disabled} onClick={() => void remove(need)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50">Excluir</button>
           </div>
         )}
       </article>

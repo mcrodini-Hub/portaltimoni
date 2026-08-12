@@ -370,10 +370,11 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
 
   const sortedNeeds = useMemo(() => [...needs].sort((a, b) => timestamp(b.criadoEm) - timestamp(a.criadoEm)), [needs]);
   const filtered = useMemo(() => sortedNeeds.filter((need) => unit === "todas" || need.unidade === unit), [sortedNeeds, unit]);
-  const openNeeds = filtered.filter((need) => ["pendente", "em_compra", "observacao"].includes(need.status));
+  const openNeeds = filtered.filter((need) => ["pendente", "observacao"].includes(need.status));
+  const purchaseNeeds = filtered.filter((need) => need.status === "em_compra");
   const onWay = filtered.filter((need) => need.status === "pedido_existente");
   const history = filtered.filter((need) => need.status === "chegou").slice(0, 50);
-  const trackingNeeds = [...openNeeds, ...onWay];
+  const trackingNeeds = [...openNeeds, ...purchaseNeeds, ...onWay];
   const codeResults = useMemo(() => (selected ? [] : findByCode(products, codeSearch)), [products, codeSearch, selected]);
   const descriptionResults = useMemo(() => (selected ? [] : findByDescription(products, descriptionSearch)), [products, descriptionSearch, selected]);
   const sellerOptions = sellers.filter((item) => !item.unidade || item.unidade === newUnit || item.unidade === "todas");
@@ -501,10 +502,14 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
             </div>
           )}
         </div>
-        <div className="mt-5 grid gap-5 xl:grid-cols-2">
+        <div className="mt-5 grid gap-5 xl:grid-cols-3">
           <div>
             <h3 className="font-semibold">Em aberto</h3>
             <div className="mt-3 space-y-3">{openNeeds.map((need) => <NeedCard key={need.id} need={need} />)}{!loading && !openNeeds.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhuma necessidade em aberto.</p>}</div>
+          </div>
+          <div>
+            <h3 className="font-semibold">Relação de compra</h3>
+            <div className="mt-3 space-y-3">{purchaseNeeds.map((need) => <NeedCard key={need.id} need={need} />)}{!loading && !purchaseNeeds.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhum produto na relação de compra.</p>}</div>
           </div>
           <div>
             <h3 className="font-semibold">A caminho</h3>

@@ -36,6 +36,7 @@ type FormState = {
   numeroPedido: string;
   clienteFornecedor: string;
   volumes: string;
+  unidadeVolume: string;
   contatoNome: string;
   contatoWhats: string;
   cep: string;
@@ -111,6 +112,7 @@ function emptyForm(data = localDateString()): FormState {
     numeroPedido: "",
     clienteFornecedor: "",
     volumes: "",
+    unidadeVolume: "",
     contatoNome: "",
     contatoWhats: "",
     cep: "",
@@ -127,6 +129,7 @@ function formFromViagem(v: Viagem): FormState {
   const bloqueio = v.tipoHorario === "Bloqueio";
   const enderecoCompleto = [v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ");
   const match = enderecoCompleto.match(/\nLink:\s*(https?:\/\/\S+)/i);
+  const volumeInfo = separarVolume(v.volumes);
   return {
     loja: v.loja || "",
     vendedor: v.vendedor || "",
@@ -137,7 +140,8 @@ function formFromViagem(v: Viagem): FormState {
     bloqueioFim: bloqueio ? (v.horarioFim || "").slice(0, 5) : "",
     numeroPedido: v.numeroPedido || "",
     clienteFornecedor: v.clienteFornecedor || "",
-    volumes: v.volumes || "",
+    volumes: volumeInfo.volume,
+    unidadeVolume: volumeInfo.unidade,
     contatoNome: v.contatoNome || "",
     contatoWhats: v.contatoWhats || "",
     cep: "",
@@ -198,6 +202,23 @@ function formatarEnderecoExibicao(endereco?: string, numero?: string, complement
 
 function pedidoTexto(valor?: string) {
   return String(valor ?? "").replace(/\s*\/\s*/g, " ").replace(/\s+/g, " ").trim();
+}
+
+function separarVolume(valor?: string) {
+  const texto = String(valor ?? "").trim();
+  const marcador = " | Unidade: ";
+  const indice = texto.indexOf(marcador);
+  if (indice < 0) return { volume: texto, unidade: "" };
+  return {
+    volume: texto.slice(0, indice).trim(),
+    unidade: texto.slice(indice + marcador.length).trim(),
+  };
+}
+
+function formatarVolume(volume?: string, unidade?: string) {
+  const vol = String(volume ?? "").trim();
+  const un = String(unidade ?? "").trim();
+  return un ? `${vol} | Unidade: ${un}` : vol;
 }
 
 function lerConclusao(notasJson?: string) {
@@ -415,7 +436,7 @@ export default function MotoristaAgenda() {
         vendedor: form.vendedor,
         clienteFornecedor: form.clienteFornecedor,
         numeroPedido: form.numeroPedido,
-        volumes: form.volumes,
+        volumes: formatarVolume(form.volumes, form.unidadeVolume),
         contatoNome: form.contatoNome,
         contatoWhats: form.contatoWhats,
         endereco: detalhesEndereco,
@@ -649,7 +670,7 @@ export default function MotoristaAgenda() {
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="text-sm font-medium text-slate-700">* NF/PEDIDO<input value={form.numeroPedido} onChange={(e) => set("numeroPedido", e.target.value)} className={fieldClass("numeroPedido")} /></label>
               <label className="text-sm font-medium text-slate-700">* CLIENTE/FORNECEDOR<input value={form.clienteFornecedor} onChange={(e) => set("clienteFornecedor", e.target.value)} className={fieldClass("clienteFornecedor")} /></label>
-              <label className="text-sm font-medium text-slate-700">* Volume<input value={form.volumes} onChange={(e) => set("volumes", e.target.value)} className={fieldClass("volumes")} /></label>
+              <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">* Volume<input value={form.volumes} onChange={(e) => set("volumes", e.target.value)} className={fieldClass("volumes")} /></label><label className="text-sm font-medium text-slate-700">Unidade<input value={form.unidadeVolume} onChange={(e) => set("unidadeVolume", e.target.value)} placeholder="Ex.: caixa, pallet, kg" className={fieldClass("unidadeVolume")} /></label></div>
               <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">* Contato<input value={form.contatoNome} onChange={(e) => set("contatoNome", e.target.value)} className={fieldClass("contatoNome")} /></label><label className="text-sm font-medium text-slate-700">* Tel/Cel<input value={form.contatoWhats} onChange={(e) => set("contatoWhats", formatarTelefone(e.target.value))} inputMode="tel" placeholder="19 98181-9171" className={fieldClass("contatoWhats")} /></label></div>
             </div>
 

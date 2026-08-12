@@ -208,17 +208,20 @@ function separarVolume(valor?: string) {
   const texto = String(valor ?? "").trim();
   const marcador = " | Unidade: ";
   const indice = texto.indexOf(marcador);
-  if (indice < 0) return { volume: texto, unidade: "" };
-  return {
-    volume: texto.slice(0, indice).trim(),
-    unidade: texto.slice(indice + marcador.length).trim(),
-  };
+  if (indice >= 0) {
+    return {
+      volume: texto.slice(0, indice).trim(),
+      unidade: texto.slice(indice + marcador.length).trim(),
+    };
+  }
+  const combinado = texto.match(/^(\S+)\s+(.+)$/);
+  return combinado ? { volume: combinado[1], unidade: combinado[2].trim() } : { volume: texto, unidade: "" };
 }
 
 function formatarVolume(volume?: string, unidade?: string) {
   const vol = String(volume ?? "").trim();
   const un = String(unidade ?? "").trim();
-  return un ? `${vol} | Unidade: ${un}` : vol;
+  return [vol, un].filter(Boolean).join(" ");
 }
 
 function lerConclusao(notasJson?: string) {
@@ -255,7 +258,7 @@ function formatarTelefone(value: string) {
 
 export default function MotoristaAgenda() {
   const hoje = localDateString();
-  const [modo, setModo] = useState<Modo>("dia");
+  const [modo, setModo] = useState<Modo>("semana");
   const [selecionado, setSelecionado] = useState(hoje);
   const [mesBase, setMesBase] = useState(() => new Date());
   const [viagens, setViagens] = useState<Record<string, Viagem[]>>({});
@@ -571,7 +574,7 @@ export default function MotoristaAgenda() {
         {erro && !modal && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
         {modo === "semana" ? (
-          <div className="mt-4 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+          <div className="mt-4 space-y-4">
             {diasSemana.map((d) => {
               const data = localDateString(d);
               const itens = (viagens[data] || []).slice().sort((a, b) => (a.horario || "").localeCompare(b.horario || ""));

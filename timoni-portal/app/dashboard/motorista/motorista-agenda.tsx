@@ -92,12 +92,9 @@ function monthDays(base: Date) {
 
 function weekDays(value: string) {
   const base = dateFromString(value);
-  const day = base.getDay();
-  const diffToMonday = day === 0 ? -6 : 1 - day;
-  const monday = new Date(base.getFullYear(), base.getMonth(), base.getDate() + diffToMonday);
   return Array.from({ length: 7 }, (_, index) =>
-    new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + index),
-  );
+    new Date(base.getFullYear(), base.getMonth(), base.getDate() + index),
+  ).filter((d) => d.getDay() !== 0 && d.getDay() !== 6);
 }
 
 function emptyForm(data = localDateString()): FormState {
@@ -554,12 +551,12 @@ export default function MotoristaAgenda() {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Agenda da semana</p>
-                <p className="mt-1 text-sm text-slate-600">Segunda a domingo</p>
+                <p className="mt-1 text-sm text-slate-600">{selecionado === hoje ? "A partir de hoje" : "A partir do dia selecionado"} · sem sábado e domingo</p>
               </div>
               <div className="flex gap-2">
-                <button type="button" onClick={() => { const d = dateFromString(selecionado); d.setDate(d.getDate() - 7); setSelecionado(localDateString(d)); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">← Semana anterior</button>
+                <button type="button" onClick={() => { const d = dateFromString(selecionado); d.setDate(d.getDate() - 7); setSelecionado(localDateString(d)); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">− 7 dias</button>
                 <button type="button" onClick={() => setSelecionado(hoje)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">Hoje</button>
-                <button type="button" onClick={() => { const d = dateFromString(selecionado); d.setDate(d.getDate() + 7); setSelecionado(localDateString(d)); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">Próxima semana →</button>
+                <button type="button" onClick={() => { const d = dateFromString(selecionado); d.setDate(d.getDate() + 7); setSelecionado(localDateString(d)); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">+ 7 dias</button>
               </div>
             </div>
           ) : (

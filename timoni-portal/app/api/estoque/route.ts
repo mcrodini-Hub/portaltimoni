@@ -112,6 +112,11 @@ async function getSheets() {
   return google.sheets({ version: "v4", auth: oauth });
 }
 
+async function canDeleteStockRecords() {
+  const session = await auth();
+  return session?.user?.email?.trim().toLowerCase() === "mcrodini@gmail.com";
+}
+
 async function readAll(sheets: sheets_v4.Sheets) {
   const response = await sheets.spreadsheets.values.batchGet({
     spreadsheetId: SPREADSHEET_ID,
@@ -204,6 +209,25 @@ export async function POST(request: Request) {
     if (rowIndex < 0) throw new Error("Solicitação não encontrada.");
     const rowNumber = rowIndex + 2;
     const now = new Date().toISOString();
+
+    if (action === "excluir") {
+      if (!(await canDeleteStockRecords())) throw new Error("Somente Ciça pode excluir registros do Estoque.");
+      const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: SPREADSHEET_ID });
+      const sheet = spreadsheet.data.sheets?.find((item) => item.properties?.title === "Necessidades");
+      const sheetId = sheet?.properties?.sheetId;
+      if (sheetId === null || sheetId === undefined) throw new Error("Aba Necessidades não encontrada.");
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: SPREADSHEET_ID,
+        requestBody: {
+          requests: [{
+            deleteDimension: {
+              range: { sheetId, dimension: "ROWS", startIndex: rowNumber - 1, endIndex: rowNumber },
+            },
+          }],
+        },
+      });
+      return NextResponse.json({ ok: true });
+    }
 
     if (action === "em_compra") {
       await updateCells(sheets, [

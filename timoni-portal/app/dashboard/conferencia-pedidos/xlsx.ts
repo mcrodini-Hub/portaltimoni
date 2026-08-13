@@ -16,6 +16,15 @@ export type ConferenciaResult = {
   fornecedor_nome: string;
   data_pedido: string;
   data_documento_fornecedor: string;
+  documentos_pedido: string[];
+  documentos_fornecedor: Array<{
+    arquivo: string;
+    identificador: string;
+    pedido_relacionado: string;
+    gerado_em: string;
+    status: "considerado" | "substituido" | "indeterminado";
+    substitui: string;
+  }>;
   resumo_texto: string;
   pontos_atencao: string[];
   contagens: {
@@ -177,6 +186,38 @@ function buildSheet(result: ConferenciaResult) {
   const payment = `Forma de pagamento — Nosso pedido: ${normalizeText(result.condicoes.pagamento_mcr)} | Fornecedor: ${normalizeText(result.condicoes.pagamento_fornecedor)}`;
   rows.push(makeRow(row, [textCell(`A${row}`, payment, 13)], rowHeightForText(payment, 22, 190)));
   merges.push(`A${row}:M${row}`);
+  row += 2;
+
+  rows.push(makeRow(row, [textCell(`A${row}`, "DOCUMENTOS RELACIONADOS", 3)], 22));
+  merges.push(`A${row}:M${row}`);
+  row += 1;
+
+  for (const file of result.documentos_pedido || []) {
+    const value = `Nosso pedido: ${normalizeText(file)}`;
+    rows.push(makeRow(row, [textCell(`A${row}`, value, 13)], rowHeightForText(value, 22, 165)));
+    merges.push(`A${row}:M${row}`);
+    row += 1;
+  }
+
+  for (const document of result.documentos_fornecedor || []) {
+    const status = document.status === "substituido"
+      ? "VERSÃO SUBSTITUÍDA - não comparada"
+      : document.status === "considerado"
+        ? "VERSÃO CONSIDERADA"
+        : "VERSÃO NÃO IDENTIFICADA - conferir";
+    const relation = document.pedido_relacionado && document.pedido_relacionado !== "NÃO INFORMADO"
+      ? ` | Relacionado ao pedido ${document.pedido_relacionado}`
+      : "";
+    const generated = document.gerado_em && document.gerado_em !== "NÃO INFORMADO"
+      ? ` | Gerado em ${document.gerado_em}`
+      : "";
+    const value = `Fornecedor: ${normalizeText(document.arquivo)} | ${status}${relation}${generated}`;
+    const style = document.status === "considerado" ? 18 : 6;
+    rows.push(makeRow(row, [textCell(`A${row}`, value, style)], rowHeightForText(value, 22, 150)));
+    merges.push(`A${row}:M${row}`);
+    row += 1;
+  }
+
   row += 2;
 
   const summary = splitSummary(result.resumo_texto);

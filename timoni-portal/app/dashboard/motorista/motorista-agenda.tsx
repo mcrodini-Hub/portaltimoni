@@ -238,6 +238,23 @@ function notasComConclusao(notasJson: string | undefined, observacao: string) {
   return JSON.stringify({ ...base, status: "concluida", observacaoConclusao: observacao.trim(), concluidoEm: new Date().toISOString() });
 }
 
+function lerRetirada(notasJson?: string) {
+  try {
+    const parsed = JSON.parse(String(notasJson || "[]"));
+    if (parsed && !Array.isArray(parsed) && parsed.status === "retirado") return parsed as { status: string; retiradoEm?: string };
+  } catch {}
+  return null;
+}
+
+function notasComRetirada(notasJson?: string) {
+  let base: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(String(notasJson || "[]"));
+    base = Array.isArray(parsed) ? { legado: parsed } : parsed && typeof parsed === "object" ? parsed : {};
+  } catch {}
+  return JSON.stringify({ ...base, status: "retirado", retiradoEm: new Date().toISOString() });
+}
+
 function formatarCep(value: string) {
   const digits = value.replace(/\D/g, "").slice(0, 8);
   return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
@@ -466,7 +483,7 @@ export default function MotoristaAgenda() {
   }
 
   async function concluirViagem(v: Viagem) {
-    if (v.tipoHorario === "Bloqueio" || lerConclusao(v.notasJson)) return;
+    if (v.tipoHorario === "Bloqueio" || lerConclusao(v.notasJson) || lerRetirada(v.notasJson)) return;
     const observacao = window.prompt("Observação da conclusão (opcional):", "");
     if (observacao === null) return;
     setSaving(true);
@@ -486,6 +503,51 @@ export default function MotoristaAgenda() {
       await carregarDia(v.data);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível concluir a viagem.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function retirarViagem(v: Viagem) {
+    if (v.tipoHorario === "Bloqueio" || lerConclusao(v.notasJson) || lerRetirada(v.notasJson)) return;
+    if (!window.confirm("Marcar esta viagem como retirada?")) return;
+    setSaving(true);
+    setErro("");
+    try {
+      const payload = new URLSearchParams({
+        action: "atualizar",
+        id: v.id,
+        notasJson: notasComRetirada(v.notasJson),
+      });
+      const response = await fetch("/api/agenda-motorista", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        body: payload,
+      });
+      await parseResponse(response);
+      await carregarDia(v.data);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível marcar como retirado.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function excluirViagem(v: Viagem) {
+    if (!window.confirm("Excluir esta viagem definitivamente?")) return;
+    setSaving(true);
+    setErro("");
+    try {
+      const payload = new URLSearchParams({ action: "excluir", id: v.id });
+      const response = await fetch("/api/agenda-motorista", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+        body: payload,
+      });
+      await parseResponse(response);
+      await carregarDia(v.data);
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : "Não foi possível excluir a viagem.");
     } finally {
       setSaving(false);
     }
@@ -594,8 +656,12 @@ export default function MotoristaAgenda() {
                         {v.info && <p className="mt-2 text-sm text-slate-600">Observação: {v.info}</p>}
                         {v.preenchidoPor && <p className="mt-2 text-xs text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
                         <div className="mt-2 flex flex-wrap gap-2">
-                          {v.tipoHorario !== "Bloqueio" && (lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">Concluído</span> : <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">Concluir</button>)}
+                          {v.tipoHorario !== "Bloqueio" && (lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">Concluído</span> : lerRetirada(v.notasJson) ? <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">Retirado</span> : <>
+                            <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">Concluir</button>
+                            <button type="button" disabled={saving} onClick={() => void retirarViagem(v)} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">Retirado</button>
+                          </>)}
                           <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50">Editar</button>
+                          <button type="button" disabled={saving} onClick={() => void excluirViagem(v)} className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">Excluir</button>
                         </div>
                         {lerConclusao(v.notasJson)?.observacaoConclusao && <p className="mt-2 text-xs text-emerald-800">Conclusão: {lerConclusao(v.notasJson)?.observacaoConclusao}</p>}
                       </article>
@@ -622,8 +688,12 @@ export default function MotoristaAgenda() {
                     {v.preenchidoPor && <p className="mt-3 font-[Arial] text-[10pt] text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {v.tipoHorario !== "Bloqueio" && (lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-2 text-sm font-semibold text-emerald-800">Concluído</span> : <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Concluir</button>)}
+                    {v.tipoHorario !== "Bloqueio" && (lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-2 text-sm font-semibold text-emerald-800">Concluído</span> : lerRetirada(v.notasJson) ? <span className="rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-800">Retirado</span> : <>
+                      <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Concluir</button>
+                      <button type="button" disabled={saving} onClick={() => void retirarViagem(v)} className="rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Retirado</button>
+                    </>)}
                     <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50">Editar</button>
+                    <button type="button" disabled={saving} onClick={() => void excluirViagem(v)} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">Excluir</button>
                   </div>
                 </div>
               </article>

@@ -9,11 +9,23 @@ export type TrelloCredentials = {
   token: string;
 };
 
+function getServerTrelloCredentials(): TrelloCredentials | null {
+  const key = (process.env.TRELLO_API_KEY || TRELLO_API_KEY).trim();
+  const token = (
+    process.env.TRELLO_TOKEN ||
+    process.env.TRELLO_API_TOKEN ||
+    process.env.TRELLO_ACCESS_TOKEN ||
+    ""
+  ).trim();
+  return key && token ? { key, token } : null;
+}
+
 export async function getStoredTrelloCredentials(): Promise<TrelloCredentials | null> {
   const cookieStore = await cookies();
   const key = cookieStore.get("timoni_trello_key")?.value?.trim();
   const token = cookieStore.get("timoni_trello_token")?.value?.trim();
-  return key && token ? { key, token } : null;
+  if (key && token) return { key, token };
+  return getServerTrelloCredentials();
 }
 
 function buildUrl(

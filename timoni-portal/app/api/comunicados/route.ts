@@ -47,10 +47,14 @@ export async function POST(request: Request) {
     const unit = String(body?.unit ?? "").trim().toLowerCase() as ComunicadoUnidade;
     const title = String(body?.title ?? "").trim();
     const message = String(body?.message ?? "").trim();
+    const startsAt = String(body?.startsAt ?? "").trim();
+    const expiresAt = String(body?.expiresAt ?? "").trim();
+    if (expiresAt && Number.isNaN(Date.parse(expiresAt))) return NextResponse.json({ error: "Prazo final inválido." }, { status: 400 });
+    if (startsAt && expiresAt && Date.parse(expiresAt) < Date.parse(startsAt)) return NextResponse.json({ error: "O prazo final deve ser posterior ao início." }, { status: 400 });
     if (!VALID_UNITS.has(unit) || title.length < 3 || message.length < 3) {
       return NextResponse.json({ error: "Preencha unidade, título e mensagem." }, { status: 400 });
     }
-    const id = await createComunicado(context.accessToken, { unit, title, message });
+    const id = await createComunicado(context.accessToken, { unit, title, message, startsAt, expiresAt });
     return NextResponse.json({ ok: true, id });
   } catch (error) {
     console.error("[comunicados][POST]", error);
@@ -78,10 +82,14 @@ export async function PATCH(request: Request) {
     const unit = String(body?.unit ?? "").trim().toLowerCase() as ComunicadoUnidade;
     const title = String(body?.title ?? "").trim();
     const message = String(body?.message ?? "").trim();
+    const startsAt = String(body?.startsAt ?? "").trim();
+    const expiresAt = String(body?.expiresAt ?? "").trim();
+    if (expiresAt && Number.isNaN(Date.parse(expiresAt))) return NextResponse.json({ error: "Prazo final inválido." }, { status: 400 });
+    if (startsAt && expiresAt && Date.parse(expiresAt) < Date.parse(startsAt)) return NextResponse.json({ error: "O prazo final deve ser posterior ao início." }, { status: 400 });
     if (!VALID_UNITS.has(unit) || title.length < 3 || message.length < 3) {
       return NextResponse.json({ error: "Preencha unidade, título e mensagem." }, { status: 400 });
     }
-    await updateComunicado(context.accessToken, id, { unit, title, message });
+    await updateComunicado(context.accessToken, id, { unit, title, message, startsAt, expiresAt });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[comunicados][PATCH]", error);

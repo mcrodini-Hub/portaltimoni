@@ -89,6 +89,15 @@ function concluida(notasJson?: string) {
   }
 }
 
+function retirada(notasJson?: string) {
+  try {
+    const parsed = JSON.parse(String(notasJson || "[]"));
+    return Boolean(parsed && !Array.isArray(parsed) && parsed.status === "retirado");
+  } catch {
+    return false;
+  }
+}
+
 export default function MotoristaLeitura() {
   const [inicio, setInicio] = useState(() => new Date());
   const [viagens, setViagens] = useState<Record<string, Viagem[]>>({});
@@ -180,6 +189,7 @@ export default function MotoristaLeitura() {
                                   {bloqueio ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}
                                 </p>
                                 {!bloqueio && concluida(v.notasJson) && <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">Concluído</span>}
+                                {!bloqueio && retirada(v.notasJson) && <span className="rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">Retirado</span>}
                               </div>
                               {!bloqueio && (
                                 <>

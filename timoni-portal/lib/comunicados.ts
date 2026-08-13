@@ -15,6 +15,8 @@ export type Comunicado = {
   message: string;
   status: ComunicadoStatus;
   updatedAt: string;
+  startsAt: string;
+  expiresAt: string;
 };
 
 function sheetsClient(accessToken: string) {
@@ -33,6 +35,8 @@ function parseRows(rows: string[][]): Comunicado[] {
       message: row[4] ?? "",
       status: (row[5] ?? "ativo") as ComunicadoStatus,
       updatedAt: row[6] ?? row[1] ?? "",
+      startsAt: row[7] ?? row[1] ?? "",
+      expiresAt: row[8] ?? "",
     }))
     .filter((item) => item.id && item.title && item.message)
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
@@ -42,7 +46,7 @@ async function readRows(accessToken: string) {
   const sheets = sheetsClient(accessToken);
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
-    range: `${COMUNICADOS_SHEET}!A2:G500`,
+    range: `${COMUNICADOS_SHEET}!A2:I500`,
     valueRenderOption: "FORMATTED_VALUE",
   });
   return (response.data.values ?? []) as string[][];
@@ -54,18 +58,18 @@ export async function listComunicados(accessToken: string) {
 
 export async function createComunicado(
   accessToken: string,
-  input: { unit: ComunicadoUnidade; title: string; message: string },
+  input: { unit: ComunicadoUnidade; title: string; message: string; startsAt?: string; expiresAt?: string },
 ) {
   const sheets = sheetsClient(accessToken);
   const now = new Date().toISOString();
   const id = `com-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   await sheets.spreadsheets.values.append({
     spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
-    range: `${COMUNICADOS_SHEET}!A:G`,
+    range: `${COMUNICADOS_SHEET}!A:I`,
     valueInputOption: "RAW",
     insertDataOption: "INSERT_ROWS",
     requestBody: {
-      values: [[id, now, input.unit, input.title, input.message, "ativo", now]],
+      values: [[id, now, input.unit, input.title, input.message, "ativo", now, input.startsAt || now, input.expiresAt || ""]],
     },
   });
   return id;
@@ -80,7 +84,7 @@ async function findRow(accessToken: string, id: string) {
 export async function updateComunicado(
   accessToken: string,
   id: string,
-  input: Partial<Pick<Comunicado, "unit" | "title" | "message" | "status">>,
+  input: Partial<Pick<Comunicado, "unit" | "title" | "message" | "status" | "startsAt" | "expiresAt">>,
 ) {
   const rowNumber = await findRow(accessToken, id);
   if (!rowNumber) throw new Error("Comunicado não encontrado.");
@@ -91,7 +95,7 @@ export async function updateComunicado(
   const sheets = sheetsClient(accessToken);
   await sheets.spreadsheets.values.update({
     spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
-    range: `${COMUNICADOS_SHEET}!C${rowNumber}:G${rowNumber}`,
+    range: `${COMUNICADOS_SHEET}!C${rowNumber}:I${rowNumber}`,
     valueInputOption: "RAW",
     requestBody: {
       values: [[
@@ -100,6 +104,8 @@ export async function updateComunicado(
         input.message ?? current.message,
         input.status ?? current.status,
         new Date().toISOString(),
+        input.startsAt ?? current.startsAt,
+        input.expiresAt ?? current.expiresAt,
       ]],
     },
   });

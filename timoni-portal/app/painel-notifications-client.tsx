@@ -153,7 +153,7 @@ export default function PainelNotificationsClient({ email }: { email: string }) 
         type="button"
         onClick={() => setOpen(true)}
         aria-label={unreadCount ? unreadCount + " notificações não lidas" : "Abrir histórico de notificações"}
-        className="fixed right-20 top-3 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-blue-200 bg-white text-xl shadow-lg transition hover:bg-blue-50"
+        className="relative z-50 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-white/30 bg-white text-xl shadow-sm transition hover:bg-blue-50"
       >
         <span aria-hidden="true">🔔</span>
         {unreadCount > 0 && (

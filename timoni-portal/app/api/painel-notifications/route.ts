@@ -3,13 +3,14 @@ import { auth } from "@/lib/auth";
 import { getPortalUser, hasModuleAccess } from "@/lib/access-control";
 import { listTeamMessages } from "@/lib/espaco-equipe";
 import { listStockAlerts, type StockAlert } from "@/lib/estoque-alerts";
+import { listComunicados } from "@/lib/comunicados";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type NotificationItem = {
   id: string;
-  type: "mensagem" | "estoque";
+  type: "mensagem" | "estoque" | "comunicado";
   title: string;
   body: string;
   url: string;
@@ -54,6 +55,30 @@ export async function GET() {
   }
 
   const items: NotificationItem[] = [];
+
+  if (session?.accessToken) {
+    try {
+      const now = Date.now();
+      const unit = unitForEmail(email);
+      const notices = await listComunicados(session.accessToken);
+      for (const notice of notices
+        .filter((item) => item.status === "ativo")
+        .filter((item) => !item.startsAt || Date.parse(item.startsAt) <= now)
+        .filter((item) => !item.expiresAt || Date.parse(item.expiresAt) >= now)
+        .filter((item) => unit === "geral" || item.unit === "geral" || item.unit.replace("_", " ") === unit.replace("_", " "))
+        .slice(0, 10)) {
+        items.push({
+          id: `comunicado:${notice.id}:${notice.updatedAt}`,
+          type: "comunicado",
+          title: "Novo comunicado",
+          body: notice.title,
+          url: "/colaboradores",
+        });
+      }
+    } catch (error) {
+      logIntegrationError("Comunicados / leitura", error);
+    }
+  }
 
   if (GESTAO_EMAILS.has(email)) {
     try {

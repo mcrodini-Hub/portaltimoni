@@ -1,7 +1,6 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
 import StoreSwitcher from "./store-switcher";
-import PainelNotificationsClient from "@/app/painel-notifications-client";
 import PortalHeader from "@/components/portal-header";
 
 const STORE_SWITCHER_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
@@ -23,8 +22,6 @@ export default async function DashboardLayout({
   return (
     <div className="min-h-screen bg-slate-50">
       <PortalHeader email={email} />
-
-      <PainelNotificationsClient email={email} />
 
       {showStoreSwitcher && <StoreSwitcher />}
 

@@ -80,10 +80,11 @@ function pedidoTexto(valor?: string) {
   return String(valor ?? "").replace(/\s*\/\s*/g, " ").replace(/\s+/g, " ").trim();
 }
 
-function concluida(notasJson?: string) {
+function finalizada(notasJson?: string) {
   try {
     const parsed = JSON.parse(String(notasJson || "[]"));
-    return Boolean(parsed && !Array.isArray(parsed) && parsed.status === "concluida");
+    if (!parsed || Array.isArray(parsed)) return false;
+    return parsed.status === "concluida" || parsed.status === "feito";
   } catch {
     return false;
   }
@@ -148,7 +149,7 @@ export default function MotoristaLeitura() {
         <div className="space-y-4">
           {dias.map((d) => {
             const data = localDateString(d);
-            const itens = (viagens[data] || []).filter((v) => !concluida(v.notasJson));
+            const itens = (viagens[data] || []).filter((v) => !finalizada(v.notasJson));
             const hoje = data === localDateString();
             return (
               <section key={data} className={`rounded-2xl border bg-white p-4 shadow-sm ${hoje ? "border-blue-300" : "border-slate-200"}`}>
@@ -179,7 +180,6 @@ export default function MotoristaLeitura() {
                                 <p className="text-sm font-semibold text-slate-950">
                                   {bloqueio ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}
                                 </p>
-                                {!bloqueio && concluida(v.notasJson) && <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">Concluído</span>}
                               </div>
                               {!bloqueio && (
                                 <>

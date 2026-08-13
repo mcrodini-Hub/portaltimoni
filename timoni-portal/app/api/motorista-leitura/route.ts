@@ -61,8 +61,8 @@ export async function POST(request: NextRequest) {
   }
 
   const notasJson = JSON.stringify({
-    status: "feito",
-    feitoEm: new Date().toISOString(),
+    status: "concluida",
+    concluidoEm: new Date().toISOString(),
   });
   const payload = new URLSearchParams({ action: "atualizar", id, notasJson });
 

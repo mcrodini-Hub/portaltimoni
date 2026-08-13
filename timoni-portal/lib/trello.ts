@@ -42,17 +42,34 @@ function buildUrl(
   return url;
 }
 
-function isOptionalStockSentOrdersRead(
+function buildPublicReadUrl(
   path: string,
   params?: Record<string, string | number | boolean | undefined>,
 ) {
-  return (
+  const url = new URL(`https://api.trello.com/1${path}`);
+  url.searchParams.set("key", (process.env.TRELLO_API_KEY || TRELLO_API_KEY).trim());
+  Object.entries(params || {}).forEach(([name, value]) => {
+    if (value !== undefined) url.searchParams.set(name, String(value));
+  });
+  return url;
+}
+
+function isStockSharedRead(
+  path: string,
+  method: "GET" | "POST" | "PUT" | "DELETE" | undefined,
+  params?: Record<string, string | number | boolean | undefined>,
+) {
+  if (method && method !== "GET") return false;
+  if (
     path === `/boards/${TRELLO_BOARD_SHORT_LINK}` &&
     params?.fields === "name" &&
     params?.lists === "open" &&
     params?.list_fields === "name,closed" &&
     params?.labels === undefined
-  );
+  ) {
+    return true;
+  }
+  return /^\/lists\/[^/]+\/cards$/.test(path) && params?.fields === "name,start,due,dateLastActivity,closed";
 }
 
 export async function trelloFetch<T>(
@@ -65,18 +82,22 @@ export async function trelloFetch<T>(
   } = {},
 ): Promise<T> {
   const credentials = options.credentials || (await getStoredTrelloCredentials());
-  if (!credentials) {
-    if (isOptionalStockSentOrdersRead(path, options.params)) {
-      return { lists: [] } as T;
-    }
-    throw new Error("Trello ainda não configurado neste navegador.");
-  }
+  const sharedStockRead = isStockSharedRead(path, options.method, options.params);
 
-  const response = await fetch(buildUrl(path, credentials, options.params), {
-    method: options.method || "GET",
-    body: options.body,
-    cache: "no-store",
-  });
+  const response = await fetch(
+    credentials
+      ? buildUrl(path, credentials, options.params)
+      : sharedStockRead
+        ? buildPublicReadUrl(path, options.params)
+        : (() => {
+            throw new Error("Trello ainda não configurado neste navegador.");
+          })(),
+    {
+      method: options.method || "GET",
+      body: options.body,
+      cache: "no-store",
+    },
+  );
 
   const text = await response.text();
   let payload: unknown = null;

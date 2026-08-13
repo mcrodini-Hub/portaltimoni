@@ -107,6 +107,7 @@ REGRAS OBRIGATÓRIAS
 16. Os únicos códigos permitidos em divergencias são: preco, ipi, preco_bruto, quantidade, codigo, descricao, item_faltante, item_extra, pareamento_incerto e outra.
 17. O resumo_texto deve ter no máximo 5 linhas e dizer o essencial: itens, diferenças, totais e principal ponto de atenção.
 18. pontos_atencao deve conter somente o que exige decisão, sem repetir informação irrelevante.
+18.1. Se preço líquido, IPI ou preço bruto não puder ser comparado por falta de informação em um dos documentos, informe isso objetivamente em pontos_atencao. Não classifique a ausência como divergência de preço.
 19. Retorne exclusivamente JSON válido, sem markdown, sem comentários e com todos os campos do modelo fornecido.
 `;
 

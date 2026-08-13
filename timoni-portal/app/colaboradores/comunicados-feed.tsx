@@ -11,6 +11,8 @@ type Comunicado = {
   message: string;
   status: "ativo" | "arquivado";
   updatedAt: string;
+  startsAt: string;
+  expiresAt: string;
 };
 
 function label(unit: Comunicado["unit"]) {
@@ -56,6 +58,8 @@ export default function ComunicadosFeed({ store }: { store: PanelStore }) {
       items.filter(
         (item) =>
           item.status === "ativo" &&
+          (!item.startsAt || Date.parse(item.startsAt) <= Date.now()) &&
+          (!item.expiresAt || Date.parse(item.expiresAt) >= Date.now()) &&
           (store === "geral" || item.unit === "geral" || item.unit === store),
       ),
     [items, store],

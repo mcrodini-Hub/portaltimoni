@@ -18,6 +18,8 @@ const ALLOWED_TYPES = new Set([
 
 const ALLOWED_DIVERGENCES = new Set([
   "preco",
+  "ipi",
+  "preco_bruto",
   "quantidade",
   "codigo",
   "descricao",
@@ -68,6 +70,10 @@ const RESPONSE_TEMPLATE = {
       quantidade_fornecedor: null,
       preco_mcr: null,
       preco_fornecedor: null,
+      ipi_mcr: null,
+      ipi_fornecedor: null,
+      preco_bruto_mcr: null,
+      preco_bruto_fornecedor: null,
       divergencias: ["preco"],
       observacao: "",
     },
@@ -89,13 +95,16 @@ REGRAS OBRIGATÓRIAS
 7. Diferenças apenas de abreviação, acento, maiúsculas, espaços, pontos, traços ou zeros à esquerda não são divergência quando o produto estiver claramente identificado.
 8. Quando o pareamento não for seguro, use "pareamento_incerto".
 9. Item existente só no pedido MCR é "item_faltante". Item existente só no fornecedor é "item_extra".
-10. Compare quantidades, preços unitários, subtotal, impostos, ST, IPI, frete, desconto, total, pagamento e entrega.
+10. Compare quantidades, preços unitários líquidos, subtotal, impostos, ST, IPI, frete, desconto, total, pagamento e entrega.
+10.1. Para cada item, extraia ipi_mcr e ipi_fornecedor como alíquotas percentuais (ex.: 5 para 5%).
+10.2. Calcule ou extraia preco_bruto_mcr e preco_bruto_fornecedor, sempre por unidade e com IPI: preço líquido unitário × (1 + IPI/100). Se a alíquota não estiver informada, use null no preço bruto, sem presumir 0%.
+10.3. Use divergência "ipi" quando as alíquotas forem diferentes e "preco_bruto" quando os preços brutos unitários diferirem acima de R$ 0,05.
 11. Recalcule somente o necessário para validar linhas e totais. Diferença acima de R$ 0,05 não deve ser tratada como arredondamento.
 12. Não emita classificação APROVAR, REVISAR ou BLOQUEAR. Entregue fatos e divergências objetivas.
 13. Use "NÃO INFORMADO" para texto ausente e null para valor numérico ausente.
 14. Mantenha os itens na ordem do pedido MCR; itens extras do fornecedor ficam no final.
-15. Em divergencias, use "preco" somente para preço unitário diferente. Use os demais códigos para todas as outras diferenças.
-16. Os únicos códigos permitidos em divergencias são: preco, quantidade, codigo, descricao, item_faltante, item_extra, pareamento_incerto e outra.
+15. Em divergencias, use "preco" somente para preço líquido unitário diferente, "ipi" para alíquota diferente e "preco_bruto" para preço bruto unitário diferente. Use os demais códigos para todas as outras diferenças.
+16. Os únicos códigos permitidos em divergencias são: preco, ipi, preco_bruto, quantidade, codigo, descricao, item_faltante, item_extra, pareamento_incerto e outra.
 17. O resumo_texto deve ter no máximo 5 linhas e dizer o essencial: itens, diferenças, totais e principal ponto de atenção.
 18. pontos_atencao deve conter somente o que exige decisão, sem repetir informação irrelevante.
 19. Retorne exclusivamente JSON válido, sem markdown, sem comentários e com todos os campos do modelo fornecido.
@@ -208,6 +217,10 @@ function normalizeResult(value: Record<string, unknown>) {
       quantidade_fornecedor: asNumber(item.quantidade_fornecedor),
       preco_mcr: asNumber(item.preco_mcr),
       preco_fornecedor: asNumber(item.preco_fornecedor),
+      ipi_mcr: asNumber(item.ipi_mcr),
+      ipi_fornecedor: asNumber(item.ipi_fornecedor),
+      preco_bruto_mcr: asNumber(item.preco_bruto_mcr),
+      preco_bruto_fornecedor: asNumber(item.preco_bruto_fornecedor),
       divergencias,
       observacao: asText(item.observacao),
     };

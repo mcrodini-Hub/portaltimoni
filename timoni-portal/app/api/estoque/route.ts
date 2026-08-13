@@ -10,6 +10,8 @@ export const dynamic = "force-dynamic";
 const SPREADSHEET_ID = "1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo";
 const NEED_COLUMNS = 15;
 const RECEIVED_VISIBLE_DAYS = 15;
+const SENT_ORDERS_CACHE_RANGE = "Necessidades!Q:W";
+const SENT_ORDERS_CACHE_HEADER = ["id", "nome", "enviadoEm", "previsaoEntrega", "recebidoEm", "unidade", "situacao"];
 
 const STATUS = {
   PENDENTE: "pendente",
@@ -109,6 +111,22 @@ function rowsToSellers(rows: unknown[][]): Seller[] {
   return sellers;
 }
 
+function rowsToCachedOrders(rows: unknown[][]): SentOrder[] {
+  return rows
+    .slice(1)
+    .map((row) => ({
+      id: value(row, 0),
+      nome: value(row, 1),
+      enviadoEm: value(row, 2),
+      previsaoEntrega: value(row, 3),
+      recebidoEm: value(row, 4),
+      unidade: value(row, 5) === "araras" ? "araras" as const : "rio_claro" as const,
+      situacao: value(row, 6) === "recebido" ? "recebido" as const : "enviado" as const,
+    }))
+    .filter((order) => Boolean(order.id && order.nome && order.enviadoEm && order.previsaoEntrega))
+    .filter((order) => order.situacao === "enviado" || isWithinReceivedWindow(order.recebidoEm));
+}
+
 function summarize(needs: Need[]) {
   const geral = emptyCounts();
   const porUnidade = { rio_claro: emptyCounts(), araras: emptyCounts() };
@@ -146,6 +164,15 @@ function dedupeOrders(orders: SentOrder[]) {
     if (!unique.has(key)) unique.set(key, order);
   }
   return [...unique.values()];
+}
+
+function sortOrders(orders: SentOrder[]) {
+  return dedupeOrders(orders).sort((a, b) => {
+    const aTime = new Date(a.previsaoEntrega).getTime();
+    const bTime = new Date(b.previsaoEntrega).getTime();
+    if (aTime !== bTime) return aTime - bTime;
+    return a.nome.localeCompare(b.nome, "pt-BR");
+  });
 }
 
 async function readSentOrders(): Promise<SentOrder[]> {
@@ -189,12 +216,7 @@ async function readSentOrders(): Promise<SentOrder[]> {
     }),
   );
 
-  return dedupeOrders(groups.flat()).sort((a, b) => {
-    const aTime = new Date(a.previsaoEntrega).getTime();
-    const bTime = new Date(b.previsaoEntrega).getTime();
-    if (aTime !== bTime) return aTime - bTime;
-    return a.nome.localeCompare(b.nome, "pt-BR");
-  });
+  return sortOrders(groups.flat());
 }
 
 async function getSheets() {
@@ -218,17 +240,41 @@ async function canDeleteStockRecords() {
 async function readAll(sheets: sheets_v4.Sheets) {
   const response = await sheets.spreadsheets.values.batchGet({
     spreadsheetId: SPREADSHEET_ID,
-    ranges: ["Necessidades!A:O", "Produtos!A:C", "Vendedores!A:B"],
+    ranges: ["Necessidades!A:O", "Produtos!A:C", "Vendedores!A:B", SENT_ORDERS_CACHE_RANGE],
     valueRenderOption: "FORMATTED_VALUE",
   });
-  const [needRange, productRange, sellerRange] = response.data.valueRanges ?? [];
+  const [needRange, productRange, sellerRange, sentOrdersCacheRange] = response.data.valueRanges ?? [];
   const needRows = (needRange?.values ?? []) as unknown[][];
   const productRows = (productRange?.values ?? []) as unknown[][];
   const sellerRows = (sellerRange?.values ?? []) as unknown[][];
+  const cacheRows = (sentOrdersCacheRange?.values ?? []) as unknown[][];
   const necessidades = needRows.slice(1).filter((row) => value(row, 0)).map(rowToNeed);
   const produtos = rowsToProducts(productRows);
   const vendedores = rowsToSellers(sellerRows);
-  return { necessidades, produtos, vendedores, summary: summarize(necessidades), needRows };
+  const cachedOrders = sortOrders(rowsToCachedOrders(cacheRows));
+  return { necessidades, produtos, vendedores, summary: summarize(necessidades), needRows, cachedOrders };
+}
+
+async function writeSentOrdersCache(sheets: sheets_v4.Sheets, orders: SentOrder[]) {
+  const values = [
+    SENT_ORDERS_CACHE_HEADER,
+    ...orders.map((order) => [
+      order.id,
+      order.nome,
+      order.enviadoEm,
+      order.previsaoEntrega,
+      order.recebidoEm,
+      order.unidade,
+      order.situacao,
+    ]),
+  ];
+  await sheets.spreadsheets.values.clear({ spreadsheetId: SPREADSHEET_ID, range: SENT_ORDERS_CACHE_RANGE });
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: SPREADSHEET_ID,
+    range: "Necessidades!Q1",
+    valueInputOption: "RAW",
+    requestBody: { values },
+  });
 }
 
 function apiError(error: unknown) {
@@ -245,13 +291,22 @@ export async function GET() {
   try {
     const sheets = await getSheets();
     const data = await readAll(sheets);
-    let pedidosEnviados: SentOrder[] = [];
+    let pedidosEnviados = data.cachedOrders;
     try {
-      pedidosEnviados = await readSentOrders();
+      const trelloOrders = await readSentOrders();
+      pedidosEnviados = trelloOrders;
+      await writeSentOrdersCache(sheets, trelloOrders);
     } catch {
-      pedidosEnviados = [];
+      pedidosEnviados = data.cachedOrders;
     }
-    return NextResponse.json({ ok: true, ...data, pedidosEnviados, needRows: undefined }, { headers: { "Cache-Control": "no-store" } });
+    return NextResponse.json({
+      ok: true,
+      necessidades: data.necessidades,
+      produtos: data.produtos,
+      vendedores: data.vendedores,
+      summary: data.summary,
+      pedidosEnviados,
+    }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return apiError(error);
   }

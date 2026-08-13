@@ -183,7 +183,7 @@ function buildSheet(result: ConferenciaResult) {
   merges.push(`A${row}:M${row}`);
   row += 1;
 
-  const payment = `Forma de pagamento — Nosso pedido: ${normalizeText(result.condicoes.pagamento_mcr)} | Fornecedor: ${normalizeText(result.condicoes.pagamento_fornecedor)}`;
+  const payment = `Forma de pagamento: ${normalizeText(result.condicoes.pagamento_fornecedor)}`;
   rows.push(makeRow(row, [textCell(`A${row}`, payment, 13)], rowHeightForText(payment, 22, 190)));
   merges.push(`A${row}:M${row}`);
   row += 2;
@@ -199,21 +199,17 @@ function buildSheet(result: ConferenciaResult) {
     row += 1;
   }
 
-  for (const document of result.documentos_fornecedor || []) {
-    const status = document.status === "substituido"
-      ? "VERSÃO SUBSTITUÍDA - não comparada"
-      : document.status === "considerado"
-        ? "VERSÃO CONSIDERADA"
-        : "VERSÃO NÃO IDENTIFICADA - conferir";
+  for (const document of (result.documentos_fornecedor || []).filter(
+    (document) => document.status === "considerado",
+  )) {
     const relation = document.pedido_relacionado && document.pedido_relacionado !== "NÃO INFORMADO"
       ? ` | Relacionado ao pedido ${document.pedido_relacionado}`
       : "";
     const generated = document.gerado_em && document.gerado_em !== "NÃO INFORMADO"
       ? ` | Gerado em ${document.gerado_em}`
       : "";
-    const value = `Fornecedor: ${normalizeText(document.arquivo)} | ${status}${relation}${generated}`;
-    const style = document.status === "considerado" ? 18 : 6;
-    rows.push(makeRow(row, [textCell(`A${row}`, value, style)], rowHeightForText(value, 22, 150)));
+    const value = `Fornecedor: ${normalizeText(document.arquivo)}${relation}${generated}`;
+    rows.push(makeRow(row, [textCell(`A${row}`, value, 13)], rowHeightForText(value, 22, 150)));
     merges.push(`A${row}:M${row}`);
     row += 1;
   }
@@ -265,7 +261,7 @@ function buildSheet(result: ConferenciaResult) {
     );
   }
 
-  rows.push(makeRow(row, [textCell(`A${row}`, "PONTOS DE ATENÇÃO", 2)], 24));
+  rows.push(makeRow(row, [textCell(`A${row}`, "PONTOS DE ATENÇÃO", 23)], 24));
   merges.push(`A${row}:M${row}`);
   row += 1;
 
@@ -450,7 +446,7 @@ function buildSheet(result: ConferenciaResult) {
   );
 
   row += 2;
-  rows.push(makeRow(row, [textCell(`A${row}`, "RESUMO DA AVALIAÇÃO", 3)], 22));
+  rows.push(makeRow(row, [textCell(`A${row}`, "RESUMO DA CONFERÊNCIA", 3)], 22));
   merges.push(`A${row}:M${row}`);
   row += 1;
 
@@ -512,7 +508,7 @@ function buildStyles() {
   <numFmts count="1">
     <numFmt numFmtId="164" formatCode="&quot;R$ &quot;#,##0.00"/>
   </numFmts>
-  <fonts count="8">
+  <fonts count="9">
     <font><sz val="12"/><name val="Calibri"/><family val="2"/></font>
     <font><b/><color rgb="FF1A3A6B"/><sz val="16"/><name val="Calibri"/><family val="2"/></font>
     <font><b/><color rgb="FFFFFFFF"/><sz val="12"/><name val="Calibri"/><family val="2"/></font>
@@ -521,6 +517,7 @@ function buildStyles() {
     <font><b/><sz val="12"/><name val="Calibri"/><family val="2"/></font>
     <font><b/><color rgb="FFFFFFFF"/><sz val="12"/><name val="Calibri"/><family val="2"/></font>
     <font><b/><color rgb="FFBF9000"/><sz val="12"/><name val="Calibri"/><family val="2"/></font>
+    <font><b/><color rgb="FFE53935"/><sz val="12"/><name val="Calibri"/><family val="2"/></font>
   </fonts>
   <fills count="8">
     <fill><patternFill patternType="none"/></fill>
@@ -543,7 +540,7 @@ function buildStyles() {
     </border>
   </borders>
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="23">
+  <cellXfs count="24">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
     <xf numFmtId="0" fontId="2" fillId="3" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
@@ -567,6 +564,7 @@ function buildStyles() {
     <xf numFmtId="0" fontId="7" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>
     <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
     <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="8" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
   </cellXfs>
   <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
 </styleSheet>`;

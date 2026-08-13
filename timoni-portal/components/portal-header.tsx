@@ -1,7 +1,6 @@
 import { signOut } from "@/lib/auth";
 import { hasModuleAccess, type PortalModule } from "@/lib/access-control";
 import Link from "next/link";
-import PainelNotificationsClient from "@/app/painel-notifications-client";
 
 const navItems: Array<{ href: string; label: string; module: PortalModule }> = [
   { href: "/colaboradores", label: "Painel Timoni", module: "painel" },
@@ -42,8 +41,6 @@ export default function PortalHeader({ email }: { email: string }) {
               ),
           )}
         </nav>
-
-        <PainelNotificationsClient email={email} />
 
         <form
           action={async () => {

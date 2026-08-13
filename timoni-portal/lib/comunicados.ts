@@ -20,8 +20,10 @@ export type Comunicado = {
   expiresAt: string;
 };
 
-async function sheetsClient() {
-  const accessToken = await getAccessTokenFromRefreshToken();
+async function sheetsClient(sessionAccessToken?: string) {
+  // O acesso autenticado da Ciça tem prioridade. A credencial persistente do
+  // servidor fica apenas como alternativa para rotinas sem sessão.
+  const accessToken = sessionAccessToken || await getAccessTokenFromRefreshToken();
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: accessToken });
   return google.sheets({ version: "v4", auth });
@@ -45,7 +47,7 @@ function parseRows(rows: string[][]): Comunicado[] {
 }
 
 async function readRows(accessToken: string) {
-  const sheets = await sheetsClient();
+  const sheets = await sheetsClient(accessToken);
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
     range: `${COMUNICADOS_SHEET}!A2:I500`,
@@ -62,7 +64,7 @@ export async function createComunicado(
   accessToken: string,
   input: { unit: ComunicadoUnidade; title: string; message: string; startsAt?: string; expiresAt?: string },
 ) {
-  const sheets = await sheetsClient();
+  const sheets = await sheetsClient(accessToken);
   const now = new Date().toISOString();
   const id = `com-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   await sheets.spreadsheets.values.append({
@@ -94,7 +96,7 @@ export async function updateComunicado(
   const current = (await listComunicados(accessToken)).find((item) => item.id === id);
   if (!current) throw new Error("Comunicado não encontrado.");
 
-  const sheets = await sheetsClient();
+  const sheets = await sheetsClient(accessToken);
   await sheets.spreadsheets.values.update({
     spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
     range: `${COMUNICADOS_SHEET}!C${rowNumber}:I${rowNumber}`,
@@ -116,7 +118,7 @@ export async function updateComunicado(
 export async function deleteComunicado(accessToken: string, id: string) {
   const rowNumber = await findRow(accessToken, id);
   if (!rowNumber) throw new Error("Comunicado não encontrado.");
-  const sheets = await sheetsClient();
+  const sheets = await sheetsClient(accessToken);
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
     requestBody: {

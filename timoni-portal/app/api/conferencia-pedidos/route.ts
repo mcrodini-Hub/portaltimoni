@@ -35,6 +35,16 @@ const RESPONSE_TEMPLATE = {
   fornecedor_nome: "",
   data_pedido: "",
   data_documento_fornecedor: "",
+  documentos_fornecedor: [
+    {
+      arquivo: "",
+      identificador: "",
+      pedido_relacionado: "",
+      gerado_em: "",
+      status: "considerado",
+      substitui: "",
+    },
+  ],
   resumo_texto: "",
   pontos_atencao: [""],
   contagens: {
@@ -88,6 +98,10 @@ Os arquivos podem ser PDFs, fotos, prints de tela ou imagens manuscritas. Leia t
 REGRAS OBRIGATÓRIAS
 1. O pedido MCR/Rodini é sempre o documento-base.
 2. Leia todas as páginas, imagens, itens e anotações. Não omita linhas.
+2.1. Quando houver vários pedidos-base e vários documentos do fornecedor, relacione cada documento ao pedido correto e produza uma única conferência consolidada.
+2.2. Preencha documentos_fornecedor usando exatamente o nome do arquivo recebido, o identificador interno do fornecedor, o número do nosso pedido relacionado e a data/hora de geração.
+2.3. Se houver duas cópias do mesmo pedido do fornecedor, considere na comparação somente a versão mais recente pela data e hora de geração. Marque-a como "considerado" e marque a anterior como "substituido", informando em substitui qual arquivo foi substituído. Nunca some nem compare simultaneamente versões do mesmo pedido.
+2.4. Se não for possível determinar qual versão é a mais recente, não presuma: marque o caso nos pontos_atencao.
 3. Não usamos SKU ou EAN como padrão de pareamento.
 4. Pareie primeiro por "Cod. Forn. pedido MCR" e "Cod. Forn. fornecedor". Depois confirme pela descrição, medida, peso, volume, cor, embalagem e unidade. Use Cod. MCR e P-L como referências internas.
 5. Não compare apenas pela ordem das linhas.
@@ -194,11 +208,34 @@ function asInteger(value: unknown, fallback = 0) {
   return number === null ? fallback : Math.max(0, Math.round(number));
 }
 
-function normalizeResult(value: Record<string, unknown>) {
+function normalizeResult(value: Record<string, unknown>, pedidoFiles: File[], fornecedorFiles: File[]) {
   const rawCounts = asObject(value.contagens);
   const rawTotals = asObject(value.totais);
   const rawConditions = asObject(value.condicoes);
   const rawItems = Array.isArray(value.itens) ? value.itens : [];
+  const rawSupplierDocuments = Array.isArray(value.documentos_fornecedor)
+    ? value.documentos_fornecedor.map(asObject)
+    : [];
+
+  const documentosFornecedor = fornecedorFiles.map((file) => {
+    const matched = rawSupplierDocuments.find(
+      (document) => String(document.arquivo || "").trim() === file.name,
+    );
+    const status = String(matched?.status || "").trim().toLowerCase();
+    return {
+      arquivo: file.name,
+      identificador: asText(matched?.identificador),
+      pedido_relacionado: asText(matched?.pedido_relacionado),
+      gerado_em: asText(matched?.gerado_em),
+      status:
+        status === "substituido"
+          ? "substituido"
+          : status === "considerado"
+            ? "considerado"
+            : "indeterminado",
+      substitui: asText(matched?.substitui),
+    };
+  });
 
   const itens = rawItems.map((entry) => {
     const item = asObject(entry);
@@ -238,6 +275,8 @@ function normalizeResult(value: Record<string, unknown>) {
     fornecedor_nome: asText(value.fornecedor_nome),
     data_pedido: asText(value.data_pedido),
     data_documento_fornecedor: asText(value.data_documento_fornecedor),
+    documentos_pedido: pedidoFiles.map((file) => file.name),
+    documentos_fornecedor: documentosFornecedor,
     resumo_texto: asText(value.resumo_texto),
     pontos_atencao: Array.isArray(value.pontos_atencao)
       ? value.pontos_atencao.map(asText).filter((entry) => entry !== "NÃO INFORMADO")
@@ -383,7 +422,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = normalizeResult(parseJson(text));
+    const result = normalizeResult(parseJson(text), pedidoFiles, fornecedorFiles);
     return NextResponse.json(result, {
       headers: { "Cache-Control": "no-store" },
     });

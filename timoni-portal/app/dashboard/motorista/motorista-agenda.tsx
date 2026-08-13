@@ -509,7 +509,7 @@ export default function MotoristaAgenda() {
   }
 
   async function retirarViagem(v: Viagem) {
-    if (v.tipoHorario === "Bloqueio" || lerConclusao(v.notasJson) || lerRetirada(v.notasJson)) return;
+    if (v.tipoHorario === "Bloqueio" || lerRetirada(v.notasJson)) return;
     if (!window.confirm("Marcar esta viagem como retirada?")) return;
     setSaving(true);
     setErro("");
@@ -656,8 +656,8 @@ export default function MotoristaAgenda() {
                         {v.info && <p className="mt-2 text-sm text-slate-600">Observação: {v.info}</p>}
                         {v.preenchidoPor && <p className="mt-2 text-xs text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
                         <div className="mt-2 flex flex-wrap gap-2">
-                          {v.tipoHorario !== "Bloqueio" && (lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">Concluído</span> : lerRetirada(v.notasJson) ? <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">Retirado</span> : <>
-                            <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">Concluir</button>
+                          {v.tipoHorario !== "Bloqueio" && (lerRetirada(v.notasJson) ? <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">Retirado</span> : <>
+                            {lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">Concluído</span> : <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">Concluir</button>}
                             <button type="button" disabled={saving} onClick={() => void retirarViagem(v)} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">Retirado</button>
                           </>)}
                           <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50">Editar</button>
@@ -688,8 +688,8 @@ export default function MotoristaAgenda() {
                     {v.preenchidoPor && <p className="mt-3 font-[Arial] text-[10pt] text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {v.tipoHorario !== "Bloqueio" && (lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-2 text-sm font-semibold text-emerald-800">Concluído</span> : lerRetirada(v.notasJson) ? <span className="rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-800">Retirado</span> : <>
-                      <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Concluir</button>
+                    {v.tipoHorario !== "Bloqueio" && (lerRetirada(v.notasJson) ? <span className="rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-800">Retirado</span> : <>
+                      {lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-2 text-sm font-semibold text-emerald-800">Concluído</span> : <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Concluir</button>}
                       <button type="button" disabled={saving} onClick={() => void retirarViagem(v)} className="rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Retirado</button>
                     </>)}
                     <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50">Editar</button>

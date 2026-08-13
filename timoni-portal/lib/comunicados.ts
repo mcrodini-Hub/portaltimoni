@@ -46,8 +46,10 @@ function parseRows(rows: string[][]): Comunicado[] {
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }
 
-async function readRows(accessToken: string) {
-  const sheets = await sheetsClient(accessToken);
+async function readRows(_accessToken: string) {
+  // A leitura usa a credencial persistente do Portal para que colaboradores
+  // autorizados vejam os comunicados sem acesso direto à planilha interna.
+  const sheets = await sheetsClient();
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
     range: `${COMUNICADOS_SHEET}!A2:I500`,

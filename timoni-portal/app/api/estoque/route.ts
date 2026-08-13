@@ -9,6 +9,7 @@ export const dynamic = "force-dynamic";
 
 const SPREADSHEET_ID = "1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo";
 const NEED_COLUMNS = 15;
+const RECEIVED_VISIBLE_DAYS = 15;
 
 const STATUS = {
   PENDENTE: "pendente",
@@ -44,12 +45,25 @@ type SentOrder = {
   nome: string;
   enviadoEm: string;
   previsaoEntrega: string;
+  recebidoEm: string;
   unidade: "rio_claro" | "araras";
+  situacao: "enviado" | "recebido";
 };
 type TrelloList = { id: string; name: string; closed?: boolean };
 type TrelloBoard = { lists?: TrelloList[] };
-type TrelloCard = { id: string; name: string; start?: string | null; due?: string | null; closed?: boolean };
-type SentTarget = { list: TrelloList; unidade: "rio_claro" | "araras" };
+type TrelloCard = {
+  id: string;
+  name: string;
+  start?: string | null;
+  due?: string | null;
+  dateLastActivity?: string | null;
+  closed?: boolean;
+};
+type SentTarget = {
+  list: TrelloList;
+  unidade: "rio_claro" | "araras";
+  situacao: "enviado" | "recebido";
+};
 
 const fixedSellers: Seller[] = [
   { nome: "Ciça", unidade: "araras" },
@@ -116,25 +130,48 @@ function hasAllTokens(value: string, tokens: string[]) {
   return tokens.every((token) => normalized.includes(token));
 }
 
+function isWithinReceivedWindow(value: string) {
+  if (!value) return false;
+  const receivedAt = new Date(value).getTime();
+  if (Number.isNaN(receivedAt)) return false;
+  const limit = RECEIVED_VISIBLE_DAYS * 24 * 60 * 60 * 1000;
+  return Date.now() - receivedAt <= limit;
+}
+
+function dedupeOrders(orders: SentOrder[]) {
+  const unique = new Map<string, SentOrder>();
+  const prioritized = [...orders].sort((a, b) => (a.situacao === "recebido" ? -1 : 1) - (b.situacao === "recebido" ? -1 : 1));
+  for (const order of prioritized) {
+    const key = `${normalizeTrelloText(order.nome)}|${order.unidade}`;
+    if (!unique.has(key)) unique.set(key, order);
+  }
+  return [...unique.values()];
+}
+
 async function readSentOrders(): Promise<SentOrder[]> {
   const board = await trelloFetch<TrelloBoard>(`/boards/${TRELLO_BOARD_SHORT_LINK}`, {
     params: { fields: "name", lists: "open", list_fields: "name,closed" },
   });
   const lists = (board.lists || []).filter((list) => !list.closed);
   const targets: SentTarget[] = [];
+
   for (const list of lists) {
     const normalized = normalizeTrelloText(list.name || "");
-    if (hasAllTokens(normalized, ["pedidos", "enviado", "rio", "claro"])) {
-      targets.push({ list, unidade: "rio_claro" });
-    } else if (hasAllTokens(normalized, ["pedidos", "enviado", "araras"])) {
-      targets.push({ list, unidade: "araras" });
-    }
+    const isRio = normalized.includes("rio claro");
+    const isAraras = normalized.includes("araras");
+    const isSent = hasAllTokens(normalized, ["pedido", "enviado"]);
+    const isReceived = hasAllTokens(normalized, ["pedido", "compra", "recebido"]);
+
+    if (isSent && isRio) targets.push({ list, unidade: "rio_claro", situacao: "enviado" });
+    else if (isSent && isAraras) targets.push({ list, unidade: "araras", situacao: "enviado" });
+    else if (isReceived && isRio) targets.push({ list, unidade: "rio_claro", situacao: "recebido" });
+    else if (isReceived && isAraras) targets.push({ list, unidade: "araras", situacao: "recebido" });
   }
 
   const groups = await Promise.all(
-    targets.map(async ({ list, unidade }) => {
+    targets.map(async ({ list, unidade, situacao }) => {
       const cards = await trelloFetch<TrelloCard[]>(`/lists/${encodeURIComponent(list.id)}/cards`, {
-        params: { fields: "name,start,due,closed" },
+        params: { fields: "name,start,due,dateLastActivity,closed" },
       });
       return (cards || [])
         .filter((card) => !card.closed)
@@ -143,19 +180,21 @@ async function readSentOrders(): Promise<SentOrder[]> {
           nome: card.name,
           enviadoEm: card.start || "",
           previsaoEntrega: card.due || "",
+          recebidoEm: situacao === "recebido" ? card.dateLastActivity || "" : "",
           unidade,
-        }));
+          situacao,
+        } satisfies SentOrder))
+        .filter((order) => Boolean(order.enviadoEm && order.previsaoEntrega))
+        .filter((order) => order.situacao === "enviado" || isWithinReceivedWindow(order.recebidoEm));
     }),
   );
 
-  return groups
-    .flat()
-    .sort((a, b) => {
-      const aTime = a.previsaoEntrega ? new Date(a.previsaoEntrega).getTime() : Number.MAX_SAFE_INTEGER;
-      const bTime = b.previsaoEntrega ? new Date(b.previsaoEntrega).getTime() : Number.MAX_SAFE_INTEGER;
-      if (aTime !== bTime) return aTime - bTime;
-      return a.nome.localeCompare(b.nome, "pt-BR");
-    });
+  return dedupeOrders(groups.flat()).sort((a, b) => {
+    const aTime = new Date(a.previsaoEntrega).getTime();
+    const bTime = new Date(b.previsaoEntrega).getTime();
+    if (aTime !== bTime) return aTime - bTime;
+    return a.nome.localeCompare(b.nome, "pt-BR");
+  });
 }
 
 async function getSheets() {
@@ -205,7 +244,13 @@ function apiError(error: unknown) {
 export async function GET() {
   try {
     const sheets = await getSheets();
-    const [data, pedidosEnviados] = await Promise.all([readAll(sheets), readSentOrders()]);
+    const data = await readAll(sheets);
+    let pedidosEnviados: SentOrder[] = [];
+    try {
+      pedidosEnviados = await readSentOrders();
+    } catch {
+      pedidosEnviados = [];
+    }
     return NextResponse.json({ ok: true, ...data, pedidosEnviados, needRows: undefined }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return apiError(error);

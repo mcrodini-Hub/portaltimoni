@@ -10,6 +10,8 @@ type Comunicado = {
   message: string;
   status: "ativo" | "arquivado";
   updatedAt: string;
+  startsAt: string;
+  expiresAt: string;
 };
 
 type FormState = {
@@ -17,9 +19,18 @@ type FormState = {
   unit: Comunicado["unit"];
   title: string;
   message: string;
+  startsAt: string;
+  expiresAt: string;
 };
 
-const EMPTY_FORM: FormState = { id: "", unit: "geral", title: "", message: "" };
+const EMPTY_FORM: FormState = { id: "", unit: "geral", title: "", message: "", startsAt: "", expiresAt: "" };
+
+function toLocalInput(value: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  const offset = date.getTimezoneOffset() * 60_000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+}
 
 function formatDate(value: string) {
   if (!value) return "";
@@ -81,6 +92,8 @@ export default function ComunicadosAdmin() {
           unit: form.unit,
           title: form.title,
           message: form.message,
+          startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : "",
+          expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : "",
         }),
       });
       const data = await response.json();
@@ -128,7 +141,7 @@ export default function ComunicadosAdmin() {
   }
 
   function edit(item: Comunicado) {
-    setForm({ id: item.id, unit: item.unit, title: item.title, message: item.message });
+    setForm({ id: item.id, unit: item.unit, title: item.title, message: item.message, startsAt: toLocalInput(item.startsAt), expiresAt: toLocalInput(item.expiresAt) });
     window.setTimeout(() => document.getElementById("novo-comunicado")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   }
 
@@ -165,6 +178,28 @@ export default function ComunicadosAdmin() {
             placeholder="Título do comunicado"
             required
           />
+        </label>
+
+        <label className="text-sm font-medium text-slate-700">
+          Início da exibição
+          <input
+            type="datetime-local"
+            value={form.startsAt}
+            onChange={(event) => setForm((current) => ({ ...current, startsAt: event.target.value }))}
+            className="mt-1 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 outline-none focus:border-blue-500"
+          />
+          <span className="mt-1 block text-xs font-normal text-slate-500">Em branco: começa imediatamente.</span>
+        </label>
+
+        <label className="text-sm font-medium text-slate-700">
+          Exibir até
+          <input
+            type="datetime-local"
+            value={form.expiresAt}
+            onChange={(event) => setForm((current) => ({ ...current, expiresAt: event.target.value }))}
+            className="mt-1 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 outline-none focus:border-blue-500"
+          />
+          <span className="mt-1 block text-xs font-normal text-slate-500">Em branco: permanece ativo até ser concluído.</span>
         </label>
 
         <label className="text-sm font-medium text-slate-700 lg:col-span-2">
@@ -206,6 +241,7 @@ export default function ComunicadosAdmin() {
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">{unitLabel(item.unit)} · {formatDate(item.createdAt)}</p>
                     <h3 className="mt-1 text-lg font-semibold text-slate-950">{item.title}</h3>
+                    <p className="mt-1 text-xs text-slate-500">{item.expiresAt ? `Ativo até ${formatDate(item.expiresAt)}` : "Ativo até retirada manual"}</p>
                     <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.message}</p>
                   </div>
                   <div className="flex flex-wrap gap-2">

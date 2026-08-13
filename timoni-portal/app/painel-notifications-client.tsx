@@ -88,7 +88,7 @@ export default function PainelNotificationsClient({ email }: { email: string }) 
         type="button"
         onClick={() => setOpen(true)}
         aria-label={items.length ? items.length + " notificações não lidas" : "Nenhuma notificação nova"}
-        className="fixed right-4 top-3 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-blue-200 bg-white text-xl shadow-lg transition hover:bg-blue-50"
+        className="fixed right-20 top-3 z-50 flex h-11 w-11 items-center justify-center rounded-full border border-blue-200 bg-white text-xl shadow-lg transition hover:bg-blue-50"
       >
         <span aria-hidden="true">🔔</span>
         {items.length > 0 && (

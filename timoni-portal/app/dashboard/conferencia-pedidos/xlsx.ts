@@ -179,14 +179,6 @@ function buildSheet(result: ConferenciaResult) {
   merges.push(`A${row}:M${row}`);
   row += 2;
 
-  rows.push(makeRow(row, [textCell(`A${row}`, "ATENÇÃO", 2)], 24));
-  merges.push(`A${row}:M${row}`);
-  row += 2;
-
-  rows.push(makeRow(row, [textCell(`A${row}`, "RESUMO", 3)], 22));
-  merges.push(`A${row}:M${row}`);
-  row += 1;
-
   const summary = splitSummary(result.resumo_texto);
   const summaryLines = summary.length
     ? [...summary]
@@ -232,20 +224,7 @@ function buildSheet(result: ConferenciaResult) {
     );
   }
 
-  for (const line of summaryLines.slice(0, 7)) {
-    rows.push(
-      makeRow(
-        row,
-        [textCell(`A${row}`, line, 13)],
-        rowHeightForText(line, 22, 165),
-      ),
-    );
-    merges.push(`A${row}:M${row}`);
-    row += 1;
-  }
-
-  row += 1;
-  rows.push(makeRow(row, [textCell(`A${row}`, "PONTOS DE ATENÇÃO", 20)], 22));
+  rows.push(makeRow(row, [textCell(`A${row}`, "PONTOS DE ATENÇÃO", 2)], 24));
   merges.push(`A${row}:M${row}`);
   row += 1;
 
@@ -265,39 +244,6 @@ function buildSheet(result: ConferenciaResult) {
     row += 1;
   }
 
-  row += 1;
-  rows.push(makeRow(row, [textCell(`A${row}`, "LEGENDA DE CORES", 3)], 22));
-  merges.push(`A${row}:M${row}`);
-  row += 1;
-
-  rows.push(
-    makeRow(
-      row,
-      [textCell(`A${row}`, "Verde: preço do fornecedor igual ou menor que o do pedido", 18)],
-      22,
-    ),
-  );
-  merges.push(`A${row}:M${row}`);
-  row += 1;
-
-  rows.push(
-    makeRow(
-      row,
-      [textCell(`A${row}`, "Vermelho: preço do fornecedor maior que o do pedido", 19)],
-      22,
-    ),
-  );
-  merges.push(`A${row}:M${row}`);
-  row += 1;
-
-  rows.push(
-    makeRow(
-      row,
-      [textCell(`A${row}`, "Laranja: divergência de quantidade, código ou descrição/especificação", 6)],
-      22,
-    ),
-  );
-  merges.push(`A${row}:M${row}`);
   row += 2;
 
   const headers = [
@@ -357,13 +303,18 @@ function buildSheet(result: ConferenciaResult) {
         ? 9
         : 4;
 
-    const ipiStyle = wholeOrange || divergencias.has("ipi") ? 8 : 7;
+    const priceMcrStyle = priceComparable ? (wholeOrange ? 9 : 4) : 8;
+    const priceDocumentStyle = priceComparable ? priceSupplierStyle : 8;
+
+    const ipiComparable = typeof item.ipi_mcr === "number" && typeof item.ipi_fornecedor === "number";
+    const ipiStyle = !ipiComparable || wholeOrange || divergencias.has("ipi") ? 8 : 7;
     const grossMcr = item.preco_bruto_mcr ?? grossPrice(item.preco_mcr, item.ipi_mcr);
     const grossSupplier = item.preco_bruto_fornecedor ?? grossPrice(item.preco_fornecedor, item.ipi_fornecedor);
     const grossComparable = typeof grossMcr === "number" && typeof grossSupplier === "number";
-    const grossSupplierStyle = divergencias.has("preco_bruto")
+    const grossSupplierStyle = !grossComparable ? 8 : divergencias.has("preco_bruto")
       ? grossComparable && grossSupplier > grossMcr + 0.05 ? 5 : 17
       : wholeOrange ? 9 : 4;
+    const grossMcrStyle = !grossComparable ? 8 : wholeOrange ? 9 : 4;
 
     const styles = {
       a: wholeOrange ? 6 : 21,
@@ -397,12 +348,12 @@ function buildSheet(result: ConferenciaResult) {
           textCell(`E${row}`, description, styles.e),
           numberCell(`F${row}`, item.quantidade_mcr, styles.f),
           numberCell(`G${row}`, item.quantidade_fornecedor, styles.g),
-          numberCell(`H${row}`, item.preco_mcr, styles.h),
-          numberCell(`I${row}`, item.preco_fornecedor, styles.i),
+          numberCell(`H${row}`, item.preco_mcr, priceMcrStyle, "NÃO INFORMADO"),
+          numberCell(`I${row}`, item.preco_fornecedor, priceDocumentStyle, "NÃO INFORMADO"),
           numberCell(`J${row}`, item.ipi_mcr, ipiStyle),
           numberCell(`K${row}`, item.ipi_fornecedor, ipiStyle),
-          numberCell(`L${row}`, grossMcr, wholeOrange ? 9 : 4),
-          numberCell(`M${row}`, grossSupplier, grossSupplierStyle),
+          numberCell(`L${row}`, grossMcr, grossMcrStyle, "NÃO COMPARÁVEL"),
+          numberCell(`M${row}`, grossSupplier, grossSupplierStyle, "NÃO COMPARÁVEL"),
         ],
         rowHeightForText(description, 24, 46),
       ),
@@ -456,6 +407,33 @@ function buildSheet(result: ConferenciaResult) {
       42,
     ),
   );
+
+  row += 2;
+  rows.push(makeRow(row, [textCell(`A${row}`, "RESUMO DA AVALIAÇÃO", 3)], 22));
+  merges.push(`A${row}:M${row}`);
+  row += 1;
+
+  for (const line of summaryLines.slice(0, 7)) {
+    rows.push(makeRow(row, [textCell(`A${row}`, line, 13)], rowHeightForText(line, 22, 165)));
+    merges.push(`A${row}:M${row}`);
+    row += 1;
+  }
+
+  row += 1;
+  rows.push(makeRow(row, [textCell(`A${row}`, "LEGENDA DE CORES", 3)], 22));
+  merges.push(`A${row}:M${row}`);
+  row += 1;
+
+  const legend = [
+    ["Verde: preço do fornecedor igual ou menor que o do pedido", 18],
+    ["Vermelho: preço do fornecedor maior que o do pedido", 19],
+    ["Laranja: divergência ou informação insuficiente para comparar", 6],
+  ] as const;
+  for (const [label, style] of legend) {
+    rows.push(makeRow(row, [textCell(`A${row}`, label, style)], 22));
+    merges.push(`A${row}:M${row}`);
+    row += 1;
+  }
 
   const lastRow = row;
   const mergeXml = merges.length

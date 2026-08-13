@@ -56,11 +56,11 @@ export async function GET() {
 
   const items: NotificationItem[] = [];
 
-  if (session?.accessToken) {
+  {
     try {
       const now = Date.now();
       const unit = unitForEmail(email);
-      const notices = await listComunicados(session.accessToken);
+      const notices = await listComunicados(session?.accessToken ?? "");
       for (const notice of notices
         .filter((item) => item.status === "ativo")
         .filter((item) => !item.startsAt || Date.parse(item.startsAt) <= now)

@@ -1,13 +1,15 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { isAuthorizedUser } from "@/lib/access-control";
+import { getAccessTokenFromRefreshToken } from "@/lib/google-calendar";
 
-// Segunda camada de defesa (a primeira é o callback signIn em lib/auth.ts):
-// toda rota de API reconfirma sessão, autorização e validade do token antes
-// de chamar a Calendar API.
+// A sessão identifica o usuário e suas permissões. O token central do Portal
+// mantém as integrações Google funcionando sem encerrar o acesso do colaborador.
 export async function requireAuthorizedSession() {
   const session = await auth();
+  const email = session?.user?.email;
 
-  if (!session?.user?.email || session.user.email !== process.env.AUTHORIZED_EMAIL) {
+  if (!email || !isAuthorizedUser(email)) {
     return {
       session: null,
       errorResponse: NextResponse.json({ error: "Não autorizado." }, { status: 401 }),
@@ -15,13 +17,19 @@ export async function requireAuthorizedSession() {
   }
 
   if (session.error === "RefreshAccessTokenError" || !session.accessToken) {
-    return {
-      session: null,
-      errorResponse: NextResponse.json(
-        { error: "Sessão expirada. Faça login novamente." },
-        { status: 401 }
-      ),
-    };
+    try {
+      session.accessToken = await getAccessTokenFromRefreshToken();
+      session.error = undefined;
+    } catch (error) {
+      console.error("[auth-guard] Integração Google temporariamente indisponível.", error);
+      return {
+        session: null,
+        errorResponse: NextResponse.json(
+          { error: "Integração Google temporariamente indisponível. Tente novamente." },
+          { status: 503 },
+        ),
+      };
+    }
   }
 
   return { session, errorResponse: null };

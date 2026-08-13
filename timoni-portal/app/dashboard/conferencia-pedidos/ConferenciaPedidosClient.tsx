@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   type ConferenciaResult,
   downloadWorkbook,
@@ -209,6 +209,27 @@ export default function ConferenciaPedidosClient() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [result, setResult] = useState<ConferenciaResult | null>(null);
+  const [geminiStatus, setGeminiStatus] = useState<"checking" | "ready" | "missing">("checking");
+
+  const checkGemini = useCallback(async () => {
+    try {
+      const response = await fetch("/api/configurar-gemini", { cache: "no-store" });
+      const payload = await response.json();
+      const ready = Boolean(response.ok && payload?.configured);
+      setGeminiStatus(ready ? "ready" : "missing");
+      return ready;
+    } catch {
+      setGeminiStatus("missing");
+      return false;
+    }
+  }, []);
+
+  useEffect(() => {
+    void checkGemini();
+    const refresh = () => void checkGemini();
+    window.addEventListener("focus", refresh);
+    return () => window.removeEventListener("focus", refresh);
+  }, [checkGemini]);
 
   function addFiles(group: FileGroup, incoming: File[]) {
     setError("");
@@ -240,6 +261,13 @@ export default function ConferenciaPedidosClient() {
 
     if (!pedidoFiles.length || !fornecedorFiles.length) {
       setError("Envie o pedido MCR/Rodini e o documento do fornecedor.");
+      return;
+    }
+
+    setStatus("Verificando o serviço de conferência...");
+    if (!(await checkGemini())) {
+      setStatus("");
+      setError("A conferência precisa ser liberada uma única vez. Clique em Configurar agora; seus arquivos permanecerão nesta tela.");
       return;
     }
 
@@ -302,12 +330,29 @@ export default function ConferenciaPedidosClient() {
 
   return (
     <div>
+      {geminiStatus !== "ready" && (
+        <div className={`mb-4 rounded-2xl border px-4 py-4 ${geminiStatus === "checking" ? "border-slate-200 bg-slate-50" : "border-amber-300 bg-amber-50"}`}>
+          <p className="text-sm font-semibold text-slate-900">
+            {geminiStatus === "checking" ? "Verificando o serviço de conferência..." : "Conferência ainda não liberada neste navegador"}
+          </p>
+          {geminiStatus === "missing" && (
+            <>
+              <p className="mt-1 text-sm leading-6 text-slate-700">
+                Faça a configuração única antes de carregar os documentos. A página será aberta em outra aba para não perder os arquivos já selecionados.
+              </p>
+              <a href="/dashboard/conferencia-pedidos/configurar" target="_blank" rel="noreferrer" className="mt-3 inline-flex min-h-11 items-center justify-center rounded-xl bg-amber-700 px-5 text-sm font-semibold text-white hover:bg-amber-800">
+                Configurar agora
+              </a>
+            </>
+          )}
+        </div>
+      )}
       <div className="grid gap-4 lg:grid-cols-2">
         <DropZone
           title="1. Pedido MCR / Rodini"
           description="Documento-base da conferência. Pode ser PDF, foto, print ou anotação manuscrita."
           files={pedidoFiles}
-          disabled={loading}
+          disabled={loading || geminiStatus !== "ready"}
           onAdd={(files) => addFiles("pedido", files)}
           onRemove={(index) => removeFile("pedido", index)}
         />
@@ -315,7 +360,7 @@ export default function ConferenciaPedidosClient() {
           title="2. Documento do fornecedor"
           description="Pedido, confirmação, orçamento, NF-e, print, foto ou documento manuscrito recebido."
           files={fornecedorFiles}
-          disabled={loading}
+          disabled={loading || geminiStatus !== "ready"}
           onAdd={(files) => addFiles("fornecedor", files)}
           onRemove={(index) => removeFile("fornecedor", index)}
         />
@@ -330,7 +375,7 @@ export default function ConferenciaPedidosClient() {
       <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
         <button
           type="button"
-          disabled={loading || !pedidoFiles.length || !fornecedorFiles.length}
+          disabled={loading || geminiStatus !== "ready" || !pedidoFiles.length || !fornecedorFiles.length}
           onClick={submit}
           className="min-h-12 rounded-xl bg-cyan-700 px-6 py-3 text-base font-semibold text-white transition hover:bg-cyan-800 disabled:cursor-not-allowed disabled:bg-slate-300"
         >

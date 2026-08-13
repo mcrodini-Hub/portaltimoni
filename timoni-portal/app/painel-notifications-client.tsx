@@ -61,10 +61,19 @@ function saveHistory(key: string, items: NotificationItem[]) {
   }
 }
 
+function historyIdentity(item: NotificationItem) {
+  if (item.type === "comunicado") {
+    const parts = item.id.split(":");
+    return parts.slice(0, 2).join(":");
+  }
+  return item.id;
+}
+
 function mergeHistory(current: NotificationItem[], previous: NotificationItem[]) {
   const merged = new Map<string, NotificationItem>();
   [...current, ...previous].forEach((item) => {
-    if (!merged.has(item.id)) merged.set(item.id, item);
+    const identity = historyIdentity(item);
+    if (!merged.has(identity)) merged.set(identity, item);
   });
   return Array.from(merged.values()).slice(0, HISTORY_LIMIT);
 }

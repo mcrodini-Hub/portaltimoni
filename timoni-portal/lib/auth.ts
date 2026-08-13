@@ -3,6 +3,8 @@ import type { JWT } from "next-auth/jwt";
 import Google from "next-auth/providers/google";
 import { isAuthorizedUser } from "@/lib/access-control";
 
+const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
+
 declare module "next-auth" {
   interface Session {
     accessToken?: string;
@@ -21,7 +23,9 @@ declare module "next-auth/jwt" {
 
 async function refreshAccessToken(token: JWT): Promise<JWT> {
   try {
-    if (!token.refreshToken) throw new Error("Sem refresh_token disponível.");
+    if (!token.refreshToken) {
+      return { ...token, error: "RefreshAccessTokenError" };
+    }
 
     const response = await fetch("https://oauth2.googleapis.com/token", {
       method: "POST",
@@ -32,6 +36,7 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
         grant_type: "refresh_token",
         refresh_token: token.refreshToken,
       }),
+      cache: "no-store",
     });
 
     const refreshed = await response.json();
@@ -40,16 +45,18 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
     return {
       ...token,
       accessToken: refreshed.access_token,
-      expiresAt: Math.floor(Date.now() / 1000) + refreshed.expires_in,
+      expiresAt: Math.floor(Date.now() / 1000) + Number(refreshed.expires_in || 3600),
       refreshToken: refreshed.refresh_token ?? token.refreshToken,
       error: undefined,
     };
-  } catch {
+  } catch (error) {
+    console.error("[auth] Falha temporária ao renovar token Google.", error);
     return { ...token, error: "RefreshAccessTokenError" };
   }
 }
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,
@@ -64,7 +71,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             "https://www.googleapis.com/auth/spreadsheets",
           ].join(" "),
           access_type: "offline",
-          prompt: "consent",
         },
       },
     }),
@@ -74,6 +80,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   session: {
     strategy: "jwt",
+    maxAge: SESSION_MAX_AGE_SECONDS,
+  },
+  jwt: {
+    maxAge: SESSION_MAX_AGE_SECONDS,
   },
   callbacks: {
     async signIn({ user }) {
@@ -84,12 +94,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         return {
           ...token,
           accessToken: account.access_token,
-          refreshToken: account.refresh_token,
+          refreshToken: account.refresh_token ?? token.refreshToken,
           expiresAt: account.expires_at,
+          error: undefined,
         };
       }
 
-      if (token.expiresAt && Date.now() / 1000 < token.expiresAt - 60) {
+      if (!token.expiresAt || Date.now() / 1000 < token.expiresAt - 120) {
         return token;
       }
 

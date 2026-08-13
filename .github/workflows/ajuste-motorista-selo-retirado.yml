@@ -1,0 +1,48 @@
+name: Ajuste selo Retirado Motorista
+
+on:
+  push:
+    branches: [ajuste-motorista-selo-retirado]
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Aplicar ajuste isolado
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('timoni-portal/app/motorista/motorista-leitura.tsx')
+          s = p.read_text()
+
+          old = '''function concluida(notasJson?: string) {\n  try {\n    const parsed = JSON.parse(String(notasJson || "[]"));\n    return Boolean(parsed && !Array.isArray(parsed) && parsed.status === "concluida");\n  } catch {\n    return false;\n  }\n}\n'''
+          new = old + '''\nfunction retirada(notasJson?: string) {\n  try {\n    const parsed = JSON.parse(String(notasJson || "[]"));\n    return Boolean(parsed && !Array.isArray(parsed) && parsed.status === "retirado");\n  } catch {\n    return false;\n  }\n}\n'''
+          if old not in s:
+              raise SystemExit('helper concluida não encontrado')
+          s = s.replace(old, new, 1)
+
+          old_badge = '''                                {!bloqueio && concluida(v.notasJson) && <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">Concluído</span>}'''
+          new_badge = '''                                {!bloqueio && concluida(v.notasJson) && <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">Concluído</span>}\n                                {!bloqueio && retirada(v.notasJson) && <span className="rounded-lg bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">Retirado</span>}'''
+          if old_badge not in s:
+              raise SystemExit('selo Concluído não encontrado')
+          s = s.replace(old_badge, new_badge, 1)
+
+          p.write_text(s)
+          PY
+      - name: Instalar dependências
+        working-directory: timoni-portal
+        run: npm ci
+      - name: Validar build
+        working-directory: timoni-portal
+        run: npm run build
+      - name: Commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add timoni-portal/app/motorista/motorista-leitura.tsx
+          git diff --cached --quiet || git commit -m "fix: exibe status Retirado no Motorista"
+          git push

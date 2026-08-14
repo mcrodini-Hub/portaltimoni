@@ -1,7 +1,12 @@
 import { auth } from "@/lib/auth";
 import { hasModuleAccess } from "@/lib/access-control";
-import { getStoredTrelloCredentials, TRELLO_API_KEY, validateTrelloCredentials } from "@/lib/trello";
-import { cookies } from "next/headers";
+import {
+  clearStoredTrelloCredentials,
+  getStoredTrelloCredentials,
+  persistTrelloCredentials,
+  TRELLO_API_KEY,
+  validateTrelloCredentials,
+} from "@/lib/trello";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -10,22 +15,28 @@ export const dynamic = "force-dynamic";
 async function authorize() {
   const session = await auth();
   if (!session?.user?.email) {
-    return NextResponse.json(
-      { error: "Sessão expirada. Entre novamente no Portal." },
-      { status: 401 },
-    );
+    return {
+      response: NextResponse.json(
+        { error: "Sessão expirada. Entre novamente no Portal." },
+        { status: 401 },
+      ),
+      session: null,
+    };
   }
   if (!hasModuleAccess(session.user.email, "compras")) {
-    return NextResponse.json(
-      { error: "Acesso não autorizado ao módulo Compras." },
-      { status: 403 },
-    );
+    return {
+      response: NextResponse.json(
+        { error: "Acesso não autorizado ao módulo Compras." },
+        { status: 403 },
+      ),
+      session: null,
+    };
   }
-  return null;
+  return { response: null, session };
 }
 
 export async function GET() {
-  const unauthorized = await authorize();
+  const { response: unauthorized } = await authorize();
   if (unauthorized) return unauthorized;
   const credentials = await getStoredTrelloCredentials();
   return NextResponse.json(
@@ -35,8 +46,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const unauthorized = await authorize();
-  if (unauthorized) return unauthorized;
+  const { response: unauthorized, session } = await authorize();
+  if (unauthorized || !session) return unauthorized!;
 
   try {
     const body = (await request.json()) as { token?: string; key?: string };
@@ -50,19 +61,15 @@ export async function POST(request: Request) {
       );
     }
 
-    const board = await validateTrelloCredentials({ key, token });
-    const cookieStore = await cookies();
-    const cookieOptions = {
-      httpOnly: true,
-      secure: true,
-      sameSite: "lax" as const,
-      path: "/",
-      maxAge: 60 * 60 * 24 * 365,
-    };
-    cookieStore.set("timoni_trello_key", key, cookieOptions);
-    cookieStore.set("timoni_trello_token", token, cookieOptions);
+    const credentials = { key, token };
+    const board = await validateTrelloCredentials(credentials);
+    const { cloudSaved } = await persistTrelloCredentials(credentials, session.accessToken);
 
-    return NextResponse.json({ ok: true, boardName: board.name });
+    return NextResponse.json({
+      ok: true,
+      boardName: board.name,
+      persistent: cloudSaved,
+    });
   } catch (error) {
     return NextResponse.json(
       {
@@ -77,18 +84,9 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE() {
-  const unauthorized = await authorize();
-  if (unauthorized) return unauthorized;
+  const { response: unauthorized, session } = await authorize();
+  if (unauthorized || !session) return unauthorized!;
 
-  const cookieStore = await cookies();
-  const clearOptions = {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax" as const,
-    path: "/",
-    maxAge: 0,
-  };
-  cookieStore.set("timoni_trello_key", "", clearOptions);
-  cookieStore.set("timoni_trello_token", "", clearOptions);
+  await clearStoredTrelloCredentials(session.accessToken);
   return NextResponse.json({ ok: true });
 }

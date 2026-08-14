@@ -123,7 +123,7 @@ function rowsToCachedOrders(rows: unknown[][]): SentOrder[] {
       unidade: value(row, 5) === "araras" ? "araras" as const : "rio_claro" as const,
       situacao: value(row, 6) === "recebido" ? "recebido" as const : "enviado" as const,
     }))
-    .filter((order) => Boolean(order.id && order.nome && order.enviadoEm && order.previsaoEntrega))
+    .filter((order) => Boolean(order.id && order.nome))
     .filter((order) => order.situacao === "enviado" || isWithinReceivedWindow(order.recebidoEm));
 }
 
@@ -168,9 +168,11 @@ function dedupeOrders(orders: SentOrder[]) {
 
 function sortOrders(orders: SentOrder[]) {
   return dedupeOrders(orders).sort((a, b) => {
-    const aTime = new Date(a.previsaoEntrega).getTime();
-    const bTime = new Date(b.previsaoEntrega).getTime();
-    if (aTime !== bTime) return aTime - bTime;
+    const aTime = a.previsaoEntrega ? new Date(a.previsaoEntrega).getTime() : Number.POSITIVE_INFINITY;
+    const bTime = b.previsaoEntrega ? new Date(b.previsaoEntrega).getTime() : Number.POSITIVE_INFINITY;
+    const safeATime = Number.isNaN(aTime) ? Number.POSITIVE_INFINITY : aTime;
+    const safeBTime = Number.isNaN(bTime) ? Number.POSITIVE_INFINITY : bTime;
+    if (safeATime !== safeBTime) return safeATime - safeBTime;
     return a.nome.localeCompare(b.nome, "pt-BR");
   });
 }
@@ -211,7 +213,7 @@ async function readSentOrders(): Promise<SentOrder[]> {
           unidade,
           situacao,
         } satisfies SentOrder))
-        .filter((order) => Boolean(order.enviadoEm && order.previsaoEntrega))
+        .filter((order) => Boolean(order.id && order.nome))
         .filter((order) => order.situacao === "enviado" || isWithinReceivedWindow(order.recebidoEm));
     }),
   );

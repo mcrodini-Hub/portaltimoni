@@ -5,11 +5,16 @@ import {
   trelloFetch,
   TRELLO_BOARD_SHORT_LINK,
 } from "@/lib/trello";
+import { google } from "googleapis";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
 export const dynamic = "force-dynamic";
+
+const STOCK_SPREADSHEET_ID = "1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo";
+const STOCK_SENT_CACHE_RANGE = "Necessidades!Q:W";
+const STOCK_SENT_CACHE_HEADER = ["id", "nome", "enviadoEm", "previsaoEntrega", "recebidoEm", "unidade", "situacao"];
 
 interface TrelloList {
   id: string;
@@ -123,6 +128,70 @@ async function attachFile(cardId: string, file: FormDataEntryValue | null) {
   return true;
 }
 
+async function upsertStockSentOrder(
+  cardId: string,
+  name: string,
+  dataEnvio: string,
+  dataEntrega: string,
+  unit: "rio_claro" | "araras",
+) {
+  try {
+    const session = await auth();
+    if (!session?.accessToken || session.error === "RefreshAccessTokenError") return;
+
+    const oauth = new google.auth.OAuth2();
+    oauth.setCredentials({ access_token: session.accessToken });
+    const sheets = google.sheets({ version: "v4", auth: oauth });
+
+    const current = await sheets.spreadsheets.values.get({
+      spreadsheetId: STOCK_SPREADSHEET_ID,
+      range: STOCK_SENT_CACHE_RANGE,
+      valueRenderOption: "FORMATTED_VALUE",
+    });
+    const rows = current.data.values || [];
+    const headerOk = rows[0]?.[0] === "id";
+    if (!headerOk) {
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: STOCK_SPREADSHEET_ID,
+        range: "Necessidades!Q1:W1",
+        valueInputOption: "RAW",
+        requestBody: { values: [STOCK_SENT_CACHE_HEADER] },
+      });
+    }
+
+    const row = [
+      cardId,
+      name,
+      `${dataEnvio}T12:00:00-03:00`,
+      `${dataEntrega}T12:00:00-03:00`,
+      "",
+      unit,
+      "enviado",
+    ];
+    const existingIndex = rows.slice(1).findIndex((item) => String(item?.[0] || "") === cardId);
+
+    if (existingIndex >= 0) {
+      const rowNumber = existingIndex + 2;
+      await sheets.spreadsheets.values.update({
+        spreadsheetId: STOCK_SPREADSHEET_ID,
+        range: `Necessidades!Q${rowNumber}:W${rowNumber}`,
+        valueInputOption: "RAW",
+        requestBody: { values: [row] },
+      });
+    } else {
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: STOCK_SPREADSHEET_ID,
+        range: STOCK_SENT_CACHE_RANGE,
+        valueInputOption: "RAW",
+        insertDataOption: "INSERT_ROWS",
+        requestBody: { values: [row] },
+      });
+    }
+  } catch {
+    // O Trello continua sendo concluído mesmo se o cache compartilhado estiver temporariamente indisponível.
+  }
+}
+
 export async function POST(request: Request) {
   const unauthorized = await authorize();
   if (unauthorized) return unauthorized;
@@ -209,6 +278,14 @@ export async function POST(request: Request) {
 
     const printAdded = await attachFile(cardId, attachment);
     const orderFileAdded = await attachFile(cardId, orderFile);
+
+    await upsertStockSentOrder(
+      cardId,
+      updatedCard.name || finalTitle,
+      dataEnvio,
+      dataEntrega,
+      unit,
+    );
 
     return NextResponse.json({
       ok: true,

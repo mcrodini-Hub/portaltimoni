@@ -193,12 +193,11 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
   }, [refresh]);
 
   useEffect(() => {
-    if (!isManager) return undefined;
     const timer = window.setInterval(() => {
       void refresh();
     }, 60000);
     return () => window.clearInterval(timer);
-  }, [isManager, refresh]);
+  }, [refresh]);
 
   useEffect(() => {
     if (!isManager) return;
@@ -528,6 +527,7 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
           {sentOrders.map((order) => (
             <article key={order.id} className="py-4 first:pt-0 last:pb-0">
               <p className="font-semibold text-slate-950">{order.nome}</p>
+              <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{unitLabel(order.unidade)}</p>
               <p className="mt-1 text-sm text-slate-600">
                 Enviado dia: {dateOnly(order.enviadoEm)} | Previsão de Entrega: {dateOnly(order.previsaoEntrega)}
               </p>

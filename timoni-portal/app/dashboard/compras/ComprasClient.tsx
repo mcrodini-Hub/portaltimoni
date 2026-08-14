@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { signIn } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 const TRELLO_URL = "https://trello.com/b/UfPrTr1H/compras";
@@ -123,17 +124,15 @@ export default function ComprasClient() {
     );
   }, [sheetUrl, columnCode, columnDescription, columnQuantity, company]);
 
-  useEffect(() => {
-    if (!selectedSupplier) return;
-    setUnit(selectedSupplier.unit === "araras" ? "araras" : "rio_claro");
-    setFinalTitle(selectedSupplier.name);
-    setItems([]);
-    setSheetInfo("");
-    setDataEnvio(todayLocal());
-    setDataEntrega("");
+  function chooseCard(cardId: string) {
+    setSelectedId(cardId);
+    const supplier = suppliers.find((item) => item.id === cardId);
+    if (!supplier) return;
+    setFinalTitle(supplier.name);
+    setUnit(supplier.unit === "araras" ? "araras" : "rio_claro");
     setSuccess("");
     setUpdatedCardUrl("");
-  }, [selectedSupplier]);
+  }
 
   async function extractItems() {
     setError("");
@@ -156,11 +155,16 @@ export default function ComprasClient() {
         }),
       });
       const payload = await response.json();
+
+      if (response.status === 401) {
+        await signIn("google", { callbackUrl: "/dashboard/compras" });
+        return;
+      }
       if (!response.ok) throw new Error(payload?.error || "Não foi possível filtrar a planilha.");
 
       setItems(payload.items || []);
       setSheetInfo(`${payload.sheetTitle || "Aba"} · ${payload.totalItems || 0} itens`);
-      setSuccess("Itens filtrados. Preencha o título, as datas e atualize o Trello.");
+      setSuccess("Itens filtrados.");
     } catch (caught) {
       setItems([]);
       setSheetInfo("");
@@ -186,7 +190,7 @@ export default function ComprasClient() {
     setUpdatedCardUrl("");
 
     if (!selectedSupplier) {
-      setError("Selecione o fornecedor.");
+      setError("Escolha o cartão do Trello que será atualizado.");
       return;
     }
     if (!finalTitle.trim() || !dataEnvio || !dataEntrega) {
@@ -215,6 +219,9 @@ export default function ComprasClient() {
 
       setSuccess("Pronto!");
       setUpdatedCardUrl(payload.cardUrl || "");
+      setSelectedId("");
+      setFinalTitle("");
+      setDataEntrega("");
       await loadTrello();
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "Não foi possível finalizar o pedido.");
@@ -222,8 +229,6 @@ export default function ComprasClient() {
       setBusy(false);
     }
   }
-
-  const visibleError = error.includes("Sessão Google expirada") ? "" : error;
 
   return (
     <div className="space-y-5">
@@ -233,11 +238,11 @@ export default function ComprasClient() {
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Módulo operacional</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Compras</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-              Fluxo flexível: selecione o fornecedor, use a planilha quando precisar e atualize o Trello.
+              Consulte os pedidos, filtre itens quando precisar e finalize o cartão no Trello.
             </p>
           </div>
           <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
-            Sem print e sem anexo
+            Fluxo flexível
           </span>
         </div>
       </section>
@@ -258,9 +263,9 @@ export default function ComprasClient() {
 
       {!trello.configured && !loadingTrello && (
         <section className="rounded-3xl border border-blue-200 bg-blue-50 p-6">
-          <h2 className="text-xl font-semibold text-slate-950">Conectar o Trello uma única vez</h2>
+          <h2 className="text-xl font-semibold text-slate-950">Conectar o Trello</h2>
           <p className="mt-2 text-sm leading-6 text-slate-700">
-            A conexão permite ler, atualizar e mover os cartões pelo Portal.
+            A conexão será mantida pelo Portal e usada para ler, atualizar e mover os cartões.
           </p>
           <Link
             href="/dashboard/compras/configurar"
@@ -275,8 +280,9 @@ export default function ComprasClient() {
         <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">1. Fornecedor</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Acompanhamento</p>
               <h2 className="mt-2 text-xl font-semibold text-slate-950">Pedidos pendentes</h2>
+              <p className="mt-1 text-sm text-slate-500">Somente consulta. Atualize quando quiser conferir o Trello.</p>
             </div>
             <button
               type="button"
@@ -292,15 +298,11 @@ export default function ComprasClient() {
             <div className="mt-4 max-h-96 overflow-y-auto rounded-2xl border border-slate-200">
               {suppliers.length ? (
                 suppliers.map((supplier) => (
-                  <button
-                    type="button"
+                  <div
                     key={supplier.id}
-                    onClick={() => setSelectedId(supplier.id)}
-                    className={`flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left text-sm last:border-b-0 ${
-                      selectedId === supplier.id ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"
-                    }`}
+                    className="flex w-full items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3 text-left text-sm last:border-b-0"
                   >
-                    <span className="font-semibold">{supplier.name}</span>
+                    <span className="font-semibold text-slate-800">{supplier.name}</span>
                     <span className="flex shrink-0 gap-1">
                       {supplier.urgent && (
                         <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
@@ -313,7 +315,7 @@ export default function ComprasClient() {
                         </span>
                       )}
                     </span>
-                  </button>
+                  </div>
                 ))
               ) : (
                 <p className="p-5 text-sm text-slate-500">Nenhum cartão em PEDIDOS PENDENTES.</p>
@@ -342,10 +344,10 @@ export default function ComprasClient() {
         </article>
 
         <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">2. Itens do pedido · opcional</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Itens do pedido · opcional</p>
           <h2 className="mt-2 text-xl font-semibold text-slate-950">Planilha do pedido</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Use quando quiser gravar os itens no cartão. Padrão atual: código B, descrição C e quantidade L.
+            Esta etapa funciona sozinha. Padrão atual: código B, descrição C e quantidade L.
           </p>
 
           <label className="mt-4 block text-sm font-semibold text-slate-800">
@@ -387,9 +389,9 @@ export default function ComprasClient() {
       {items.length > 0 && (
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">3. Itens filtrados</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Itens filtrados</p>
             <h2 className="mt-2 text-xl font-semibold text-slate-950">
-              {selectedSupplier?.name || "Fornecedor"} · Total: {items.length} itens · Pedido: {company}
+              Total: {items.length} itens · Pedido: {company}
             </h2>
             <p className="mt-1 text-sm text-slate-500">Confira e ajuste manualmente quando necessário.</p>
           </div>
@@ -441,11 +443,25 @@ export default function ComprasClient() {
       )}
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">4. Atualizar Trello</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Atualizar Trello</p>
         <h2 className="mt-2 text-xl font-semibold text-slate-950">Finalizar o cartão</h2>
         <p className="mt-2 text-sm text-slate-600">
-          O Portal aplica a etiqueta Enviado e move o cartão para o topo da lista correta. Itens filtrados, quando houver, também são gravados.
+          Escolha aqui o cartão que será atualizado. O painel de pedidos acima não controla esta etapa.
         </p>
+
+        <label className="mt-4 block text-sm font-semibold text-slate-800">
+          Cartão do Trello
+          <select
+            value={selectedId}
+            onChange={(event) => chooseCard(event.target.value)}
+            className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm"
+          >
+            <option value="">Escolha o cartão</option>
+            {suppliers.map((supplier) => (
+              <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+            ))}
+          </select>
+        </label>
 
         <label className="mt-4 block text-sm font-semibold text-slate-800">
           Título final do cartão
@@ -484,7 +500,7 @@ export default function ComprasClient() {
         {!canFinalize && (
           <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
             {!selectedSupplier
-              ? "Falta selecionar o fornecedor."
+              ? "Escolha o cartão do Trello que será atualizado."
               : !finalTitle.trim()
                 ? "Falta informar o título final do cartão."
                 : !dataEnvio
@@ -505,7 +521,7 @@ export default function ComprasClient() {
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">Fluxo do módulo</p>
         <ol className="mt-4 grid gap-3 md:grid-cols-4">
-          {["Selecionar fornecedor", "Filtrar itens (opcional)", "Preencher dados manualmente", "Atualizar Trello"].map((step, index) => (
+          {["Consultar pedidos", "Filtrar itens (opcional)", "Escolher cartão e dados", "Atualizar Trello"].map((step, index) => (
             <li key={step} className="rounded-2xl bg-slate-50 p-4 text-sm font-medium text-slate-700">
               <span className="mb-2 flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">{index + 1}</span>
               {step}
@@ -514,7 +530,7 @@ export default function ComprasClient() {
         </ol>
       </section>
 
-      {visibleError && <p className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-semibold text-rose-800">{visibleError}</p>}
+      {error && <p className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-semibold text-rose-800">{error}</p>}
       {success && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800">
           <p>{success}</p>

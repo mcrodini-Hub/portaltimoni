@@ -21,8 +21,6 @@ export type Comunicado = {
 };
 
 async function sheetsClient(sessionAccessToken?: string) {
-  // O acesso autenticado da Ciça tem prioridade. A credencial persistente do
-  // servidor fica apenas como alternativa para rotinas sem sessão.
   const accessToken = sessionAccessToken || await getAccessTokenFromRefreshToken();
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: accessToken });
@@ -46,16 +44,28 @@ function parseRows(rows: string[][]): Comunicado[] {
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }
 
-async function readRows(_accessToken: string) {
-  // A leitura usa a credencial persistente do Portal para que colaboradores
-  // autorizados vejam os comunicados sem acesso direto à planilha interna.
-  const sheets = await sheetsClient();
+async function fetchRows(sessionAccessToken?: string) {
+  const sheets = await sheetsClient(sessionAccessToken);
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
     range: `${COMUNICADOS_SHEET}!A2:I500`,
     valueRenderOption: "FORMATTED_VALUE",
   });
   return (response.data.values ?? []) as string[][];
+}
+
+async function readRows(accessToken?: string) {
+  // No acesso da Ciça, usa primeiro a própria sessão autenticada. Para os
+  // demais acessos, ou se a sessão não tiver permissão direta na planilha,
+  // mantém a credencial persistente do Portal como alternativa.
+  if (accessToken) {
+    try {
+      return await fetchRows(accessToken);
+    } catch (error) {
+      console.warn("[comunicados] leitura pela sessão falhou; usando credencial do Portal", error);
+    }
+  }
+  return fetchRows();
 }
 
 export async function listComunicados(accessToken: string) {

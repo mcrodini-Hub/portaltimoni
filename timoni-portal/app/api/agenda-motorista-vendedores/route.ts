@@ -15,16 +15,58 @@ const fixedSellers: Seller[] = [
   { nome: "Marcelo", unidade: "araras" },
 ];
 
-export async function GET() {
-  try {
-    const session = await auth();
-    if (!session?.user?.email || !hasModuleAccess(session.user.email, "motorista")) {
-      return NextResponse.json({ ok: false, erro: "Acesso não autorizado." }, { status: 403 });
-    }
-    if (!session.accessToken || session.error === "RefreshAccessTokenError") {
-      return NextResponse.json({ ok: false, erro: "Sessão expirada. Saia e entre novamente no Portal." }, { status: 401 });
-    }
+// Fallback sincronizado com a aba Vendedores em 14/08/2026.
+// A leitura da planilha continua sendo a fonte principal; esta lista evita
+// que o formulário fique vazio se o token Google do usuário estiver temporariamente indisponível.
+const fallbackSellers: Seller[] = [
+  { nome: "Adriel", unidade: "rio_claro" },
+  { nome: "Carina", unidade: "rio_claro" },
+  { nome: "Ciça", unidade: "rio_claro" },
+  { nome: "Davi", unidade: "rio_claro" },
+  { nome: "Jaqueline", unidade: "rio_claro" },
+  { nome: "Jeovana", unidade: "rio_claro" },
+  { nome: "João", unidade: "rio_claro" },
+  { nome: "José Roberto", unidade: "rio_claro" },
+  { nome: "Marcelo", unidade: "rio_claro" },
+  { nome: "Rafaela", unidade: "rio_claro" },
+  { nome: "San", unidade: "rio_claro" },
+  { nome: "Yan", unidade: "araras" },
+  { nome: "Lyra", unidade: "araras" },
+  { nome: "Carolina", unidade: "araras" },
+  { nome: "Paulo", unidade: "araras" },
+  { nome: "Reginaldo", unidade: "araras" },
+  { nome: "Reinaldo", unidade: "araras" },
+  ...fixedSellers,
+];
 
+function dedupeSellers(vendedores: Seller[]) {
+  const vistos = new Set<string>();
+  return vendedores.filter((seller) => {
+    const key = `${seller.nome.trim().toLowerCase()}-${seller.unidade.trim().toLowerCase()}`;
+    if (!seller.nome.trim() || vistos.has(key)) return false;
+    vistos.add(key);
+    return true;
+  });
+}
+
+function resposta(vendedores: Seller[], fallback = false) {
+  return NextResponse.json(
+    { ok: true, vendedores: dedupeSellers(vendedores), fallback },
+    { headers: { "Cache-Control": "no-store" } },
+  );
+}
+
+export async function GET() {
+  const session = await auth();
+  if (!session?.user?.email || !hasModuleAccess(session.user.email, "motorista")) {
+    return NextResponse.json({ ok: false, erro: "Acesso não autorizado." }, { status: 403 });
+  }
+
+  if (!session.accessToken || session.error === "RefreshAccessTokenError") {
+    return resposta(fallbackSellers, true);
+  }
+
+  try {
     const oauth = new google.auth.OAuth2();
     oauth.setCredentials({ access_token: session.accessToken });
     const sheets = google.sheets({ version: "v4", auth: oauth });
@@ -40,15 +82,9 @@ export async function GET() {
       .map((row) => ({ nome: String(row[0] ?? "").trim(), unidade: String(row[1] ?? "").trim().toLowerCase() }))
       .filter((item) => item.nome);
 
-    const seen = new Set(vendedores.map((item) => `${item.nome.toLowerCase()}-${item.unidade}`));
-    for (const seller of fixedSellers) {
-      const key = `${seller.nome.toLowerCase()}-${seller.unidade}`;
-      if (!seen.has(key)) vendedores.push(seller);
-    }
-
-    return NextResponse.json({ ok: true, vendedores }, { headers: { "Cache-Control": "no-store" } });
+    return resposta([...vendedores, ...fixedSellers]);
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Falha ao carregar vendedores.";
-    return NextResponse.json({ ok: false, erro: message }, { status: 400 });
+    console.error("[Agenda Motorista] Falha ao carregar vendedores; usando fallback.", error);
+    return resposta(fallbackSellers, true);
   }
 }

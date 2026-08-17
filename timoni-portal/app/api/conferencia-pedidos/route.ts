@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const maxDuration = 120;
 export const dynamic = "force-dynamic";
 
-const MAX_FILES_PER_GROUP = 8;
+const MAX_FILES = 16;
 const MAX_TOTAL_BYTES = 4_200_000;
 const ALLOWED_TYPES = new Set([
   "application/pdf",
@@ -92,8 +92,8 @@ const RESPONSE_TEMPLATE = {
 
 const INSTRUCTIONS = `
 Você é o motor de conferência de pedidos da Casa Timoni.
-Compare todos os arquivos do grupo PEDIDO MCR/RODINI com todos os arquivos do grupo DOCUMENTO DO FORNECEDOR.
-Os arquivos podem ser PDFs, fotos, prints de tela ou imagens manuscritas. Leia também caligrafia e anotações feitas à mão.
+Receba todos os arquivos em um único conjunto. Identifique automaticamente quais são pedidos MCR/Rodini (documentos-base) e quais são documentos do fornecedor; então compare os grupos identificados.
+Use conteúdo, cabeçalhos, razão social, números do pedido e estrutura das tabelas para classificar. Os arquivos podem ser PDFs, fotos, prints de tela ou imagens manuscritas. Leia também caligrafia e anotações feitas à mão.
 
 REGRAS OBRIGATÓRIAS
 1. O pedido MCR/Rodini é sempre o documento-base.
@@ -133,10 +133,10 @@ function getFiles(formData: FormData, key: string) {
   return formData.getAll(key).filter(isFile).filter((file) => file.size > 0);
 }
 
-function validateFiles(files: File[], label: string) {
-  if (!files.length) throw new Error(`Envie ao menos um arquivo em ${label}.`);
-  if (files.length > MAX_FILES_PER_GROUP) {
-    throw new Error(`${label}: máximo de ${MAX_FILES_PER_GROUP} arquivos.`);
+function validateFiles(files: File[]) {
+  if (files.length < 2) throw new Error("Insira pelo menos dois arquivos para comparar.");
+  if (files.length > MAX_FILES) {
+    throw new Error(`Máximo de ${MAX_FILES} arquivos por conferência.`);
   }
   for (const file of files) {
     if (!ALLOWED_TYPES.has(file.type)) {
@@ -348,13 +348,10 @@ export async function POST(request: Request) {
     }
 
     const formData = await request.formData();
-    const pedidoFiles = getFiles(formData, "pedido");
-    const fornecedorFiles = getFiles(formData, "fornecedor");
+    const files = getFiles(formData, "arquivos");
+    validateFiles(files);
 
-    validateFiles(pedidoFiles, "Pedido MCR/Rodini");
-    validateFiles(fornecedorFiles, "Documento do fornecedor");
-
-    const totalBytes = [...pedidoFiles, ...fornecedorFiles].reduce(
+    const totalBytes = files.reduce(
       (sum, file) => sum + file.size,
       0,
     );
@@ -368,17 +365,11 @@ export async function POST(request: Request) {
       {
         text: `${INSTRUCTIONS}\n\nMODELO OBRIGATÓRIO DE RESPOSTA:\n${JSON.stringify(RESPONSE_TEMPLATE)}`,
       },
-      { text: "GRUPO 1 — PEDIDO MCR / RODINI (DOCUMENTO-BASE)" },
+      { text: "ARQUIVOS A CLASSIFICAR E COMPARAR" },
     ];
 
-    for (const file of pedidoFiles) {
-      parts.push({ text: `Arquivo do pedido-base: ${file.name}` });
-      parts.push(await fileToPart(file));
-    }
-
-    parts.push({ text: "GRUPO 2 — DOCUMENTO DO FORNECEDOR" });
-    for (const file of fornecedorFiles) {
-      parts.push({ text: `Arquivo do fornecedor: ${file.name}` });
+    for (const file of files) {
+      parts.push({ text: `Arquivo recebido: ${file.name}` });
       parts.push(await fileToPart(file));
     }
 
@@ -422,7 +413,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const result = normalizeResult(parseJson(text), pedidoFiles, fornecedorFiles);
+    const parsed = parseJson(text);
+    const supplierNames = new Set(
+      (Array.isArray(parsed.documentos_fornecedor) ? parsed.documentos_fornecedor : [])
+        .map(asObject)
+        .map((document) => String(document.arquivo || "").trim())
+        .filter(Boolean),
+    );
+    const fornecedorFiles = files.filter((file) => supplierNames.has(file.name));
+    const pedidoFiles = files.filter((file) => !supplierNames.has(file.name));
+    if (!pedidoFiles.length || !fornecedorFiles.length) {
+      throw new Error("Não foi possível identificar com segurança o pedido-base e o documento do fornecedor.");
+    }
+    const result = normalizeResult(parsed, pedidoFiles, fornecedorFiles);
     return NextResponse.json(result, {
       headers: { "Cache-Control": "no-store" },
     });

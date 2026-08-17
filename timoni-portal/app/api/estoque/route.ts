@@ -158,7 +158,11 @@ function isWithinReceivedWindow(value: string) {
 
 function dedupeOrders(orders: SentOrder[]) {
   const unique = new Map<string, SentOrder>();
-  const prioritized = [...orders].sort((a, b) => (a.situacao === "recebido" ? -1 : 1) - (b.situacao === "recebido" ? -1 : 1));
+  const prioritized = [...orders].sort((a, b) => {
+    const aTime = new Date(a.enviadoEm || a.recebidoEm || "").getTime();
+    const bTime = new Date(b.enviadoEm || b.recebidoEm || "").getTime();
+    return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
+  });
   for (const order of prioritized) {
     const key = `${normalizeTrelloText(order.nome)}|${order.unidade}`;
     if (!unique.has(key)) unique.set(key, order);
@@ -168,11 +172,11 @@ function dedupeOrders(orders: SentOrder[]) {
 
 function sortOrders(orders: SentOrder[]) {
   return dedupeOrders(orders).sort((a, b) => {
-    const aTime = a.previsaoEntrega ? new Date(a.previsaoEntrega).getTime() : Number.POSITIVE_INFINITY;
-    const bTime = b.previsaoEntrega ? new Date(b.previsaoEntrega).getTime() : Number.POSITIVE_INFINITY;
-    const safeATime = Number.isNaN(aTime) ? Number.POSITIVE_INFINITY : aTime;
-    const safeBTime = Number.isNaN(bTime) ? Number.POSITIVE_INFINITY : bTime;
-    if (safeATime !== safeBTime) return safeATime - safeBTime;
+    const aTime = new Date(a.enviadoEm || a.recebidoEm || "").getTime();
+    const bTime = new Date(b.enviadoEm || b.recebidoEm || "").getTime();
+    const safeATime = Number.isNaN(aTime) ? 0 : aTime;
+    const safeBTime = Number.isNaN(bTime) ? 0 : bTime;
+    if (safeATime !== safeBTime) return safeBTime - safeATime;
     return a.nome.localeCompare(b.nome, "pt-BR");
   });
 }

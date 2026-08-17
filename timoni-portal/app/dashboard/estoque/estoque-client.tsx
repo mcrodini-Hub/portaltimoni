@@ -519,21 +519,35 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
   }
 
   function SentOrdersSection() {
+    const visibleUnits = isManager || safeAllowedUnits.length > 1
+      ? (["rio_claro", "araras"] as RequestUnit[])
+      : safeAllowedUnits;
     return (
       <section className="rounded-3xl border bg-white p-5 shadow-sm">
         <h2 className="text-xl font-semibold uppercase tracking-wide">Pedidos enviados</h2>
-        <div className="mt-4 divide-y divide-slate-100">
-          {sentOrders.map((order) => (
-            <article key={order.id} className="py-4 first:pt-0 last:pb-0">
-              <p className="font-semibold text-slate-950">{order.nome}</p>
-              <p className="mt-1 text-xs font-semibold uppercase tracking-wide text-slate-400">{unitLabel(order.unidade)}</p>
-              <p className="mt-1 text-sm text-slate-600">
-                Enviado dia: {dateOnly(order.enviadoEm)} | Previsão de Entrega: {dateOnly(order.previsaoEntrega)}
-              </p>
-            </article>
-          ))}
-          {!loading && !sentOrders.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhum pedido enviado aguardando entrega.</p>}
-          {loading && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Carregando pedidos enviados...</p>}
+        <p className="mt-1 text-sm text-slate-500">Espelho automático da lista de Compras.</p>
+        <div className="mt-4 grid gap-5 lg:grid-cols-2">
+          {visibleUnits.map((currentUnit) => {
+            const orders = sentOrders.filter((order) => order.unidade === currentUnit);
+            return (
+              <div key={currentUnit} className="overflow-hidden rounded-2xl border border-slate-200">
+                <div className="flex items-center justify-between bg-slate-50 px-4 py-3">
+                  <h3 className="font-semibold text-slate-950">{unitLabel(currentUnit)}</h3>
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">{orders.length}</span>
+                </div>
+                <div className="divide-y divide-slate-100 px-4">
+                  {orders.map((order) => (
+                    <article key={order.id} className="py-4">
+                      <p className="font-semibold text-slate-950">{order.nome}</p>
+                      <p className="mt-1 text-sm text-slate-600">Enviado: {dateOnly(order.enviadoEm)} · Entrega: {dateOnly(order.previsaoEntrega)}</p>
+                    </article>
+                  ))}
+                  {!loading && !orders.length && <p className="py-5 text-sm text-slate-500">Nenhum pedido enviado aguardando entrega.</p>}
+                  {loading && <p className="py-5 text-sm text-slate-500">Carregando pedidos enviados...</p>}
+                </div>
+              </div>
+            );
+          })}
         </div>
       </section>
     );

@@ -60,7 +60,7 @@ export default function ComprasClient() {
   const [items, setItems] = useState<PurchaseItem[]>([]);
   const [sheetInfo, setSheetInfo] = useState("");
 
-  const [unit, setUnit] = useState<Unit>("rio_claro");
+  const [unit, setUnit] = useState<Unit | "">("");
   const [company, setCompany] = useState<Company>("MCR");
   const [finalTitle, setFinalTitle] = useState("");
   const [dataEnvio, setDataEnvio] = useState(todayLocal);
@@ -77,7 +77,7 @@ export default function ComprasClient() {
     [selectedId, suppliers],
   );
   const summary = trello.summary;
-  const canFinalize = Boolean(selectedSupplier && finalTitle.trim() && dataEnvio && dataEntrega);
+  const canFinalize = Boolean(selectedSupplier && finalTitle.trim() && unit && dataEnvio && dataEntrega);
 
   const loadTrello = useCallback(async () => {
     setLoadingTrello(true);
@@ -126,8 +126,8 @@ export default function ComprasClient() {
 
   function chooseSupplier(supplier: Supplier) {
     setSelectedId(supplier.id);
-    setFinalTitle(supplier.name);
-    setUnit(supplier.unit === "araras" ? "araras" : "rio_claro");
+    setFinalTitle("");
+    setUnit("");
     setError("");
     setSuccess("");
     setUpdatedCardUrl("");
@@ -192,8 +192,8 @@ export default function ComprasClient() {
       setError("Selecione o fornecedor na lista de pedidos pendentes.");
       return;
     }
-    if (!finalTitle.trim() || !dataEnvio || !dataEntrega) {
-      setError("Informe o título final, a data de envio e a previsão de entrega.");
+    if (!finalTitle.trim() || !unit || !dataEnvio || !dataEntrega) {
+      setError("Informe o título final, a unidade, a data de envio e a previsão de entrega.");
       return;
     }
 
@@ -220,6 +220,7 @@ export default function ComprasClient() {
       setUpdatedCardUrl(payload.cardUrl || "");
       setSelectedId("");
       setFinalTitle("");
+      setUnit("");
       setDataEntrega("");
       await loadTrello();
     } catch (caught) {
@@ -473,7 +474,7 @@ export default function ComprasClient() {
         <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">3. Finalizar</p>
         <h2 className="mt-2 text-xl font-semibold text-slate-950">Atualizar Trello</h2>
         <p className="mt-2 text-sm text-slate-600">
-          Preencha apenas os dados finais. O fornecedor já foi escolhido na lista acima.
+          O fornecedor já foi escolhido. Informe agora os dados finais do pedido.
         </p>
 
         <label className="mt-4 block text-sm font-semibold text-slate-800">
@@ -503,9 +504,10 @@ export default function ComprasClient() {
             Unidade
             <select
               value={unit}
-              onChange={(event) => setUnit(event.target.value as Unit)}
+              onChange={(event) => setUnit(event.target.value as Unit | "")}
               className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
             >
+              <option value="">Escolha</option>
               <option value="rio_claro">Rio Claro</option>
               <option value="araras">Araras</option>
             </select>
@@ -536,9 +538,11 @@ export default function ComprasClient() {
               ? "Selecione o fornecedor na lista de pedidos pendentes."
               : !finalTitle.trim()
                 ? "Falta informar o título final do cartão."
-                : !dataEnvio
-                  ? "Falta informar a data de envio."
-                  : "Falta informar a previsão de entrega."}
+                : !unit
+                  ? "Falta escolher a unidade."
+                  : !dataEnvio
+                    ? "Falta informar a data de envio."
+                    : "Falta informar a previsão de entrega."}
           </p>
         )}
 

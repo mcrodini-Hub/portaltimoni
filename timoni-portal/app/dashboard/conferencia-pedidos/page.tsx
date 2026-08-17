@@ -21,18 +21,6 @@ export default function ConferenciaPedidosPage() {
           </p>
         </div>
 
-        <div className="mt-5 grid gap-3 sm:grid-cols-3">
-          {[
-            ["1. Enviar", "PDF, foto, print ou manuscrito."],
-            ["2. Conferir", "Itens, quantidades, preços, totais e condições."],
-            ["3. Receber", "Resposta em texto e planilha Excel formatada."],
-          ].map(([title, description]) => (
-            <article key={title} className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
-              <h2 className="text-sm font-semibold text-slate-900">{title}</h2>
-              <p className="mt-1 text-sm leading-5 text-slate-500">{description}</p>
-            </article>
-          ))}
-        </div>
       </section>
 
       <section className="mt-5">

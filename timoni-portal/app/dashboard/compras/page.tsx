@@ -14,7 +14,13 @@ const etapas = [
 
 export default function ComprasPage() {
   return (
-    <div className="pb-10">
+    <div className="compras-page pb-10">
+      <style>{`
+        .compras-page > .space-y-5 > section:last-of-type {
+          display: none;
+        }
+      `}</style>
+
       <div className="mb-4 flex justify-end">
         <a
           href="/dashboard/compras/configurar"

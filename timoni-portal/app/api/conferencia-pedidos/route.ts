@@ -104,6 +104,7 @@ REGRAS OBRIGATÓRIAS
 2.4. Se não for possível determinar qual versão é a mais recente, não presuma: marque o caso nos pontos_atencao.
 3. Não usamos SKU ou EAN como padrão de pareamento.
 4. Pareie primeiro por "Cod. Forn. pedido MCR" e "Cod. Forn. fornecedor". Depois confirme pela descrição, medida, peso, volume, cor, embalagem e unidade. Use Cod. MCR e P-L como referências internas.
+4.1. Extraia obrigatoriamente o campo P-L (local.) exclusivamente do pedido-base Rodini/MCR/Casa Timoni e grave-o em "pl" na mesma linha do item. Preserve exatamente o formato impresso, inclusive espaços e hífens (ex.: "P52 L39"). Nunca preencha "pl" a partir do documento do fornecedor. Se o campo estiver ilegível ou ausente, use "NÃO INFORMADO".
 5. Não compare apenas pela ordem das linhas.
 6. Preserve códigos como texto e mantenha zeros à esquerda.
 7. Diferenças apenas de abreviação, acento, maiúsculas, espaços, pontos, traços ou zeros à esquerda não são divergência quando o produto estiver claramente identificado.

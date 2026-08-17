@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import ConferenciaPedidosClient from "./ConferenciaPedidosClient";
 
-// Mantém a tela objetiva, sem boxes de etapas.\nexport const metadata: Metadata = {
+export const metadata: Metadata = {
   title: "Conferência de Preços",
 };
 

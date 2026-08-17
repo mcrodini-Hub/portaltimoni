@@ -13,6 +13,7 @@ const modules: Array<{
 }> = [
   { module: "painel", name: "Painel Timoni", description: "Comunicados, reuniões, aniversários, férias e orientações da equipe.", href: "/colaboradores", icon: "📢", accent: "border-indigo-200 bg-indigo-50" },
   { module: "agenda", name: "Agenda da Ciça", description: "Compromissos, reuniões e atividades organizadas por data.", href: "/agenda", icon: "📅", accent: "border-violet-200 bg-violet-50" },
+  { module: "captacao", name: "Captação", description: "Leads, contatos, follow-ups e histórico comercial.", href: "/dashboard/captacao", icon: "🎯", accent: "border-orange-200 bg-orange-50" },
   { module: "compras", name: "Compras", description: "Pedidos, pendências, fornecedores e acompanhamento das compras.", href: "/dashboard/compras", icon: "🛒", accent: "border-blue-200 bg-blue-50" },
   { module: "conferencia", name: "Conferência de Preços", description: "Comparação de documentos e conferência das informações de compra.", href: "/dashboard/conferencia-pedidos", icon: "✅", accent: "border-cyan-200 bg-cyan-50" },
   { module: "estoque", name: "Estoque", description: "Consulta de produtos, necessidades e acompanhamento das solicitações.", href: "/dashboard/estoque", icon: "📦", accent: "border-emerald-200 bg-emerald-50" },

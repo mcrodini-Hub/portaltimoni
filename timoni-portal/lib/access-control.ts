@@ -7,7 +7,8 @@ export type PortalModule =
   | "motorista"
   | "reunioes"
   | "marketing"
-  | "financeiro";
+  | "financeiro"
+  | "captacao";
 
 type PortalUser = {
   name: string;
@@ -29,6 +30,7 @@ const allModules: PortalModule[] = [
   "reunioes",
 ];
 
+const cicaModules: PortalModule[] = [...allModules, "captacao"];
 const modulesWithoutCicaAgenda = allModules.filter((module) => module !== "agenda");
 const operationalModules: PortalModule[] = ["painel", "estoque", "motorista"];
 const commercialRioClaroModules: PortalModule[] = ["painel", "estoque", "financeiro", "marketing", "motorista"];
@@ -41,7 +43,7 @@ export const portalUsers: Record<string, PortalUser> = {
   "mcrodini@gmail.com": {
     name: "Ciça Rodini",
     email: "mcrodini@gmail.com",
-    modules: allModules,
+    modules: cicaModules,
     requiresPassword: true,
   },
   "mrodini@gmail.com": {

@@ -6,6 +6,7 @@ import PainelNotificationsClient from "@/app/painel-notifications-client";
 const navItems: Array<{ href: string; label: string; module: PortalModule }> = [
   { href: "/colaboradores", label: "Painel Timoni", module: "painel" },
   { href: "/agenda", label: "Agenda Ciça", module: "agenda" },
+  { href: "/dashboard/captacao", label: "Captação", module: "captacao" },
   { href: "/dashboard/compras", label: "Compras", module: "compras" },
   { href: "/dashboard/conferencia-pedidos", label: "Conferência", module: "conferencia" },
   { href: "/dashboard/estoque", label: "Estoque", module: "estoque" },

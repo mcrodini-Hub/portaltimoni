@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import ConferenciaPedidosClient from "./ConferenciaPedidosClient";
 
+// Layout simplificado para uso direto.
 export const metadata: Metadata = {
   title: "Conferência de Preços",
 };

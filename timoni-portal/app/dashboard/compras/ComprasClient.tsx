@@ -124,12 +124,11 @@ export default function ComprasClient() {
     );
   }, [sheetUrl, columnCode, columnDescription, columnQuantity, company]);
 
-  function chooseCard(cardId: string) {
-    setSelectedId(cardId);
-    const supplier = suppliers.find((item) => item.id === cardId);
-    if (!supplier) return;
+  function chooseSupplier(supplier: Supplier) {
+    setSelectedId(supplier.id);
     setFinalTitle(supplier.name);
     setUnit(supplier.unit === "araras" ? "araras" : "rio_claro");
+    setError("");
     setSuccess("");
     setUpdatedCardUrl("");
   }
@@ -190,7 +189,7 @@ export default function ComprasClient() {
     setUpdatedCardUrl("");
 
     if (!selectedSupplier) {
-      setError("Escolha o cartão do Trello que será atualizado.");
+      setError("Selecione o fornecedor na lista de pedidos pendentes.");
       return;
     }
     if (!finalTitle.trim() || !dataEnvio || !dataEntrega) {
@@ -238,11 +237,11 @@ export default function ComprasClient() {
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Módulo operacional</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Compras</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-              Consulte os pedidos, filtre itens quando precisar e finalize o cartão no Trello.
+              Escolha o fornecedor uma vez, filtre itens quando precisar e finalize o pedido.
             </p>
           </div>
           <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
-            Fluxo flexível
+            Fluxo rápido
           </span>
         </div>
       </section>
@@ -278,11 +277,11 @@ export default function ComprasClient() {
 
       <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
         <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Acompanhamento</p>
+              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">1. Fornecedor</p>
               <h2 className="mt-2 text-xl font-semibold text-slate-950">Pedidos pendentes</h2>
-              <p className="mt-1 text-sm text-slate-500">Somente consulta. Atualize quando quiser conferir o Trello.</p>
+              <p className="mt-1 text-sm text-slate-500">Clique uma vez no fornecedor que será atualizado.</p>
             </div>
             <button
               type="button"
@@ -297,26 +296,38 @@ export default function ComprasClient() {
           {trello.configured && (
             <div className="mt-4 max-h-96 overflow-y-auto rounded-2xl border border-slate-200">
               {suppliers.length ? (
-                suppliers.map((supplier) => (
-                  <div
-                    key={supplier.id}
-                    className="flex w-full items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-3 text-left text-sm last:border-b-0"
-                  >
-                    <span className="font-semibold text-slate-800">{supplier.name}</span>
-                    <span className="flex shrink-0 gap-1">
-                      {supplier.urgent && (
-                        <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
-                          Urgente
-                        </span>
-                      )}
-                      {supplier.unit !== "nao_informada" && (
-                        <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
-                          {supplier.unit === "araras" ? "Araras" : "Rio Claro"}
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                ))
+                suppliers.map((supplier) => {
+                  const selected = selectedId === supplier.id;
+                  return (
+                    <button
+                      type="button"
+                      key={supplier.id}
+                      onClick={() => chooseSupplier(supplier)}
+                      className={`flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left text-sm last:border-b-0 ${
+                        selected ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"
+                      }`}
+                    >
+                      <span className="font-semibold">{supplier.name}</span>
+                      <span className="flex shrink-0 items-center gap-1">
+                        {selected && (
+                          <span className="rounded-full bg-blue-700 px-2 py-0.5 text-[11px] font-semibold text-white">
+                            Selecionado
+                          </span>
+                        )}
+                        {supplier.urgent && (
+                          <span className="rounded-full bg-rose-100 px-2 py-0.5 text-[11px] font-semibold text-rose-700">
+                            Urgente
+                          </span>
+                        )}
+                        {supplier.unit !== "nao_informada" && (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[11px] font-semibold text-slate-600">
+                            {supplier.unit === "araras" ? "Araras" : "Rio Claro"}
+                          </span>
+                        )}
+                      </span>
+                    </button>
+                  );
+                })
               ) : (
                 <p className="p-5 text-sm text-slate-500">Nenhum cartão em PEDIDOS PENDENTES.</p>
               )}
@@ -344,10 +355,10 @@ export default function ComprasClient() {
         </article>
 
         <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Itens do pedido · opcional</p>
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">2. Itens do pedido · opcional</p>
           <h2 className="mt-2 text-xl font-semibold text-slate-950">Planilha do pedido</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Esta etapa funciona sozinha. Padrão atual: código B, descrição C e quantidade L.
+            Funciona de forma independente. Padrão atual: código B, descrição C e quantidade L.
           </p>
 
           <label className="mt-4 block text-sm font-semibold text-slate-800">
@@ -363,15 +374,27 @@ export default function ComprasClient() {
           <div className="mt-4 grid gap-3 sm:grid-cols-3">
             <label className="text-sm font-semibold text-slate-800">
               Código
-              <input value={columnCode} onChange={(event) => setColumnCode(event.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm" />
+              <input
+                value={columnCode}
+                onChange={(event) => setColumnCode(event.target.value)}
+                className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+              />
             </label>
             <label className="text-sm font-semibold text-slate-800">
               Descrição
-              <input value={columnDescription} onChange={(event) => setColumnDescription(event.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm" />
+              <input
+                value={columnDescription}
+                onChange={(event) => setColumnDescription(event.target.value)}
+                className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+              />
             </label>
             <label className="text-sm font-semibold text-slate-800">
               Quantidade
-              <input value={columnQuantity} onChange={(event) => setColumnQuantity(event.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm" />
+              <input
+                value={columnQuantity}
+                onChange={(event) => setColumnQuantity(event.target.value)}
+                className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+              />
             </label>
           </div>
           <button
@@ -430,7 +453,11 @@ export default function ComprasClient() {
                       />
                     </td>
                     <td className="p-2 text-right">
-                      <button type="button" onClick={() => removeItem(index)} className="rounded-lg px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50">
+                      <button
+                        type="button"
+                        onClick={() => removeItem(index)}
+                        className="rounded-lg px-3 py-2 text-xs font-semibold text-rose-700 hover:bg-rose-50"
+                      >
                         Remover
                       </button>
                     </td>
@@ -443,25 +470,11 @@ export default function ComprasClient() {
       )}
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Atualizar Trello</p>
-        <h2 className="mt-2 text-xl font-semibold text-slate-950">Finalizar o cartão</h2>
+        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">3. Finalizar</p>
+        <h2 className="mt-2 text-xl font-semibold text-slate-950">Atualizar Trello</h2>
         <p className="mt-2 text-sm text-slate-600">
-          Escolha aqui o cartão que será atualizado. O painel de pedidos acima não controla esta etapa.
+          Preencha apenas os dados finais. O fornecedor já foi escolhido na lista acima.
         </p>
-
-        <label className="mt-4 block text-sm font-semibold text-slate-800">
-          Cartão do Trello
-          <select
-            value={selectedId}
-            onChange={(event) => chooseCard(event.target.value)}
-            className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm"
-          >
-            <option value="">Escolha o cartão</option>
-            {suppliers.map((supplier) => (
-              <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-            ))}
-          </select>
-        </label>
 
         <label className="mt-4 block text-sm font-semibold text-slate-800">
           Título final do cartão
@@ -472,10 +485,15 @@ export default function ComprasClient() {
             className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 px-4 text-sm"
           />
         </label>
+
         <div className="mt-4 grid gap-3 sm:grid-cols-4">
           <label className="text-sm font-semibold text-slate-800">
             Empresa
-            <select value={company} onChange={(event) => setCompany(event.target.value as Company)} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm">
+            <select
+              value={company}
+              onChange={(event) => setCompany(event.target.value as Company)}
+              className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+            >
               <option value="MCR">MCR</option>
               <option value="RODINI">RODINI</option>
               <option value="CT">CT</option>
@@ -483,24 +501,39 @@ export default function ComprasClient() {
           </label>
           <label className="text-sm font-semibold text-slate-800">
             Unidade
-            <select value={unit} onChange={(event) => setUnit(event.target.value as Unit)} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm">
+            <select
+              value={unit}
+              onChange={(event) => setUnit(event.target.value as Unit)}
+              className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+            >
               <option value="rio_claro">Rio Claro</option>
               <option value="araras">Araras</option>
             </select>
           </label>
           <label className="text-sm font-semibold text-slate-800">
             Envio
-            <input type="date" value={dataEnvio} onChange={(event) => setDataEnvio(event.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm" />
+            <input
+              type="date"
+              value={dataEnvio}
+              onChange={(event) => setDataEnvio(event.target.value)}
+              className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+            />
           </label>
           <label className="text-sm font-semibold text-slate-800">
             Entrega
-            <input type="date" value={dataEntrega} onChange={(event) => setDataEntrega(event.target.value)} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm" />
+            <input
+              type="date"
+              value={dataEntrega}
+              onChange={(event) => setDataEntrega(event.target.value)}
+              className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+            />
           </label>
         </div>
+
         {!canFinalize && (
           <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
             {!selectedSupplier
-              ? "Escolha o cartão do Trello que será atualizado."
+              ? "Selecione o fornecedor na lista de pedidos pendentes."
               : !finalTitle.trim()
                 ? "Falta informar o título final do cartão."
                 : !dataEnvio
@@ -508,6 +541,7 @@ export default function ComprasClient() {
                   : "Falta informar a previsão de entrega."}
           </p>
         )}
+
         <button
           type="button"
           onClick={() => void finalizePurchase()}
@@ -520,17 +554,24 @@ export default function ComprasClient() {
 
       <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">Fluxo do módulo</p>
-        <ol className="mt-4 grid gap-3 md:grid-cols-4">
-          {["Consultar pedidos", "Filtrar itens (opcional)", "Escolher cartão e dados", "Atualizar Trello"].map((step, index) => (
+        <ol className="mt-4 grid gap-3 md:grid-cols-3">
+          {["Escolher fornecedor uma vez", "Filtrar itens (opcional)", "Preencher dados e atualizar Trello"].map((step, index) => (
             <li key={step} className="rounded-2xl bg-slate-50 p-4 text-sm font-medium text-slate-700">
-              <span className="mb-2 flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">{index + 1}</span>
+              <span className="mb-2 flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
+                {index + 1}
+              </span>
               {step}
             </li>
           ))}
         </ol>
       </section>
 
-      {error && <p className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-semibold text-rose-800">{error}</p>}
+      {error && (
+        <p className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-semibold text-rose-800">
+          {error}
+        </p>
+      )}
+
       {success && (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800">
           <p>{success}</p>

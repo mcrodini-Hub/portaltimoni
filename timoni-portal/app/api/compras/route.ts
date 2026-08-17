@@ -31,7 +31,37 @@ interface TrelloCard {
   labels?: TrelloLabel[];
   url?: string;
   dateLastActivity?: string;
+  start?: string | null;
+  due?: string | null;
   closed?: boolean;
+}
+
+function sentOrder(card: TrelloCard, unit: "rio_claro" | "araras") {
+  return {
+    id: card.id,
+    nome: card.name,
+    url: card.url || "",
+    enviadoEm: card.start || "",
+    previsaoEntrega: card.due || "",
+    unidade: unit,
+  };
+}
+
+function cardTimestamp(card: TrelloCard) {
+  const sentAt = Date.parse(card.start || "");
+  if (Number.isFinite(sentAt)) return sentAt;
+  const activityAt = Date.parse(card.dateLastActivity || "");
+  if (Number.isFinite(activityAt)) return activityAt;
+  return cardCreatedAt(card);
+}
+
+function uniqueSentCards(cards: TrelloCard[]) {
+  const unique = new Map<string, TrelloCard>();
+  for (const card of [...cards].sort((a, b) => cardTimestamp(b) - cardTimestamp(a))) {
+    const key = normalizeTrelloText(card.name);
+    if (!unique.has(key)) unique.set(key, card);
+  }
+  return [...unique.values()];
 }
 
 interface TrelloBoard {
@@ -108,7 +138,7 @@ export async function GET() {
         lists: "open",
         list_fields: "name,closed",
         cards: "open",
-        card_fields: "name,idList,labels,url,dateLastActivity,closed",
+        card_fields: "name,idList,labels,url,dateLastActivity,start,due,closed",
         labels: "all",
         label_fields: "name,color",
       },
@@ -129,12 +159,12 @@ export async function GET() {
     const pendingCards = pendingList
       ? cards.filter((card) => card.idList === pendingList.id)
       : [];
-    const sentRioClaro = sentRioClaroList
+    const sentRioClaro = uniqueSentCards(sentRioClaroList
       ? cards.filter((card) => card.idList === sentRioClaroList.id)
-      : [];
-    const sentAraras = sentArarasList
+      : []);
+    const sentAraras = uniqueSentCards(sentArarasList
       ? cards.filter((card) => card.idList === sentArarasList.id)
-      : [];
+      : []);
 
     const suppliers = pendingCards
       .map((card) => {
@@ -176,6 +206,10 @@ export async function GET() {
           enviadosAraras: sentAraras.length,
         },
         suppliers,
+        pedidosEnviados: {
+          rio_claro: sentRioClaro.map((card) => sentOrder(card, "rio_claro")),
+          araras: sentAraras.map((card) => sentOrder(card, "araras")),
+        },
         destinations: {
           rio_claro: sentRioClaroList?.id || null,
           araras: sentArarasList?.id || null,

@@ -432,7 +432,6 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
     return (
       <section className="rounded-3xl border bg-white p-5 shadow-sm">
         <h2 className="text-xl font-semibold">Consultar e solicitar produto</h2>
-        <p className="mt-1 text-sm text-slate-500">Fluxo rápido: código + Enter, descrição + Enter, quantidade + Enter, observação + Enter, cliente aguardando + Enter e registrar.</p>
         <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-6">
           <select value={newUnit} onChange={(event) => { setNewUnit(event.target.value as RequestUnit); setSeller(""); }} disabled={safeAllowedUnits.length === 1} className={input}>
             {safeAllowedUnits.map((item) => <option key={item} value={item}>{unitLabel(item)}</option>)}

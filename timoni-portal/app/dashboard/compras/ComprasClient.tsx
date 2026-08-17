@@ -27,13 +27,35 @@ interface Supplier {
   labels: Array<{ id: string; name: string; color: string }>;
 }
 
+interface SentOrder {
+  id: string;
+  nome: string;
+  url: string;
+  enviadoEm: string;
+  previsaoEntrega: string;
+  unidade: Unit;
+}
+
 interface TrelloPayload {
   configured: boolean;
   boardName?: string;
   summary?: Summary;
   suppliers?: Supplier[];
+  pedidosEnviados?: { rio_claro: SentOrder[]; araras: SentOrder[] };
   updatedAt?: string;
   error?: string;
+}
+
+function dateOnly(value: string) {
+  if (!value) return "Sem data";
+  const parsed = new Date(value);
+  if (Number.isNaN(parsed.getTime())) return value;
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+  }).format(parsed);
 }
 
 interface PurchaseItem {
@@ -259,6 +281,49 @@ export default function ComprasClient() {
             <p className="mt-2 text-sm text-slate-600">{label}</p>
           </article>
         ))}
+      </section>
+
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Acompanhamento</p>
+            <h2 className="mt-2 text-xl font-semibold text-slate-950">Pedidos enviados</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => void loadTrello()}
+            disabled={loadingTrello}
+            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50"
+          >
+            Atualizar lista
+          </button>
+        </div>
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          {([
+            ["rio_claro", "Rio Claro"],
+            ["araras", "Araras"],
+          ] as const).map(([key, label]) => {
+            const orders = trello.pedidosEnviados?.[key] || [];
+            return (
+              <div key={key} className="overflow-hidden rounded-2xl border border-slate-200">
+                <div className="flex items-center justify-between bg-slate-50 px-4 py-3">
+                  <h3 className="font-semibold text-slate-950">{label}</h3>
+                  <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-800">{orders.length}</span>
+                </div>
+                <div className="divide-y divide-slate-100">
+                  {orders.map((order) => (
+                    <a key={order.id} href={order.url || TRELLO_URL} target="_blank" rel="noreferrer" className="block px-4 py-3 hover:bg-blue-50">
+                      <p className="font-semibold text-slate-900">{order.nome}</p>
+                      <p className="mt-1 text-sm text-slate-500">Enviado: {dateOnly(order.enviadoEm)} · Entrega: {dateOnly(order.previsaoEntrega)}</p>
+                    </a>
+                  ))}
+                  {!loadingTrello && !orders.length && <p className="px-4 py-5 text-sm text-slate-500">Nenhum pedido enviado.</p>}
+                  {loadingTrello && <p className="px-4 py-5 text-sm text-slate-500">Atualizando...</p>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
       </section>
 
       {!trello.configured && !loadingTrello && (

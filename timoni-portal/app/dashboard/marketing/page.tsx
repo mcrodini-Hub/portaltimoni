@@ -10,14 +10,6 @@ const frentes = [
   { title: "Conteúdo", description: "Acesse artes, fotos, vídeos, textos e materiais aprovados.", action: "Abrir pasta do Drive", href: DRIVE_URL },
 ];
 
-const rotina = [
-  "Definir produtos e prioridades da semana",
-  "Confirmar responsáveis e prazos",
-  "Produzir e revisar os materiais",
-  "Publicar e registrar o que foi concluído",
-  "Revisar resultados e próximos passos",
-];
-
 export default function MarketingPage() {
   return (
     <div className="pb-10">
@@ -42,20 +34,7 @@ export default function MarketingPage() {
         ))}
       </section>
 
-      <section className="mt-5 grid gap-4 lg:grid-cols-[1.2fr_1fr]">
-        <article className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wider text-pink-700">Rotina recomendada</p>
-          <h2 className="mt-2 text-xl font-semibold text-slate-900">Fluxo semanal de marketing</h2>
-          <ol className="mt-4 space-y-3">
-            {rotina.map((item, index) => (
-              <li key={item} className="flex gap-3 text-sm text-slate-600">
-                <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-pink-100 text-xs font-semibold text-pink-700">{index + 1}</span>
-                <span className="pt-0.5">{item}</span>
-              </li>
-            ))}
-          </ol>
-        </article>
-
+      <section className="mt-5">
         <article className="rounded-2xl border border-blue-100 bg-blue-50 p-5">
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Acompanhamento</p>
           <h2 className="mt-2 text-xl font-semibold text-slate-900">Bruno MKT</h2>

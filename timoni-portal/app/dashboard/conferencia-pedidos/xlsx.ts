@@ -152,363 +152,65 @@ function grossPrice(price: number | null, ipi: number | null) {
 }
 
 function buildSheet(result: ConferenciaResult) {
-  const rows: string[] = [];
-  const merges: string[] = [];
-  let row = 1;
-
+  const rows: string[] = [], merges: string[] = [];
   const supplier = normalizeText(result.fornecedor_curto || result.fornecedor_nome);
   const pedido = normalizeText(result.pedido_numero);
-  const referenceDate = normalizeText(
-    result.data_documento_fornecedor || result.data_pedido,
-  );
-  const title = `Conferencia - Pedido MCR ${pedido} x ${supplier} (${referenceDate})`;
+  const pedidoDisplay = /(?:MCR|ROD)$/i.test(pedido) ? pedido : `${pedido}MCR`;
+  const docs = (result.documentos_fornecedor || []).filter((d) => d.status === "considerado");
+  const files = [...(result.documentos_pedido || []), ...docs.map((d) => d.arquivo)].map(normalizeText);
+  const docInfo = docs.map((d) => [d.identificador === "NÃO INFORMADO" ? "" : d.identificador, d.gerado_em === "NÃO INFORMADO" ? "" : d.gerado_em].filter(Boolean).join(" - ")).filter(Boolean).join(" | ") || normalizeText(result.data_documento_fornecedor);
+  const add = (r: number, cells: string[], height = 18) => rows.push(makeRow(r, cells, height));
 
-  rows.push(makeRow(row, [textCell(`A${row}`, title, 1)], 30));
-  merges.push(`A${row}:M${row}`);
-  row += 1;
-
-  const identification = [
-    `Fornecedor: ${normalizeText(result.fornecedor_nome)}`,
-    `Pedido MCR: ${normalizeText(result.data_pedido)}`,
-    `Documento fornecedor: ${normalizeText(result.data_documento_fornecedor)}`,
-    `Frete: ${normalizeText(result.condicoes.frete_fornecedor || result.condicoes.frete_mcr)}`,
-  ].join(" - ");
-  rows.push(
-    makeRow(
-      row,
-      [textCell(`A${row}`, identification, 13)],
-      rowHeightForText(identification, 20, 190),
-    ),
-  );
-  merges.push(`A${row}:M${row}`);
-  row += 1;
-
-  const payment = `Forma de pagamento: ${normalizeText(result.condicoes.pagamento_fornecedor)}`;
-  rows.push(makeRow(row, [textCell(`A${row}`, payment, 13)], rowHeightForText(payment, 22, 190)));
-  merges.push(`A${row}:M${row}`);
-  row += 2;
-
-  rows.push(makeRow(row, [textCell(`A${row}`, "DOCUMENTOS RELACIONADOS", 3)], 22));
-  merges.push(`A${row}:M${row}`);
-  row += 1;
-
-  for (const file of result.documentos_pedido || []) {
-    const value = `Nosso pedido: ${normalizeText(file)}`;
-    rows.push(makeRow(row, [textCell(`A${row}`, value, 13)], rowHeightForText(value, 22, 165)));
-    merges.push(`A${row}:M${row}`);
-    row += 1;
+  add(1,[textCell("A1",`CONFERÊNCIA DE PREÇOS - PEDIDO ${pedido} - ${supplier}`,29)],30); merges.push("A1:N1");
+  const dl=`DOCUMENTOS CONSIDERADOS: ${files.join(" | ") || "SEM DADOS"}`;
+  add(2,[textCell("A2",dl,30)],rowHeightForText(dl,22,180)); merges.push("A2:N2");
+  add(3,[textCell("A3","Pedido Casa Timoni",31),textCell("B3",pedidoDisplay,13),textCell("C3","Data do pedido",31),textCell("D3",normalizeText(result.data_pedido),13)],22); merges.push("D3:E3");
+  add(4,[],14);
+  add(5,[textCell("A5","Fornecedor",31),textCell("B5",normalizeText(result.fornecedor_nome),13),textCell("E5",docInfo,13)],28); merges.push("B5:D5","E5:H5");
+  add(6,[],14);
+  add(7,[textCell("A7","Forma de pagamento fornecedor:",31),textCell("D7",normalizeText(result.condicoes.pagamento_fornecedor),13)],22); merges.push("A7:C7","D7:F7");
+  add(8,[],14);
+  add(9,[textCell("A9","Data de Entrega",31),textCell("B9",normalizeText(result.condicoes.entrega_mcr || result.condicoes.entrega_fornecedor),13)],22); merges.push("B9:F9");
+  add(10,[],14); add(11,[textCell("A11","PONTOS DE ATENÇÃO",23)],22); merges.push("A11:N11");
+  const attention=(result.pontos_atencao.length?result.pontos_atencao:["Nenhuma divergência relevante identificada."]).slice(0,3);
+  for(let i=0;i<3;i++){const r=12+i,p=attention[i]||"";add(r,p?[textCell(`A${r}`,normalizeText(p),32)]:[],p?rowHeightForText(p,22,170):18);if(p)merges.push(`A${r}:N${r}`);}
+  add(15,[]);add(16,[]);add(17,[]);
+  const headers=["P-L (local.)","Cód. MCR","Cód. forn. pedido","Cód. forn. documento","Descrição / especificações","Qtd. pedido","Qtd. fornecedor","Preço pedido","Preço fornecedor","IPI pedido","IPI fornecedor","Preço bruto pedido","Preço bruto fornecedor","Conferência"];
+  add(18,headers.map((h,i)=>textCell(`${colName(i+1)}18`,h,14)),42);
+  let row=19;
+  for(const item of result.itens){
+    const d=new Set(item.divergencias||[]), price=d.has("preco"), other=[...d].some(x=>x!=="preco"), orange=["item_faltante","item_extra","pareamento_incerto","outra"].some(x=>d.has(x as Divergencia));
+    const grossM=item.preco_bruto_mcr??grossPrice(item.preco_mcr,item.ipi_mcr), grossF=item.preco_bruto_fornecedor??grossPrice(item.preco_fornecedor,item.ipi_fornecedor);
+    const ts=orange?6:21, qs=orange||d.has("quantidade")?8:7, ips=orange||d.has("ipi")?8:7, ps=price?26:4;
+    add(row,[
+      textCell(`A${row}`,normalizeText(item.pl),ts),textCell(`B${row}`,normalizeText(item.codigo_mcr),ts),
+      textCell(`C${row}`,normalizeText(item.codigo_fornecedor_pedido_mcr),orange||d.has("codigo")?6:21),
+      textCell(`D${row}`,normalizeText(item.codigo_fornecedor_documento),orange||d.has("codigo")?6:21),
+      textCell(`E${row}`,normalizeText(item.descricao),orange||d.has("descricao")?6:22),
+      numberCell(`F${row}`,item.quantidade_mcr,qs),numberCell(`G${row}`,item.quantidade_fornecedor,qs),
+      numberCell(`H${row}`,item.preco_mcr,ps,"SEM DADOS"),numberCell(`I${row}`,item.preco_fornecedor,ps,"SEM DADOS"),
+      numberCell(`J${row}`,item.ipi_mcr,ips,"SEM DADOS"),numberCell(`K${row}`,item.ipi_fornecedor,ips,"SEM DADOS"),
+      numberCell(`L${row}`,grossM,ps,"SEM DADOS"),numberCell(`M${row}`,grossF,ps,"SEM DADOS"),
+      textCell(`N${row}`,price?"PREÇO DIVERGENTE":other?"OUTRA DIVERGÊNCIA":"OK",price||other?24:25)
+    ],rowHeightForText(item.descricao,28,48));row++;
   }
-
-  for (const document of (result.documentos_fornecedor || []).filter(
-    (document) => document.status === "considerado",
-  )) {
-    const relation = document.pedido_relacionado && document.pedido_relacionado !== "NÃO INFORMADO"
-      ? ` | Relacionado ao pedido ${document.pedido_relacionado}`
-      : "";
-    const generated = document.gerado_em && document.gerado_em !== "NÃO INFORMADO"
-      ? ` | Gerado em ${document.gerado_em}`
-      : "";
-    const value = `Fornecedor: ${normalizeText(document.arquivo)}${relation}${generated}`;
-    rows.push(makeRow(row, [textCell(`A${row}`, value, 13)], rowHeightForText(value, 22, 150)));
-    merges.push(`A${row}:M${row}`);
-    row += 1;
-  }
-
-  row += 2;
-
-  const summary = splitSummary(result.resumo_texto);
-  const summaryLines = summary.length
-    ? [...summary]
-    : [
-        `Total de itens: ${result.contagens.itens_mcr} no pedido MCR / ${result.contagens.itens_fornecedor} no documento do fornecedor.`,
-      ];
-
-  const totalItemsLine = `Total de itens: ${result.contagens.itens_mcr} no pedido MCR / ${result.contagens.itens_fornecedor} no documento do fornecedor.`;
-  if (!summaryLines.some((line) => /total de itens|itens no pedido/i.test(line))) {
-    summaryLines.unshift(totalItemsLine);
-  }
-
-  const priceLine = `Preços divergentes: ${result.contagens.precos_divergentes} item(ns).`;
-  if (
-    result.contagens.precos_divergentes > 0 &&
-    !summaryLines.some((line) => /preç|reajuste/i.test(line))
-  ) {
-    summaryLines.push(priceLine);
-  }
-
-  if (
-    result.contagens.outras_divergencias > 0 &&
-    !summaryLines.some((line) => /diverg|faltante|extra|quantidade|código|codigo/i.test(line))
-  ) {
-    summaryLines.push(
-      `Outras divergências: ${result.contagens.outras_divergencias} item(ns).`,
-    );
-  }
-
-  if (
-    typeof result.totais.subtotal_mcr === "number" &&
-    !summaryLines.some((line) => /total.*mcr|subtotal.*mcr/i.test(line))
-  ) {
-    summaryLines.push(`Total produtos pedido MCR: ${formatCurrency(result.totais.subtotal_mcr)}.`);
-  }
-
-  if (
-    typeof result.totais.total_fornecedor === "number" &&
-    !summaryLines.some((line) => /total.*fornecedor|total.*documento/i.test(line))
-  ) {
-    summaryLines.push(
-      `Total do documento do fornecedor: ${formatCurrency(result.totais.total_fornecedor)}.`,
-    );
-  }
-
-  rows.push(makeRow(row, [textCell(`A${row}`, "PONTOS DE ATENÇÃO", 23)], 24));
-  merges.push(`A${row}:M${row}`);
-  row += 1;
-
-  const attention = result.pontos_atencao.length
-    ? result.pontos_atencao
-    : ["Nenhuma divergência relevante identificada."];
-  for (const point of attention) {
-    const value = `- ${normalizeText(point)}`;
-    rows.push(
-      makeRow(
-        row,
-        [textCell(`A${row}`, value, 13)],
-        rowHeightForText(value, 22, 155),
-      ),
-    );
-    merges.push(`A${row}:M${row}`);
-    row += 1;
-  }
-
-  row += 2;
-
-  const headers = [
-    "P-L (local.)",
-    "Cod. MCR",
-    "Cod. Forn.\npedido MCR",
-    `Cod. Forn.\n${supplier}`,
-    "Descrição (pedido MCR)",
-    "Qtd\npedido MCR",
-    `Qtd\n${supplier}`,
-    "Preço\npedido MCR",
-    `Preço\n${supplier}`,
-    "IPI %\npedido MCR",
-    `IPI %\n${supplier}`,
-    "Preço bruto\npedido MCR",
-    `Preço bruto\n${supplier}`,
-  ];
-  rows.push(
-    makeRow(
-      row,
-      headers.map((header, index) =>
-        textCell(`${colName(index + 1)}${row}`, header, 14),
-      ),
-      42,
-    ),
-  );
-  row += 1;
-
-  for (const item of result.itens) {
-    const divergencias = new Set(item.divergencias || []);
-    const wholeOrange = [
-      "item_faltante",
-      "item_extra",
-      "pareamento_incerto",
-      "outra",
-    ].some((type) => divergencias.has(type as Divergencia));
-
-    const priceComparable =
-      typeof item.preco_mcr === "number" &&
-      Number.isFinite(item.preco_mcr) &&
-      typeof item.preco_fornecedor === "number" &&
-      Number.isFinite(item.preco_fornecedor);
-    const supplierPriceHigher =
-      priceComparable &&
-      (item.preco_fornecedor as number) > (item.preco_mcr as number) + 0.05;
-    const supplierPriceLowerOrEqual =
-      priceComparable &&
-      (item.preco_fornecedor as number) <= (item.preco_mcr as number) + 0.05;
-
-    const priceSupplierStyle = divergencias.has("preco")
-      ? supplierPriceHigher
-        ? 5
-        : supplierPriceLowerOrEqual
-          ? 17
-          : 9
-      : wholeOrange
-        ? 9
-        : 4;
-
-    const priceMcrStyle = priceComparable ? (wholeOrange ? 9 : 4) : 8;
-    const priceDocumentStyle = priceComparable ? priceSupplierStyle : 8;
-
-    const ipiComparable = typeof item.ipi_mcr === "number" && typeof item.ipi_fornecedor === "number";
-    const ipiStyle = !ipiComparable || wholeOrange || divergencias.has("ipi") ? 8 : 7;
-    const grossMcr = item.preco_bruto_mcr ?? grossPrice(item.preco_mcr, item.ipi_mcr);
-    const grossSupplier = item.preco_bruto_fornecedor ?? grossPrice(item.preco_fornecedor, item.ipi_fornecedor);
-    const grossComparable = typeof grossMcr === "number" && typeof grossSupplier === "number";
-    const grossSupplierStyle = !grossComparable ? 8 : divergencias.has("preco_bruto")
-      ? grossComparable && grossSupplier > grossMcr + 0.05 ? 5 : 17
-      : wholeOrange ? 9 : 4;
-    const grossMcrStyle = !grossComparable ? 8 : wholeOrange ? 9 : 4;
-
-    const styles = {
-      a: wholeOrange ? 6 : 21,
-      b: wholeOrange ? 6 : 21,
-      c: wholeOrange || divergencias.has("codigo") ? 6 : 21,
-      d: wholeOrange || divergencias.has("codigo") ? 6 : 21,
-      e: wholeOrange || divergencias.has("descricao") ? 6 : 22,
-      f: wholeOrange || divergencias.has("quantidade") ? 8 : 7,
-      g: wholeOrange || divergencias.has("quantidade") ? 8 : 7,
-      h: wholeOrange ? 9 : 4,
-      i: priceSupplierStyle,
-    };
-
-    const description = normalizeText(item.descricao);
-    rows.push(
-      makeRow(
-        row,
-        [
-          textCell(`A${row}`, normalizeText(item.pl), styles.a),
-          textCell(`B${row}`, normalizeText(item.codigo_mcr), styles.b),
-          textCell(
-            `C${row}`,
-            normalizeText(item.codigo_fornecedor_pedido_mcr),
-            styles.c,
-          ),
-          textCell(
-            `D${row}`,
-            normalizeText(item.codigo_fornecedor_documento),
-            styles.d,
-          ),
-          textCell(`E${row}`, description, styles.e),
-          numberCell(`F${row}`, item.quantidade_mcr, styles.f),
-          numberCell(`G${row}`, item.quantidade_fornecedor, styles.g),
-          numberCell(`H${row}`, item.preco_mcr, priceMcrStyle, "NÃO INFORMADO"),
-          numberCell(`I${row}`, item.preco_fornecedor, priceDocumentStyle, "NÃO INFORMADO"),
-          numberCell(`J${row}`, item.ipi_mcr, ipiStyle),
-          numberCell(`K${row}`, item.ipi_fornecedor, ipiStyle),
-          numberCell(`L${row}`, grossMcr, grossMcrStyle, "NÃO COMPARÁVEL"),
-          numberCell(`M${row}`, grossSupplier, grossSupplierStyle, "NÃO COMPARÁVEL"),
-        ],
-        rowHeightForText(description, 24, 46),
-      ),
-    );
-    row += 1;
-  }
-
-  rows.push(
-    makeRow(
-      row,
-      [
-        textCell(`A${row}`, "TOTAL DO PEDIDO", 10),
-        numberCell(`L${row}`, result.totais.subtotal_mcr, 15, "NÃO INFORMADO"),
-        numberCell(
-          `M${row}`,
-          result.totais.subtotal_fornecedor,
-          15,
-          "NÃO INFORMADO",
-        ),
-      ],
-      32,
-    ),
-  );
-  merges.push(`A${row}:K${row}`);
-  row += 1;
-
-  rows.push(
-    makeRow(
-      row,
-      [
-        textCell(`L${row}`, "Total produtos pedido MCR", 16),
-        textCell(`M${row}`, `Subtotal ${supplier}`, 16),
-      ],
-      24,
-    ),
-  );
-  row += 1;
-
-  rows.push(
-    makeRow(
-      row,
-      [
-        textCell(`L${row}`, "Total forn. c/ impostos, frete e desconto:", 16),
-        numberCell(
-          `M${row}`,
-          result.totais.total_fornecedor,
-          15,
-          "NÃO INFORMADO",
-        ),
-      ],
-      42,
-    ),
-  );
-
-  row += 2;
-  rows.push(makeRow(row, [textCell(`A${row}`, "RESUMO DA CONFERÊNCIA", 3)], 22));
-  merges.push(`A${row}:M${row}`);
-  row += 1;
-
-  for (const line of summaryLines.slice(0, 7)) {
-    rows.push(makeRow(row, [textCell(`A${row}`, line, 13)], rowHeightForText(line, 22, 165)));
-    merges.push(`A${row}:M${row}`);
-    row += 1;
-  }
-
-  row += 1;
-  rows.push(makeRow(row, [textCell(`A${row}`, "LEGENDA DE CORES", 3)], 22));
-  merges.push(`A${row}:M${row}`);
-  row += 1;
-
-  const legend = [
-    ["Verde: preço do fornecedor igual ou menor que o do pedido", 18],
-    ["Vermelho: preço do fornecedor maior que o do pedido", 19],
-    ["Laranja: divergência ou informação insuficiente para comparar", 6],
-  ] as const;
-  for (const [label, style] of legend) {
-    rows.push(makeRow(row, [textCell(`A${row}`, label, style)], 22));
-    merges.push(`A${row}:M${row}`);
-    row += 1;
-  }
-
-  const lastRow = row;
-  const mergeXml = merges.length
-    ? `<mergeCells count="${merges.length}">${merges
-        .map((ref) => `<mergeCell ref="${ref}"/>`)
-        .join("")}</mergeCells>`
-    : "";
-
-  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-  <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
-  <dimension ref="A1:M${lastRow}"/>
-  <sheetViews><sheetView workbookViewId="0" showGridLines="1"/></sheetViews>
-  <sheetFormatPr defaultRowHeight="18"/>
-  <cols>
-    <col min="1" max="1" width="13" customWidth="1"/>
-    <col min="2" max="2" width="13" customWidth="1"/>
-    <col min="3" max="4" width="19" customWidth="1"/>
-    <col min="5" max="5" width="48" customWidth="1"/>
-    <col min="6" max="7" width="14" customWidth="1"/>
-    <col min="8" max="9" width="16" customWidth="1"/>
-    <col min="10" max="11" width="12" customWidth="1"/>
-    <col min="12" max="13" width="17" customWidth="1"/>
-  </cols>
-  <sheetData>${rows.join("")}</sheetData>
-  ${mergeXml}
-  <pageMargins left="0.25" right="0.25" top="0.35" bottom="0.35" header="0.2" footer="0.2"/>
-  <pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0" paperSize="9"/>
-</worksheet>`;
+  row++;
+  const base=result.totais.subtotal_mcr, total=result.totais.total_fornecedor??result.totais.subtotal_fornecedor;
+  const diff=typeof base==="number"&&typeof total==="number"?total-base:null;
+  add(row,[textCell(`A${row}`,"TOTAIS DOS DOCUMENTOS",33),numberCell(`H${row}`,base,27,"SEM DADOS"),numberCell(`I${row}`,total,27,"SEM DADOS"),textCell(`J${row}`,`Diferença: ${formatCurrency(diff)}`,28)],24);
+  merges.push(`A${row}:G${row}`,`J${row}:M${row}`);
+  row+=3;add(row,[textCell(`A${row}`,"RESUMO DA CONFERÊNCIA",31)],22);merges.push(`A${row}:N${row}`);
+  row++;add(row,[textCell(`A${row}`,normalizeText(result.resumo_texto),13)],rowHeightForText(result.resumo_texto,38,180));merges.push(`A${row}:N${row}`);
+  const mergeXml=`<mergeCells count="${merges.length}">${merges.map(ref=>`<mergeCell ref="${ref}"/>`).join("")}</mergeCells>`;
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetPr><pageSetUpPr fitToPage="1"/></sheetPr><dimension ref="A1:N${row}"/><sheetViews><sheetView workbookViewId="0" showGridLines="1"/></sheetViews><sheetFormatPr defaultRowHeight="18"/><cols><col min="1" max="1" width="18" customWidth="1"/><col min="2" max="2" width="14" customWidth="1"/><col min="3" max="4" width="18" customWidth="1"/><col min="5" max="5" width="40" customWidth="1"/><col min="6" max="7" width="14" customWidth="1"/><col min="8" max="9" width="15" customWidth="1"/><col min="10" max="11" width="12" customWidth="1"/><col min="12" max="13" width="17" customWidth="1"/><col min="14" max="14" width="20" customWidth="1"/></cols><sheetData>${rows.join("")}</sheetData>${mergeXml}<pageMargins left="0.25" right="0.25" top="0.35" bottom="0.35" header="0.2" footer="0.2"/><pageSetup orientation="landscape" fitToWidth="1" fitToHeight="0" paperSize="9"/></worksheet>`;
 }
-
 function buildStyles() {
   return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
   <numFmts count="1">
     <numFmt numFmtId="164" formatCode="&quot;R$ &quot;#,##0.00"/>
   </numFmts>
-  <fonts count="9">
+  <fonts count="11">
     <font><sz val="12"/><name val="Calibri"/><family val="2"/></font>
     <font><b/><color rgb="FF1A3A6B"/><sz val="16"/><name val="Calibri"/><family val="2"/></font>
     <font><b/><color rgb="FFFFFFFF"/><sz val="12"/><name val="Calibri"/><family val="2"/></font>
@@ -518,8 +220,8 @@ function buildStyles() {
     <font><b/><color rgb="FFFFFFFF"/><sz val="12"/><name val="Calibri"/><family val="2"/></font>
     <font><b/><color rgb="FFBF9000"/><sz val="12"/><name val="Calibri"/><family val="2"/></font>
     <font><b/><color rgb="FFE53935"/><sz val="12"/><name val="Calibri"/><family val="2"/></font>
-  </fonts>
-  <fills count="8">
+    <font><b/><color rgb="FF7F0000"/><sz val="11"/><name val="Calibri"/><family val="2"/></font>\n    <font><b/><color rgb="FF006100"/><sz val="11"/><name val="Calibri"/><family val="2"/></font>\n  </fonts>
+  <fills count="11">
     <fill><patternFill patternType="none"/></fill>
     <fill><patternFill patternType="gray125"/></fill>
     <fill><patternFill patternType="solid"><fgColor rgb="FF1A3A6B"/><bgColor indexed="64"/></patternFill></fill>
@@ -528,7 +230,7 @@ function buildStyles() {
     <fill><patternFill patternType="solid"><fgColor rgb="FFE53935"/><bgColor indexed="64"/></patternFill></fill>
     <fill><patternFill patternType="solid"><fgColor rgb="FF66BB6A"/><bgColor indexed="64"/></patternFill></fill>
     <fill><patternFill patternType="solid"><fgColor rgb="FFF2F2F2"/><bgColor indexed="64"/></patternFill></fill>
-  </fills>
+    <fill><patternFill patternType="solid"><fgColor rgb="FFF4B183"/><bgColor indexed="64"/></patternFill></fill>\n    <fill><patternFill patternType="solid"><fgColor rgb="FFC6E0B4"/><bgColor indexed="64"/></patternFill></fill>\n    <fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/><bgColor indexed="64"/></patternFill></fill>\n  </fills>
   <borders count="2">
     <border><left/><right/><top/><bottom/><diagonal/></border>
     <border>
@@ -540,7 +242,7 @@ function buildStyles() {
     </border>
   </borders>
   <cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-  <cellXfs count="24">
+  <cellXfs count="34">
     <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
     <xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
     <xf numFmtId="0" fontId="2" fillId="3" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
@@ -564,6 +266,16 @@ function buildStyles() {
     <xf numFmtId="0" fontId="7" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>
     <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
     <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="8" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="9" fillId="8" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="10" fillId="9" borderId="1" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="164" fontId="0" fillId="10" borderId="1" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="center" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="164" fontId="5" fillId="7" borderId="1" xfId="0" applyNumberFormat="1" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="9" fillId="8" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="center" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="2" fillId="2" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>
+    <xf numFmtId="0" fontId="4" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="3" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
+    <xf numFmtId="0" fontId="3" fillId="7" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center"/></xf>
     <xf numFmtId="0" fontId="8" fillId="0" borderId="0" xfId="0" applyAlignment="1"><alignment horizontal="left" vertical="center" wrapText="1"/></xf>
   </cellXfs>
   <cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>

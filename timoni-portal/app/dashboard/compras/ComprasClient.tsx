@@ -552,20 +552,6 @@ export default function ComprasClient() {
         </button>
       </section>
 
-      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-600">Fluxo do módulo</p>
-        <ol className="mt-4 grid gap-3 md:grid-cols-3">
-          {["Escolher fornecedor uma vez", "Filtrar itens (opcional)", "Preencher dados e atualizar Trello"].map((step, index) => (
-            <li key={step} className="rounded-2xl bg-slate-50 p-4 text-sm font-medium text-slate-700">
-              <span className="mb-2 flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">
-                {index + 1}
-              </span>
-              {step}
-            </li>
-          ))}
-        </ol>
-      </section>
-
       {error && (
         <p className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-semibold text-rose-800">
           {error}

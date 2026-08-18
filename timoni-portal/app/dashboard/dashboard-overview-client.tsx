@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 type ModuleItem = { module: string; name: string; href: string; icon: string; accent: string };
 type DashboardOverviewProps = { modules: ModuleItem[]; readOnly: boolean };
@@ -49,18 +49,8 @@ function endOfRange() {
   return end;
 }
 
-function finalizada(notasJson?: string) {
-  try {
-    const parsed = JSON.parse(String(notasJson || "[]"));
-    return Boolean(parsed && !Array.isArray(parsed) && ["concluida", "retirado", "feito"].includes(parsed.status));
-  } catch {
-    return false;
-  }
-}
-
 export default function DashboardOverviewClient({ modules, readOnly }: DashboardOverviewProps) {
   const [snapshot, setSnapshot] = useState<Snapshot>(emptySnapshot);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -113,11 +103,10 @@ export default function DashboardOverviewClient({ modules, readOnly }: Dashboard
         next.estoqueACaminho = (estoqueResult.value.pedidosEnviados ?? []).filter((item) => item.situacao === "enviado").length;
       }
       if (motoristaResult.status === "fulfilled") {
-        next.motoristaHoje = (motoristaResult.value.viagens ?? []).filter((item) => !finalizada(item.notasJson)).length;
+        next.motoristaHoje = (motoristaResult.value.viagens ?? []).length;
       }
 
       setSnapshot(next);
-      setLoading(false);
     }
 
     void load();
@@ -128,30 +117,18 @@ export default function DashboardOverviewClient({ modules, readOnly }: Dashboard
     };
   }, []);
 
-  const actionCount = useMemo(() => {
-    const values = [snapshot.comprasPendentes, snapshot.estoquePendentes, snapshot.novidades];
-    if (values.some((value) => value === null)) return null;
-    return (snapshot.comprasPendentes ?? 0) + (snapshot.estoquePendentes ?? 0) + (snapshot.novidades ?? 0);
-  }, [snapshot]);
-
   const moduleStatus = (module: string) => {
     if (module === "compras") return { value: metric(snapshot.comprasPendentes), label: snapshot.comprasUrgentes ? `${snapshot.comprasUrgentes} urgente${snapshot.comprasUrgentes === 1 ? "" : "s"}` : "pedidos pendentes", attention: (snapshot.comprasUrgentes ?? 0) > 0 };
     if (module === "estoque") return { value: metric(snapshot.estoqueACaminho), label: `${metric(snapshot.estoquePendentes)} solicitações · pedidos a caminho`, attention: (snapshot.estoquePendentes ?? 0) > 0 };
     if (module === "agenda") return { value: metric(snapshot.agendaProximos), label: "eventos nos próximos 7 dias", attention: false };
-    if (module === "motorista") return { value: metric(snapshot.motoristaHoje), label: "viagens na agenda de hoje", attention: false };
+    if (module === "motorista") return { value: metric(snapshot.motoristaHoje), label: "agendamentos de hoje", attention: false };
     if (module === "painel") return { value: metric(snapshot.novidades), label: "novidades para consultar", attention: (snapshot.novidades ?? 0) > 0 };
     return null;
   };
 
   return (
     <div className="space-y-5">
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Ações abertas</p>
-          <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{loading ? "—" : metric(actionCount)}</p>
-          <p className="mt-1 text-xs text-slate-500">Compras, estoque e novidades</p>
-        </div>
-
+      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <Link href="/dashboard/compras" className="rounded-2xl border border-blue-200 bg-blue-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
           <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Compras</p>
           <div className="mt-2 flex items-end justify-between gap-3">
@@ -162,15 +139,15 @@ export default function DashboardOverviewClient({ modules, readOnly }: Dashboard
         </Link>
 
         <Link href="/dashboard/estoque" className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Pedidos a caminho</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Estoque</p>
           <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{metric(snapshot.estoqueACaminho)}</p>
-          <p className="mt-1 text-xs text-slate-600">no Estoque</p>
+          <p className="mt-1 text-xs text-slate-600">pedidos a caminho · {metric(snapshot.estoquePendentes)} solicitações</p>
         </Link>
 
         <Link href="/motorista" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Motorista hoje</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Agenda Motorista</p>
           <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{metric(snapshot.motoristaHoje)}</p>
-          <p className="mt-1 text-xs text-slate-600">viagens programadas</p>
+          <p className="mt-1 text-xs text-slate-600">agendamentos hoje</p>
         </Link>
 
         <Link href="/agenda" className="rounded-2xl border border-violet-200 bg-violet-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">

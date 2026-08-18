@@ -16,7 +16,7 @@ const modules: Array<{
   { module: "estoque", name: "Estoque", href: "/dashboard/estoque", icon: "📦", accent: "border-emerald-200 bg-emerald-50" },
   { module: "financeiro", name: "Financeiro", href: "/dashboard/financeiro", icon: "💰", accent: "border-lime-200 bg-lime-50" },
   { module: "marketing", name: "Marketing", href: "/dashboard/marketing", icon: "📣", accent: "border-pink-200 bg-pink-50" },
-  { module: "motorista", name: "Motorista", href: "/dashboard/motorista", icon: "🚚", accent: "border-amber-200 bg-amber-50" },
+  { module: "motorista", name: "Visualização Motorista", href: "/dashboard/motorista", icon: "🚚", accent: "border-amber-200 bg-amber-50" },
   { module: "reunioes", name: "Reuniões", href: "/dashboard/reunioes", icon: "👥", accent: "border-rose-200 bg-rose-50" },
 ];
 

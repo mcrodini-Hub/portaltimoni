@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { BrazilianDateInput } from "@/components/ui/brazilian-date-input";
 
 type Meeting = {
   id: string;
@@ -206,13 +207,13 @@ export default function ReunioesClient({
             <input value={form.frequency} onChange={(e) => setField("frequency", e.target.value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" required />
           </label>
           <label className="text-sm font-medium text-slate-700">Primeira data
-            <input type="date" value={form.date} onChange={(e) => setField("date", e.target.value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" required />
+            <BrazilianDateInput value={form.date} onChange={(value) => setField("date", value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" required />
           </label>
           <label className="text-sm font-medium text-slate-700">Primeiro horário
             <input type="time" value={form.time} onChange={(e) => setField("time", e.target.value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" required />
           </label>
           <label className="text-sm font-medium text-slate-700">Segunda data
-            <input type="date" value={form.secondDate} onChange={(e) => setField("secondDate", e.target.value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" required />
+            <BrazilianDateInput value={form.secondDate} onChange={(value) => setField("secondDate", value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" required />
           </label>
           <label className="text-sm font-medium text-slate-700">Segundo horário
             <input type="time" value={form.secondTime} onChange={(e) => setField("secondTime", e.target.value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" required />

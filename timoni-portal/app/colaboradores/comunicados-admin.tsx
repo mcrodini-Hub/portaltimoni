@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { BrazilianDateTimeInput } from "@/components/ui/brazilian-date-input";
 
 type Comunicado = {
   id: string;
@@ -182,10 +183,9 @@ export default function ComunicadosAdmin() {
 
         <label className="text-sm font-medium text-slate-700">
           Início da exibição
-          <input
-            type="datetime-local"
+          <BrazilianDateTimeInput
             value={form.startsAt}
-            onChange={(event) => setForm((current) => ({ ...current, startsAt: event.target.value }))}
+            onChange={(value) => setForm((current) => ({ ...current, startsAt: value }))}
             className="mt-1 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 outline-none focus:border-blue-500"
           />
           <span className="mt-1 block text-xs font-normal text-slate-500">Em branco: começa imediatamente.</span>
@@ -193,10 +193,9 @@ export default function ComunicadosAdmin() {
 
         <label className="text-sm font-medium text-slate-700">
           Exibir até
-          <input
-            type="datetime-local"
+          <BrazilianDateTimeInput
             value={form.expiresAt}
-            onChange={(event) => setForm((current) => ({ ...current, expiresAt: event.target.value }))}
+            onChange={(value) => setForm((current) => ({ ...current, expiresAt: value }))}
             className="mt-1 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 outline-none focus:border-blue-500"
           />
           <span className="mt-1 block text-xs font-normal text-slate-500">Em branco: permanece ativo até ser concluído.</span>

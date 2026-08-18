@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { signIn } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { BrazilianDateInput } from "@/components/ui/brazilian-date-input";
 
 const TRELLO_URL = "https://trello.com/b/UfPrTr1H/compras";
 const DRIVE_URL = "https://drive.google.com/drive/u/0/folders/1P7Nb1FwfSQ6e7TA9Wkgizyy53tGGQajk";
@@ -536,19 +537,17 @@ export default function ComprasClient() {
           </label>
           <label className="text-sm font-semibold text-slate-800">
             Envio
-            <input
-              type="date"
+            <BrazilianDateInput
               value={dataEnvio}
-              onChange={(event) => setDataEnvio(event.target.value)}
+              onChange={setDataEnvio}
               className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
             />
           </label>
           <label className="text-sm font-semibold text-slate-800">
             Entrega
-            <input
-              type="date"
+            <BrazilianDateInput
               value={dataEntrega}
-              onChange={(event) => setDataEntrega(event.target.value)}
+              onChange={setDataEntrega}
               className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
             />
           </label>

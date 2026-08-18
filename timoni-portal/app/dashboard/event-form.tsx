@@ -3,6 +3,7 @@
 import { useState, type FormEvent } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
+import { BrazilianDateInput, BrazilianDateTimeInput } from "@/components/ui/brazilian-date-input";
 import { CALENDAR_LABELS, type CalendarEventDTO, type CalendarKey } from "@/lib/types";
 
 const CALENDAR_OPTIONS = Object.entries(CALENDAR_LABELS) as [CalendarKey, string][];
@@ -220,23 +221,19 @@ export function EventForm({
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="block text-sm font-medium text-slate-700">Início</label>
-            <input
-              type={allDay ? "date" : "datetime-local"}
-              value={start}
-              disabled={editingSeries}
-              onChange={(e) => setStart(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
-            />
+            {allDay ? (
+              <BrazilianDateInput value={start} disabled={editingSeries} onChange={setStart} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500" />
+            ) : (
+              <BrazilianDateTimeInput value={start} disabled={editingSeries} onChange={setStart} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500" />
+            )}
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700">Fim</label>
-            <input
-              type={allDay ? "date" : "datetime-local"}
-              value={end}
-              disabled={editingSeries}
-              onChange={(e) => setEnd(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500"
-            />
+            {allDay ? (
+              <BrazilianDateInput value={end} disabled={editingSeries} onChange={setEnd} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500" />
+            ) : (
+              <BrazilianDateTimeInput value={end} disabled={editingSeries} onChange={setEnd} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500" />
+            )}
           </div>
         </div>
 

@@ -14,9 +14,6 @@ const modules: Array<{
   { module: "compras", name: "Compras", href: "/dashboard/compras", icon: "🛒", accent: "border-blue-200 bg-blue-50" },
   { module: "conferencia", name: "Conferência de Preços", href: "/dashboard/conferencia-pedidos", icon: "✅", accent: "border-cyan-200 bg-cyan-50" },
   { module: "estoque", name: "Estoque", href: "/dashboard/estoque", icon: "📦", accent: "border-emerald-200 bg-emerald-50" },
-  { module: "financeiro", name: "Financeiro", href: "/dashboard/financeiro", icon: "💰", accent: "border-lime-200 bg-lime-50" },
-  { module: "marketing", name: "Marketing", href: "/dashboard/marketing", icon: "📣", accent: "border-pink-200 bg-pink-50" },
-  { module: "motorista", name: "Visualização Motorista", href: "/dashboard/motorista", icon: "🚚", accent: "border-amber-200 bg-amber-50" },
   { module: "reunioes", name: "Reuniões", href: "/dashboard/reunioes", icon: "👥", accent: "border-rose-200 bg-rose-50" },
 ];
 

@@ -1,0 +1,80 @@
+name: Hotfix Motorista hoje e botoes
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  hotfix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Aplicar hotfix
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          pub = Path('timoni-portal/app/motorista/motorista-leitura.tsx')
+          s = pub.read_text()
+          old = '''function finalizada(notasJson?: string) {
+  try {
+    const parsed = JSON.parse(String(notasJson || "[]"));
+    return Boolean(parsed && !Array.isArray(parsed) && (parsed.status === "concluida" || parsed.status === "retirado" || parsed.status === "feito"));
+  } catch {
+    return false;
+  }
+}'''
+          new = '''function finalizada(v: Viagem) {
+  try {
+    const parsed = JSON.parse(String(v.notasJson || "[]"));
+    if (!parsed || Array.isArray(parsed)) return false;
+    if (parsed.status === "feito") return true;
+    if (parsed.status !== "concluida" && parsed.status !== "retirado") return false;
+
+    const marcadoEm = parsed.status === "concluida" ? parsed.concluidoEm : parsed.retiradoEm;
+    if (!marcadoEm) return true;
+
+    const inicioDoDiaAgendado = new Date(`${v.data}T00:00:00-03:00`).getTime();
+    const instanteMarcacao = new Date(String(marcadoEm)).getTime();
+    if (!Number.isFinite(instanteMarcacao)) return true;
+
+    return instanteMarcacao >= inicioDoDiaAgendado;
+  } catch {
+    return false;
+  }
+}'''
+          if old in s:
+            s = s.replace(old, new, 1)
+          s = s.replace('.filter((v) => !finalizada(v.notasJson));', '.filter((v) => !finalizada(v));')
+          pub.write_text(s)
+
+          dash = Path('timoni-portal/app/dashboard/motorista/motorista-agenda.tsx')
+          s = dash.read_text()
+          replacements = {
+            'className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"': 'className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"',
+            'className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60"': 'className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"',
+            'className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50"': 'className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"',
+            'className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"': 'className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"',
+            'className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"': 'className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"',
+            'className="rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60"': 'className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"',
+            'className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50"': 'className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50"',
+            'className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60"': 'className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60"',
+          }
+          for oldc, newc in replacements.items():
+            s = s.replace(oldc, newc)
+          dash.write_text(s)
+          PY
+      - name: Validar build
+        working-directory: timoni-portal
+        run: npm ci && npm run build
+      - name: Commit hotfix e remover workflow
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/hotfix-motorista-hoje-botoes.yml
+          git add timoni-portal/app/motorista/motorista-leitura.tsx timoni-portal/app/dashboard/motorista/motorista-agenda.tsx
+          git commit -m "fix: corrige viagens de hoje e destaca andamento"
+          git push

@@ -572,7 +572,7 @@ export default function MotoristaAgenda() {
     const data = dateFromString(selecionado);
     const diaSemana = data.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
     const linhas = itens.map((v, index) => {
-      const endereco = [v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ");
+      const endereco = [separarEndereco(v.endereco).texto, v.numero, v.complemento].filter(Boolean).join(" - ");
       return `<div class="item"><p><strong>${index + 1}. ${v.tipoHorario || "Entrega"} ${lojaLabel(v.loja)} | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}${v.vendedor ? ` | Vendedor: ${v.vendedor}` : ""}</strong></p><p>${v.clienteFornecedor || ""}${v.numeroPedido ? ` · ${v.numeroPedido}` : ""}${v.volumes ? ` · Volume: ${formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade)}` : ""}</p><p>${endereco}</p><p>Contato: ${v.contatoNome || ""}${v.contatoWhats ? ` - ${v.contatoWhats}` : ""}</p>${v.info ? `<p>Observação: ${v.info}</p>` : ""}${v.preenchidoPor ? `<p class="preenchido">Preenchido por: ${v.preenchidoPor}</p>` : ""}</div>`;
     }).join("");
 

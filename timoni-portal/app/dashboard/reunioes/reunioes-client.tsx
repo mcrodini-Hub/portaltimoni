@@ -35,6 +35,51 @@ function formatTime(value: string) {
   return value ? value.replace(/^0/, "") : "";
 }
 
+function isPastOrToday(value: string) {
+  if (!value) return false;
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  return value <= today;
+}
+
+function upcomingMeeting(meeting: Meeting): Meeting | null {
+  if (meeting.status !== "agendada") return null;
+  const future = [
+    { date: meeting.date, time: meeting.time },
+    { date: meeting.secondDate, time: meeting.secondTime },
+  ].filter((item) => item.date && !isPastOrToday(item.date))
+    .sort((a, b) => a.date.localeCompare(b.date));
+  if (!future.length) return null;
+  return {
+    ...meeting,
+    date: future[0].date,
+    time: future[0].time,
+    secondDate: future[1]?.date || "",
+    secondTime: future[1]?.time || "",
+  };
+}
+
+const OFFICIAL_PAST_MEETINGS: Meeting[] = [
+  {
+    id: "historico-araras-2026-08-07",
+    unit: "Araras",
+    date: "2026-08-07",
+    time: "07:40",
+    secondDate: "",
+    secondTime: "",
+    frequency: "Mensal",
+    leaders: "Ciça e Marcelo",
+    pautaUrl: "https://docs.google.com/document/d/1NoZASmMc-ptrqFy8zbvtGgCJjLJxX8GsORM-F4N799k",
+    ataUrl: "https://docs.google.com/document/d/1S9dQlOGwFE8RwNnjw1PFy08DH9a6k1_9kugQEBgmxHQ",
+    slidesUrl: "",
+    status: "concluida",
+  },
+];
+
 function MeetingCard({
   meeting, canManage, onEdit, onComplete, onDelete,
 }: {
@@ -63,7 +108,7 @@ function MeetingCard({
         </div>
         <div className="rounded-2xl bg-white/80 p-3">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Seguinte</p>
-          <p className="mt-1 font-semibold text-slate-900">{formatDate(meeting.secondDate)}</p>
+          <p className="mt-1 font-semibold text-slate-900">{meeting.secondDate ? formatDate(meeting.secondDate) : "A definir"}</p>
           <p className="text-xs text-slate-500">{formatTime(meeting.secondTime)}</p>
         </div>
       </div>
@@ -117,13 +162,27 @@ export default function ReunioesClient({
   useEffect(() => { void load(); }, []);
 
   const visible = useMemo(
-    () => items.filter((item) => item.status === "agendada" && (isGestao || item.unit === "Araras")),
+    () => items
+      .filter((item) => isGestao || item.unit === "Araras")
+      .map(upcomingMeeting)
+      .filter((item): item is Meeting => Boolean(item)),
     [items, isGestao],
   );
-  const history = useMemo(
-    () => items.filter((item) => item.status === "concluida" && (isGestao || item.unit === "Araras")),
-    [items, isGestao],
-  );
+  const history = useMemo(() => {
+    const completed = items
+      .filter((item) => item.status === "concluida" && (isGestao || item.unit === "Araras"));
+    const elapsed = items
+      .filter((item) => isGestao || item.unit === "Araras")
+      .flatMap((item) => [
+        { ...item, id: `${item.id}-date-1`, secondDate: "", secondTime: "", status: "concluida" as const },
+        { ...item, id: `${item.id}-date-2`, date: item.secondDate, time: item.secondTime, secondDate: "", secondTime: "", status: "concluida" as const },
+      ])
+      .filter((item) => item.date && isPastOrToday(item.date));
+    const official = OFFICIAL_PAST_MEETINGS.filter((item) => isGestao || item.unit === "Araras");
+    const unique = new Map<string, Meeting>();
+    [...official, ...completed, ...elapsed].forEach((item) => unique.set(`${item.unit}-${item.date}`, item));
+    return [...unique.values()].sort((a, b) => b.date.localeCompare(a.date));
+  }, [items, isGestao]);
 
   function setField<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));

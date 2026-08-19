@@ -43,7 +43,7 @@ export default function DashboardOverviewClient({modules,motoristaControle,espac
  if(allowed.has("reunioes"))quick.push(["Reuniões","/dashboard/reunioes","👥",s.reunioes]);
  if(allowed.has("motorista"))quick.push(["Motorista",motoristaControle?"/dashboard/motorista":"/dashboard/motorista-leitura","▣",s.motorista]);
  if(allowed.has("compras"))quick.push(["Compras","/dashboard/compras","🛒",s.compras]);
- if(allowed.has("estoque"))quick.push(["Estoque","/dashboard/estoque","◇",s.estoque]);
+ if(allowed.has("estoque"))quick.push(["Estoque","/dashboard/estoque","◇",s.solicitacoes]);
  if(allowed.has("conferencia"))quick.push(["Conferência","/dashboard/conferencia-pedidos","▤",null]);
  if(espacoEquipeControle)quick.push(["Espaço Equipe","/espaco-equipe","👥",s.equipe]);
  return <div className="space-y-6">

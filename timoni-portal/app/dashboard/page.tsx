@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { hasModuleAccess, type PortalModule } from "@/lib/access-control";
+import { canManageMotorista, hasModuleAccess, type PortalModule } from "@/lib/access-control";
 import DashboardOverviewClient from "./dashboard-overview-client";
 
 const modules: Array<{
@@ -32,7 +32,7 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      <DashboardOverviewClient modules={visible} readOnly={false} />
+      <DashboardOverviewClient modules={visible} motoristaControle={canManageMotorista(email)} />
 
       <footer className="mt-5 border-t border-slate-200 pt-3 text-center text-[11px] text-slate-400">
         Portal Timoni · Agosto 2026

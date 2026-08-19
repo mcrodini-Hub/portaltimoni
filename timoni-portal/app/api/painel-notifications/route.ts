@@ -21,6 +21,7 @@ const ARARAS_EMAILS = new Set([
   "estoqueararascasatimoni@gmail.com",
   "comercialara@casatimoni.com.br",
   "fotoscasatimoni@gmail.com",
+  "reginaldo@casatimoni.com.br",
   "casatimoniararas@gmail.com",
 ]);
 

@@ -32,6 +32,7 @@ function getPanelStore(email: string): PanelStore {
     "estoqueararascasatimoni@gmail.com",
     "comercialara@casatimoni.com.br",
     "fotoscasatimoni@gmail.com",
+    "reginaldo@casatimoni.com.br",
     "casatimoniararas@gmail.com",
   ].includes(normalized)) return "araras";
   return "rio claro";
@@ -172,6 +173,7 @@ const announcementByStore = {
       "fotoscasatimoni@gmail.com",
       "estoqueararascasatimoni@gmail.com",
       "comercialara@casatimoni.com.br",
+      "reginaldo@casatimoni.com.br",
       "casatimoniararas@gmail.com",
     ],
   },

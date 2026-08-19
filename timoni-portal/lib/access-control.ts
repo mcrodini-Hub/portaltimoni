@@ -23,8 +23,6 @@ const allModules: PortalModule[] = [
   "compras",
   "conferencia",
   "estoque",
-  "financeiro",
-  "marketing",
   "motorista",
   "reunioes",
 ];
@@ -71,7 +69,7 @@ export const portalUsers: Record<string, PortalUser> = {
   "margareth@casatimoni.com.br": {
     name: "Margareth",
     email: "margareth@casatimoni.com.br",
-    modules: allModules.filter((module) => module !== "marketing"),
+    modules: allModules,
     requiresPassword: true,
   },
   "fotoscasatimoni@gmail.com": operationalUser(

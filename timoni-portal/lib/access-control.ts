@@ -31,10 +31,12 @@ const allModules: PortalModule[] = [
 
 const modulesWithoutCicaAgenda = allModules.filter((module) => module !== "agenda");
 const operationalModules: PortalModule[] = ["painel", "estoque", "motorista"];
-const MOTORISTA_CONTROL_EMAILS = new Set([
-  "mcrodini@gmail.com",
+const CICA_EMAIL = "mcrodini@gmail.com";
+const MANAGEMENT_MOTORISTA_EMAILS = new Set([
   "mrodini@gmail.com",
   "margareth@casatimoni.com.br",
+]);
+const COLLABORATOR_MOTORISTA_CONTROL_EMAILS = new Set([
   "estoquetimoni@gmail.com",
   "marketplacerc.mcr@gmail.com",
   "comercialara@casatimoni.com.br",
@@ -138,8 +140,15 @@ export function hasModuleAccess(email: string | null | undefined, module: Portal
   return getPortalUser(email)?.modules.includes(module) ?? false;
 }
 
+export function isCicaAccess(email?: string | null) {
+  return normalizeEmail(email) === CICA_EMAIL;
+}
+
 export function canManageMotorista(email?: string | null) {
-  return MOTORISTA_CONTROL_EMAILS.has(normalizeEmail(email));
+  const normalized = normalizeEmail(email);
+  if (normalized === CICA_EMAIL) return true;
+  if (MANAGEMENT_MOTORISTA_EMAILS.has(normalized)) return true;
+  return COLLABORATOR_MOTORISTA_CONTROL_EMAILS.has(normalized);
 }
 
 export function isReadOnlyUser(email?: string | null) {

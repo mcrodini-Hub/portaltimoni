@@ -10,6 +10,7 @@ type RequestUnit = "rio_claro" | "araras";
 
 const ESTOQUE_GESTAO_EMAILS = new Set([
   "estoqueararascasatimoni@gmail.com",
+  "estoquetimoni@gmail.com",
   "mcrodini@gmail.com",
   "mrodini@gmail.com",
 ]);

@@ -578,12 +578,13 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
 
       {!isManager ? (
         <div className="space-y-5">
+          {RequestForm()}
           {NeedsSection()}
           {SentOrdersSection()}
-          {RequestForm()}
         </div>
       ) : (
         <div className="mt-5 space-y-5">
+          {RequestForm()}
           {UnitSwitch()}
           {NeedsSection()}
           {SentOrdersSection()}
@@ -591,8 +592,6 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
           <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
             {cards.map(([key, title]) => <article key={key} className="rounded-2xl border bg-white p-4 shadow-sm"><p className="text-3xl font-semibold">{loading ? "—" : summary.geral[key]}</p><p className="mt-2 text-sm text-slate-500">{title}</p></article>)}
           </section>
-
-          {RequestForm()}
 
           <section className="rounded-3xl border bg-white p-5 shadow-sm">
             <h2 className="text-xl font-semibold">Finalizadas</h2>

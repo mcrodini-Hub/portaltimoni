@@ -5,13 +5,13 @@ import PainelNotificationsClient from "@/app/painel-notifications-client";
 
 const navItems: Array<{ href: string; label: string; module: PortalModule }> = [
   { href: "/colaboradores", label: "Painel Timoni", module: "painel" },
-  { href: "/espaco-equipe", label: "Espaço Equipe", module: "painel" },
   { href: "/agenda", label: "Agenda Ciça", module: "agenda" },
   { href: "/dashboard/compras", label: "Compras", module: "compras" },
   { href: "/dashboard/conferencia-pedidos", label: "Conferência", module: "conferencia" },
   { href: "/dashboard/estoque", label: "Estoque", module: "estoque" },
   { href: "/dashboard/motorista-leitura", label: "Motorista", module: "motorista" },
   { href: "/dashboard/reunioes", label: "Reuniões", module: "reunioes" },
+  { href: "/espaco-equipe", label: "Espaço Equipe", module: "painel" },
 ];
 
 export default function PortalHeader({ email }: { email: string }) {

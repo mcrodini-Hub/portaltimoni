@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 type ModuleItem = { module: string; name: string; href: string; icon: string; accent: string };
-type DashboardOverviewProps = { modules: ModuleItem[]; readOnly: boolean };
+type DashboardOverviewProps = { modules: ModuleItem[]; motoristaControle: boolean };
 type ComprasResponse = { summary?: { pedidosParaFazer?: number; urgentes?: number } };
 type NotificationsResponse = { items?: Array<{ type?: string }> };
 type EventsResponse = { events?: unknown[] };
@@ -49,7 +49,7 @@ function endOfRange() {
   return end;
 }
 
-export default function DashboardOverviewClient({ modules }: DashboardOverviewProps) {
+export default function DashboardOverviewClient({ modules, motoristaControle }: DashboardOverviewProps) {
   const [snapshot, setSnapshot] = useState<Snapshot>(emptySnapshot);
   const allowedModules = useMemo(() => new Set(modules.map((item) => item.module)), [modules]);
 
@@ -152,7 +152,7 @@ export default function DashboardOverviewClient({ modules }: DashboardOverviewPr
         )}
 
         {allowedModules.has("motorista") && (
-          <Link href="/dashboard/motorista-leitura" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+          <Link href={motoristaControle ? "/dashboard/motorista" : "/dashboard/motorista-leitura"} className="rounded-2xl border border-amber-200 bg-amber-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
             <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">Motorista</p>
             <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{metric(snapshot.motoristaHoje)}</p>
             <p className="mt-1 text-xs text-slate-600">agendamentos hoje</p>

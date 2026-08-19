@@ -18,9 +18,12 @@ const modules: Array<{
   { module: "reunioes", name: "Reuniões", href: "/dashboard/reunioes", icon: "👥", accent: "border-rose-200 bg-rose-50" },
 ];
 
+const GESTAO_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
+
 export default async function DashboardPage() {
   const session = await auth();
   const email = session?.user?.email ?? "";
+  const normalizedEmail = email.trim().toLowerCase();
   const visible = modules.filter((item) => hasModuleAccess(email, item.module));
 
   return (
@@ -33,7 +36,11 @@ export default async function DashboardPage() {
         </div>
       </header>
 
-      <DashboardOverviewClient modules={visible} motoristaControle={canManageMotorista(email)} />
+      <DashboardOverviewClient
+        modules={visible}
+        motoristaControle={canManageMotorista(email)}
+        espacoEquipeControle={GESTAO_EMAILS.has(normalizedEmail)}
+      />
 
       <footer className="mt-5 border-t border-slate-200 pt-3 text-center text-[11px] text-slate-400">
         Portal Timoni · Agosto 2026

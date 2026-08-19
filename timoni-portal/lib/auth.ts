@@ -72,6 +72,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             "https://www.googleapis.com/auth/drive.appdata",
           ].join(" "),
           access_type: "offline",
+          prompt: "consent",
           include_granted_scopes: "true",
         },
       },

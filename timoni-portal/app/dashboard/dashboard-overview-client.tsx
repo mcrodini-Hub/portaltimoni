@@ -36,7 +36,7 @@ export default function DashboardOverviewClient({modules,motoristaControle,espac
   allowed.has("agenda")&&["Agenda","/agenda","▣",null], allowed.has("reunioes")&&["Reuniões","/dashboard/reunioes","👥",null],
   allowed.has("motorista")&&["Motorista",motoristaControle?"/dashboard/motorista":"/dashboard/motorista-leitura","▣",s.motorista], allowed.has("compras")&&["Compras","/dashboard/compras","🛒",s.compras],
   allowed.has("estoque")&&["Estoque","/dashboard/estoque","◇",s.estoque], allowed.has("conferencia")&&["Conferência","/dashboard/conferencia-pedidos","▤",null],
-  espacoEquipeControle&&["Espaço Equipe","/espaco-equipe","👥",s.equipe], allowed.has("leads")&&["Leads","/dashboard/leads","♙",s.leads]
+  espacoEquipeControle&&["Espaço Equipe","/espaco-equipe","👥",s.equipe]
  ].filter(Boolean) as any[];
  return <div className="space-y-6">
   <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">

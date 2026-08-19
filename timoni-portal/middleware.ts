@@ -8,6 +8,8 @@ const protectedRoutes: Array<{ prefix: string; module: PortalModule }> = [
   { prefix: "/dashboard/compras", module: "compras" },
   { prefix: "/dashboard/conferencia-pedidos", module: "conferencia" },
   { prefix: "/dashboard/estoque", module: "estoque" },
+  { prefix: "/dashboard/motorista-leitura", module: "motorista" },
+  { prefix: "/dashboard/motorista", module: "motorista" },
   { prefix: "/dashboard/reunioes", module: "reunioes" },
   { prefix: "/dashboard/marketing", module: "marketing" },
   { prefix: "/dashboard/financeiro", module: "financeiro" },
@@ -28,7 +30,7 @@ const publicMotoristaAssets = new Set([
 export default auth((request) => {
   const pathname = request.nextUrl.pathname;
 
-  // A tela do motorista é pública e somente leitura para facilitar o uso no celular.
+  // A tela pública do motorista continua disponível para uso direto no celular.
   if (pathname === "/motorista" || pathname.startsWith("/motorista/")) {
     return NextResponse.next();
   }

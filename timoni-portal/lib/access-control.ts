@@ -31,10 +31,15 @@ const allModules: PortalModule[] = [
 
 const modulesWithoutCicaAgenda = allModules.filter((module) => module !== "agenda");
 const operationalModules: PortalModule[] = ["painel", "estoque", "motorista"];
-const commercialRioClaroModules: PortalModule[] = ["painel", "estoque", "financeiro", "marketing", "motorista"];
 
-function withStock(modules: PortalModule[]): PortalModule[] {
-  return Array.from(new Set<PortalModule>([...modules, "estoque"]));
+function operationalUser(name: string, email: string): PortalUser {
+  return {
+    name,
+    email,
+    modules: operationalModules,
+    requiresPassword: false,
+    readOnly: true,
+  };
 }
 
 export const portalUsers: Record<string, PortalUser> = {
@@ -56,68 +61,52 @@ export const portalUsers: Record<string, PortalUser> = {
     modules: allModules.filter((module) => module !== "marketing"),
     requiresPassword: true,
   },
-  "carolina@casatimoni.com.br": {
-    name: "Carolina - Financeiro Rio Claro",
-    email: "carolina@casatimoni.com.br",
-    modules: withStock(["painel", "financeiro"]),
-    requiresPassword: true,
-  },
-  "comercialrc@casatimoni.com.br": {
-    name: "Jeovana - Rio Claro",
-    email: "comercialrc@casatimoni.com.br",
-    modules: commercialRioClaroModules,
-    requiresPassword: true,
-  },
+  "fotoscasatimoni@gmail.com": operationalUser(
+    "Lucas e Vendedores - Araras",
+    "fotoscasatimoni@gmail.com",
+  ),
+  "balcaotimoni@gmail.com": operationalUser(
+    "Vendedores - Rio Claro",
+    "balcaotimoni@gmail.com",
+  ),
+  "caixatimonirioclaro@gmail.com": operationalUser(
+    "Thais - Rio Claro",
+    "caixatimonirioclaro@gmail.com",
+  ),
+  "estoquetimoni@gmail.com": operationalUser(
+    "Lucas - Estoque Rio Claro",
+    "estoquetimoni@gmail.com",
+  ),
+  "marketplacerc.mcr@gmail.com": operationalUser(
+    "Jaqueline - Marketplace Rio Claro",
+    "marketplacerc.mcr@gmail.com",
+  ),
+  "comercialara@casatimoni.com.br": operationalUser(
+    "Carolina - Vendas Araras",
+    "comercialara@casatimoni.com.br",
+  ),
+  "carolina@casatimoni.com.br": operationalUser(
+    "Carolina - Rio Claro",
+    "carolina@casatimoni.com.br",
+  ),
+  "comercialrc@casatimoni.com.br": operationalUser(
+    "Jeovana - Rio Claro",
+    "comercialrc@casatimoni.com.br",
+  ),
+  "reginaldo@casatimoni.com.br": operationalUser(
+    "Reginaldo - Araras",
+    "reginaldo@casatimoni.com.br",
+  ),
   "estoqueararascasatimoni@gmail.com": {
     name: "Estoque Araras",
     email: "estoqueararascasatimoni@gmail.com",
     modules: operationalModules,
     requiresPassword: true,
   },
-  "comercialara@casatimoni.com.br": {
-    name: "Carolina - Vendas Araras",
-    email: "comercialara@casatimoni.com.br",
-    modules: withStock(["painel", "motorista"]),
-    requiresPassword: false,
-    readOnly: true,
-  },
   "casatimoniararas@gmail.com": {
     name: "Casa Timoni Araras",
     email: "casatimoniararas@gmail.com",
     modules: operationalModules,
-    requiresPassword: false,
-  },
-  "marketplacerc.mcr@gmail.com": {
-    name: "Jaqueline - Marketplace Rio Claro",
-    email: "marketplacerc.mcr@gmail.com",
-    modules: operationalModules,
-    requiresPassword: false,
-  },
-  "estoquetimoni@gmail.com": {
-    name: "Lucas - Estoque Rio Claro",
-    email: "estoquetimoni@gmail.com",
-    modules: operationalModules,
-    requiresPassword: false,
-    readOnly: true,
-  },
-  "fotoscasatimoni@gmail.com": {
-    name: "Lucas e Vendedores - Araras",
-    email: "fotoscasatimoni@gmail.com",
-    modules: operationalModules,
-    requiresPassword: false,
-    readOnly: true,
-  },
-  "balcaotimoni@gmail.com": {
-    name: "Vendedores - Rio Claro",
-    email: "balcaotimoni@gmail.com",
-    modules: withStock(["painel", "motorista"]),
-    requiresPassword: false,
-    readOnly: true,
-  },
-  "caixatimonirioclaro@gmail.com": {
-    name: "Thais - Rio Claro",
-    email: "caixatimonirioclaro@gmail.com",
-    modules: withStock(["painel", "motorista"]),
     requiresPassword: false,
   },
 };

@@ -11,7 +11,7 @@ const navItems: Array<{ href: string; label: string; module: PortalModule }> = [
   { href: "/dashboard/estoque", label: "Estoque", module: "estoque" },
   { href: "/dashboard/financeiro", label: "Financeiro", module: "financeiro" },
   { href: "/dashboard/marketing", label: "Marketing", module: "marketing" },
-  { href: "/dashboard/motorista", label: "Motorista", module: "motorista" },
+  { href: "/dashboard/motorista-leitura", label: "Motorista", module: "motorista" },
   { href: "/dashboard/reunioes", label: "Reuniões", module: "reunioes" },
 ];
 

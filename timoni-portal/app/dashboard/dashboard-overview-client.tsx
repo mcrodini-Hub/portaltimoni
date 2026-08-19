@@ -4,12 +4,17 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 type ModuleItem = { module: string; name: string; href: string; icon: string; accent: string };
-type DashboardOverviewProps = { modules: ModuleItem[]; motoristaControle: boolean };
+type DashboardOverviewProps = {
+  modules: ModuleItem[];
+  motoristaControle: boolean;
+  espacoEquipeControle: boolean;
+};
 type ComprasResponse = { summary?: { pedidosParaFazer?: number; urgentes?: number } };
 type NotificationsResponse = { items?: Array<{ type?: string }> };
 type EventsResponse = { events?: unknown[] };
 type EstoqueResponse = { pedidosEnviados?: Array<{ situacao?: string }> };
 type MotoristaResponse = { ok?: boolean; viagens?: Array<{ notasJson?: string }> };
+type EspacoEquipeResponse = { pending?: number };
 
 type Snapshot = {
   comprasPendentes: number | null;
@@ -19,6 +24,7 @@ type Snapshot = {
   estoqueACaminho: number | null;
   agendaProximos: number | null;
   motoristaHoje: number | null;
+  espacoEquipePendentes: number | null;
 };
 
 const emptySnapshot: Snapshot = {
@@ -29,6 +35,7 @@ const emptySnapshot: Snapshot = {
   estoqueACaminho: null,
   agendaProximos: null,
   motoristaHoje: null,
+  espacoEquipePendentes: null,
 };
 
 function metric(value: number | null) {
@@ -49,7 +56,11 @@ function endOfRange() {
   return end;
 }
 
-export default function DashboardOverviewClient({ modules, motoristaControle }: DashboardOverviewProps) {
+export default function DashboardOverviewClient({
+  modules,
+  motoristaControle,
+  espacoEquipeControle,
+}: DashboardOverviewProps) {
   const [snapshot, setSnapshot] = useState<Snapshot>(emptySnapshot);
   const allowedModules = useMemo(() => new Set(modules.map((item) => item.module)), [modules]);
 
@@ -92,9 +103,28 @@ export default function DashboardOverviewClient({ modules, motoristaControle }: 
             return (await response.json()) as MotoristaResponse;
           })
         : Promise.resolve(null);
+      const espacoEquipePromise = espacoEquipeControle
+        ? fetch("/api/espaco-equipe", { cache: "no-store" }).then(async (response) => {
+            if (!response.ok) throw new Error("espaco-equipe");
+            return (await response.json()) as EspacoEquipeResponse;
+          })
+        : Promise.resolve(null);
 
-      const [comprasResult, notificationsResult, eventsResult, estoqueResult, motoristaResult] =
-        await Promise.allSettled([comprasPromise, notificationsPromise, eventsPromise, estoquePromise, motoristaPromise]);
+      const [
+        comprasResult,
+        notificationsResult,
+        eventsResult,
+        estoqueResult,
+        motoristaResult,
+        espacoEquipeResult,
+      ] = await Promise.allSettled([
+        comprasPromise,
+        notificationsPromise,
+        eventsPromise,
+        estoquePromise,
+        motoristaPromise,
+        espacoEquipePromise,
+      ]);
 
       if (cancelled) return;
       const next = { ...emptySnapshot };
@@ -117,6 +147,9 @@ export default function DashboardOverviewClient({ modules, motoristaControle }: 
       if (motoristaResult.status === "fulfilled" && motoristaResult.value) {
         next.motoristaHoje = (motoristaResult.value.viagens ?? []).length;
       }
+      if (espacoEquipeResult.status === "fulfilled" && espacoEquipeResult.value) {
+        next.espacoEquipePendentes = espacoEquipeResult.value.pending ?? 0;
+      }
 
       setSnapshot(next);
     }
@@ -127,7 +160,7 @@ export default function DashboardOverviewClient({ modules, motoristaControle }: 
       cancelled = true;
       window.clearInterval(interval);
     };
-  }, [allowedModules]);
+  }, [allowedModules, espacoEquipeControle]);
 
   return (
     <div>
@@ -172,6 +205,14 @@ export default function DashboardOverviewClient({ modules, motoristaControle }: 
             <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">Novidades</p>
             <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{metric(snapshot.novidades)}</p>
             <p className="mt-1 text-xs text-slate-600">itens para consultar</p>
+          </Link>
+        )}
+
+        {espacoEquipeControle && (
+          <Link href="/espaco-equipe" className="rounded-2xl border border-sky-200 bg-sky-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
+            <p className="text-xs font-semibold uppercase tracking-wide text-sky-700">Espaço Equipe</p>
+            <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{metric(snapshot.espacoEquipePendentes)}</p>
+            <p className="mt-1 text-xs text-slate-600">mensagens pendentes</p>
           </Link>
         )}
       </section>

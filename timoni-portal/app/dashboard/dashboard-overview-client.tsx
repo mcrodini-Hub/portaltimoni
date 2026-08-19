@@ -19,7 +19,6 @@ type EspacoEquipeResponse = { pending?: number };
 type Snapshot = {
   comprasPendentes: number | null;
   comprasUrgentes: number | null;
-  novidades: number | null;
   estoquePendentes: number | null;
   estoqueACaminho: number | null;
   agendaProximos: number | null;
@@ -30,7 +29,6 @@ type Snapshot = {
 const emptySnapshot: Snapshot = {
   comprasPendentes: null,
   comprasUrgentes: null,
-  novidades: null,
   estoquePendentes: null,
   estoqueACaminho: null,
   agendaProximos: null,
@@ -135,7 +133,6 @@ export default function DashboardOverviewClient({
       }
       if (notificationsResult.status === "fulfilled" && notificationsResult.value) {
         const items = notificationsResult.value.items ?? [];
-        next.novidades = items.length;
         next.estoquePendentes = items.filter((item) => item.type === "estoque").length;
       }
       if (eventsResult.status === "fulfilled" && eventsResult.value) {
@@ -197,14 +194,6 @@ export default function DashboardOverviewClient({
             <p className="text-xs font-semibold uppercase tracking-wide text-violet-700">Agenda Ciça</p>
             <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{metric(snapshot.agendaProximos)}</p>
             <p className="mt-1 text-xs text-slate-600">eventos nos próximos 7 dias</p>
-          </Link>
-        )}
-
-        {allowedModules.has("painel") && (
-          <Link href="/colaboradores" className="rounded-2xl border border-indigo-200 bg-indigo-50 p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md">
-            <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">Novidades</p>
-            <p className="mt-2 text-3xl font-bold tracking-tight text-slate-950">{metric(snapshot.novidades)}</p>
-            <p className="mt-1 text-xs text-slate-600">itens para consultar</p>
           </Link>
         )}
 

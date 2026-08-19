@@ -52,10 +52,6 @@ function endOfRange() {
 export default function DashboardOverviewClient({ modules, motoristaControle }: DashboardOverviewProps) {
   const [snapshot, setSnapshot] = useState<Snapshot>(emptySnapshot);
   const allowedModules = useMemo(() => new Set(modules.map((item) => item.module)), [modules]);
-  const secondaryModules = useMemo(
-    () => modules.filter((item) => item.module === "conferencia" || item.module === "reunioes"),
-    [modules],
-  );
 
   useEffect(() => {
     let cancelled = false;
@@ -179,22 +175,6 @@ export default function DashboardOverviewClient({ modules, motoristaControle }: 
           </Link>
         )}
       </section>
-
-      {secondaryModules.length > 0 && (
-        <section className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          {secondaryModules.map((item) => (
-            <Link
-              key={item.module}
-              href={item.href}
-              className={`rounded-2xl border p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md ${item.accent}`}
-            >
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-700">{item.name}</p>
-              <p className="mt-2 text-xl font-semibold text-slate-950">Abrir</p>
-              <p className="mt-1 text-xs text-slate-600">acesso direto ao módulo</p>
-            </Link>
-          ))}
-        </section>
-      )}
 
       <p className="mt-3 text-right text-xs text-slate-500">Atualização automática a cada minuto</p>
     </div>

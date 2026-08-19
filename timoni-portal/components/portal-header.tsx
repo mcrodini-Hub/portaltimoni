@@ -1,5 +1,5 @@
 import { signOut } from "@/lib/auth";
-import { hasModuleAccess, type PortalModule } from "@/lib/access-control";
+import { canManageMotorista, hasModuleAccess, type PortalModule } from "@/lib/access-control";
 import Link from "next/link";
 import PainelNotificationsClient from "@/app/painel-notifications-client";
 
@@ -36,7 +36,11 @@ export default function PortalHeader({ email }: { email: string }) {
           {navItems.map(
             (item) =>
               hasModuleAccess(email, item.module) && (
-                <Link key={item.href} href={item.href} className={linkClass}>
+                <Link
+                  key={item.href}
+                  href={item.module === "motorista" && canManageMotorista(email) ? "/dashboard/motorista" : item.href}
+                  className={linkClass}
+                >
                   {item.label}
                 </Link>
               ),

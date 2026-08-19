@@ -1,7 +1,31 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { appendTeamMessage } from "@/lib/espaco-equipe";
+import { appendTeamMessage, listTeamMessages } from "@/lib/espaco-equipe";
 import { findTeamMember } from "@/lib/team-members";
+
+const GESTAO_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
+const FINAL_STATUSES = new Set(["concluido", "concluído", "resolvido", "feito", "finalizado"]);
+
+export async function GET() {
+  const session = await auth();
+  const email = session?.user?.email?.trim().toLowerCase() ?? "";
+
+  if (!GESTAO_EMAILS.has(email)) {
+    return NextResponse.json({ error: "Acesso não autorizado." }, { status: 403 });
+  }
+
+  try {
+    const messages = await listTeamMessages();
+    const pending = messages.filter((item) => {
+      const status = item.status.trim().toLowerCase();
+      return !FINAL_STATUSES.has(status);
+    }).length;
+
+    return NextResponse.json({ pending });
+  } catch {
+    return NextResponse.json({ error: "Não foi possível carregar as pendências." }, { status: 500 });
+  }
+}
 
 export async function POST(request: Request) {
   const session = await auth();

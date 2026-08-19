@@ -31,6 +31,17 @@ const allModules: PortalModule[] = [
 
 const modulesWithoutCicaAgenda = allModules.filter((module) => module !== "agenda");
 const operationalModules: PortalModule[] = ["painel", "estoque", "motorista"];
+const MOTORISTA_CONTROL_EMAILS = new Set([
+  "mcrodini@gmail.com",
+  "mrodini@gmail.com",
+  "margareth@casatimoni.com.br",
+  "estoquetimoni@gmail.com",
+  "marketplacerc.mcr@gmail.com",
+  "comercialara@casatimoni.com.br",
+  "carolina@casatimoni.com.br",
+  "comercialrc@casatimoni.com.br",
+  "reginaldo@casatimoni.com.br",
+]);
 
 function operationalUser(name: string, email: string): PortalUser {
   return {
@@ -38,7 +49,7 @@ function operationalUser(name: string, email: string): PortalUser {
     email,
     modules: operationalModules,
     requiresPassword: false,
-    readOnly: true,
+    readOnly: !MOTORISTA_CONTROL_EMAILS.has(email),
   };
 }
 
@@ -127,6 +138,10 @@ export function hasModuleAccess(email: string | null | undefined, module: Portal
   return getPortalUser(email)?.modules.includes(module) ?? false;
 }
 
+export function canManageMotorista(email?: string | null) {
+  return MOTORISTA_CONTROL_EMAILS.has(normalizeEmail(email));
+}
+
 export function isReadOnlyUser(email?: string | null) {
-  return getPortalUser(email)?.readOnly === true;
+  return !canManageMotorista(email);
 }

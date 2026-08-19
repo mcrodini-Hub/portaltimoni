@@ -51,7 +51,7 @@ function operationalUser(name: string, email: string): PortalUser {
     email,
     modules: operationalModules,
     requiresPassword: false,
-    readOnly: !MOTORISTA_CONTROL_EMAILS.has(email),
+    readOnly: !COLLABORATOR_MOTORISTA_CONTROL_EMAILS.has(email),
   };
 }
 

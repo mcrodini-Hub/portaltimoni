@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { hasModuleAccess, isReadOnlyUser, type PortalModule } from "@/lib/access-control";
+import { hasModuleAccess, type PortalModule } from "@/lib/access-control";
 import DashboardOverviewClient from "./dashboard-overview-client";
 
 const modules: Array<{
@@ -21,7 +21,6 @@ export default async function DashboardPage() {
   const session = await auth();
   const email = session?.user?.email ?? "";
   const visible = modules.filter((item) => hasModuleAccess(email, item.module));
-  const readOnly = isReadOnlyUser(email);
 
   return (
     <div className="pb-4">
@@ -31,10 +30,9 @@ export default async function DashboardPage() {
           <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">Painel de Controle</h1>
           <p className="mt-1 text-sm text-slate-600">O que precisa da sua atenção agora.</p>
         </div>
-        {readOnly && <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700">Somente leitura</span>}
       </header>
 
-      <DashboardOverviewClient modules={visible} readOnly={readOnly} />
+      <DashboardOverviewClient modules={visible} readOnly={false} />
 
       <footer className="mt-5 border-t border-slate-200 pt-3 text-center text-[11px] text-slate-400">
         Portal Timoni · Agosto 2026

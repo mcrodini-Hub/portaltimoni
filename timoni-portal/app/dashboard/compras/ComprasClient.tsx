@@ -10,7 +10,7 @@ const DRIVE_URL = "https://drive.google.com/drive/u/0/folders/1P7Nb1FwfSQ6e7TA9W
 const STORAGE_KEY = "timoni_compras_portal_v4";
 
 type Unit = "rio_claro" | "araras";
-type Company = "MCR" | "RODINI" | "CT";
+type Company = "MCR" | "ROD" | "CT";
 
 interface Summary {
   pedidosParaFazer: number;
@@ -85,8 +85,7 @@ export default function ComprasClient() {
 
   const [unit, setUnit] = useState<Unit | "">("");
   const [company, setCompany] = useState<Company>("MCR");
-  const [finalTitle, setFinalTitle] = useState("");
-  const [dataEnvio, setDataEnvio] = useState(todayLocal);
+  const [orderNumber, setOrderNumber] = useState("");
   const [dataEntrega, setDataEntrega] = useState("");
 
   const [busy, setBusy] = useState(false);
@@ -99,8 +98,12 @@ export default function ComprasClient() {
     () => suppliers.find((supplier) => supplier.id === selectedId) || null,
     [selectedId, suppliers],
   );
+  const dataEnvio = todayLocal();
+  const finalTitle = selectedSupplier && orderNumber.trim()
+    ? `${selectedSupplier.name.trim()} ${orderNumber.trim()}${company}`
+    : "";
   const summary = trello.summary;
-  const canFinalize = Boolean(selectedSupplier && finalTitle.trim() && unit && dataEnvio && dataEntrega);
+  const canFinalize = Boolean(selectedSupplier && orderNumber.trim() && unit && dataEntrega);
 
   const loadTrello = useCallback(async () => {
     setLoadingTrello(true);
@@ -127,13 +130,14 @@ export default function ComprasClient() {
         columnCode?: string;
         columnDescription?: string;
         columnQuantity?: string;
-        company?: Company;
+        company?: Company | "RODINI";
       };
       if (saved.sheetUrl) setSheetUrl(saved.sheetUrl);
       if (saved.columnCode) setColumnCode(saved.columnCode);
       if (saved.columnDescription) setColumnDescription(saved.columnDescription);
       if (saved.columnQuantity) setColumnQuantity(saved.columnQuantity);
-      if (saved.company) setCompany(saved.company);
+      if (saved.company === "RODINI") setCompany("ROD");
+      else if (saved.company) setCompany(saved.company);
     } catch {
       // Usa os padrões operacionais quando a configuração local estiver inválida.
     }
@@ -149,7 +153,7 @@ export default function ComprasClient() {
 
   function chooseSupplier(supplier: Supplier) {
     setSelectedId(supplier.id);
-    setFinalTitle("");
+    setOrderNumber("");
     setUnit("");
     setError("");
     setSuccess("");
@@ -215,8 +219,8 @@ export default function ComprasClient() {
       setError("Selecione o fornecedor na lista de pedidos pendentes.");
       return;
     }
-    if (!finalTitle.trim() || !unit || !dataEnvio || !dataEntrega) {
-      setError("Informe o título final, a unidade, a data de envio e a previsão de entrega.");
+    if (!orderNumber.trim() || !unit || !dataEntrega) {
+      setError("Informe o número do pedido, a unidade e a previsão de entrega.");
       return;
     }
 
@@ -225,7 +229,7 @@ export default function ComprasClient() {
       const formData = new FormData();
       formData.set("cardId", selectedSupplier.id);
       formData.set("supplierName", selectedSupplier.name);
-      formData.set("finalTitle", finalTitle.trim());
+      formData.set("finalTitle", finalTitle);
       formData.set("unit", unit);
       formData.set("empresa", company);
       formData.set("dataEnvio", dataEnvio);
@@ -242,7 +246,7 @@ export default function ComprasClient() {
       setSuccess("Pronto!");
       setUpdatedCardUrl(payload.cardUrl || "");
       setSelectedId("");
-      setFinalTitle("");
+      setOrderNumber("");
       setUnit("");
       setDataEntrega("");
       await loadTrello();
@@ -500,26 +504,34 @@ export default function ComprasClient() {
           O fornecedor já foi escolhido. Informe agora os dados finais do pedido.
         </p>
 
-        <label className="mt-4 block text-sm font-semibold text-slate-800">
-          Título final do cartão
-          <input
-            value={finalTitle}
-            onChange={(event) => setFinalTitle(event.target.value)}
-            placeholder="Ex.: ROMPLAS 6055MCR"
-            className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 px-4 text-sm"
-          />
-        </label>
-
-        <div className="mt-4 grid gap-3 sm:grid-cols-4">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <label className="text-sm font-semibold text-slate-800">
-            Empresa
+            Fornecedor
+            <input
+              value={selectedSupplier?.name || ""}
+              readOnly
+              placeholder="Selecione acima"
+              className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-700"
+            />
+          </label>
+          <label className="text-sm font-semibold text-slate-800">
+            Número do pedido
+            <input
+              value={orderNumber}
+              onChange={(event) => setOrderNumber(event.target.value)}
+              placeholder="Ex.: 6055"
+              className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+            />
+          </label>
+          <label className="text-sm font-semibold text-slate-800">
+            Nossa empresa
             <select
               value={company}
               onChange={(event) => setCompany(event.target.value as Company)}
               className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
             >
               <option value="MCR">MCR</option>
-              <option value="RODINI">RODINI</option>
+              <option value="ROD">ROD</option>
               <option value="CT">CT</option>
             </select>
           </label>
@@ -539,8 +551,9 @@ export default function ComprasClient() {
             Envio
             <BrazilianDateInput
               value={dataEnvio}
-              onChange={setDataEnvio}
-              className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+              onChange={() => undefined}
+              readOnly
+              className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-700"
             />
           </label>
           <label className="text-sm font-semibold text-slate-800">
@@ -557,13 +570,11 @@ export default function ComprasClient() {
           <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
             {!selectedSupplier
               ? "Selecione o fornecedor na lista de pedidos pendentes."
-              : !finalTitle.trim()
-                ? "Falta informar o título final do cartão."
+              : !orderNumber.trim()
+                ? "Falta informar o número do pedido."
                 : !unit
                   ? "Falta escolher a unidade."
-                  : !dataEnvio
-                    ? "Falta informar a data de envio."
-                    : "Falta informar a previsão de entrega."}
+                  : "Falta informar a previsão de entrega."}
           </p>
         )}
 

@@ -596,6 +596,7 @@ function resetForm() {
   document.getElementById('cepMsg').textContent = '';
   document.getElementById('f-endereco').value = '';
   document.getElementById('f-numero').value = '';
+  document.getElementById('f-bairro').value = '';
   document.getElementById('f-complemento').value = '';
   document.getElementById('f-vendedor').value = '';
   document.getElementById('f-clienteFornecedor').value = '';
@@ -620,8 +621,10 @@ function preencherCampos(viagem) {
   document.getElementById('f-tipoHorario').value = viagem.tipoHorario;
   document.getElementById('f-horario').value = viagem.horario;
   document.getElementById('f-horarioFim').value = viagem.horarioFim || '';
-  document.getElementById('f-endereco').value = viagem.endereco;
+  const enderecoSeparado = separarEnderecoBairro(viagem.endereco || '', viagem.bairro || '');
+  document.getElementById('f-endereco').value = enderecoSeparado.endereco;
   document.getElementById('f-numero').value = viagem.numero;
+  document.getElementById('f-bairro').value = enderecoSeparado.bairro;
   document.getElementById('f-complemento').value = viagem.complemento;
   document.getElementById('f-vendedor').value = viagem.vendedor || '';
   document.getElementById('f-clienteFornecedor').value = viagem.clienteFornecedor;
@@ -747,8 +750,12 @@ async function salvarViagem() {
     tipoHorario,
     horario: document.getElementById('f-horario').value.trim(),
     horarioFim: document.getElementById('f-horarioFim').value.trim(),
-    endereco: document.getElementById('f-endereco').value.trim(),
+    endereco: montarEnderecoCompleto(
+      document.getElementById('f-endereco').value.trim(),
+      document.getElementById('f-bairro').value.trim()
+    ),
     numero: document.getElementById('f-numero').value.trim(),
+    bairro: document.getElementById('f-bairro').value.trim(),
     complemento: document.getElementById('f-complemento').value.trim(),
     vendedor: document.getElementById('f-vendedor').value.trim(),
     clienteFornecedor: document.getElementById('f-clienteFornecedor').value.trim(),
@@ -792,32 +799,72 @@ async function salvarViagem() {
   }
 }
 
+function separarEnderecoBairro(enderecoCompleto, bairroSalvo) {
+  const endereco = String(enderecoCompleto || '').trim();
+  const bairro = String(bairroSalvo || '').trim();
+  if (bairro) return { endereco, bairro };
+
+  const partes = endereco.split(/\s+-\s+/).map((p) => p.trim()).filter(Boolean);
+  if (partes.length >= 3 && /\/[A-Z]{2}$/i.test(partes[partes.length - 1])) {
+    const bairroInferido = partes[partes.length - 2];
+    const enderecoSemBairro = [...partes.slice(0, -2), partes[partes.length - 1]].join(' - ');
+    return { endereco: enderecoSemBairro, bairro: bairroInferido };
+  }
+  return { endereco, bairro: '' };
+}
+
+function montarEnderecoCompleto(endereco, bairro) {
+  const enderecoLimpo = String(endereco || '').trim();
+  const bairroLimpo = String(bairro || '').trim();
+  if (!bairroLimpo) return enderecoLimpo;
+
+  const partes = enderecoLimpo.split(/\s+-\s+/).map((p) => p.trim()).filter(Boolean);
+  const ultima = partes[partes.length - 1] || '';
+  if (/\/[A-Z]{2}$/i.test(ultima)) {
+    return [...partes.slice(0, -1), bairroLimpo, ultima].join(' - ');
+  }
+  return [enderecoLimpo, bairroLimpo].filter(Boolean).join(' - ');
+}
+
 async function buscarCep() {
   const cepInput = document.getElementById('f-cep');
   const msgEl = document.getElementById('cepMsg');
+  const botao = document.getElementById('btnBuscarCep');
   const cep = cepInput.value.replace(/\D/g, '');
   if (cep.length !== 8) {
     msgEl.textContent = 'Digite um CEP válido (8 dígitos).';
     msgEl.className = 'cep-msg err';
     return;
   }
+
   msgEl.textContent = 'Buscando...';
   msgEl.className = 'cep-msg';
+  botao.disabled = true;
   try {
-    const resp = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+    const resp = await fetch(`/api/cep?cep=${encodeURIComponent(cep)}`, {
+      method: 'GET',
+      cache: 'no-store',
+      credentials: 'same-origin'
+    });
     const data = await resp.json();
-    if (data.erro) {
-      msgEl.textContent = 'CEP não encontrado.';
+    if (!resp.ok || !data || data.ok !== true) {
+      msgEl.textContent = (data && data.erro) || 'CEP não encontrado.';
       msgEl.className = 'cep-msg err';
       return;
     }
-    const endereco = [data.logradouro, data.bairro, `${data.localidade}/${data.uf}`].filter(Boolean).join(' - ');
-    document.getElementById('f-endereco').value = endereco;
-    msgEl.textContent = 'Endereço preenchido. Complete com número/complemento se precisar.';
+
+    const resultado = data.endereco || {};
+    const cidadeUf = [resultado.cidade, resultado.uf].filter(Boolean).join('/');
+    document.getElementById('f-endereco').value = [resultado.logradouro, cidadeUf].filter(Boolean).join(' - ');
+    document.getElementById('f-bairro').value = resultado.bairro || '';
+    cepInput.value = cep.replace(/^(\d{5})(\d{3})$/, '$1-$2');
+    msgEl.textContent = 'Endereço e bairro preenchidos. Complete o número.';
     msgEl.className = 'cep-msg ok';
   } catch (e) {
-    msgEl.textContent = 'Não foi possível buscar o CEP agora.';
+    msgEl.textContent = 'Não foi possível buscar o CEP agora. Tente novamente.';
     msgEl.className = 'cep-msg err';
+  } finally {
+    botao.disabled = false;
   }
 }
 

@@ -46,6 +46,7 @@ export default function DashboardOverviewClient({modules,motoristaControle,espac
  if(allowed.has("estoque"))quick.push(["Estoque","/dashboard/estoque","◇",s.solicitacoes]);
  if(allowed.has("conferencia"))quick.push(["Conferência","/dashboard/conferencia-pedidos","▤",null]);
  if(espacoEquipeControle)quick.push(["Espaço Equipe","/espaco-equipe","👥",s.equipe]);
+ if(allowed.has("leads"))quick.push(["Leads","/dashboard/leads","🎯",s.leads]);
  return <div className="space-y-6">
   <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
    <div className={card}><p className="font-semibold text-slate-800">Pendências urgentes</p><p className="mt-3 text-3xl font-bold text-red-600">{metric(urgent)}</p><p className="mt-3 text-xs text-slate-500">Itens que precisam de ação</p></div>

@@ -43,6 +43,7 @@ type FormState = {
   cep: string;
   endereco: string;
   numeroEndereco: string;
+  bairro: string;
   linkEndereco: string;
   observacao: string;
   preenchidoPor: string;
@@ -116,6 +117,7 @@ function emptyForm(data = localDateString()): FormState {
     cep: "",
     endereco: "",
     numeroEndereco: "",
+    bairro: "",
     linkEndereco: "",
     observacao: "",
     preenchidoPor: "",
@@ -127,6 +129,13 @@ function formFromViagem(v: Viagem): FormState {
   const bloqueio = v.tipoHorario === "Bloqueio";
   const enderecoCompleto = [v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ");
   const match = enderecoCompleto.match(/\nLink:\s*(https?:\/\/\S+)/i);
+  const enderecoSemLink = enderecoCompleto.replace(/\nLink:\s*https?:\/\/\S+/i, "").trim();
+  const partesEndereco = enderecoSemLink.split(/\s+-\s+/).map((parte) => parte.trim()).filter(Boolean);
+  const temCidadeUf = partesEndereco.length >= 3 && /\/[A-Z]{2}$/i.test(partesEndereco[partesEndereco.length - 1]);
+  const bairro = temCidadeUf ? partesEndereco[partesEndereco.length - 2] : "";
+  const enderecoEditavel = temCidadeUf
+    ? [...partesEndereco.slice(0, -2), partesEndereco[partesEndereco.length - 1]].join(" - ")
+    : enderecoSemLink;
   const volumeInfo = separarVolume(v.volumes);
   return {
     loja: v.loja || "",
@@ -143,8 +152,9 @@ function formFromViagem(v: Viagem): FormState {
     contatoNome: v.contatoNome || "",
     contatoWhats: v.contatoWhats || "",
     cep: "",
-    endereco: enderecoCompleto.replace(/\nLink:\s*https?:\/\/\S+/i, "").trim(),
+    endereco: enderecoEditavel,
     numeroEndereco: v.numero || "",
+    bairro,
     linkEndereco: match?.[1] || "",
     observacao: v.info || "",
     preenchidoPor: v.preenchidoPor || "",
@@ -175,6 +185,17 @@ function separarEndereco(endereco?: string) {
     texto: valor.replace(/\nLink:\s*https?:\/\/\S+/i, "").trim(),
     link: match?.[1] || "",
   };
+}
+
+function montarEnderecoComBairro(endereco: string, bairro: string) {
+  const enderecoLimpo = endereco.trim();
+  const bairroLimpo = bairro.trim();
+  if (!bairroLimpo) return enderecoLimpo;
+  const partes = enderecoLimpo.split(/\s+-\s+/).map((parte) => parte.trim()).filter(Boolean);
+  const ultima = partes[partes.length - 1] || "";
+  return /\/[A-Z]{2}$/i.test(ultima)
+    ? [...partes.slice(0, -1), bairroLimpo, ultima].join(" - ")
+    : [enderecoLimpo, bairroLimpo].filter(Boolean).join(" - ");
 }
 
 function escaparRegex(valor: string) {
@@ -406,16 +427,20 @@ export default function MotoristaAgenda() {
     }
     setErro("");
     try {
-      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const response = await fetch(`/api/cep?cep=${encodeURIComponent(cep)}`, {
+        cache: "no-store",
+        credentials: "same-origin",
+      });
       const data = await response.json();
-      if (!response.ok || data.erro) throw new Error("CEP não encontrado.");
-      const endereco = [data.logradouro, data.bairro, [data.localidade, data.uf].filter(Boolean).join("/")].filter(Boolean).join(" - ");
-      const linkMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(endereco)}`;
+      if (!response.ok || !data?.ok) throw new Error(data?.erro || "CEP não encontrado.");
+      const resultado = data.endereco || {};
+      const cidadeUf = [resultado.cidade, resultado.uf].filter(Boolean).join("/");
+      const endereco = [resultado.logradouro, cidadeUf].filter(Boolean).join(" - ");
       set("endereco", endereco);
+      set("bairro", resultado.bairro || "");
       set("numeroEndereco", "");
       set("linkEndereco", "");
       setErro("CEP localizado. Confirme o número do endereço para gerar o link do Google Maps.");
-      set("linkEndereco", linkMaps);
     } catch (e) {
       setErro(e instanceof Error ? e.message : "Não foi possível buscar o CEP.");
     }
@@ -440,9 +465,10 @@ export default function MotoristaAgenda() {
     setSaving(true);
     setErro("");
     try {
-      const enderecoCompleto = [form.endereco, form.numeroEndereco].filter(Boolean).join(", ");
+      const enderecoComBairro = montarEnderecoComBairro(form.endereco, form.bairro);
+      const enderecoCompleto = [enderecoComBairro, form.numeroEndereco].filter(Boolean).join(", ");
       const linkMaps = form.linkEndereco || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoCompleto)}`;
-      const detalhesEndereco = `${form.endereco}\nLink: ${linkMaps}`;
+      const detalhesEndereco = `${enderecoComBairro}\nLink: ${linkMaps}`;
       const payload = new URLSearchParams({
         action: editandoId ? "atualizar" : "criar",
         ...(editandoId ? { id: editandoId } : {}),
@@ -484,7 +510,7 @@ export default function MotoristaAgenda() {
   }
 
   async function concluirViagem(v: Viagem) {
-    if (v.tipoHorario === "Bloqueio" || lerConclusao(v.notasJson) || lerRetirada(v.notasJson)) return;
+    if (lerConclusao(v.notasJson) || lerRetirada(v.notasJson)) return;
     const observacao = window.prompt("Observação da conclusão (opcional):", "");
     if (observacao === null) return;
     setSaving(true);
@@ -510,7 +536,7 @@ export default function MotoristaAgenda() {
   }
 
   async function retirarViagem(v: Viagem) {
-    if (v.tipoHorario === "Bloqueio" || lerRetirada(v.notasJson)) return;
+    if (lerRetirada(v.notasJson)) return;
     if (!window.confirm("Marcar esta viagem como retirada?")) return;
     setSaving(true);
     setErro("");
@@ -657,10 +683,10 @@ export default function MotoristaAgenda() {
                         {v.info && <p className="mt-2 text-sm text-slate-600">Observação: {v.info}</p>}
                         {v.preenchidoPor && <p className="mt-2 text-xs text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
                         <div className="mt-2 flex flex-wrap gap-2">
-                          {v.tipoHorario !== "Bloqueio" && (lerRetirada(v.notasJson) ? <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">Retirado</span> : <>
+                          {lerRetirada(v.notasJson) ? <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">Retirado</span> : <>
                             {lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">Concluído</span> : <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">Concluir</button>}
                             <button type="button" disabled={saving} onClick={() => void retirarViagem(v)} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">Retirado</button>
-                          </>)}
+                          </>}
                           <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50">Editar</button>
                           <button type="button" disabled={saving} onClick={() => void excluirViagem(v)} className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">Excluir</button>
                         </div>
@@ -689,10 +715,10 @@ export default function MotoristaAgenda() {
                     {v.preenchidoPor && <p className="mt-3 font-[Arial] text-[10pt] text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {v.tipoHorario !== "Bloqueio" && (lerRetirada(v.notasJson) ? <span className="rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-800">Retirado</span> : <>
+                    {lerRetirada(v.notasJson) ? <span className="rounded-lg bg-amber-100 px-3 py-2 text-sm font-semibold text-amber-800">Retirado</span> : <>
                       {lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-2 text-sm font-semibold text-emerald-800">Concluído</span> : <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Concluir</button>}
                       <button type="button" disabled={saving} onClick={() => void retirarViagem(v)} className="rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Retirado</button>
-                    </>)}
+                    </>}
                     <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50">Editar</button>
                     <button type="button" disabled={saving} onClick={() => void excluirViagem(v)} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">Excluir</button>
                   </div>
@@ -747,7 +773,8 @@ export default function MotoristaAgenda() {
 
             <div className="mt-4 grid gap-4">
               <div className="grid gap-2 sm:grid-cols-[220px_auto] sm:items-end"><label className="text-sm font-medium text-slate-700">CEP<input value={form.cep} onChange={(e) => set("cep", formatarCep(e.target.value))} inputMode="numeric" placeholder="00000-000" className={fieldClass("cep")} /></label><button type="button" onClick={buscarCep} className="h-[42px] rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">Buscar CEP</button></div>
-              <div className="grid gap-4 sm:grid-cols-[1fr_180px]"><label className="text-sm font-medium text-slate-700">* Endereço<input value={form.endereco} onChange={(e) => set("endereco", e.target.value)} className={fieldClass("endereco")} /></label><label className="text-sm font-medium text-slate-700">* Número<input value={form.numeroEndereco} onChange={(e) => { const numero = e.target.value; set("numeroEndereco", numero); const destino = [form.endereco, numero].filter(Boolean).join(", "); set("linkEndereco", destino ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destino)}` : ""); }} placeholder="Confirme o número" className={fieldClass("numeroEndereco")} /></label></div>
+              <label className="text-sm font-medium text-slate-700">* Endereço<input value={form.endereco} onChange={(e) => set("endereco", e.target.value)} className={fieldClass("endereco")} /></label>
+              <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">* Número<input value={form.numeroEndereco} onChange={(e) => { const numero = e.target.value; set("numeroEndereco", numero); const destino = [montarEnderecoComBairro(form.endereco, form.bairro), numero].filter(Boolean).join(", "); set("linkEndereco", destino ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(destino)}` : ""); }} placeholder="Confirme o número" className={fieldClass("numeroEndereco")} /></label><label className="text-sm font-medium text-slate-700">Bairro<input value={form.bairro} onChange={(e) => set("bairro", e.target.value)} placeholder="Preenchido pelo CEP" className={fieldClass("bairro")} /></label></div>
               <label className="text-sm font-medium text-slate-700">Link endereço<input type="url" value={form.linkEndereco} onChange={(e) => set("linkEndereco", e.target.value)} placeholder="Gerado após informar o número" className={fieldClass("linkEndereco")} /></label>
               <label className="text-sm font-medium text-slate-700">Observação<textarea value={form.observacao} onChange={(e) => set("observacao", e.target.value)} rows={3} className={fieldClass("observacao")} /></label>
               <label className="text-sm font-medium text-slate-700">* Preenchido por<select value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} className={fieldClass("preenchidoPor")}><option value="">Selecione</option>{form.preenchidoPor && !AUTORIZADOS.includes(form.preenchidoPor as (typeof AUTORIZADOS)[number]) && <option value={form.preenchidoPor}>{form.preenchidoPor}</option>}{AUTORIZADOS.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>

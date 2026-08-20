@@ -442,7 +442,7 @@ export default function ComprasClient() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Itens filtrados</p>
             <h2 className="mt-2 text-xl font-semibold text-slate-950">
-              Total: {items.length} itens · Pedido: {company}
+              Total: {items.length} itens
             </h2>
             <p className="mt-1 text-sm text-slate-500">Confira e ajuste manualmente quando necessário.</p>
           </div>

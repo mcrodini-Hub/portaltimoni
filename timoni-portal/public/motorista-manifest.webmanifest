@@ -1,0 +1,22 @@
+{
+  "name": "Motorista Timoni",
+  "short_name": "Motorista",
+  "description": "Acesso do motorista da Casa Timoni",
+  "start_url": "/motorista",
+  "scope": "/motorista",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#17179b",
+  "icons": [
+    {
+      "src": "/icons/motorista-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/motorista-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -7,6 +7,19 @@ export const metadata: Metadata = {
     template: "%s | Portal Timoni",
   },
   description: "Central de gestão da Casa Timoni",
+  manifest: "/manifest.webmanifest",
+  icons: {
+    icon: [
+      { url: "/icons/portal-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icons/portal-512.png", sizes: "512x512", type: "image/png" },
+    ],
+    apple: "/icons/portal-apple-touch.png",
+  },
+  appleWebApp: {
+    capable: true,
+    title: "Portal Timoni",
+    statusBarStyle: "default",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

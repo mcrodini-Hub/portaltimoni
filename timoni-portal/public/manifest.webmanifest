@@ -1,0 +1,22 @@
+{
+  "name": "Portal Timoni",
+  "short_name": "Portal Timoni",
+  "description": "Central de gestão da Casa Timoni",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#17179b",
+  "icons": [
+    {
+      "src": "/icons/portal-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/portal-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 
 type ModuleItem = { module: string; name: string; href: string; icon: string; accent: string };
-type Props = { modules: ModuleItem[]; motoristaControle: boolean; espacoEquipeControle: boolean };
+type Props = { modules: ModuleItem[]; motoristaControle: boolean; espacoEquipeControle: boolean; showSummaryCards: boolean };
 type NotificationItem = { type?: string };
 type StockOrder = { situacao?: string };
 type MeetingItem = { status?: string; date?: string; secondDate?: string };
@@ -15,7 +15,7 @@ const metric=(v:number|null)=>v===null?"—":String(v);
 const localDate=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`};
 const card="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md";
 
-export default function DashboardOverviewClient({modules,motoristaControle,espacoEquipeControle}:Props){
+export default function DashboardOverviewClient({modules,motoristaControle,espacoEquipeControle,showSummaryCards}:Props){
  const [s,setS]=useState<Snapshot>(empty); const allowed=useMemo(()=>new Set(modules.map(x=>x.module)),[modules]);
  useEffect(()=>{let off=false; async function load(){const start=new Date();start.setHours(0,0,0,0);const end=new Date(start);end.setDate(end.getDate()+7);end.setHours(23,59,59,999);const today=localDate();const reqs=[
   allowed.has("compras")?fetch("/api/compras",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()):null,
@@ -48,12 +48,12 @@ export default function DashboardOverviewClient({modules,motoristaControle,espac
  if(espacoEquipeControle)quick.push(["Espaço Equipe","/espaco-equipe","👥",s.equipe]);
  if(allowed.has("leads"))quick.push(["Leads","/dashboard/leads","🎯",s.leads]);
  return <div className="space-y-6">
-  <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+  {showSummaryCards&&<section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
    <div className={card}><p className="font-semibold text-slate-800">Pendências urgentes</p><p className="mt-3 text-3xl font-bold text-red-600">{metric(urgent)}</p><p className="mt-3 text-xs text-slate-500">Itens que precisam de ação</p></div>
    <Link href="/agenda" className={card}><p className="font-semibold text-slate-800">Compromissos próximos</p><p className="mt-3 text-3xl font-bold text-amber-500">{metric(s.agenda)}</p><p className="mt-3 text-xs text-slate-500">Ver agenda →</p></Link>
    <Link href={motoristaControle?"/dashboard/motorista":"/dashboard/motorista-leitura"} className={card}><p className="font-semibold text-slate-800">Viagens hoje</p><p className="mt-3 text-3xl font-bold text-emerald-600">{metric(s.motorista)}</p><p className="mt-3 text-xs text-slate-500">Ver motorista →</p></Link>
    <Link href="/dashboard/estoque" className={card}><p className="font-semibold text-slate-800">Pedidos a caminho</p><p className="mt-3 text-3xl font-bold text-blue-600">{metric(s.estoque)}</p><p className="mt-3 text-xs text-slate-500">Ver estoque →</p></Link>
-  </section>
+  </section>}
   <section><h2 className="mb-3 text-sm font-semibold text-slate-800">Acesso rápido aos módulos</h2><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">{quick.map(([name,href,icon,count])=><Link key={name} href={href} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:shadow-md"><span className="text-lg">{icon}</span><span className="flex-1 text-sm font-semibold text-slate-800">{name}</span>{count!==null&&count!==undefined&&<span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">{metric(count)}</span>}<span className="text-slate-400">›</span></Link>)}</div></section>
   {allowed.has("leads")&&<section><h2 className="mb-3 text-sm font-semibold text-slate-700">O que precisa da sua atenção agora.</h2><Link href="/dashboard/leads" className="block rounded-2xl border border-red-200 bg-red-50 p-5"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="font-bold uppercase text-red-700">Leads · Follow-up</p><p className="mt-2 text-sm font-semibold text-slate-800">{metric(s.leadsAtrasados)} contatos atrasados &nbsp; | &nbsp; {metric(s.leadsHoje)} contatos para hoje</p></div><span className="rounded-full bg-red-500 px-3 py-1 text-sm font-bold text-white">{metric(s.leads)}</span></div></Link></section>}
   <p className="text-right text-xs text-slate-400">Atualização automática a cada minuto</p>

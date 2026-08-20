@@ -44,9 +44,15 @@ const COLLABORATOR_MOTORISTA_CONTROL_EMAILS = new Set([
   "comercialrc@casatimoni.com.br",
   "reginaldo@casatimoni.com.br",
 ]);
+const LEADS_COLLABORATOR_EMAILS = new Set([
+  "marketplacerc.mcr@gmail.com",
+  "comercialrc@casatimoni.com.br",
+  "comercialara@casatimoni.com.br",
+]);
 
 function operationalUser(name: string, email: string): PortalUser {
-  return { name, email, modules: operationalModules, requiresPassword: false, readOnly: !COLLABORATOR_MOTORISTA_CONTROL_EMAILS.has(email) };
+  const modules = LEADS_COLLABORATOR_EMAILS.has(email) ? [...operationalModules, "leads" as PortalModule] : operationalModules;
+  return { name, email, modules, requiresPassword: false, readOnly: !COLLABORATOR_MOTORISTA_CONTROL_EMAILS.has(email) };
 }
 
 export const portalUsers: Record<string, PortalUser> = {

@@ -36,6 +36,20 @@ function addDays(dateValue: string, days: number) {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+function daysBetween(startValue: string, endValue: string) {
+  const [startYear, startMonth, startDay] = startValue.slice(0, 10).split("-").map(Number);
+  const [endYear, endMonth, endDay] = endValue.slice(0, 10).split("-").map(Number);
+  return Math.round(
+    (Date.UTC(endYear, endMonth - 1, endDay) - Date.UTC(startYear, startMonth - 1, startDay)) /
+      (24 * 60 * 60 * 1000)
+  );
+}
+
+function allDayDisplayEnd(startValue: string, googleEndValue: string) {
+  const inclusiveEnd = addDays(toDateLocal(googleEndValue), -1);
+  return inclusiveEnd >= startValue ? inclusiveEnd : startValue;
+}
+
 function defaultTimes() {
   const start = new Date();
   start.setMinutes(0, 0, 0);
@@ -68,16 +82,20 @@ export function EventForm({
   const isEditing = !!event;
   const defaults = defaultTimes();
   const initialAllDay = Boolean(event?.allDay || (event?.start && isDateOnly(event.start)));
+  const initialStart = event
+    ? (initialAllDay ? toDateLocal(event.start) : toDatetimeLocal(event.start))
+    : defaults.start;
+  const initialEnd = event
+    ? (initialAllDay
+        ? allDayDisplayEnd(initialStart, event.end)
+        : toDatetimeLocal(event.end))
+    : defaults.end;
   const [summary, setSummary] = useState(event?.summary ?? "");
   const [location, setLocation] = useState(event?.location ?? "");
   const [description, setDescription] = useState(event?.description ?? "");
   const [allDay, setAllDay] = useState(initialAllDay);
-  const [start, setStart] = useState(
-    event ? (initialAllDay ? toDateLocal(event.start) : toDatetimeLocal(event.start)) : defaults.start
-  );
-  const [end, setEnd] = useState(
-    event ? (initialAllDay ? toDateLocal(event.end) : toDatetimeLocal(event.end)) : defaults.end
-  );
+  const [start, setStart] = useState(initialStart);
+  const [end, setEnd] = useState(initialEnd);
   const [calendarKey, setCalendarKey] = useState<CalendarKey>(event?.calendarKey ?? "principal");
   const [recurrencePreset, setRecurrencePreset] = useState<RecurrencePreset>("none");
   const [customInterval, setCustomInterval] = useState(1);
@@ -89,13 +107,43 @@ export function EventForm({
   const isRecurringInstance = Boolean(event?.recurringEventId);
   const editingSeries = isEditing && isRecurringInstance && editScope === "series";
 
+  function handleStartChange(nextStart: string) {
+    if (!nextStart || !start || !end) {
+      setStart(nextStart);
+      return;
+    }
+
+    if (allDay) {
+      const durationDays = Math.max(0, daysBetween(start, end));
+      setStart(nextStart);
+      setEnd(addDays(nextStart, durationDays));
+      return;
+    }
+
+    const previousStartMs = new Date(start).getTime();
+    const previousEndMs = new Date(end).getTime();
+    const nextStartMs = new Date(nextStart).getTime();
+    if (
+      Number.isNaN(previousStartMs) ||
+      Number.isNaN(previousEndMs) ||
+      Number.isNaN(nextStartMs)
+    ) {
+      setStart(nextStart);
+      return;
+    }
+
+    const durationMs = Math.max(0, previousEndMs - previousStartMs);
+    setStart(nextStart);
+    setEnd(toDatetimeLocal(new Date(nextStartMs + durationMs).toISOString()));
+  }
+
   function handleAllDayChange(checked: boolean) {
     setAllDay(checked);
     if (checked) {
       const startDate = start.slice(0, 10);
       const endDate = end.slice(0, 10);
       setStart(startDate);
-      setEnd(endDate > startDate ? endDate : addDays(startDate, 1));
+      setEnd(endDate >= startDate ? endDate : startDate);
     } else {
       const startDate = start.slice(0, 10);
       const endDate = end.slice(0, 10);
@@ -116,9 +164,16 @@ export function EventForm({
       return;
     }
 
+    if (allDay && end < start) {
+      setError("O fim não pode ser antes do início.");
+      return;
+    }
+
     const startValue = allDay ? start : new Date(start).toISOString();
-    const endValue = allDay ? end : new Date(end).toISOString();
-    if (new Date(endValue) <= new Date(startValue)) {
+    // O Google Calendar trata o fim de eventos de dia inteiro como exclusivo.
+    // No formulário, o fim continua inclusivo para corresponder à data escolhida.
+    const endValue = allDay ? addDays(end, 1) : new Date(end).toISOString();
+    if (!allDay && new Date(endValue) <= new Date(startValue)) {
       setError("O fim deve ser depois do início.");
       return;
     }
@@ -222,9 +277,9 @@ export function EventForm({
           <div>
             <label className="block text-sm font-medium text-slate-700">Início</label>
             {allDay ? (
-              <BrazilianDateInput value={start} disabled={editingSeries} onChange={setStart} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500" />
+              <BrazilianDateInput value={start} disabled={editingSeries} onChange={handleStartChange} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500" />
             ) : (
-              <BrazilianDateTimeInput value={start} disabled={editingSeries} onChange={setStart} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500" />
+              <BrazilianDateTimeInput value={start} disabled={editingSeries} onChange={handleStartChange} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-500" />
             )}
           </div>
           <div>

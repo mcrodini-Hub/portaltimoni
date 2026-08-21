@@ -24,9 +24,7 @@ type Need = {
 type Product = { codigo: string; descricao: string; unidade: string };
 type Seller = { nome: string; unidade: string };
 type SentOrder = { id: string; nome: string; enviadoEm: string; previsaoEntrega: string; unidade: RequestUnit };
-type Counts = { emAberto: number; aguardandoCompra: number; aguardandoChegada: number; finalizadas: number };
-type Summary = { geral: Counts; porUnidade: { rio_claro: Counts; araras: Counts } };
-type Data = { ok: boolean; necessidades: Need[]; produtos: Product[]; vendedores: Seller[]; pedidosEnviados: SentOrder[]; summary: Summary; error?: string };
+type Data = { ok: boolean; necessidades: Need[]; produtos: Product[]; vendedores: Seller[]; pedidosEnviados: SentOrder[]; error?: string };
 
 type EstoqueClientProps = {
   isManager?: boolean;
@@ -35,14 +33,6 @@ type EstoqueClientProps = {
   allowedUnits?: RequestUnit[];
 };
 
-const empty: Counts = { emAberto: 0, aguardandoCompra: 0, aguardandoChegada: 0, finalizadas: 0 };
-const emptySummary: Summary = { geral: { ...empty }, porUnidade: { rio_claro: { ...empty }, araras: { ...empty } } };
-const cards: Array<[keyof Counts, string]> = [
-  ["emAberto", "Em aberto"],
-  ["aguardandoCompra", "Relação de compra"],
-  ["aguardandoChegada", "A caminho"],
-  ["finalizadas", "Finalizadas"],
-];
 const input = "rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm disabled:bg-slate-50 disabled:text-slate-500";
 const primary = "rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50";
 const secondary = "rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700";
@@ -135,7 +125,6 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
   const [products, setProducts] = useState<Product[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
   const [sentOrders, setSentOrders] = useState<SentOrder[]>([]);
-  const [summary, setSummary] = useState<Summary>(emptySummary);
   const [unit, setUnit] = useState<Unit>("todas");
   const [newUnit, setNewUnit] = useState<RequestUnit>(defaultUnit);
   const [seller, setSeller] = useState("");
@@ -180,7 +169,6 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
       setProducts(payload.produtos);
       setSellers(payload.vendedores);
       setSentOrders(payload.pedidosEnviados || []);
-      setSummary(payload.summary);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao carregar");
     } finally {
@@ -373,7 +361,6 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
   const purchaseNeeds = filtered.filter((need) => need.status === "em_compra");
   const onWay = filtered.filter((need) => need.status === "pedido_existente");
   const history = filtered.filter((need) => need.status === "chegou").slice(0, 50);
-  const trackingNeeds = [...openNeeds, ...purchaseNeeds, ...onWay];
   const codeResults = useMemo(() => (selected ? [] : findByCode(products, codeSearch)), [products, codeSearch, selected]);
   const descriptionResults = useMemo(() => (selected ? [] : findByDescription(products, descriptionSearch)), [products, descriptionSearch, selected]);
   const sellerOptions = sellers.filter((item) => !item.unidade || item.unidade === newUnit || item.unidade === "todas");
@@ -468,53 +455,49 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
     );
   }
 
-  function UnitSwitch() {
-    if (!isManager) return null;
-    return (
-      <section className="rounded-3xl border border-blue-100 bg-blue-50 p-4 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Visualização</p>
-            <h2 className="mt-1 text-lg font-semibold text-slate-950">Trocar tela da loja</h2>
-          </div>
-          <div className="flex rounded-xl bg-white p-1 shadow-sm">
-            {(["rio_claro", "araras", "todas"] as Unit[]).map((item) => (
-              <button key={item} onClick={() => setUnit(item)} className={`rounded-lg px-4 py-2 text-xs font-semibold ${unit === item ? "bg-blue-700 text-white" : "text-slate-600"}`}>
-                {item === "todas" ? "Todas" : unitLabel(item)}
-              </button>
-            ))}
-          </div>
-        </div>
-      </section>
-    );
-  }
-
   function NeedsSection() {
+    const statusSections = [
+      {
+        title: "Necessidades de compra — Em aberto",
+        items: openNeeds,
+        empty: "Nenhuma necessidade em aberto.",
+      },
+      {
+        title: "Relação de compra",
+        items: purchaseNeeds,
+        empty: "Nenhum produto na relação de compra.",
+      },
+      {
+        title: "A caminho",
+        items: onWay,
+        empty: "Nenhum produto a caminho.",
+      },
+      {
+        title: "Chegou",
+        items: history,
+        empty: "Nenhum produto recebido.",
+      },
+    ];
+
     return (
-      <section className="rounded-3xl border bg-white p-5 shadow-sm">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-xl font-semibold">Necessidades do estoque</h2>
-          {isManager && (
-            <div className="flex rounded-xl bg-slate-100 p-1">
-              {(["todas", "rio_claro", "araras"] as Unit[]).map((item) => <button key={item} onClick={() => setUnit(item)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${unit === item ? "bg-white shadow-sm" : "text-slate-500"}`}>{item === "todas" ? "Todas" : unitLabel(item)}</button>)}
+      <>
+        {statusSections.map(({ title, items, empty }, index) => (
+          <section key={title} className="rounded-3xl border bg-white p-5 shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <h2 className="text-xl font-semibold">{title}</h2>
+              {isManager && index === 0 && (
+                <div className="flex rounded-xl bg-slate-100 p-1">
+                  {(["todas", "rio_claro", "araras"] as Unit[]).map((item) => <button key={item} onClick={() => setUnit(item)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${unit === item ? "bg-white shadow-sm" : "text-slate-500"}`}>{item === "todas" ? "Todas" : unitLabel(item)}</button>)}
+                </div>
+              )}
             </div>
-          )}
-        </div>
-        <div className="mt-5 grid gap-5 xl:grid-cols-3">
-          <div>
-            <h3 className="font-semibold">Em aberto</h3>
-            <div className="mt-3 space-y-3">{openNeeds.map((need) => <NeedCard key={need.id} need={need} />)}{!loading && !openNeeds.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhuma necessidade em aberto.</p>}</div>
-          </div>
-          <div>
-            <h3 className="font-semibold">Relação de compra</h3>
-            <div className="mt-3 space-y-3">{purchaseNeeds.map((need) => <NeedCard key={need.id} need={need} />)}{!loading && !purchaseNeeds.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhum produto na relação de compra.</p>}</div>
-          </div>
-          <div>
-            <h3 className="font-semibold">A caminho</h3>
-            <div className="mt-3 space-y-3">{onWay.map((need) => <NeedCard key={need.id} need={need} />)}{!loading && !onWay.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhum produto a caminho.</p>}</div>
-          </div>
-        </div>
-      </section>
+            <div className="mt-4 grid gap-3 lg:grid-cols-2">
+              {items.map((need) => <NeedCard key={need.id} need={need} />)}
+              {!loading && !items.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500 lg:col-span-2">{empty}</p>}
+            </div>
+          </section>
+        ))}
+      </>
     );
   }
 
@@ -585,18 +568,8 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
       ) : (
         <div className="mt-5 space-y-5">
           {RequestForm()}
-          {UnitSwitch()}
           {NeedsSection()}
           {SentOrdersSection()}
-
-          <section className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-            {cards.map(([key, title]) => <article key={key} className="rounded-2xl border bg-white p-4 shadow-sm"><p className="text-3xl font-semibold">{loading ? "—" : summary.geral[key]}</p><p className="mt-2 text-sm text-slate-500">{title}</p></article>)}
-          </section>
-
-          <section className="rounded-3xl border bg-white p-5 shadow-sm">
-            <h2 className="text-xl font-semibold">Finalizadas</h2>
-            <div className="mt-3 space-y-3">{history.map((need) => <NeedCard key={need.id} need={need} />)}{!loading && !history.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500">Nenhum registro finalizado.</p>}</div>
-          </section>
         </div>
       )}
     </div>

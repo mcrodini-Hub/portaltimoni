@@ -587,12 +587,11 @@ export default function MotoristaAgenda() {
 
   function imprimirDia() {
     const itens = (viagens[selecionado] || [])
-      .filter((v) => v.tipoHorario !== "Bloqueio")
       .slice()
       .sort((a, b) => (a.horario || "").localeCompare(b.horario || ""));
 
     if (!itens.length) {
-      setErro("Não há entregas ou retiradas neste dia para imprimir.");
+      setErro("Não há registros neste dia para imprimir.");
       return;
     }
 

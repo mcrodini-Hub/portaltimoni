@@ -26,9 +26,8 @@ export default async function DashboardPage() {
   const normalizedEmail = email.trim().toLowerCase();
   const visible = modules.filter((item) => hasModuleAccess(email, item.module));
   return <div className="pb-4">
-    <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
+    <header className="mb-6">
       <div><h1 className="text-2xl font-semibold tracking-tight text-slate-950">Painel de Controle</h1><p className="mt-1 text-sm text-slate-600">Visão geral do que está acontecendo na Casa Timoni.</p></div>
-      <div className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-right text-xs text-slate-600 shadow-sm">19 de agosto de 2026<br/><span className="font-medium">Atualização automática</span></div>
     </header>
     <DashboardOverviewClient
       modules={visible}

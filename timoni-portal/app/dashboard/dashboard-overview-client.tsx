@@ -39,13 +39,11 @@ export default function DashboardOverviewClient({modules,motoristaControle,espac
  } void load();const id=setInterval(load,60000);return()=>{off=true;clearInterval(id)}},[allowed,espacoEquipeControle]);
  const urgent=[s.urgentes,s.solicitacoes,s.equipe,s.leadsAtrasados].every(v=>v!==null)?(s.urgentes??0)+(s.solicitacoes??0)+(s.equipe??0)+(s.leadsAtrasados??0):null;
  const quick: QuickItem[]=[];
- if(allowed.has("agenda"))quick.push(["Agenda","/agenda","▣",null]);
- if(allowed.has("reunioes"))quick.push(["Reuniões","/dashboard/reunioes","👥",s.reunioes]);
- if(allowed.has("motorista"))quick.push(["Motorista",motoristaControle?"/dashboard/motorista":"/dashboard/motorista-leitura","▣",s.motorista]);
  if(allowed.has("compras"))quick.push(["Compras","/dashboard/compras","🛒",s.compras]);
+ if(allowed.has("motorista"))quick.push(["Motorista",motoristaControle?"/dashboard/motorista":"/dashboard/motorista-leitura","▣",s.motorista]);
+ if(allowed.has("agenda"))quick.push(["Agenda","/agenda","▣",null]);
+ if(allowed.has("leads"))quick.push(["Leads","/dashboard/leads","🎯",s.leads]);
  if(allowed.has("estoque"))quick.push(["Estoque","/dashboard/estoque","◇",s.solicitacoes]);
- if(allowed.has("conferencia"))quick.push(["Conferência","/dashboard/conferencia-pedidos","▤",null]);
- if(espacoEquipeControle)quick.push(["Espaço Equipe","/espaco-equipe","👥",s.equipe]);
  return <div className="space-y-6">
   {showSummaryCards&&<section className="grid gap-4 sm:grid-cols-3">
    <div className={card}><p className="font-semibold text-slate-800">Pendências urgentes</p><p className="mt-3 text-3xl font-bold text-red-600">{metric(urgent)}</p><p className="mt-3 text-xs text-slate-500">Itens que precisam de ação</p></div>

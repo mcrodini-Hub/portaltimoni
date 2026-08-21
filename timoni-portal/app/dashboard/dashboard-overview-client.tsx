@@ -13,9 +13,8 @@ type Snapshot = { compras:number|null; urgentes:number|null; estoque:number|null
 const empty: Snapshot = { compras:null, urgentes:null, estoque:null, solicitacoes:null, agenda:null, motorista:null, equipe:null, leads:null, leadsAtrasados:null, leadsHoje:null, reunioes:null };
 const metric=(v:number|null)=>v===null?"—":String(v);
 const localDate=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`};
-const card="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md";
 
-export default function DashboardOverviewClient({modules,motoristaControle,espacoEquipeControle,showSummaryCards}:Props){
+export default function DashboardOverviewClient({modules,motoristaControle,espacoEquipeControle}:Props){
  const [s,setS]=useState<Snapshot>(empty); const allowed=useMemo(()=>new Set(modules.map(x=>x.module)),[modules]);
  useEffect(()=>{let off=false; async function load(){const start=new Date();start.setHours(0,0,0,0);const end=new Date(start);end.setDate(end.getDate()+7);end.setHours(23,59,59,999);const today=localDate();const reqs=[
   allowed.has("compras")?fetch("/api/compras",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()):null,
@@ -37,21 +36,11 @@ export default function DashboardOverviewClient({modules,motoristaControle,espac
   if(a[7].status==="fulfilled"&&a[7].value){const items=a[7].value.items??[];n.reunioes=items.filter((x: MeetingItem)=>x.status!=="concluida").reduce((total:number,x: MeetingItem)=>total+(x.date&&x.date>=today?1:0)+(x.secondDate&&x.secondDate>=today?1:0),0)}
   setS(n);
  } void load();const id=setInterval(load,60000);return()=>{off=true;clearInterval(id)}},[allowed,espacoEquipeControle]);
- const urgent=[s.urgentes,s.solicitacoes,s.equipe,s.leadsAtrasados].every(v=>v!==null)?(s.urgentes??0)+(s.solicitacoes??0)+(s.equipe??0)+(s.leadsAtrasados??0):null;
  const quick: QuickItem[]=[];
  if(allowed.has("compras"))quick.push(["Compras","/dashboard/compras","🛒",s.compras]);
  if(allowed.has("motorista"))quick.push(["Motorista",motoristaControle?"/dashboard/motorista":"/dashboard/motorista-leitura","▣",s.motorista]);
- if(allowed.has("agenda"))quick.push(["Agenda","/agenda","▣",null]);
+ if(allowed.has("agenda"))quick.push(["Agenda","/agenda","▣",s.agenda]);
  if(allowed.has("leads"))quick.push(["Leads","/dashboard/leads","🎯",s.leads]);
  if(allowed.has("estoque"))quick.push(["Estoque","/dashboard/estoque","◇",s.solicitacoes]);
- return <div className="space-y-6">
-  {showSummaryCards&&<section className="grid gap-4 sm:grid-cols-3">
-   <div className={card}><p className="font-semibold text-slate-800">Pendências urgentes</p><p className="mt-3 text-3xl font-bold text-red-600">{metric(urgent)}</p><p className="mt-3 text-xs text-slate-500">Itens que precisam de ação</p></div>
-   <Link href="/agenda" className={card}><p className="font-semibold text-slate-800">Compromissos próximos</p><p className="mt-3 text-3xl font-bold text-amber-500">{metric(s.agenda)}</p><p className="mt-3 text-xs text-slate-500">Ver agenda →</p></Link>
-   <Link href={motoristaControle?"/dashboard/motorista":"/dashboard/motorista-leitura"} className={card}><p className="font-semibold text-slate-800">Viagens hoje</p><p className="mt-3 text-3xl font-bold text-emerald-600">{metric(s.motorista)}</p><p className="mt-3 text-xs text-slate-500">Ver motorista →</p></Link>
-  </section>}
-  <section><h2 className="mb-3 text-sm font-semibold text-slate-800">Acesso rápido aos módulos</h2><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">{quick.map(([name,href,icon,count])=><Link key={name} href={href} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm transition hover:shadow-md"><span className="text-lg">{icon}</span><span className="flex-1 text-sm font-semibold text-slate-800">{name}</span>{count!==null&&count!==undefined&&<span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">{metric(count)}</span>}<span className="text-slate-400">›</span></Link>)}</div></section>
-  {allowed.has("leads")&&<section><h2 className="mb-3 text-sm font-semibold text-slate-700">O que precisa da sua atenção agora.</h2><Link href="/dashboard/leads" className="block rounded-2xl border border-red-200 bg-red-50 p-5"><div className="flex flex-wrap items-center justify-between gap-4"><div><p className="font-bold uppercase text-red-700">Leads · Follow-up</p><p className="mt-2 text-sm font-semibold text-slate-800">{metric(s.leadsAtrasados)} contatos atrasados &nbsp; | &nbsp; {metric(s.leadsHoje)} contatos para hoje</p></div><span className="rounded-full bg-red-500 px-3 py-1 text-sm font-bold text-white">{metric(s.leads)}</span></div></Link></section>}
-  <p className="text-right text-xs text-slate-400">Atualização automática a cada minuto</p>
- </div>
+ return <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">{quick.map(([name,href,icon,count])=><Link key={name} href={href} className="flex items-center gap-3 rounded-xl border border-slate-200 bg-white px-4 py-4 shadow-sm transition hover:shadow-md"><span className="text-lg">{icon}</span><span className="flex-1 text-sm font-semibold text-slate-800">{name}</span>{count!==null&&count!==undefined&&<span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">{metric(count)}</span>}<span className="text-slate-400">›</span></Link>)}</div>
 }

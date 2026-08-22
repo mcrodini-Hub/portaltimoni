@@ -31,27 +31,68 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
-export default function ComunicadosFeed({ store }: { store: PanelStore }) {
+export default function ComunicadosFeed({ store, isAdmin = false }: { store: PanelStore; isAdmin?: boolean }) {
   const [items, setItems] = useState<Comunicado[]>([]);
+  const [error, setError] = useState("");
+  const [busyId, setBusyId] = useState("");
+
+  async function load() {
+    try {
+      const response = await fetch("/api/comunicados", { cache: "no-store" });
+      const data = await response.json();
+      setItems(response.ok ? ((data.items || []) as Comunicado[]) : []);
+    } catch {
+      setItems([]);
+    }
+  }
 
   useEffect(() => {
-    let active = true;
-    fetch("/api/comunicados", { cache: "no-store" })
-      .then(async (response) => {
-        const data = await response.json();
-        if (!response.ok) return [];
-        return (data.items || []) as Comunicado[];
-      })
-      .then((data) => {
-        if (active) setItems(data);
-      })
-      .catch(() => {
-        if (active) setItems([]);
-      });
+    load();
+    const refresh = () => load();
+    window.addEventListener("comunicados:changed", refresh);
     return () => {
-      active = false;
+      window.removeEventListener("comunicados:changed", refresh);
     };
   }, []);
+
+  async function archive(id: string) {
+    setBusyId(id);
+    setError("");
+    try {
+      const response = await fetch("/api/comunicados", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, action: "archive" }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || "Não foi possível concluir.");
+      window.dispatchEvent(new Event("comunicados:changed"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível concluir.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function remove(id: string) {
+    if (!window.confirm("Excluir este comunicado definitivamente?")) return;
+    setBusyId(id);
+    setError("");
+    try {
+      const response = await fetch("/api/comunicados", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || "Não foi possível excluir.");
+      window.dispatchEvent(new Event("comunicados:changed"));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Não foi possível excluir.");
+    } finally {
+      setBusyId("");
+    }
+  }
 
   const visible = useMemo(
     () =>
@@ -69,6 +110,7 @@ export default function ComunicadosFeed({ store }: { store: PanelStore }) {
 
   return (
     <section className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      {error && <p className="text-sm font-medium text-red-700 md:col-span-2 xl:col-span-4">{error}</p>}
       {visible.map((item) => (
         <article
           key={item.id}
@@ -90,6 +132,34 @@ export default function ComunicadosFeed({ store }: { store: PanelStore }) {
             </span>
           </div>
           <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.message}</p>
+          {isAdmin && (
+            <div className="mt-4 flex flex-wrap gap-2 border-t border-blue-200 pt-3">
+              <button
+                type="button"
+                onClick={() => window.dispatchEvent(new CustomEvent("comunicado:edit", { detail: item }))}
+                disabled={busyId === item.id}
+                className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800 disabled:opacity-50"
+              >
+                Editar
+              </button>
+              <button
+                type="button"
+                onClick={() => archive(item.id)}
+                disabled={busyId === item.id}
+                className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 disabled:opacity-50"
+              >
+                Concluir
+              </button>
+              <button
+                type="button"
+                onClick={() => remove(item.id)}
+                disabled={busyId === item.id}
+                className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 disabled:opacity-50"
+              >
+                Excluir
+              </button>
+            </div>
+          )}
         </article>
       ))}
     </section>

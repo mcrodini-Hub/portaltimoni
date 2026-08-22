@@ -75,6 +75,18 @@ export default function ComunicadosAdmin() {
 
   useEffect(() => {
     load();
+    const startEdit = (event: Event) => {
+      const item = (event as CustomEvent<Comunicado>).detail;
+      if (!item) return;
+      edit(item);
+    };
+    const refresh = () => load();
+    window.addEventListener("comunicado:edit", startEdit);
+    window.addEventListener("comunicados:changed", refresh);
+    return () => {
+      window.removeEventListener("comunicado:edit", startEdit);
+      window.removeEventListener("comunicados:changed", refresh);
+    };
   }, []);
 
   const active = useMemo(() => items.filter((item) => item.status === "ativo"), [items]);
@@ -101,6 +113,7 @@ export default function ComunicadosAdmin() {
       if (!response.ok) throw new Error(data?.error || "Não foi possível salvar.");
       setForm(EMPTY_FORM);
       await load();
+      window.dispatchEvent(new Event("comunicados:changed"));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Não foi possível salvar.");
     } finally {
@@ -122,6 +135,7 @@ export default function ComunicadosAdmin() {
     }
     if (form.id === id) setForm(EMPTY_FORM);
     await load();
+    window.dispatchEvent(new Event("comunicados:changed"));
   }
 
   async function remove(id: string) {
@@ -139,6 +153,7 @@ export default function ComunicadosAdmin() {
     }
     if (form.id === id) setForm(EMPTY_FORM);
     await load();
+    window.dispatchEvent(new Event("comunicados:changed"));
   }
 
   function edit(item: Comunicado) {

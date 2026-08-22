@@ -6,7 +6,7 @@ export const COMUNICADOS_SHEET = "Comunicados";
 export const COMUNICADOS_SHEET_ID = 1956041927;
 
 export type ComunicadoUnidade = "geral" | "araras" | "rio claro";
-export type ComunicadoStatus = "ativo" | "arquivado";
+export type ComunicadoStatus = "ativo" | "arquivado" | "excluido";
 
 export type Comunicado = {
   id: string;
@@ -19,6 +19,31 @@ export type Comunicado = {
   startsAt: string;
   expiresAt: string;
 };
+
+const LEGACY_COMUNICADOS: Comunicado[] = [
+  {
+    id: "legacy-painel-timoni",
+    createdAt: "2026-08-17T12:00:00-03:00",
+    unit: "geral",
+    title: "Nova Ferramenta: Painel Timoni",
+    message: "Esta é a nova comunicação interna da Casa Timoni. O Painel Timoni passa a concentrar avisos, comunicados, reuniões, aniversários, férias e informações importantes para a equipe.",
+    status: "ativo",
+    updatedAt: "2026-08-17T12:00:00-03:00",
+    startsAt: "2026-08-17T12:00:00-03:00",
+    expiresAt: "",
+  },
+  {
+    id: "legacy-vendas-empresas",
+    createdAt: "2026-08-17T12:01:00-03:00",
+    unit: "rio claro",
+    title: "Vendas Empresas",
+    message: "As empresas relacionadas abaixo são atendidas exclusivamente por vendas internas. Todo atendimento, orçamento ou negociação destes clientes deve ser direcionado para Jaqueline.\n\nBrascabos\nCaprem\nCarbifibras\nChemson\nDelta\nEmbramaco\nFastenal\nJaw\nOwens Corning - Brasil GR\nPotencial\nRiclan\nRuy Rocha\nSanta Casa\nScoda\nTigre\nVillagres\nWhirlpool",
+    status: "ativo",
+    updatedAt: "2026-08-17T12:01:00-03:00",
+    startsAt: "2026-08-17T12:01:00-03:00",
+    expiresAt: "",
+  },
+];
 
 async function sheetsClient(sessionAccessToken?: string) {
   const accessToken = sessionAccessToken || await getAccessTokenFromRefreshToken();
@@ -69,7 +94,11 @@ async function readRows(accessToken?: string) {
 }
 
 export async function listComunicados(accessToken: string) {
-  return parseRows(await readRows(accessToken));
+  const stored = parseRows(await readRows(accessToken));
+  const storedIds = new Set(stored.map((item) => item.id));
+  return [...stored, ...LEGACY_COMUNICADOS.filter((item) => !storedIds.has(item.id))]
+    .filter((item) => item.status !== "excluido")
+    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }
 
 export async function createComunicado(
@@ -103,7 +132,32 @@ export async function updateComunicado(
   input: Partial<Pick<Comunicado, "unit" | "title" | "message" | "status" | "startsAt" | "expiresAt">>,
 ) {
   const rowNumber = await findRow(accessToken, id);
-  if (!rowNumber) throw new Error("Comunicado não encontrado.");
+  if (!rowNumber) {
+    const legacy = LEGACY_COMUNICADOS.find((item) => item.id === id);
+    if (!legacy) throw new Error("Comunicado não encontrado.");
+    const sheets = await sheetsClient(accessToken);
+    const now = new Date().toISOString();
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
+      range: `${COMUNICADOS_SHEET}!A:I`,
+      valueInputOption: "RAW",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: {
+        values: [[
+          legacy.id,
+          legacy.createdAt,
+          input.unit ?? legacy.unit,
+          input.title ?? legacy.title,
+          input.message ?? legacy.message,
+          input.status ?? legacy.status,
+          now,
+          input.startsAt ?? legacy.startsAt,
+          input.expiresAt ?? legacy.expiresAt,
+        ]],
+      },
+    });
+    return;
+  }
 
   const current = (await listComunicados(accessToken)).find((item) => item.id === id);
   if (!current) throw new Error("Comunicado não encontrado.");
@@ -129,7 +183,12 @@ export async function updateComunicado(
 
 export async function deleteComunicado(accessToken: string, id: string) {
   const rowNumber = await findRow(accessToken, id);
-  if (!rowNumber) throw new Error("Comunicado não encontrado.");
+  if (!rowNumber) {
+    const legacy = LEGACY_COMUNICADOS.find((item) => item.id === id);
+    if (!legacy) throw new Error("Comunicado não encontrado.");
+    await updateComunicado(accessToken, id, { status: "excluido" });
+    return;
+  }
   const sheets = await sheetsClient(accessToken);
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: COMUNICADOS_SPREADSHEET_ID,

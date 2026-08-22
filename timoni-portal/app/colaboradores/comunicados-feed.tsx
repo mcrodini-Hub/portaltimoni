@@ -106,34 +106,30 @@ export default function ComunicadosFeed({ store, isAdmin = false }: { store: Pan
     [items, store],
   );
 
-  if (!visible.length) return null;
+  if (!visible.length) return <p className="text-sm text-slate-500">Nenhum comunicado ativo.</p>;
 
   return (
-    <section className="mb-4 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-      {error && <p className="text-sm font-medium text-red-700 md:col-span-2 xl:col-span-4">{error}</p>}
+    <section className="space-y-4">
+      {error && <p className="text-sm font-medium text-red-700">{error}</p>}
       {visible.map((item) => (
-        <article
-          key={item.id}
-          className={`rounded-3xl border p-6 shadow-sm ${
-            item.unit === "geral"
-              ? "border-orange-200 bg-orange-50 md:col-span-2 xl:col-span-4"
-              : "border-blue-200 bg-blue-50 md:col-span-2"
-          }`}
-        >
+        <article key={item.id} className="border-t border-blue-200 pt-4 first:border-t-0 first:pt-0">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className={`text-xs font-semibold uppercase tracking-wider ${item.unit === "geral" ? "text-orange-700" : "text-blue-700"}`}>
+              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">
                 Comunicado {label(item.unit)}
               </p>
-              <h2 className="mt-2 text-xl font-semibold text-slate-950">{item.title}</h2>
+              <h3 className="mt-1 font-semibold text-slate-950">{item.title}</h3>
             </div>
             <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">
               {formatDate(item.createdAt)}
             </span>
           </div>
-          <p className="mt-4 whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.message}</p>
+          <details className="mt-2">
+            <summary className="cursor-pointer text-sm font-semibold text-blue-800">Ver comunicado completo →</summary>
+            <p className="mt-3 whitespace-pre-wrap border-t border-blue-100 pt-3 text-sm leading-6 text-slate-700">{item.message}</p>
+          </details>
           {isAdmin && (
-            <div className="mt-4 flex flex-wrap gap-2 border-t border-blue-200 pt-3">
+            <div className="mt-3 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => window.dispatchEvent(new CustomEvent("comunicado:edit", { detail: item }))}

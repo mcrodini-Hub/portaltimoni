@@ -45,7 +45,6 @@ type PurchaseItem = {
   codigo: string;
   descricao: string;
   quantidade: string;
-  linha: string;
 };
 
 async function authorize() {
@@ -81,7 +80,6 @@ function parseItems(value: FormDataEntryValue | null): PurchaseItem[] {
         codigo: String(current.codigo || "").trim(),
         descricao: String(current.descricao || "").trim(),
         quantidade: String(current.quantidade || "").trim(),
-        linha: String(current.linha || "").trim(),
       };
     })
     .filter((item) => item.codigo && item.descricao && item.quantidade);
@@ -98,10 +96,8 @@ function buildDescription(
   dataEnvio: string,
   dataEntrega: string,
 ) {
-  const lines = items.map((item) =>
-    item.linha
-      ? `${item.codigo} | ${item.descricao} | ${item.quantidade} | Linha: ${item.linha}`
-      : `${item.codigo} | ${item.descricao} | ${item.quantidade}`,
+  const lines = items.map(
+    (item) => `${item.codigo} | ${item.descricao} | ${item.quantidade}`,
   );
   return [
     `Data de envio: ${formatBrazilianDate(dataEnvio)}`,

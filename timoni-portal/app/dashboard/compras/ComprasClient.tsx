@@ -63,7 +63,6 @@ interface PurchaseItem {
   codigo: string;
   descricao: string;
   quantidade: string;
-  linha: string;
 }
 
 function todayLocal() {
@@ -81,7 +80,7 @@ export default function ComprasClient() {
   const [columnCode, setColumnCode] = useState("B");
   const [columnDescription, setColumnDescription] = useState("C");
   const [columnQuantity, setColumnQuantity] = useState("L");
-  const [columnLine, setColumnLine] = useState("");
+  const [startRow, setStartRow] = useState("");
   const [items, setItems] = useState<PurchaseItem[]>([]);
   const [sheetInfo, setSheetInfo] = useState("");
 
@@ -132,14 +131,14 @@ export default function ComprasClient() {
         columnCode?: string;
         columnDescription?: string;
         columnQuantity?: string;
-        columnLine?: string;
+        startRow?: string;
         company?: Company | "RODINI";
       };
       if (saved.sheetUrl) setSheetUrl(saved.sheetUrl);
       if (saved.columnCode) setColumnCode(saved.columnCode);
       if (saved.columnDescription) setColumnDescription(saved.columnDescription);
       if (saved.columnQuantity) setColumnQuantity(saved.columnQuantity);
-      if (saved.columnLine) setColumnLine(saved.columnLine);
+      if (saved.startRow) setStartRow(saved.startRow);
       if (saved.company === "RODINI") setCompany("ROD");
       else if (saved.company) setCompany(saved.company);
     } catch {
@@ -151,9 +150,9 @@ export default function ComprasClient() {
   useEffect(() => {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ sheetUrl, columnCode, columnDescription, columnQuantity, columnLine, company }),
+      JSON.stringify({ sheetUrl, columnCode, columnDescription, columnQuantity, startRow, company }),
     );
-  }, [sheetUrl, columnCode, columnDescription, columnQuantity, columnLine, company]);
+  }, [sheetUrl, columnCode, columnDescription, columnQuantity, startRow, company]);
 
   function chooseSupplier(supplier: Supplier) {
     setSelectedId(supplier.id);
@@ -182,7 +181,7 @@ export default function ComprasClient() {
           codigo: columnCode.trim(),
           descricao: columnDescription.trim(),
           quantidade: columnQuantity.trim(),
-          linha: columnLine.trim(),
+          linhaInicial: startRow.trim(),
         }),
       });
       const payload = await response.json();
@@ -391,7 +390,7 @@ export default function ComprasClient() {
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">2. Itens do pedido · opcional</p>
           <h2 className="mt-2 text-xl font-semibold text-slate-950">Planilha do pedido</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Funciona de forma independente. Padrão atual: código B, descrição C e quantidade L. Linha é opcional.
+            Funciona de forma independente. Padrão atual: código B, descrição C e quantidade L.
           </p>
 
           <label className="mt-4 block text-sm font-semibold text-slate-800">
@@ -430,11 +429,14 @@ export default function ComprasClient() {
               />
             </label>
             <label className="text-sm font-semibold text-slate-800">
-              Linha <span className="font-normal text-slate-500">(opcional)</span>
+              Linha inicial <span className="font-normal text-slate-500">(opcional)</span>
               <input
-                value={columnLine}
-                onChange={(event) => setColumnLine(event.target.value)}
-                placeholder="Nome ou letra da coluna"
+                type="number"
+                min="1"
+                step="1"
+                value={startRow}
+                onChange={(event) => setStartRow(event.target.value)}
+                placeholder="Ex.: 10"
                 className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
               />
             </label>
@@ -467,7 +469,6 @@ export default function ComprasClient() {
                   <th className="px-3 py-3">Código</th>
                   <th className="px-3 py-3">Descrição</th>
                   <th className="px-3 py-3">Quantidade</th>
-                  <th className="px-3 py-3">Linha</th>
                   <th className="px-3 py-3"></th>
                 </tr>
               </thead>
@@ -493,13 +494,6 @@ export default function ComprasClient() {
                         value={item.quantidade}
                         onChange={(event) => updateItem(index, "quantidade", event.target.value)}
                         className="min-h-10 w-28 rounded-lg border border-slate-200 px-3 text-right font-semibold text-slate-900"
-                      />
-                    </td>
-                    <td className="p-2">
-                      <input
-                        value={item.linha}
-                        onChange={(event) => updateItem(index, "linha", event.target.value)}
-                        className="min-h-10 w-36 rounded-lg border border-slate-200 px-3 text-slate-700"
                       />
                     </td>
                     <td className="p-2 text-right">

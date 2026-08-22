@@ -16,7 +16,7 @@ const localDate=()=>{const d=new Date();return `${d.getFullYear()}-${String(d.ge
 
 export default function DashboardOverviewClient({modules,motoristaControle,espacoEquipeControle}:Props){
  const [s,setS]=useState<Snapshot>(empty); const allowed=useMemo(()=>new Set(modules.map(x=>x.module)),[modules]);
- useEffect(()=>{let off=false; async function load(){const start=new Date();start.setHours(0,0,0,0);const end=new Date(start);end.setDate(end.getDate()+7);end.setHours(23,59,59,999);const today=localDate();const reqs=[
+ useEffect(()=>{let off=false; async function load(){const start=new Date();start.setHours(0,0,0,0);const end=new Date(start);end.setHours(23,59,59,999);const today=localDate();const reqs=[
   allowed.has("compras")?fetch("/api/compras",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()):null,
   allowed.has("painel")?fetch("/api/painel-notifications",{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()):null,
   allowed.has("agenda")?fetch(`/api/events?timeMin=${encodeURIComponent(start.toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}`,{cache:"no-store"}).then(r=>r.ok?r.json():Promise.reject()):null,

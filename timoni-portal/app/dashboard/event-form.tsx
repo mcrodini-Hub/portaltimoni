@@ -217,7 +217,7 @@ export function EventForm({
   }
 
   return (
-    <Modal title={isEditing ? "Editar evento" : "Novo evento"} onClose={onClose}>
+    <Modal title={isEditing ? "Editar evento" : "Novo evento"} onClose={onClose} className="max-w-2xl">
       <form onSubmit={handleSubmit} className="space-y-3">
         <div>
           <label className="block text-sm font-medium text-slate-700">Agenda</label>

@@ -45,16 +45,19 @@ function resolveColumn(header: unknown[], specification: string) {
 
 function locateHeader(
   rows: unknown[][],
-  mapping: { codigo: string; descricao: string; quantidade: string },
+  mapping: { codigo: string; descricao: string; quantidade: string; linha: string },
 ) {
   const specs = [mapping.codigo, mapping.descricao, mapping.quantidade];
-  const allLetters = specs.every((spec) => columnLetterToIndex(spec) !== null);
+  const allLetters =
+    specs.every((spec) => columnLetterToIndex(spec) !== null) &&
+    (!mapping.linha || columnLetterToIndex(mapping.linha) !== null);
   if (allLetters) {
     return {
       headerIndex: rows[2] ? 2 : 0,
       codeIndex: columnLetterToIndex(mapping.codigo)!,
       descriptionIndex: columnLetterToIndex(mapping.descricao)!,
       quantityIndex: columnLetterToIndex(mapping.quantidade)!,
+      lineIndex: mapping.linha ? columnLetterToIndex(mapping.linha) : null,
     };
   }
 
@@ -68,13 +71,15 @@ function locateHeader(
     const codeIndex = resolveColumn(header, mapping.codigo);
     const descriptionIndex = resolveColumn(header, mapping.descricao);
     const quantityIndex = resolveColumn(header, mapping.quantidade);
+    const lineIndex = mapping.linha ? resolveColumn(header, mapping.linha) : null;
     if (
       codeIndex !== null &&
       descriptionIndex !== null &&
       quantityIndex !== null &&
-      new Set([codeIndex, descriptionIndex, quantityIndex]).size === 3
+      new Set([codeIndex, descriptionIndex, quantityIndex]).size === 3 &&
+      (!mapping.linha || lineIndex !== null)
     ) {
-      return { headerIndex, codeIndex, descriptionIndex, quantityIndex };
+      return { headerIndex, codeIndex, descriptionIndex, quantityIndex, lineIndex };
     }
   }
   return null;
@@ -150,12 +155,14 @@ export async function POST(request: Request) {
       codigo?: string;
       descricao?: string;
       quantidade?: string;
+      linha?: string;
     };
     const url = body.url?.trim() || "";
     const mapping = {
       codigo: body.codigo?.trim() || "",
       descricao: body.descricao?.trim() || "",
       quantidade: body.quantidade?.trim() || "",
+      linha: body.linha?.trim() || "",
     };
     if (!url || !mapping.codigo || !mapping.descricao || !mapping.quantidade) {
       throw new Error("Informe o link e as três colunas da planilha.");
@@ -191,7 +198,7 @@ export async function POST(request: Request) {
     const columns = locateHeader(rows, mapping);
     if (!columns) {
       throw new Error(
-        "Não encontrei as três colunas informadas. Use o nome exato do cabeçalho ou a letra da coluna.",
+        "Não encontrei as colunas informadas. Use o nome exato do cabeçalho ou a letra da coluna.",
       );
     }
 
@@ -201,6 +208,9 @@ export async function POST(request: Request) {
         codigo: String(row[columns.codeIndex] ?? "").trim(),
         descricao: String(row[columns.descriptionIndex] ?? "").trim(),
         quantidade: String(row[columns.quantityIndex] ?? "").trim(),
+        linha: columns.lineIndex === null
+          ? ""
+          : String(row[columns.lineIndex] ?? "").trim(),
       }))
       .filter((item) => item.codigo && item.descricao && item.quantidade)
       .filter((item) => !isHeaderOrSummary(item));

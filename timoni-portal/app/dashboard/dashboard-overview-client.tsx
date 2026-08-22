@@ -37,10 +37,10 @@ export default function DashboardOverviewClient({modules,motoristaControle,espac
   setS(n);
  } void load();const id=setInterval(load,60000);return()=>{off=true;clearInterval(id)}},[allowed,espacoEquipeControle]);
  const quick: QuickItem[]=[];
+ if(allowed.has("agenda"))quick.push(["Agenda","/agenda","📅",s.agenda]);
+ if(allowed.has("motorista"))quick.push(["Motorista",motoristaControle?"/dashboard/motorista":"/dashboard/motorista-leitura","🚚",s.motorista]);
  if(allowed.has("compras"))quick.push(["Compras","/dashboard/compras","🛒",s.compras]);
- if(allowed.has("motorista"))quick.push(["Motorista",motoristaControle?"/dashboard/motorista":"/dashboard/motorista-leitura","▣",s.motorista]);
- if(allowed.has("agenda"))quick.push(["Agenda","/agenda","▣",s.agenda]);
  if(allowed.has("leads"))quick.push(["Leads","/dashboard/leads","🎯",s.leads]);
- if(allowed.has("estoque"))quick.push(["Estoque","/dashboard/estoque","◇",s.solicitacoes]);
+ if(allowed.has("estoque"))quick.push(["Estoque","/dashboard/estoque","📦",s.solicitacoes]);
  return <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{quick.map(([name,href,icon,count])=><Link key={name} href={href} className="flex min-h-36 flex-col justify-between rounded-2xl border border-blue-200 bg-blue-50 p-6 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"><div className="flex items-center justify-between"><span className="text-2xl text-blue-700">{icon}</span><span className="text-blue-700">›</span></div><div className="mt-5"><p className="text-base font-semibold text-slate-950">{name}</p>{count!==null&&count!==undefined&&<p className="mt-2 text-3xl font-bold text-[#0b1f5e]">{metric(count)}</p>}</div></Link>)}</div>
 }

@@ -32,6 +32,10 @@ const allModules: PortalModule[] = [
 const modulesWithoutCicaAgenda = allModules.filter((module) => module !== "agenda");
 const operationalModules: PortalModule[] = ["painel", "estoque", "motorista"];
 const CICA_EMAIL = "mcrodini@gmail.com";
+const DIRECT_PAINEL_TIMONI_EMAILS = new Set([
+  "balcaotimoni@gmail.com",
+  "marketplacerc.mcr@gmail.com",
+]);
 const MANAGEMENT_MOTORISTA_EMAILS = new Set([
   "mrodini@gmail.com",
   "margareth@casatimoni.com.br",
@@ -77,6 +81,9 @@ export function isAuthorizedUser(email?: string | null) { return Boolean(portalU
 export function getPortalUser(email?: string | null) { return portalUsers[normalizeEmail(email)] ?? null; }
 export function hasModuleAccess(email: string | null | undefined, module: PortalModule) { return getPortalUser(email)?.modules.includes(module) ?? false; }
 export function isCicaAccess(email?: string | null) { return normalizeEmail(email) === CICA_EMAIL; }
+export function entersDirectlyInPainelTimoni(email?: string | null) {
+  return DIRECT_PAINEL_TIMONI_EMAILS.has(normalizeEmail(email));
+}
 export function canManageMotorista(email?: string | null) {
   const normalized = normalizeEmail(email);
   if (normalized === CICA_EMAIL) return true;

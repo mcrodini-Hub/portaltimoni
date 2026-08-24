@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
-import { canManageMotorista, hasModuleAccess, type PortalModule } from "@/lib/access-control";
+import { canManageMotorista, entersDirectlyInPainelTimoni, hasModuleAccess, type PortalModule } from "@/lib/access-control";
 import DashboardOverviewClient from "./dashboard-overview-client";
+import { redirect } from "next/navigation";
 
 const modules: Array<{ module: PortalModule; name: string; href: string; icon: string; accent: string }> = [
   { module: "painel", name: "Painel Timoni", href: "/colaboradores", icon: "📢", accent: "" },
@@ -24,6 +25,9 @@ export default async function DashboardPage() {
   const session = await auth();
   const email = session?.user?.email ?? "";
   const normalizedEmail = email.trim().toLowerCase();
+  if (entersDirectlyInPainelTimoni(normalizedEmail)) {
+    redirect("/colaboradores");
+  }
   const visible = modules.filter((item) => hasModuleAccess(email, item.module));
   return <div className="pb-4">
     <header className="mb-6">

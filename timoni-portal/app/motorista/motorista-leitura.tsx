@@ -202,7 +202,7 @@ export default function MotoristaLeitura() {
                                 {!bloqueio && concluida(v.notasJson) && <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">Concluído</span>}
                               </div>
                               {bloqueio && (v.clienteFornecedor || pedidoTexto(v.numeroPedido)) && (
-                                <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor ? `Fornecedor: ${v.clienteFornecedor}` : ""}{v.clienteFornecedor && pedidoTexto(v.numeroPedido) ? " | " : ""}{pedidoTexto(v.numeroPedido) ? `Pedido: ${pedidoTexto(v.numeroPedido)}` : ""}</p>
+                                <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor ? `Empresa: ${v.clienteFornecedor}` : ""}{v.clienteFornecedor && pedidoTexto(v.numeroPedido) ? " | " : ""}{pedidoTexto(v.numeroPedido) ? `NF/Pedido: ${pedidoTexto(v.numeroPedido)}` : ""}</p>
                               )}
                               {!bloqueio && (
                                 <>

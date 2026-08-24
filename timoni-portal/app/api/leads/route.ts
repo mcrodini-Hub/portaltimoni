@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { hasModuleAccess } from "@/lib/access-control";
-import { addLead, addProspect, listLeads, listProspects, updateLeadFollowUp } from "@/lib/leads";
+import { addLead, addProspect, importLeads, listLeads, listProspects, updateLeadFollowUp } from "@/lib/leads";
 
 async function authorized() {
   const session = await auth();
@@ -58,5 +58,16 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível atualizar o follow-up." }, { status: 500 });
+  }
+}
+
+export async function PUT(request: Request) {
+  if (!(await authorized())) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 403 });
+  try {
+    const body = await request.json();
+    const result = await importLeads(body?.rows);
+    return NextResponse.json({ ok: true, ...result });
+  } catch (error) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível importar o arquivo." }, { status: 400 });
   }
 }

@@ -118,6 +118,65 @@ export async function addLead(input: { cliente:string; segmento:string; contato:
   await sheets.spreadsheets.values.append({ spreadsheetId: LEADS_SPREADSHEET_ID, range: `'${LEADS_SHEET}'!A:G`, valueInputOption: "USER_ENTERED", insertDataOption: "INSERT_ROWS", requestBody: { values: [[input.cliente, input.segmento, input.contato, input.canal, "", input.proximoContato, input.observacoes]] } });
 }
 
+export type LeadImportRow = {
+  cliente: string;
+  segmento?: string;
+  contato?: string;
+  canal?: string;
+  ultimoContato?: string;
+  proximoContato?: string;
+  observacoes?: string;
+};
+
+export async function importLeads(rows: LeadImportRow[]) {
+  if (!Array.isArray(rows) || rows.length === 0) throw new Error("O arquivo não possui registros para importar.");
+  if (rows.length > 1000) throw new Error("Importe no máximo 1.000 registros por vez.");
+
+  const [leads, prospects] = await Promise.all([listLeads(), listProspects()]);
+  const existing = new Set(
+    [...leads, ...prospects].map((item) => item.cliente.trim().toLocaleLowerCase("pt-BR")),
+  );
+  const accepted: string[][] = [];
+  const duplicates: string[] = [];
+  const errors: string[] = [];
+
+  rows.forEach((row, index) => {
+    const cliente = String(row?.cliente ?? "").trim();
+    if (!cliente) {
+      errors.push(`Linha ${index + 2}: empresa não informada.`);
+      return;
+    }
+    const key = cliente.toLocaleLowerCase("pt-BR");
+    if (existing.has(key)) {
+      duplicates.push(cliente);
+      return;
+    }
+    existing.add(key);
+    accepted.push([
+      cliente,
+      String(row.segmento ?? "").trim(),
+      String(row.contato ?? "").trim(),
+      String(row.canal ?? "").trim(),
+      String(row.ultimoContato ?? "").trim(),
+      String(row.proximoContato ?? "").trim(),
+      String(row.observacoes ?? "").trim(),
+    ]);
+  });
+
+  if (accepted.length) {
+    const sheets = await sheetsClient();
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: LEADS_SPREADSHEET_ID,
+      range: `'${LEADS_SHEET}'!A:G`,
+      valueInputOption: "USER_ENTERED",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: { values: accepted },
+    });
+  }
+
+  return { imported: accepted.length, duplicates, errors };
+}
+
 export async function addProspect(input: { cliente:string; segmento:string; cidade:string; contato:string; canal:string; oportunidade:string; observacoes:string }) {
   if (!input.cliente.trim()) throw new Error("Informe a empresa.");
   await assertNotDuplicate(input.cliente);

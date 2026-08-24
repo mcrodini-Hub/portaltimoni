@@ -54,11 +54,15 @@ export async function PATCH(request: Request) {
   try {
     const body = await request.json();
     const row = Number(body?.row);
+    const cliente = String(body?.cliente ?? "").trim();
+    const segmento = String(body?.segmento ?? "").trim();
+    const contato = String(body?.contato ?? "").trim();
+    const canal = String(body?.canal ?? "").trim();
     const ultimoContato = String(body?.ultimoContato ?? "").trim();
     const proximoContato = String(body?.proximoContato ?? "").trim();
     const observacoes = String(body?.observacoes ?? "").trim();
     if (!proximoContato) return NextResponse.json({ error: "Informe a data do próximo contato." }, { status: 400 });
-    await updateLeadFollowUp({ row, ultimoContato, proximoContato, observacoes }, accessToken);
+    await updateLeadFollowUp({ row, cliente, segmento, contato, canal, ultimoContato, proximoContato, observacoes }, accessToken);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível atualizar o follow-up." }, { status: 500 });

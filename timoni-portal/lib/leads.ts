@@ -88,8 +88,9 @@ export async function listLeads(sessionAccessToken?: string): Promise<Lead[]> {
     cliente: String(r[0] ?? "").trim(), segmento: String(r[1] ?? "").trim(), contato: String(r[2] ?? "").trim(), canal: String(r[3] ?? "").trim(),
     ultimoContato: String(r[4] ?? "").trim(), proximoContato: String(r[5] ?? "").trim(), observacoes: String(r[6] ?? "").trim(), status: leadStatus(String(r[5] ?? "")),
   })).filter((lead) => lead.cliente).sort((a, b) => {
-    const weight = { atrasado: 0, hoje: 1, "sem-data": 2, proximo: 3 } as const;
-    return weight[a.status] - weight[b.status] || a.cliente.localeCompare(b.cliente, "pt-BR");
+    const aDate = parseDate(a.proximoContato)?.getTime() ?? Number.POSITIVE_INFINITY;
+    const bDate = parseDate(b.proximoContato)?.getTime() ?? Number.POSITIVE_INFINITY;
+    return aDate - bDate || a.cliente.localeCompare(b.cliente, "pt-BR");
   });
 }
 
@@ -184,8 +185,13 @@ export async function addProspect(input: { cliente:string; segmento:string; cida
   await sheets.spreadsheets.values.append({ spreadsheetId: LEADS_SPREADSHEET_ID, range: `'${PROSPECTS_PORTAL_SHEET}'!A:G`, valueInputOption: "USER_ENTERED", insertDataOption: "INSERT_ROWS", requestBody: { values: [[input.cliente, input.segmento, input.cidade, input.contato, input.canal, input.oportunidade, input.observacoes]] } });
 }
 
-export async function updateLeadFollowUp(input: { row: number; ultimoContato: string; proximoContato: string; observacoes: string }, sessionAccessToken?: string) {
+export async function updateLeadFollowUp(input: { row: number; cliente: string; segmento: string; contato: string; canal: string; ultimoContato: string; proximoContato: string; observacoes: string }, sessionAccessToken?: string) {
   if (!Number.isInteger(input.row) || input.row < 2 || input.row > 1000) throw new Error("Linha inválida");
+  if (!input.cliente.trim()) throw new Error("Informe a empresa.");
+  if (!input.proximoContato.trim()) throw new Error("Informe a data do próximo contato.");
+  const target = input.cliente.trim().toLocaleLowerCase("pt-BR");
+  const [leads, prospects] = await Promise.all([listLeads(sessionAccessToken), listProspects(sessionAccessToken)]);
+  if (leads.some((lead) => lead.row !== input.row && lead.cliente.toLocaleLowerCase("pt-BR") === target) || prospects.some((prospect) => prospect.cliente.toLocaleLowerCase("pt-BR") === target)) throw new Error("Esta empresa já existe no Leads ou em A Prospectar.");
   const sheets = await sheetsClient(sessionAccessToken);
-  await sheets.spreadsheets.values.update({ spreadsheetId: LEADS_SPREADSHEET_ID, range: `'${LEADS_SHEET}'!E${input.row}:G${input.row}`, valueInputOption: "USER_ENTERED", requestBody: { values: [[input.ultimoContato, input.proximoContato, input.observacoes]] } });
+  await sheets.spreadsheets.values.update({ spreadsheetId: LEADS_SPREADSHEET_ID, range: `'${LEADS_SHEET}'!A${input.row}:G${input.row}`, valueInputOption: "USER_ENTERED", requestBody: { values: [[input.cliente, input.segmento, input.contato, input.canal, input.ultimoContato, input.proximoContato, input.observacoes]] } });
 }

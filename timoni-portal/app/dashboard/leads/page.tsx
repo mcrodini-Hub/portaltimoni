@@ -36,7 +36,7 @@ export default function LeadsPage() {
   const [importName,setImportName]=useState("");
   const [importError,setImportError]=useState("");
 
-  async function load(){ const r=await fetch("/api/leads",{cache:"no-store"}); if(r.ok) setData(await r.json()); }
+  async function load(){ const r=await fetch("/api/leads",{cache:"no-store"}); const result=await r.json(); if(r.ok){setData(result);setImportError("");}else{setData(null);setImportError(result.error??"Não foi possível carregar os dados atuais do Leads.");} }
   useEffect(()=>{ void load(); },[]);
 
   const segments=useMemo(()=>Array.from(new Set((data?.leads??[]).map(x=>x.segmento).filter(Boolean))).sort((a,b)=>a.localeCompare(b,"pt-BR")),[data]);
@@ -48,6 +48,7 @@ export default function LeadsPage() {
   async function readImportFile(file:File){
     setImportError("");
     try {
+      if(!data) throw new Error("Os dados atuais do Leads ainda não foram carregados. Atualize a página e tente novamente.");
       const workbook=XLSX.read(await file.arrayBuffer(),{type:"array",cellDates:false});
       const sheet=workbook.Sheets[workbook.SheetNames[0]];
       const matrix=XLSX.utils.sheet_to_json<unknown[]>(sheet,{header:1,defval:"",raw:false});
@@ -58,14 +59,14 @@ export default function LeadsPage() {
       const existing=new Set([...(data?.leads??[]),...(data?.prospects??[])].map(x=>x.cliente.trim().toLocaleLowerCase("pt-BR")));
       const seen=new Set<string>();
       const value=(row:unknown[],field:string)=>indexes[field]>=0?String(row[indexes[field]]??"").trim():"";
-      const parsed=matrix.slice(1).map((raw,index)=>{
+      const parsed=matrix.slice(1).map((raw,index)=>({raw,index})).filter(({raw})=>Array.isArray(raw)&&raw.some(cell=>String(cell??"").trim())).map(({raw,index})=>{
         const row=Array.isArray(raw)?raw:[];
         const cliente=value(row,"cliente");
         const key=cliente.toLocaleLowerCase("pt-BR");
         const duplicate=Boolean(cliente)&&(existing.has(key)||seen.has(key));
         if(cliente&&!duplicate) seen.add(key);
         return {cliente,segmento:value(row,"segmento"),contato:value(row,"contato"),canal:value(row,"canal"),ultimoContato:normalizeImportDate(value(row,"ultimoContato")),proximoContato:normalizeImportDate(value(row,"proximoContato")),observacoes:value(row,"observacoes"),sourceRow:index+2,duplicate,error:cliente?undefined:"Empresa não informada"};
-      }).filter(row=>Object.values(row).some(value=>typeof value==="string"&&value.trim()));
+      });
       if(!parsed.length) throw new Error("O arquivo não possui registros preenchidos.");
       setImportName(file.name); setImportRows(parsed);
     } catch(error) { setImportRows(null); setImportError(error instanceof Error?error.message:"Não foi possível ler o arquivo."); }

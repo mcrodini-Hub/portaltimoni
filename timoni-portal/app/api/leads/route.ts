@@ -3,16 +3,18 @@ import { auth } from "@/lib/auth";
 import { hasModuleAccess } from "@/lib/access-control";
 import { addLead, addProspect, importLeads, listLeads, listProspects, updateLeadFollowUp } from "@/lib/leads";
 
-async function authorized() {
+async function authorizedAccessToken() {
   const session = await auth();
   const email = session?.user?.email ?? "";
-  return hasModuleAccess(email, "leads");
+  if (!hasModuleAccess(email, "leads")) return null;
+  return session?.accessToken ?? null;
 }
 
 export async function GET() {
-  if (!(await authorized())) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 403 });
+  const accessToken = await authorizedAccessToken();
+  if (!accessToken) return NextResponse.json({ error: "Sessão Google sem acesso à planilha. Entre novamente no Portal." }, { status: 401 });
   try {
-    const [leads, prospects] = await Promise.all([listLeads(), listProspects()]);
+    const [leads, prospects] = await Promise.all([listLeads(accessToken), listProspects(accessToken)]);
     const atrasados = leads.filter((x) => x.status === "atrasado").length;
     const hoje = leads.filter((x) => x.status === "hoje").length;
     const semData = leads.filter((x) => x.status === "sem-data").length;
@@ -23,7 +25,8 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!(await authorized())) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 403 });
+  const accessToken = await authorizedAccessToken();
+  if (!accessToken) return NextResponse.json({ error: "Sessão Google sem acesso à planilha. Entre novamente no Portal." }, { status: 401 });
   try {
     const body = await request.json();
     const destino = String(body?.destino ?? "prospectar");
@@ -35,9 +38,9 @@ export async function POST(request: Request) {
       observacoes: String(body?.observacoes ?? "").trim(),
     };
     if (destino === "followup") {
-      await addLead({ ...common, proximoContato: String(body?.proximoContato ?? "").trim() });
+      await addLead({ ...common, proximoContato: String(body?.proximoContato ?? "").trim() }, accessToken);
     } else {
-      await addProspect({ ...common, cidade: String(body?.cidade ?? "").trim(), oportunidade: String(body?.oportunidade ?? "").trim() });
+      await addProspect({ ...common, cidade: String(body?.cidade ?? "").trim(), oportunidade: String(body?.oportunidade ?? "").trim() }, accessToken);
     }
     return NextResponse.json({ ok: true });
   } catch (error) {
@@ -46,7 +49,8 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  if (!(await authorized())) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 403 });
+  const accessToken = await authorizedAccessToken();
+  if (!accessToken) return NextResponse.json({ error: "Sessão Google sem acesso à planilha. Entre novamente no Portal." }, { status: 401 });
   try {
     const body = await request.json();
     const row = Number(body?.row);
@@ -54,7 +58,7 @@ export async function PATCH(request: Request) {
     const proximoContato = String(body?.proximoContato ?? "").trim();
     const observacoes = String(body?.observacoes ?? "").trim();
     if (!proximoContato) return NextResponse.json({ error: "Informe a data do próximo contato." }, { status: 400 });
-    await updateLeadFollowUp({ row, ultimoContato, proximoContato, observacoes });
+    await updateLeadFollowUp({ row, ultimoContato, proximoContato, observacoes }, accessToken);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível atualizar o follow-up." }, { status: 500 });
@@ -62,10 +66,11 @@ export async function PATCH(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  if (!(await authorized())) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 403 });
+  const accessToken = await authorizedAccessToken();
+  if (!accessToken) return NextResponse.json({ error: "Sessão Google sem acesso à planilha. Entre novamente no Portal." }, { status: 401 });
   try {
     const body = await request.json();
-    const result = await importLeads(body?.rows);
+    const result = await importLeads(body?.rows, accessToken);
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível importar o arquivo." }, { status: 400 });

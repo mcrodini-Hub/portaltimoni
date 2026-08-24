@@ -30,8 +30,8 @@ export type Prospect = {
   origem: "historico" | "portal";
 };
 
-async function sheetsClient() {
-  const accessToken = await getAccessTokenFromRefreshToken();
+async function sheetsClient(sessionAccessToken?: string) {
+  const accessToken = sessionAccessToken || await getAccessTokenFromRefreshToken();
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: accessToken });
   return google.sheets({ version: "v4", auth });
@@ -64,8 +64,8 @@ function leadStatus(value: string): Lead["status"] {
   return "proximo";
 }
 
-async function ensureProspectsPortalSheet() {
-  const sheets = await sheetsClient();
+async function ensureProspectsPortalSheet(sessionAccessToken?: string) {
+  const sheets = await sheetsClient(sessionAccessToken);
   const meta = await sheets.spreadsheets.get({ spreadsheetId: LEADS_SPREADSHEET_ID, fields: "sheets.properties.title" });
   const exists = (meta.data.sheets ?? []).some((sheet) => sheet.properties?.title === PROSPECTS_PORTAL_SHEET);
   if (!exists) {
@@ -80,8 +80,8 @@ async function ensureProspectsPortalSheet() {
   return sheets;
 }
 
-export async function listLeads(): Promise<Lead[]> {
-  const sheets = await sheetsClient();
+export async function listLeads(sessionAccessToken?: string): Promise<Lead[]> {
+  const sheets = await sheetsClient(sessionAccessToken);
   const response = await sheets.spreadsheets.values.get({ spreadsheetId: LEADS_SPREADSHEET_ID, range: `'${LEADS_SHEET}'!A2:G1000`, valueRenderOption: "FORMATTED_VALUE" });
   return (response.data.values ?? []).map((r, index) => ({
     row: index + 2,
@@ -93,8 +93,8 @@ export async function listLeads(): Promise<Lead[]> {
   });
 }
 
-export async function listProspects(): Promise<Prospect[]> {
-  const sheets = await ensureProspectsPortalSheet();
+export async function listProspects(sessionAccessToken?: string): Promise<Prospect[]> {
+  const sheets = await ensureProspectsPortalSheet(sessionAccessToken);
   const [historico, portal] = await Promise.all([
     sheets.spreadsheets.values.get({ spreadsheetId: LEADS_SPREADSHEET_ID, range: `'${PROSPECTS_SOURCE_SHEET}'!A2:D1000`, valueRenderOption: "FORMATTED_VALUE" }),
     sheets.spreadsheets.values.get({ spreadsheetId: LEADS_SPREADSHEET_ID, range: `'${PROSPECTS_PORTAL_SHEET}'!A2:G1000`, valueRenderOption: "FORMATTED_VALUE" }),
@@ -104,17 +104,17 @@ export async function listProspects(): Promise<Prospect[]> {
   return [...novos, ...antigo];
 }
 
-async function assertNotDuplicate(cliente: string) {
+async function assertNotDuplicate(cliente: string, sessionAccessToken?: string) {
   const target = cliente.trim().toLocaleLowerCase("pt-BR");
-  const [leads, prospects] = await Promise.all([listLeads(), listProspects()]);
+  const [leads, prospects] = await Promise.all([listLeads(sessionAccessToken), listProspects(sessionAccessToken)]);
   if (leads.some((x) => x.cliente.toLocaleLowerCase("pt-BR") === target) || prospects.some((x) => x.cliente.toLocaleLowerCase("pt-BR") === target)) throw new Error("Esta empresa já existe no Leads ou em A Prospectar.");
 }
 
-export async function addLead(input: { cliente:string; segmento:string; contato:string; canal:string; proximoContato:string; observacoes:string }) {
+export async function addLead(input: { cliente:string; segmento:string; contato:string; canal:string; proximoContato:string; observacoes:string }, sessionAccessToken?: string) {
   if (!input.cliente.trim()) throw new Error("Informe a empresa.");
   if (!input.proximoContato.trim()) throw new Error("Informe a data do próximo contato.");
-  await assertNotDuplicate(input.cliente);
-  const sheets = await sheetsClient();
+  await assertNotDuplicate(input.cliente, sessionAccessToken);
+  const sheets = await sheetsClient(sessionAccessToken);
   await sheets.spreadsheets.values.append({ spreadsheetId: LEADS_SPREADSHEET_ID, range: `'${LEADS_SHEET}'!A:G`, valueInputOption: "USER_ENTERED", insertDataOption: "INSERT_ROWS", requestBody: { values: [[input.cliente, input.segmento, input.contato, input.canal, "", input.proximoContato, input.observacoes]] } });
 }
 
@@ -128,11 +128,11 @@ export type LeadImportRow = {
   observacoes?: string;
 };
 
-export async function importLeads(rows: LeadImportRow[]) {
+export async function importLeads(rows: LeadImportRow[], sessionAccessToken?: string) {
   if (!Array.isArray(rows) || rows.length === 0) throw new Error("O arquivo não possui registros para importar.");
   if (rows.length > 1000) throw new Error("Importe no máximo 1.000 registros por vez.");
 
-  const [leads, prospects] = await Promise.all([listLeads(), listProspects()]);
+  const [leads, prospects] = await Promise.all([listLeads(sessionAccessToken), listProspects(sessionAccessToken)]);
   const existing = new Set(
     [...leads, ...prospects].map((item) => item.cliente.trim().toLocaleLowerCase("pt-BR")),
   );
@@ -164,7 +164,7 @@ export async function importLeads(rows: LeadImportRow[]) {
   });
 
   if (accepted.length) {
-    const sheets = await sheetsClient();
+    const sheets = await sheetsClient(sessionAccessToken);
     await sheets.spreadsheets.values.append({
       spreadsheetId: LEADS_SPREADSHEET_ID,
       range: `'${LEADS_SHEET}'!A:G`,
@@ -177,15 +177,15 @@ export async function importLeads(rows: LeadImportRow[]) {
   return { imported: accepted.length, duplicates, errors };
 }
 
-export async function addProspect(input: { cliente:string; segmento:string; cidade:string; contato:string; canal:string; oportunidade:string; observacoes:string }) {
+export async function addProspect(input: { cliente:string; segmento:string; cidade:string; contato:string; canal:string; oportunidade:string; observacoes:string }, sessionAccessToken?: string) {
   if (!input.cliente.trim()) throw new Error("Informe a empresa.");
-  await assertNotDuplicate(input.cliente);
-  const sheets = await ensureProspectsPortalSheet();
+  await assertNotDuplicate(input.cliente, sessionAccessToken);
+  const sheets = await ensureProspectsPortalSheet(sessionAccessToken);
   await sheets.spreadsheets.values.append({ spreadsheetId: LEADS_SPREADSHEET_ID, range: `'${PROSPECTS_PORTAL_SHEET}'!A:G`, valueInputOption: "USER_ENTERED", insertDataOption: "INSERT_ROWS", requestBody: { values: [[input.cliente, input.segmento, input.cidade, input.contato, input.canal, input.oportunidade, input.observacoes]] } });
 }
 
-export async function updateLeadFollowUp(input: { row: number; ultimoContato: string; proximoContato: string; observacoes: string }) {
+export async function updateLeadFollowUp(input: { row: number; ultimoContato: string; proximoContato: string; observacoes: string }, sessionAccessToken?: string) {
   if (!Number.isInteger(input.row) || input.row < 2 || input.row > 1000) throw new Error("Linha inválida");
-  const sheets = await sheetsClient();
+  const sheets = await sheetsClient(sessionAccessToken);
   await sheets.spreadsheets.values.update({ spreadsheetId: LEADS_SPREADSHEET_ID, range: `'${LEADS_SHEET}'!E${input.row}:G${input.row}`, valueInputOption: "USER_ENTERED", requestBody: { values: [[input.ultimoContato, input.proximoContato, input.observacoes]] } });
 }

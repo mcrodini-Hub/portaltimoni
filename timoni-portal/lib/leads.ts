@@ -185,6 +185,33 @@ export async function addProspect(input: { cliente:string; segmento:string; cida
   await sheets.spreadsheets.values.append({ spreadsheetId: LEADS_SPREADSHEET_ID, range: `'${PROSPECTS_PORTAL_SHEET}'!A:G`, valueInputOption: "USER_ENTERED", insertDataOption: "INSERT_ROWS", requestBody: { values: [[input.cliente, input.segmento, input.cidade, input.contato, input.canal, input.oportunidade, input.observacoes]] } });
 }
 
+export async function reactivateProspect(input: { id:string; cliente:string; segmento:string; contato:string; canal:string; proximoContato:string; observacoes:string }, sessionAccessToken?: string) {
+  const idMatch = input.id.match(/^([hp])-(\d+)$/);
+  if (!idMatch) throw new Error("Registro de prospecção inválido.");
+  const row = Number(idMatch[2]);
+  if (!Number.isInteger(row) || row < 2 || row > 1000) throw new Error("Linha de prospecção inválida.");
+  if (!input.cliente.trim()) throw new Error("Informe a empresa.");
+  if (!input.proximoContato.trim()) throw new Error("Informe a data do próximo contato.");
+
+  const [leads, prospects] = await Promise.all([listLeads(sessionAccessToken), listProspects(sessionAccessToken)]);
+  const source = prospects.find((prospect) => prospect.id === input.id);
+  if (!source) throw new Error("Esta empresa não está mais em A Prospectar.");
+  const target = input.cliente.trim().toLocaleLowerCase("pt-BR");
+  if (leads.some((lead) => lead.cliente.toLocaleLowerCase("pt-BR") === target) || prospects.some((prospect) => prospect.id !== input.id && prospect.cliente.toLocaleLowerCase("pt-BR") === target)) throw new Error("Esta empresa já existe no Follow-up ou em A Prospectar.");
+
+  const sheets = await sheetsClient(sessionAccessToken);
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: LEADS_SPREADSHEET_ID,
+    range: `'${LEADS_SHEET}'!A:G`,
+    valueInputOption: "USER_ENTERED",
+    insertDataOption: "INSERT_ROWS",
+    requestBody: { values: [[input.cliente, input.segmento, input.contato, input.canal, "", input.proximoContato, input.observacoes]] },
+  });
+  const sourceSheet = idMatch[1] === "h" ? PROSPECTS_SOURCE_SHEET : PROSPECTS_PORTAL_SHEET;
+  const sourceColumns = idMatch[1] === "h" ? "A:D" : "A:G";
+  await sheets.spreadsheets.values.clear({ spreadsheetId: LEADS_SPREADSHEET_ID, range: `'${sourceSheet}'!${sourceColumns.split(":")[0]}${row}:${sourceColumns.split(":")[1]}${row}` });
+}
+
 export async function updateLeadFollowUp(input: { row: number; cliente: string; segmento: string; contato: string; canal: string; ultimoContato: string; proximoContato: string; observacoes: string }, sessionAccessToken?: string) {
   if (!Number.isInteger(input.row) || input.row < 2 || input.row > 1000) throw new Error("Linha inválida");
   if (!input.cliente.trim()) throw new Error("Informe a empresa.");

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { hasModuleAccess } from "@/lib/access-control";
-import { addLead, addProspect, importLeads, listLeads, listProspects, updateLeadFollowUp } from "@/lib/leads";
+import { addLead, addProspect, importLeads, listLeads, listProspects, reactivateProspect, updateLeadFollowUp } from "@/lib/leads";
 
 async function authorizedAccessToken() {
   const session = await auth();
@@ -29,6 +29,18 @@ export async function POST(request: Request) {
   if (!accessToken) return NextResponse.json({ error: "Sessão Google sem acesso à planilha. Entre novamente no Portal." }, { status: 401 });
   try {
     const body = await request.json();
+    if (body?.action === "reativar") {
+      await reactivateProspect({
+        id: String(body?.id ?? ""),
+        cliente: String(body?.cliente ?? "").trim(),
+        segmento: String(body?.segmento ?? "").trim(),
+        contato: String(body?.contato ?? "").trim(),
+        canal: String(body?.canal ?? "").trim(),
+        proximoContato: String(body?.proximoContato ?? "").trim(),
+        observacoes: String(body?.observacoes ?? "").trim(),
+      }, accessToken);
+      return NextResponse.json({ ok: true });
+    }
     const destino = String(body?.destino ?? "prospectar");
     const common = {
       cliente: String(body?.cliente ?? "").trim(),

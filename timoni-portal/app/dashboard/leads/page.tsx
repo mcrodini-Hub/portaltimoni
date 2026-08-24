@@ -9,10 +9,16 @@ type ResponseData = { leads: Lead[]; prospects: Prospect[]; summary: { atrasados
 type ImportRow = { cliente:string; segmento:string; contato:string; canal:string; ultimoContato:string; proximoContato:string; observacoes:string; sourceRow:number; duplicate?:boolean; error?:string };
 
 const normalizeHeader=(value:unknown)=>String(value??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]/g,"");
+const normalizeImportDate=(value:string)=>{
+  const match=value.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  if(!match)return value;
+  const year=match[3].length===2?`20${match[3]}`:match[3];
+  return `${match[1].padStart(2,"0")}/${match[2].padStart(2,"0")}/${year}`;
+};
 const headerAliases:Record<Exclude<keyof ImportRow,"sourceRow"|"duplicate"|"error">,string[]>={
   cliente:["cliente","empresa","razaosocial","nomefantasia"], segmento:["segmento","ramo","atividade"], contato:["contato","pessoa","responsavel"],
-  canal:["canal","telefone","email","telefoneemail","whatsapp"], ultimoContato:["ultimocontato","dataultimocontato"],
-  proximoContato:["proximocontato","dataproximocontato","retorno"], observacoes:["observacoes","observacao","notas"],
+  canal:["canal","telefone","email","telefoneemail","whatsapp","whatsappemail"], ultimoContato:["ultimocontato","dataultimocontato","datadocontato"],
+  proximoContato:["proximocontato","dataproximocontato","datadoproximocontato","retorno"], observacoes:["observacoes","observacao","observacoesperiocidadeprodutosetc","observacoesperiodicidadeprodutosetc","notas"],
 };
 
 export default function LeadsPage() {
@@ -58,7 +64,7 @@ export default function LeadsPage() {
         const key=cliente.toLocaleLowerCase("pt-BR");
         const duplicate=Boolean(cliente)&&(existing.has(key)||seen.has(key));
         if(cliente&&!duplicate) seen.add(key);
-        return {cliente,segmento:value(row,"segmento"),contato:value(row,"contato"),canal:value(row,"canal"),ultimoContato:value(row,"ultimoContato"),proximoContato:value(row,"proximoContato"),observacoes:value(row,"observacoes"),sourceRow:index+2,duplicate,error:cliente?undefined:"Empresa não informada"};
+        return {cliente,segmento:value(row,"segmento"),contato:value(row,"contato"),canal:value(row,"canal"),ultimoContato:normalizeImportDate(value(row,"ultimoContato")),proximoContato:normalizeImportDate(value(row,"proximoContato")),observacoes:value(row,"observacoes"),sourceRow:index+2,duplicate,error:cliente?undefined:"Empresa não informada"};
       }).filter(row=>Object.values(row).some(value=>typeof value==="string"&&value.trim()));
       if(!parsed.length) throw new Error("O arquivo não possui registros preenchidos.");
       setImportName(file.name); setImportRows(parsed);

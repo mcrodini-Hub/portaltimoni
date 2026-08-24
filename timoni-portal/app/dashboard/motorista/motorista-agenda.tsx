@@ -673,6 +673,7 @@ export default function MotoristaAgenda() {
                     {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itens.length === 0 ? <p className="text-sm text-slate-400">Sem viagens.</p> : itens.map((v, index) => (
                       <article key={v.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                         <p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
+                        {v.tipoHorario === "Bloqueio" && (v.clienteFornecedor || pedidoTexto(v.numeroPedido)) && <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor ? `Fornecedor: ${v.clienteFornecedor}` : ""}{v.clienteFornecedor && pedidoTexto(v.numeroPedido) ? " | " : ""}{pedidoTexto(v.numeroPedido) ? `Pedido: ${pedidoTexto(v.numeroPedido)}` : ""}</p>}
                         {v.tipoHorario !== "Bloqueio" && <>
                           <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade)}` : ""}</p>
                           {v.endereco && <p className="mt-1 text-sm text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
@@ -704,6 +705,7 @@ export default function MotoristaAgenda() {
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="font-[Arial] text-[11pt] leading-[1.35]">
                     <p className="font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
+                    {v.tipoHorario === "Bloqueio" && (v.clienteFornecedor || pedidoTexto(v.numeroPedido)) && <p className="mt-3 text-slate-900">{v.clienteFornecedor ? `Fornecedor: ${v.clienteFornecedor}` : ""}{v.clienteFornecedor && pedidoTexto(v.numeroPedido) ? " | " : ""}{pedidoTexto(v.numeroPedido) ? `Pedido: ${pedidoTexto(v.numeroPedido)}` : ""}</p>}
                     {v.tipoHorario !== "Bloqueio" && <>
                       <p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade)}` : ""}</p>
                       {v.endereco && <p className="mt-3 text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}

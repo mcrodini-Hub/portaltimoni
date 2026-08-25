@@ -205,12 +205,12 @@ export default function MotoristaLeitura() {
                                 <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor ? `Empresa: ${v.clienteFornecedor}` : ""}{v.clienteFornecedor && pedidoTexto(v.numeroPedido) ? " | " : ""}{pedidoTexto(v.numeroPedido) ? `NF/Pedido: ${pedidoTexto(v.numeroPedido)}` : ""}</p>
                               )}
                               {bloqueio && endereco && <p className="mt-1 text-sm text-slate-700">End.: {endereco}</p>}
-                              {bloqueio && enderecoInfo.link && <a href={enderecoInfo.link} target="_blank" rel="noreferrer" className="mt-2 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Abrir no Google Maps</a>}
+                              {bloqueio && enderecoInfo.link && <a href={enderecoInfo.link} target="_blank" rel="noreferrer" className="mt-2 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Google Maps</a>}
                               {!bloqueio && (
                                 <>
                                   <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>
                                   {endereco && <p className="mt-1 text-sm text-slate-700">End.: {endereco}</p>}
-                                  {enderecoInfo.link && <a href={enderecoInfo.link} target="_blank" rel="noreferrer" className="mt-2 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Abrir no Google Maps</a>}
+                                  {enderecoInfo.link && <a href={enderecoInfo.link} target="_blank" rel="noreferrer" className="mt-2 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Google Maps</a>}
                                   {(v.contatoNome || v.contatoWhats) && <p className="mt-1 text-sm text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
                                 </>
                               )}

@@ -304,6 +304,7 @@ export default function MotoristaAgenda() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [erro, setErro] = useState("");
+  const [aviso, setAviso] = useState("");
   const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());
   const [sellers, setSellers] = useState<Seller[]>([]);
 
@@ -394,6 +395,7 @@ export default function MotoristaAgenda() {
     setForm(emptyForm(data));
     setInvalidos(new Set());
     setErro("");
+    setAviso("");
     setModal(true);
   }
 
@@ -422,10 +424,12 @@ export default function MotoristaAgenda() {
   async function buscarCep() {
     const cep = form.cep.replace(/\D/g, "");
     if (cep.length !== 8) {
+      setAviso("");
       setErro("Digite um CEP com 8 números.");
       return;
     }
     setErro("");
+    setAviso("");
     try {
       const response = await fetch(`/api/cep?cep=${encodeURIComponent(cep)}`, {
         cache: "no-store",
@@ -440,8 +444,9 @@ export default function MotoristaAgenda() {
       set("bairro", resultado.bairro || "");
       set("numeroEndereco", "");
       set("linkEndereco", "");
-      setErro("CEP localizado. Confirme o número do endereço para gerar o link do Google Maps.");
+      setAviso("CEP localizado. Confirme o número do endereço para gerar o link do Google Maps.");
     } catch (e) {
+      setAviso("");
       setErro(e instanceof Error ? e.message : "Não foi possível buscar o CEP.");
     }
   }
@@ -674,6 +679,8 @@ export default function MotoristaAgenda() {
                       <article key={v.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                         <p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
                         {v.tipoHorario === "Bloqueio" && (v.clienteFornecedor || pedidoTexto(v.numeroPedido)) && <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor ? `Empresa: ${v.clienteFornecedor}` : ""}{v.clienteFornecedor && pedidoTexto(v.numeroPedido) ? " | " : ""}{pedidoTexto(v.numeroPedido) ? `NF/Pedido: ${pedidoTexto(v.numeroPedido)}` : ""}</p>}
+                        {v.tipoHorario === "Bloqueio" && v.endereco && <p className="mt-1 text-sm text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
+                        {v.tipoHorario === "Bloqueio" && separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Abrir no Google Maps</a>}
                         {v.tipoHorario !== "Bloqueio" && <>
                           <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade)}` : ""}</p>
                           {v.endereco && <p className="mt-1 text-sm text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
@@ -706,6 +713,8 @@ export default function MotoristaAgenda() {
                   <div className="font-[Arial] text-[11pt] leading-[1.35]">
                     <p className="font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
                     {v.tipoHorario === "Bloqueio" && (v.clienteFornecedor || pedidoTexto(v.numeroPedido)) && <p className="mt-3 text-slate-900">{v.clienteFornecedor ? `Empresa: ${v.clienteFornecedor}` : ""}{v.clienteFornecedor && pedidoTexto(v.numeroPedido) ? " | " : ""}{pedidoTexto(v.numeroPedido) ? `NF/Pedido: ${pedidoTexto(v.numeroPedido)}` : ""}</p>}
+                    {v.tipoHorario === "Bloqueio" && v.endereco && <p className="mt-3 text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
+                    {v.tipoHorario === "Bloqueio" && separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}
                     {v.tipoHorario !== "Bloqueio" && <>
                       <p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade)}` : ""}</p>
                       {v.endereco && <p className="mt-3 text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
@@ -781,6 +790,7 @@ export default function MotoristaAgenda() {
               <label className="text-sm font-medium text-slate-700">* Preenchido por<select value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} className={fieldClass("preenchidoPor")}><option value="">Selecione</option>{form.preenchidoPor && !AUTORIZADOS.includes(form.preenchidoPor as (typeof AUTORIZADOS)[number]) && <option value={form.preenchidoPor}>{form.preenchidoPor}</option>}{AUTORIZADOS.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>
             </div>
 
+            {aviso && <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{aviso}</p>}
             {erro && <p className="mt-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
             <div className="mt-5 flex justify-end gap-2 border-t border-slate-200 pt-4"><button type="button" onClick={() => setModal(false)} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700">Cancelar</button><button type="submit" disabled={saving} className="rounded-lg bg-blue-800 px-5 py-2 text-sm font-semibold text-white disabled:opacity-60">{saving ? "Salvando..." : editandoId ? "Salvar alterações" : "Salvar viagem"}</button></div>
           </form>

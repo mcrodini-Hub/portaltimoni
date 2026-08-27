@@ -9,6 +9,8 @@ export const dynamic = "force-dynamic";
 
 const MAX_FILES = 16;
 const MAX_TOTAL_BYTES = 4_200_000;
+const GEMINI_MODELS = ["gemini-flash-latest", "gemini-3.1-flash-lite"] as const;
+const RETRYABLE_GEMINI_STATUS = new Set([408, 429, 500, 502, 503, 504]);
 const ALLOWED_TYPES = new Set([
   "application/pdf",
   "image/jpeg",
@@ -177,6 +179,10 @@ function parseJson(text: string) {
     .replace(/^```\s*/i, "")
     .replace(/\s*```$/, "");
   return JSON.parse(cleaned) as Record<string, unknown>;
+}
+
+function wait(milliseconds: number) {
+  return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
 function asObject(value: unknown): Record<string, unknown> {
@@ -374,36 +380,54 @@ export async function POST(request: Request) {
       parts.push(await fileToPart(file));
     }
 
-    const response = await fetch(
-      "https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent",
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          contents: [{ role: "user", parts }],
-          generationConfig: {
-            temperature: 0,
-            maxOutputTokens: 12000,
-            responseMimeType: "application/json",
-          },
-        }),
-        cache: "no-store",
+    const requestBody = JSON.stringify({
+      contents: [{ role: "user", parts }],
+      generationConfig: {
+        temperature: 0,
+        maxOutputTokens: 12000,
+        responseMimeType: "application/json",
       },
-    );
+    });
+    let payload: unknown = null;
+    let lastStatus = 502;
+    let lastMessage = "";
 
-    const payload = await response.json();
-    if (!response.ok) {
-      const message =
-        (payload as { error?: { message?: string; status?: string } })?.error?.message ||
-        "Não foi possível analisar os documentos pelo Gemini.";
-      const status =
-        response.status === 429
-          ? "A cota do Gemini foi atingida. Aguarde a renovação da cota e tente novamente."
-          : message;
-      return NextResponse.json({ error: status }, { status: 502 });
+    for (let attempt = 0; attempt < GEMINI_MODELS.length; attempt += 1) {
+      const model = GEMINI_MODELS[attempt];
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-goog-api-key": apiKey,
+          },
+          body: requestBody,
+          cache: "no-store",
+        },
+      );
+
+      const attemptPayload = await response.json().catch(() => ({}));
+      if (response.ok) {
+        payload = attemptPayload;
+        break;
+      }
+
+      lastStatus = response.status;
+      lastMessage =
+        (attemptPayload as { error?: { message?: string } })?.error?.message || "";
+      if (!RETRYABLE_GEMINI_STATUS.has(response.status)) break;
+      if (attempt < GEMINI_MODELS.length - 1) {
+        await wait(1200 + Math.floor(Math.random() * 500));
+      }
+    }
+
+    if (!payload) {
+      const temporary = RETRYABLE_GEMINI_STATUS.has(lastStatus);
+      const error = temporary
+        ? "O serviço de conferência está temporariamente ocupado. Tentamos novamente de forma automática, mas não foi possível concluir agora. Aguarde alguns minutos e tente novamente."
+        : lastMessage || "Não foi possível analisar os documentos. Verifique os arquivos e tente novamente.";
+      return NextResponse.json({ error, retryable: temporary }, { status: temporary ? 503 : 502 });
     }
 
     const text = extractText(payload);

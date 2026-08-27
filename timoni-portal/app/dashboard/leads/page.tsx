@@ -5,7 +5,8 @@ import * as XLSX from "xlsx";
 
 type Lead = { row:number; cliente:string; segmento:string; contato:string; canal:string; ultimoContato:string; proximoContato:string; observacoes:string; status:"atrasado"|"hoje"|"proximo"|"sem-data" };
 type Prospect = { id:string; cliente:string; segmento:string; cidade:string; contato:string; canal:string; oportunidade:string; observacoes:string; origem:"historico"|"portal" };
-type ResponseData = { leads: Lead[]; prospects: Prospect[]; summary: { atrasados:number; hoje:number; semData:number; pendentes:number; prospectar:number } };
+type Activity = { data:string; tipo:"CONTATO"|"CADASTRO"|"REATIVAÇÃO"|"IMPORTAÇÃO"; cliente:string; proximoContato:string; observacoes:string };
+type ResponseData = { leads: Lead[]; prospects: Prospect[]; activities:Activity[]; summary: { atrasados:number; hoje:number; semData:number; pendentes:number; prospectar:number } };
 type ImportRow = { cliente:string; segmento:string; contato:string; canal:string; ultimoContato:string; proximoContato:string; observacoes:string; sourceRow:number; duplicate?:boolean; error?:string };
 
 const normalizeHeader=(value:unknown)=>String(value??"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]/g,"");
@@ -30,6 +31,10 @@ const displayDate=(value:string)=>{
   const [year,month,day]=input.split("-");
   return `${day}/${month}/${year}`;
 };
+const localIso=(date:Date)=>`${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+const startOfWeek=(date:Date)=>{const result=new Date(date);result.setHours(0,0,0,0);const day=result.getDay();result.setDate(result.getDate()-(day===0?6:day-1));return result;};
+const endOfWeek=(date:Date)=>{const result=startOfWeek(date);result.setDate(result.getDate()+6);return result;};
+const dateInPeriod=(value:string,start:string,end:string)=>{const input=toDateInput(value);return Boolean(input&&input>=start&&input<=end);};
 function ContactLinks({value}:{value:string}){
   if(!value)return <span>—</span>;
   const parts=value.split(/\s*(?:\n|;|\||\s\/\s)\s*/).map(item=>item.trim()).filter(Boolean);
@@ -62,6 +67,12 @@ export default function LeadsPage() {
   const [importRows,setImportRows]=useState<ImportRow[]|null>(null);
   const [importName,setImportName]=useState("");
   const [importError,setImportError]=useState("");
+  const [showReports,setShowReports]=useState(false);
+  const [reportPreset,setReportPreset]=useState<"atual"|"anterior"|"30dias"|"personalizado">("atual");
+  const [reportStart,setReportStart]=useState(()=>localIso(startOfWeek(new Date())));
+  const [reportEnd,setReportEnd]=useState(()=>localIso(endOfWeek(new Date())));
+  const [generatingReport,setGeneratingReport]=useState(false);
+  const [reportError,setReportError]=useState("");
 
   async function load(){ const r=await fetch("/api/leads",{cache:"no-store"}); const result=await r.json(); if(r.ok){setData(result);setImportError("");}else{setData(null);setImportError(result.error??"Não foi possível carregar os dados atuais do Leads.");} }
   useEffect(()=>{ void load(); },[]);
@@ -69,6 +80,40 @@ export default function LeadsPage() {
   const segments=useMemo(()=>Array.from(new Set((data?.leads??[]).map(x=>x.segmento).filter(Boolean))).sort((a,b)=>a.localeCompare(b,"pt-BR")),[data]);
   const leads=useMemo(()=>{ let all=data?.leads??[]; if(filter==="pendentes") all=all.filter(x=>x.status==="atrasado"||x.status==="hoje"); else if(filter!=="todos") all=all.filter(x=>x.status===filter); if(segment) all=all.filter(x=>x.segmento===segment); const q=text.trim().toLocaleLowerCase("pt-BR"); if(q) all=all.filter(x=>`${x.cliente} ${x.segmento} ${x.contato} ${x.canal} ${x.observacoes}`.toLocaleLowerCase("pt-BR").includes(q)); return all; },[data,filter,segment,text]);
   const prospects=useMemo(()=>{ const q=text.trim().toLocaleLowerCase("pt-BR"); return (data?.prospects??[]).filter(x=>!q||`${x.cliente} ${x.segmento} ${x.cidade} ${x.oportunidade} ${x.observacoes}`.toLocaleLowerCase("pt-BR").includes(q)); },[data,text]);
+  useEffect(()=>{
+    if(reportPreset==="personalizado")return;
+    const today=new Date();
+    if(reportPreset==="atual"){setReportStart(localIso(startOfWeek(today)));setReportEnd(localIso(endOfWeek(today)));return;}
+    if(reportPreset==="anterior"){const previous=new Date(today);previous.setDate(previous.getDate()-7);setReportStart(localIso(startOfWeek(previous)));setReportEnd(localIso(endOfWeek(previous)));return;}
+    const start=new Date(today);start.setDate(start.getDate()-29);setReportStart(localIso(start));setReportEnd(localIso(today));
+  },[reportPreset]);
+  const report=useMemo(()=>{
+    const current=data?.leads??[];
+    const activities=(data?.activities??[]).filter(item=>dateInPeriod(item.data,reportStart,reportEnd));
+    const completedNames=new Set(activities.filter(item=>item.tipo==="CONTATO").map(item=>item.cliente.toLocaleLowerCase("pt-BR")));
+    current.filter(item=>dateInPeriod(item.ultimoContato,reportStart,reportEnd)).forEach(item=>completedNames.add(item.cliente.toLocaleLowerCase("pt-BR")));
+    const today=localIso(new Date());
+    const pending=current.filter(item=>{const date=toDateInput(item.proximoContato);return date&&date>=today&&date>=reportStart&&date<=reportEnd;}).length;
+    const overdue=current.filter(item=>{const date=toDateInput(item.proximoContato);return date&&date<today&&date<=reportEnd;}).length;
+    const completed=completedNames.size;
+    const total=completed+pending+overdue;
+    const progress=total?Math.round((completed/total)*100):0;
+    const weekly=Array.from({length:6},(_,position)=>{
+      const base=startOfWeek(new Date());
+      base.setDate(base.getDate()-((5-position)*7));
+      const finish=endOfWeek(base);
+      const start=localIso(base),end=localIso(finish);
+      const done=new Set<string>();
+      (data?.activities??[]).filter(item=>item.tipo==="CONTATO"&&dateInPeriod(item.data,start,end)).forEach(item=>done.add(item.cliente.toLocaleLowerCase("pt-BR")));
+      current.filter(item=>dateInPeriod(item.ultimoContato,start,end)).forEach(item=>done.add(item.cliente.toLocaleLowerCase("pt-BR")));
+      const scheduled=current.filter(item=>dateInPeriod(item.proximoContato,start,end));
+      const late=scheduled.filter(item=>toDateInput(item.proximoContato)<today).length;
+      const open=Math.max(0,scheduled.length-late);
+      const baseTotal=done.size+open+late;
+      return {label:`${displayDate(start).slice(0,5)}–${displayDate(end).slice(0,5)}`,completed:done.size,pending:open,overdue:late,progress:baseTotal?Math.round((done.size/baseTotal)*100):0};
+    });
+    return {completed,pending,overdue,progress,newLeads:activities.filter(item=>item.tipo==="CADASTRO"||item.tipo==="IMPORTAÇÃO").length,reactivated:activities.filter(item=>item.tipo==="REATIVAÇÃO").length,withoutDate:current.filter(item=>!toDateInput(item.proximoContato)).length,weekly};
+  },[data,reportStart,reportEnd]);
 
   async function saveFollowup(e:React.FormEvent<HTMLFormElement>){ e.preventDefault(); if(!editing)return; setSaving(true); const fd=new FormData(e.currentTarget); const r=await fetch("/api/leads",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({row:editing.row,cliente:fd.get("cliente"),segmento:fd.get("segmento"),contato:fd.get("contato"),canal:fd.get("canal"),ultimoContato:fd.get("ultimoContato"),proximoContato:fd.get("proximoContato"),observacoes:fd.get("observacoes")})}); setSaving(false); if(r.ok){setEditing(null); await load();} else alert((await r.json()).error??"Erro ao salvar"); }
   async function createLead(e:React.FormEvent<HTMLFormElement>){ e.preventDefault(); setSaving(true); const fd=new FormData(e.currentTarget); const payload=Object.fromEntries(fd.entries()); const r=await fetch("/api/leads",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)}); setSaving(false); if(r.ok){setShowForm(false); await load();} else alert((await r.json()).error??"Erro ao cadastrar"); }
@@ -110,11 +155,21 @@ export default function LeadsPage() {
     if(!r.ok){setImportError(result.error??"Erro ao importar");return;}
     alert(`${result.imported} empresa(s) importada(s) para Follow-up.`); setImportRows(null); setImportName(""); await load();
   }
+  async function generateGoogleReport(){
+    setGeneratingReport(true);setReportError("");
+    try{
+      const response=await fetch("/api/leads",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"gerar_relatorio",startDate:reportStart,endDate:reportEnd})});
+      const result=await response.json();
+      if(!response.ok)throw new Error(result.error??"Não foi possível gerar o relatório.");
+      window.open(result.url,"_blank","noopener,noreferrer");
+    }catch(error){setReportError(error instanceof Error?error.message:"Não foi possível gerar o relatório.");}
+    finally{setGeneratingReport(false);}
+  }
   function googleSearch(e:React.FormEvent<HTMLFormElement>){ e.preventDefault(); const fd=new FormData(e.currentTarget); const segmento=String(fd.get("segmento")??"").trim(); const regiao=String(fd.get("regiao")??"").trim(); const oportunidade=String(fd.get("oportunidade")??"").trim(); const query=[segmento,regiao,oportunidade].filter(Boolean).join(" "); if(!query) return; window.open(`https://www.google.com/search?q=${encodeURIComponent(query)}`,"_blank","noopener,noreferrer"); window.open(`https://www.google.com/maps/search/${encodeURIComponent([segmento,regiao].filter(Boolean).join(" "))}`,"_blank","noopener,noreferrer"); }
 
   const badge=(s:Lead["status"])=> s==="atrasado"?"bg-red-100 text-red-700":s==="hoje"?"bg-amber-100 text-amber-800":s==="sem-data"?"bg-slate-100 text-slate-600":"bg-emerald-50 text-emerald-700";
   return <div className="pb-8">
-    <div className="mb-5 flex flex-wrap items-start justify-between gap-3"><div><p className="text-[11px] font-semibold uppercase tracking-[.2em] text-blue-700">Casa Timoni</p><h1 className="text-2xl font-semibold text-slate-950">Leads</h1><p className="mt-1 text-sm text-slate-600">Follow-up e prospecção sem complicação.</p></div><div className="flex flex-wrap gap-2"><input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={e=>{const file=e.target.files?.[0];if(file)void readImportFile(file)}}/><button onClick={()=>fileInputRef.current?.click()} className="rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700">Importar arquivo</button><button onClick={()=>setShowSearch(true)} className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">Buscar empresas</button><button onClick={()=>setShowForm(true)} className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white">+ Cadastrar</button></div></div>
+    <div className="mb-5 flex flex-wrap items-start justify-between gap-3"><div><p className="text-[11px] font-semibold uppercase tracking-[.2em] text-blue-700">Casa Timoni</p><h1 className="text-2xl font-semibold text-slate-950">Leads</h1><p className="mt-1 text-sm text-slate-600">Follow-up e prospecção sem complicação.</p></div><div className="flex flex-wrap gap-2"><input ref={fileInputRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={e=>{const file=e.target.files?.[0];if(file)void readImportFile(file)}}/><button onClick={()=>setShowReports(value=>!value)} className="rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700">Avanço comercial</button><button onClick={()=>fileInputRef.current?.click()} className="rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-700">Importar arquivo</button><button onClick={()=>setShowSearch(true)} className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-700">Buscar empresas</button><button onClick={()=>setShowForm(true)} className="rounded-xl bg-blue-700 px-4 py-2 text-sm font-semibold text-white">+ Cadastrar</button></div></div>
     {importError&&!importRows&&<div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{importError}</div>}
 
     <section className="grid gap-3 sm:grid-cols-5">
@@ -124,6 +179,25 @@ export default function LeadsPage() {
       <button onClick={()=>{setTab("followup");setFilter("sem-data")}} className="rounded-2xl border p-4 text-left"><b className="text-3xl">{data?.summary.semData??"—"}</b><p className="text-xs">sem próxima data</p></button>
       <button onClick={()=>setTab("prospectar")} className="rounded-2xl border p-4 text-left"><b className="text-3xl">{data?.summary.prospectar??"—"}</b><p className="text-xs">a prospectar</p></button>
     </section>
+
+    {showReports&&<section className="mt-5 rounded-2xl border border-blue-100 bg-white p-4 shadow-sm sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-[.16em] text-blue-700">Relatórios</p><h2 className="text-xl font-semibold text-slate-950">Avanço comercial</h2><p className="mt-1 text-sm text-slate-500">Acompanhe o realizado e o que ainda precisa de ação.</p></div><button onClick={()=>void generateGoogleReport()} disabled={generatingReport||!data} className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">{generatingReport?"Gerando...":"Gerar no Google Planilhas"}</button></div>
+      <div className="mt-4 flex flex-wrap gap-2"><select value={reportPreset} onChange={event=>setReportPreset(event.target.value as typeof reportPreset)} className="rounded-xl border bg-white px-3 py-2 text-sm font-semibold"><option value="atual">Semana atual</option><option value="anterior">Semana anterior</option><option value="30dias">Últimos 30 dias</option><option value="personalizado">Período personalizado</option></select>{reportPreset==="personalizado"&&<><label className="flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold">De <input type="date" value={reportStart} onChange={event=>setReportStart(event.target.value)} className="bg-transparent"/></label><label className="flex items-center gap-2 rounded-xl border px-3 py-2 text-xs font-semibold">Até <input type="date" value={reportEnd} onChange={event=>setReportEnd(event.target.value)} className="bg-transparent"/></label></>}</div>
+      {reportError&&<div className="mt-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{reportError}</div>}
+      <div className="mt-4 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        <div className="rounded-xl bg-emerald-50 p-3"><b className="text-2xl text-emerald-700">{report.completed}</b><p className="text-xs text-emerald-800">realizados</p></div>
+        <div className="rounded-xl bg-blue-50 p-3"><b className="text-2xl text-blue-700">{report.pending}</b><p className="text-xs text-blue-800">pendentes</p></div>
+        <div className="rounded-xl bg-red-50 p-3"><b className="text-2xl text-red-700">{report.overdue}</b><p className="text-xs text-red-800">atrasados</p></div>
+        <div className="rounded-xl bg-violet-50 p-3"><b className="text-2xl text-violet-700">{report.newLeads}</b><p className="text-xs text-violet-800">novos leads</p></div>
+        <div className="rounded-xl bg-amber-50 p-3"><b className="text-2xl text-amber-700">{report.reactivated}</b><p className="text-xs text-amber-800">reativados</p></div>
+        <div className="rounded-xl bg-slate-100 p-3"><b className="text-2xl text-slate-700">{report.withoutDate}</b><p className="text-xs text-slate-600">sem próxima data</p></div>
+      </div>
+      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(360px,1.2fr)]">
+        <div className="rounded-xl border p-4"><div className="flex items-end justify-between"><div><p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Avanço do período</p><b className="text-4xl text-blue-800">{report.progress}%</b></div><span className="text-xs text-slate-500">{displayDate(reportStart)} a {displayDate(reportEnd)}</span></div><div className="mt-4 h-4 overflow-hidden rounded-full bg-slate-100"><div className="h-full rounded-full bg-blue-700 transition-all" style={{width:`${report.progress}%`}}/></div><div className="mt-3 flex flex-wrap gap-4 text-xs"><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-emerald-500"/>Realizado</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-blue-500"/>Pendente</span><span className="flex items-center gap-1.5"><i className="h-2.5 w-2.5 rounded-full bg-red-500"/>Atrasado</span></div></div>
+        <div className="overflow-x-auto rounded-xl border"><table className="min-w-full text-xs"><thead className="bg-slate-50 text-left text-slate-600"><tr><th className="px-3 py-2">Semana</th><th className="px-3 py-2 text-center">Realizados</th><th className="px-3 py-2 text-center">Pendentes</th><th className="px-3 py-2 text-center">Atrasados</th><th className="px-3 py-2 text-right">Avanço</th></tr></thead><tbody>{report.weekly.map(item=><tr key={item.label} className="border-t"><td className="whitespace-nowrap px-3 py-2 font-semibold">{item.label}</td><td className="px-3 py-2 text-center text-emerald-700">{item.completed}</td><td className="px-3 py-2 text-center text-blue-700">{item.pending}</td><td className="px-3 py-2 text-center text-red-700">{item.overdue}</td><td className="px-3 py-2 text-right font-semibold">{item.progress}%</td></tr>)}</tbody></table></div>
+      </div>
+      <p className="mt-3 text-xs text-slate-500">O histórico passa a ser registrado automaticamente a partir desta atualização. As comparações ficarão mais completas a cada semana de uso.</p>
+    </section>}
 
     <div className="mt-5 flex flex-wrap gap-2"><button onClick={()=>setTab("followup")} className={`rounded-lg px-4 py-2 text-sm font-semibold ${tab==="followup"?"bg-slate-900 text-white":"border bg-white"}`}>Follow-up</button><button onClick={()=>setTab("prospectar")} className={`rounded-lg px-4 py-2 text-sm font-semibold ${tab==="prospectar"?"bg-slate-900 text-white":"border bg-white"}`}>A prospectar</button></div>
     <div className="mt-3 flex flex-wrap gap-2"><input value={text} onChange={e=>setText(e.target.value)} placeholder="Buscar empresa, contato, produto..." className="min-w-72 flex-1 rounded-xl border bg-white px-3 py-2 text-sm"/>{tab==="followup"&&<select value={segment} onChange={e=>setSegment(e.target.value)} className="rounded-xl border bg-white px-3 py-2 text-sm"><option value="">Todos os segmentos</option>{segments.map(x=><option key={x}>{x}</option>)}</select>}{tab==="followup"&&<button onClick={()=>setFilter("todos")} className="rounded-xl border bg-white px-3 py-2 text-sm font-semibold">Ver todos</button>}</div>

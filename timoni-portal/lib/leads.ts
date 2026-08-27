@@ -1,10 +1,12 @@
 import { google } from "googleapis";
+import type { sheets_v4 } from "googleapis";
 import { getAccessTokenFromRefreshToken } from "@/lib/google-calendar";
 
 export const LEADS_SPREADSHEET_ID = "1P2O9xhqyu7bMTythhZEPDEY8NYhh99hUthFQOaRCyK8";
 export const LEADS_SHEET = "FOLLOW UP";
 export const PROSPECTS_SOURCE_SHEET = "A PROSPECTAR";
 export const PROSPECTS_PORTAL_SHEET = "PROSPECTAR PORTAL";
+export const LEADS_HISTORY_SHEET = "HISTÓRICO LEADS";
 
 export type Lead = {
   row: number;
@@ -64,6 +66,196 @@ function leadStatus(value: string): Lead["status"] {
   return "proximo";
 }
 
+type LeadActivity = {
+  data: string;
+  tipo: "CONTATO" | "CADASTRO" | "REATIVAÇÃO" | "IMPORTAÇÃO";
+  cliente: string;
+  proximoContato: string;
+  observacoes: string;
+};
+
+function formatIsoDate(date: Date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+async function ensureHistorySheet(sessionAccessToken?: string) {
+  const sheets = await sheetsClient(sessionAccessToken);
+  const meta = await sheets.spreadsheets.get({ spreadsheetId: LEADS_SPREADSHEET_ID, fields: "sheets.properties.title" });
+  const exists = (meta.data.sheets ?? []).some((sheet) => sheet.properties?.title === LEADS_HISTORY_SHEET);
+  if (!exists) {
+    await sheets.spreadsheets.batchUpdate({
+      spreadsheetId: LEADS_SPREADSHEET_ID,
+      requestBody: { requests: [{ addSheet: { properties: { title: LEADS_HISTORY_SHEET, hidden: true } } }] },
+    });
+    await sheets.spreadsheets.values.update({
+      spreadsheetId: LEADS_SPREADSHEET_ID,
+      range: `'${LEADS_HISTORY_SHEET}'!A1:E1`,
+      valueInputOption: "RAW",
+      requestBody: { values: [["Data", "Tipo", "Empresa", "Próximo contato", "Observações"]] },
+    });
+  }
+  return sheets;
+}
+
+async function logActivities(activities: LeadActivity[], sessionAccessToken?: string) {
+  if (!activities.length) return;
+  const sheets = await ensureHistorySheet(sessionAccessToken);
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: LEADS_SPREADSHEET_ID,
+    range: `'${LEADS_HISTORY_SHEET}'!A:E`,
+    valueInputOption: "USER_ENTERED",
+    insertDataOption: "INSERT_ROWS",
+    requestBody: { values: activities.map((item) => [item.data, item.tipo, item.cliente, item.proximoContato, item.observacoes]) },
+  });
+}
+
+export async function listLeadActivities(sessionAccessToken?: string): Promise<LeadActivity[]> {
+  const sheets = await ensureHistorySheet(sessionAccessToken);
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: LEADS_SPREADSHEET_ID,
+    range: `'${LEADS_HISTORY_SHEET}'!A2:E5000`,
+    valueRenderOption: "FORMATTED_VALUE",
+  });
+  return (response.data.values ?? []).map((row) => ({
+    data: String(row[0] ?? "").trim(),
+    tipo: String(row[1] ?? "").trim() as LeadActivity["tipo"],
+    cliente: String(row[2] ?? "").trim(),
+    proximoContato: String(row[3] ?? "").trim(),
+    observacoes: String(row[4] ?? "").trim(),
+  })).filter((item) => item.data && item.cliente);
+}
+
+function inPeriod(value: string, start: Date, end: Date) {
+  const date = parseDate(value);
+  return Boolean(date && date.getTime() >= start.getTime() && date.getTime() <= end.getTime());
+}
+
+export async function createLeadsReport(input: { startDate: string; endDate: string }, sessionAccessToken?: string) {
+  const start = parseDate(input.startDate);
+  const end = parseDate(input.endDate);
+  if (!start || !end || start.getTime() > end.getTime()) throw new Error("Informe um período válido para o relatório.");
+  const maximum = new Date(start);
+  maximum.setFullYear(maximum.getFullYear() + 1);
+  if (end.getTime() > maximum.getTime()) throw new Error("O período máximo do relatório é de 1 ano.");
+  end.setHours(23, 59, 59, 999);
+
+  const [leads, activities] = await Promise.all([listLeads(sessionAccessToken), listLeadActivities(sessionAccessToken)]);
+  const periodActivities = activities.filter((item) => inPeriod(item.data, start, end));
+  const completedNames = new Set(periodActivities.filter((item) => item.tipo === "CONTATO").map((item) => item.cliente.toLocaleLowerCase("pt-BR")));
+  leads.forEach((lead) => {
+    if (inPeriod(lead.ultimoContato, start, end)) completedNames.add(lead.cliente.toLocaleLowerCase("pt-BR"));
+  });
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const pending = leads.filter((lead) => {
+    const date = parseDate(lead.proximoContato);
+    return Boolean(date && date.getTime() >= today.getTime() && date.getTime() >= start.getTime() && date.getTime() <= end.getTime());
+  });
+  const overdue = leads.filter((lead) => {
+    const date = parseDate(lead.proximoContato);
+    return Boolean(date && date.getTime() < today.getTime() && date.getTime() <= end.getTime());
+  });
+  const completed = completedNames.size;
+  const total = completed + pending.length + overdue.length;
+  const progress = total ? Math.round((completed / total) * 100) : 0;
+  const newLeads = periodActivities.filter((item) => item.tipo === "CADASTRO" || item.tipo === "IMPORTAÇÃO").length;
+  const reactivated = periodActivities.filter((item) => item.tipo === "REATIVAÇÃO").length;
+  const withoutDate = leads.filter((lead) => !parseDate(lead.proximoContato)).length;
+
+  const weekly: Array<[string, number, number, number, number]> = [];
+  const cursor = new Date(end);
+  cursor.setHours(0, 0, 0, 0);
+  const day = cursor.getDay();
+  cursor.setDate(cursor.getDate() - (day === 0 ? 6 : day - 1));
+  for (let index = 5; index >= 0; index -= 1) {
+    const weekStart = new Date(cursor);
+    weekStart.setDate(cursor.getDate() - (index * 7));
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 6);
+    weekEnd.setHours(23, 59, 59, 999);
+    const done = new Set<string>();
+    activities.filter((item) => item.tipo === "CONTATO" && inPeriod(item.data, weekStart, weekEnd)).forEach((item) => done.add(item.cliente.toLocaleLowerCase("pt-BR")));
+    leads.filter((lead) => inPeriod(lead.ultimoContato, weekStart, weekEnd)).forEach((lead) => done.add(lead.cliente.toLocaleLowerCase("pt-BR")));
+    const scheduled = leads.filter((lead) => inPeriod(lead.proximoContato, weekStart, weekEnd));
+    const late = scheduled.filter((lead) => (parseDate(lead.proximoContato)?.getTime() ?? 0) < today.getTime()).length;
+    const open = Math.max(0, scheduled.length - late);
+    const base = done.size + open + late;
+    weekly.push([
+      `${String(weekStart.getDate()).padStart(2, "0")}/${String(weekStart.getMonth() + 1).padStart(2, "0")} a ${String(weekEnd.getDate()).padStart(2, "0")}/${String(weekEnd.getMonth() + 1).padStart(2, "0")}`,
+      done.size,
+      open,
+      late,
+      base ? Math.round((done.size / base) * 100) : 0,
+    ]);
+  }
+
+  const sheets = await sheetsClient(sessionAccessToken);
+  const titleDate = formatIsoDate(new Date()).split("-").reverse().join("-");
+  const created = await sheets.spreadsheets.create({
+    requestBody: {
+      properties: { title: `Relatório Leads - ${titleDate}`, locale: "pt_BR", timeZone: "America/Sao_Paulo" },
+      sheets: [{ properties: { title: "Resumo" } }, { properties: { title: "Detalhamento" } }],
+    },
+    fields: "spreadsheetId,spreadsheetUrl,sheets.properties",
+  });
+  const reportId = created.data.spreadsheetId;
+  if (!reportId) throw new Error("Não foi possível criar a Google Planilha.");
+  const periodLabel = `${formatIsoDate(start).split("-").reverse().join("/")} a ${formatIsoDate(end).split("-").reverse().join("/")}`;
+  const detailed = leads.filter((lead) => completedNames.has(lead.cliente.toLocaleLowerCase("pt-BR")) || pending.includes(lead) || overdue.includes(lead));
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId: reportId,
+    requestBody: {
+      valueInputOption: "USER_ENTERED",
+      data: [
+        {
+          range: "'Resumo'!A1:E18",
+          values: [
+            ["RELATÓRIO DE AVANÇO — LEADS"],
+            ["Período", periodLabel],
+            ["Realizados", completed],
+            ["Pendentes", pending.length],
+            ["Atrasados", overdue.length],
+            ["Avanço", progress / 100],
+            ["Novos leads", newLeads],
+            ["Reativados", reactivated],
+            ["Sem próxima data", withoutDate],
+            [],
+            ["Evolução semanal"],
+            ["Semana", "Realizados", "Pendentes", "Atrasados", "Avanço"],
+            ...weekly.map(([label, done, open, late, percentage]) => [label, done, open, late, percentage / 100]),
+          ],
+        },
+        {
+          range: `'Detalhamento'!A1:H${Math.max(2, detailed.length + 1)}`,
+          values: [
+            ["Empresa", "Segmento", "Contato", "Telefone/E-mail", "Último contato", "Próximo contato", "Situação", "Observações"],
+            ...detailed.map((lead) => [lead.cliente, lead.segmento, lead.contato, lead.canal, lead.ultimoContato, lead.proximoContato, completedNames.has(lead.cliente.toLocaleLowerCase("pt-BR")) ? "Realizado" : lead.status === "atrasado" ? "Atrasado" : "Pendente", lead.observacoes]),
+          ],
+        },
+      ],
+    },
+  });
+  const summarySheetId = created.data.sheets?.find((sheet) => sheet.properties?.title === "Resumo")?.properties?.sheetId;
+  const detailSheetId = created.data.sheets?.find((sheet) => sheet.properties?.title === "Detalhamento")?.properties?.sheetId;
+  const requests: sheets_v4.Schema$Request[] = [summarySheetId, detailSheetId].filter((value): value is number => typeof value === "number").flatMap((sheetId) => [
+    { updateSheetProperties: { properties: { sheetId, gridProperties: { frozenRowCount: sheetId === detailSheetId ? 1 : 0 } }, fields: "gridProperties.frozenRowCount" } },
+    { autoResizeDimensions: { dimensions: { sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: sheetId === detailSheetId ? 8 : 5 } } },
+  ]);
+  if (summarySheetId !== undefined) {
+    requests.push(
+      { repeatCell: { range: { sheetId: summarySheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 5 }, cell: { userEnteredFormat: { backgroundColor: { red: 0.08, green: 0.25, blue: 0.55 }, textFormat: { foregroundColor: { red: 1, green: 1, blue: 1 }, bold: true, fontSize: 14 } } }, fields: "userEnteredFormat" } },
+      { repeatCell: { range: { sheetId: summarySheetId, startRowIndex: 5, endRowIndex: 6, startColumnIndex: 1, endColumnIndex: 2 }, cell: { userEnteredFormat: { numberFormat: { type: "PERCENT", pattern: "0%" } } }, fields: "userEnteredFormat.numberFormat" } },
+      { repeatCell: { range: { sheetId: summarySheetId, startRowIndex: 12, endRowIndex: 18, startColumnIndex: 4, endColumnIndex: 5 }, cell: { userEnteredFormat: { numberFormat: { type: "PERCENT", pattern: "0%" } } }, fields: "userEnteredFormat.numberFormat" } },
+    );
+  }
+  await sheets.spreadsheets.batchUpdate({ spreadsheetId: reportId, requestBody: { requests } });
+  return { url: created.data.spreadsheetUrl ?? `https://docs.google.com/spreadsheets/d/${reportId}/edit`, metrics: { completed, pending: pending.length, overdue: overdue.length, progress, newLeads, reactivated, withoutDate }, weekly };
+}
+
 async function ensureProspectsPortalSheet(sessionAccessToken?: string) {
   const sheets = await sheetsClient(sessionAccessToken);
   const meta = await sheets.spreadsheets.get({ spreadsheetId: LEADS_SPREADSHEET_ID, fields: "sheets.properties.title" });
@@ -117,6 +309,7 @@ export async function addLead(input: { cliente:string; segmento:string; contato:
   await assertNotDuplicate(input.cliente, sessionAccessToken);
   const sheets = await sheetsClient(sessionAccessToken);
   await sheets.spreadsheets.values.append({ spreadsheetId: LEADS_SPREADSHEET_ID, range: `'${LEADS_SHEET}'!A:G`, valueInputOption: "USER_ENTERED", insertDataOption: "INSERT_ROWS", requestBody: { values: [[input.cliente, input.segmento, input.contato, input.canal, "", input.proximoContato, input.observacoes]] } });
+  await logActivities([{ data: formatIsoDate(new Date()), tipo: "CADASTRO", cliente: input.cliente, proximoContato: input.proximoContato, observacoes: input.observacoes }], sessionAccessToken);
 }
 
 export type LeadImportRow = {
@@ -173,6 +366,7 @@ export async function importLeads(rows: LeadImportRow[], sessionAccessToken?: st
       insertDataOption: "INSERT_ROWS",
       requestBody: { values: accepted },
     });
+    await logActivities(accepted.map((row) => ({ data: formatIsoDate(new Date()), tipo: "IMPORTAÇÃO" as const, cliente: row[0], proximoContato: row[5], observacoes: row[6] })), sessionAccessToken);
   }
 
   return { imported: accepted.length, duplicates, errors };
@@ -183,6 +377,7 @@ export async function addProspect(input: { cliente:string; segmento:string; cida
   await assertNotDuplicate(input.cliente, sessionAccessToken);
   const sheets = await ensureProspectsPortalSheet(sessionAccessToken);
   await sheets.spreadsheets.values.append({ spreadsheetId: LEADS_SPREADSHEET_ID, range: `'${PROSPECTS_PORTAL_SHEET}'!A:G`, valueInputOption: "USER_ENTERED", insertDataOption: "INSERT_ROWS", requestBody: { values: [[input.cliente, input.segmento, input.cidade, input.contato, input.canal, input.oportunidade, input.observacoes]] } });
+  await logActivities([{ data: formatIsoDate(new Date()), tipo: "CADASTRO", cliente: input.cliente, proximoContato: "", observacoes: input.observacoes }], sessionAccessToken);
 }
 
 export async function reactivateProspect(input: { id:string; cliente:string; segmento:string; contato:string; canal:string; proximoContato:string; observacoes:string }, sessionAccessToken?: string) {
@@ -210,6 +405,7 @@ export async function reactivateProspect(input: { id:string; cliente:string; seg
   const sourceSheet = idMatch[1] === "h" ? PROSPECTS_SOURCE_SHEET : PROSPECTS_PORTAL_SHEET;
   const sourceColumns = idMatch[1] === "h" ? "A:D" : "A:G";
   await sheets.spreadsheets.values.clear({ spreadsheetId: LEADS_SPREADSHEET_ID, range: `'${sourceSheet}'!${sourceColumns.split(":")[0]}${row}:${sourceColumns.split(":")[1]}${row}` });
+  await logActivities([{ data: formatIsoDate(new Date()), tipo: "REATIVAÇÃO", cliente: input.cliente, proximoContato: input.proximoContato, observacoes: input.observacoes }], sessionAccessToken);
 }
 
 export async function updateLeadFollowUp(input: { row: number; cliente: string; segmento: string; contato: string; canal: string; ultimoContato: string; proximoContato: string; observacoes: string }, sessionAccessToken?: string) {
@@ -221,4 +417,6 @@ export async function updateLeadFollowUp(input: { row: number; cliente: string; 
   if (leads.some((lead) => lead.row !== input.row && lead.cliente.toLocaleLowerCase("pt-BR") === target) || prospects.some((prospect) => prospect.cliente.toLocaleLowerCase("pt-BR") === target)) throw new Error("Esta empresa já existe no Leads ou em A Prospectar.");
   const sheets = await sheetsClient(sessionAccessToken);
   await sheets.spreadsheets.values.update({ spreadsheetId: LEADS_SPREADSHEET_ID, range: `'${LEADS_SHEET}'!A${input.row}:G${input.row}`, valueInputOption: "USER_ENTERED", requestBody: { values: [[input.cliente, input.segmento, input.contato, input.canal, input.ultimoContato, input.proximoContato, input.observacoes]] } });
+  const contactDate = parseDate(input.ultimoContato) ? formatIsoDate(parseDate(input.ultimoContato)!) : formatIsoDate(new Date());
+  await logActivities([{ data: contactDate, tipo: "CONTATO", cliente: input.cliente, proximoContato: input.proximoContato, observacoes: input.observacoes }], sessionAccessToken);
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { hasModuleAccess } from "@/lib/access-control";
-import { addLead, addProspect, importLeads, listLeads, listProspects, reactivateProspect, updateLeadFollowUp } from "@/lib/leads";
+import { addLead, addProspect, createLeadsReport, importLeads, listLeadActivities, listLeads, listProspects, reactivateProspect, updateLeadFollowUp } from "@/lib/leads";
 
 async function authorizedAccessToken() {
   const session = await auth();
@@ -14,11 +14,11 @@ export async function GET() {
   const accessToken = await authorizedAccessToken();
   if (!accessToken) return NextResponse.json({ error: "Sessão Google sem acesso à planilha. Entre novamente no Portal." }, { status: 401 });
   try {
-    const [leads, prospects] = await Promise.all([listLeads(accessToken), listProspects(accessToken)]);
+    const [leads, prospects, activities] = await Promise.all([listLeads(accessToken), listProspects(accessToken), listLeadActivities(accessToken)]);
     const atrasados = leads.filter((x) => x.status === "atrasado").length;
     const hoje = leads.filter((x) => x.status === "hoje").length;
     const semData = leads.filter((x) => x.status === "sem-data").length;
-    return NextResponse.json({ leads, prospects, summary: { atrasados, hoje, semData, pendentes: atrasados + hoje, prospectar: prospects.length } });
+    return NextResponse.json({ leads, prospects, activities, summary: { atrasados, hoje, semData, pendentes: atrasados + hoje, prospectar: prospects.length } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível carregar os leads." }, { status: 500 });
   }
@@ -29,6 +29,13 @@ export async function POST(request: Request) {
   if (!accessToken) return NextResponse.json({ error: "Sessão Google sem acesso à planilha. Entre novamente no Portal." }, { status: 401 });
   try {
     const body = await request.json();
+    if (body?.action === "gerar_relatorio") {
+      const result = await createLeadsReport({
+        startDate: String(body?.startDate ?? "").trim(),
+        endDate: String(body?.endDate ?? "").trim(),
+      }, accessToken);
+      return NextResponse.json({ ok: true, ...result });
+    }
     if (body?.action === "reativar") {
       await reactivateProspect({
         id: String(body?.id ?? ""),

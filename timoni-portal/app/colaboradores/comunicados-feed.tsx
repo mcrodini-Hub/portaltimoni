@@ -31,6 +31,28 @@ function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+function isWithinDisplayEndDate(value: string, now = Date.now()) {
+  if (!value) return true;
+
+  const expiresAt = new Date(value);
+  if (Number.isNaN(expiresAt.getTime())) return false;
+
+  // "Exibir até" é uma data inclusiva: o comunicado deve permanecer visível
+  // durante todo o dia informado, no horário de São Paulo.
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(expiresAt);
+  const year = Number(parts.find((part) => part.type === "year")?.value);
+  const month = Number(parts.find((part) => part.type === "month")?.value);
+  const day = Number(parts.find((part) => part.type === "day")?.value);
+  const nextDayInSaoPaulo = Date.UTC(year, month - 1, day + 1, 3);
+
+  return now < nextDayInSaoPaulo;
+}
+
 export default function ComunicadosFeed({ store, isAdmin = false }: { store: PanelStore; isAdmin?: boolean }) {
   const [items, setItems] = useState<Comunicado[]>([]);
   const [error, setError] = useState("");
@@ -100,7 +122,7 @@ export default function ComunicadosFeed({ store, isAdmin = false }: { store: Pan
         (item) =>
           item.status === "ativo" &&
           (!item.startsAt || Date.parse(item.startsAt) <= Date.now()) &&
-          (!item.expiresAt || Date.parse(item.expiresAt) >= Date.now()) &&
+          isWithinDisplayEndDate(item.expiresAt) &&
           (store === "geral" || item.unit === "geral" || item.unit === store),
       ),
     [items, store],

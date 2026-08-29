@@ -71,6 +71,31 @@ function dateFromKey(key: string) {
   return new Date(`${key}T12:00:00-03:00`);
 }
 
+function normalizeSearchText(value: string) {
+  return value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLocaleLowerCase("pt-BR")
+    .trim();
+}
+
+function eventSearchText(event: CalendarEventDTO) {
+  const key = eventDateKey(event.start);
+  const displayDate = format(dateFromKey(key), "dd/MM/yyyy", { locale: ptBR });
+  return normalizeSearchText(
+    [
+      event.summary,
+      event.description,
+      event.location,
+      event.calendarLabel,
+      key,
+      displayDate,
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+}
+
 function monthGrid(year: number, month: number): CalendarDay[] {
   const firstWeekDay = new Date(Date.UTC(year, month, 1)).getUTCDay();
   const daysBefore = (firstWeekDay + 6) % 7;
@@ -105,6 +130,9 @@ export function CalendarView({
   const [editingEvent, setEditingEvent] = useState<CalendarEventDTO | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [completingId, setCompletingId] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchSourceEvents, setSearchSourceEvents] = useState<CalendarEventDTO[] | null>(null);
+  const [searchLoading, setSearchLoading] = useState(false);
 
   async function refreshEvents(currentView: ViewMode, offset: number) {
     const { start, end } = periodRange(currentView, offset);
@@ -121,6 +149,27 @@ export function CalendarView({
       setError(null);
     } catch {
       setError("Falha de conexão ao atualizar os eventos.");
+    }
+  }
+
+  async function refreshSearchEvents() {
+    const { start, end } = periodRange("week", 0);
+    setSearchLoading(true);
+    try {
+      const res = await fetch(
+        `/api/events?timeMin=${encodeURIComponent(start.toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}`
+      );
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error ?? "Não foi possível pesquisar os compromissos.");
+        return;
+      }
+      setSearchSourceEvents(data.events ?? []);
+      setError(null);
+    } catch {
+      setError("Falha de conexão ao pesquisar os compromissos.");
+    } finally {
+      setSearchLoading(false);
     }
   }
 
@@ -186,7 +235,10 @@ export function CalendarView({
         setError(data.error ?? "Não foi possível cancelar o evento.");
         return;
       }
-      await refreshEvents(view, periodOffset);
+      await Promise.all([
+        refreshEvents(view, periodOffset),
+        searchSourceEvents ? refreshSearchEvents() : Promise.resolve(),
+      ]);
     } catch {
       setError("Falha de conexão ao cancelar o evento.");
     } finally {
@@ -207,7 +259,10 @@ export function CalendarView({
         setError(data.error ?? "Não foi possível atualizar o compromisso.");
         return;
       }
-      await refreshEvents(view, periodOffset);
+      await Promise.all([
+        refreshEvents(view, periodOffset),
+        searchSourceEvents ? refreshSearchEvents() : Promise.resolve(),
+      ]);
     } catch {
       setError("Falha de conexão ao atualizar o compromisso.");
     } finally {
@@ -244,6 +299,24 @@ export function CalendarView({
     }
     return Array.from(grouped.entries());
   }, [upcomingEvents]);
+
+  const normalizedSearchQuery = normalizeSearchText(searchQuery);
+  const isSearching = normalizedSearchQuery.length > 0;
+  const searchResults = useMemo(() => {
+    if (!normalizedSearchQuery) return [];
+    return [...(searchSourceEvents ?? events)]
+      .filter((event) => eventSearchText(event).includes(normalizedSearchQuery))
+      .sort((first, second) => first.start.localeCompare(second.start));
+  }, [events, normalizedSearchQuery, searchSourceEvents]);
+
+  const searchGroups = useMemo(() => {
+    const grouped = new Map<string, CalendarEventDTO[]>();
+    for (const event of searchResults) {
+      const key = eventDateKey(event.start);
+      grouped.set(key, [...(grouped.get(key) ?? []), event]);
+    }
+    return Array.from(grouped.entries());
+  }, [searchResults]);
 
   const rangeLabel =
     view === "week"
@@ -283,7 +356,7 @@ export function CalendarView({
     setView("month");
   }
 
-  function openMonthDate(day: CalendarDay, year: number, month: number) {
+  function openMonthDate(day: CalendarDay) {
     setSelectedDateKey(day.key);
     if (day.inMonth) return;
 
@@ -352,6 +425,43 @@ export function CalendarView({
         ))}
       </div>
 
+      <div className="relative mt-4">
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+        >
+          ⌕
+        </span>
+        <input
+          type="search"
+          value={searchQuery}
+          onFocus={() => {
+            if (!searchSourceEvents && !searchLoading) void refreshSearchEvents();
+          }}
+          onChange={(event) => {
+            setSearchQuery(event.target.value);
+            if (!searchSourceEvents && !searchLoading) void refreshSearchEvents();
+          }}
+          placeholder="Pesquisar compromissos..."
+          aria-label="Pesquisar compromissos"
+          className="h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-24 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+        />
+        {searchLoading && (
+          <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
+            Buscando…
+          </span>
+        )}
+        {!searchLoading && searchQuery && (
+          <button
+            type="button"
+            onClick={() => setSearchQuery("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+          >
+            Limpar
+          </button>
+        )}
+      </div>
+
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button
           variant="secondary"
@@ -376,7 +486,31 @@ export function CalendarView({
         <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-700">{error}</p>
       )}
 
-      {view === "week" && (
+      {isSearching && (
+        <section className="mt-6">
+          <h2 className="text-sm font-semibold text-slate-700">
+            {searchLoading
+              ? "Pesquisando compromissos…"
+              : `${searchResults.length} ${searchResults.length === 1 ? "compromisso encontrado" : "compromissos encontrados"}`}
+          </h2>
+          {!searchLoading && searchGroups.length === 0 && (
+            <p className="mt-3 text-sm text-slate-400">Nenhum compromisso encontrado.</p>
+          )}
+          {searchGroups.map(([dayKey, dayEvents]) => {
+            const day = dateFromKey(dayKey);
+            return (
+              <div key={dayKey} className="mt-5">
+                <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  {DAY_LABELS[day.getDay()]} {format(day, "dd/MM/yyyy", { locale: ptBR })}
+                </h3>
+                <div className="mt-2 space-y-3">{dayEvents.map(renderEvent)}</div>
+              </div>
+            );
+          })}
+        </section>
+      )}
+
+      {!isSearching && view === "week" && (
         upcomingGroups.length > 0 ? (
           upcomingGroups.map(([dayKey, dayEvents]) => {
             const day = dateFromKey(dayKey);
@@ -407,7 +541,7 @@ export function CalendarView({
         )
       )}
 
-      {view === "month" && (
+      {!isSearching && view === "month" && (
         <>
           <div className="mt-6 overflow-hidden rounded-xl border border-slate-200 bg-white">
             <div className="grid grid-cols-7 bg-slate-800 text-center text-xs font-semibold text-white">
@@ -423,7 +557,7 @@ export function CalendarView({
                   <button
                     key={day.key}
                     type="button"
-                    onClick={() => openMonthDate(day, monthParts.year, monthParts.month)}
+                    onClick={() => openMonthDate(day)}
                     className={clsx(
                       "flex min-h-20 flex-col items-center border-b border-r border-slate-200 px-1 py-2 text-sm transition hover:bg-blue-50",
                       !day.inMonth && "bg-slate-50 text-slate-300",
@@ -463,7 +597,7 @@ export function CalendarView({
         </>
       )}
 
-      {view === "year" && (
+      {!isSearching && view === "year" && (
         <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {Array.from({ length: 12 }, (_, month) => (
             <section key={month} className="rounded-xl border border-slate-200 bg-white p-3">
@@ -504,7 +638,10 @@ export function CalendarView({
         <EventForm
           event={editingEvent}
           onClose={() => setFormOpen(false)}
-          onSaved={() => refreshEvents(view, periodOffset)}
+          onSaved={() => {
+            void refreshEvents(view, periodOffset);
+            if (searchSourceEvents) void refreshSearchEvents();
+          }}
         />
       )}
 

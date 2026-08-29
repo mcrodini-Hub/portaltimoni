@@ -1,0 +1,108 @@
+import { NextResponse } from "next/server";
+import { auth } from "@/lib/auth";
+import { getPortalUser } from "@/lib/access-control";
+import { findTeamMember } from "@/lib/team-members";
+import { listComunicados } from "@/lib/comunicados";
+import {
+  listAvisoLeituras,
+  listFuncionariosAvisos,
+  registerAvisoLeitura,
+  setFuncionarioPin,
+} from "@/lib/aviso-leituras";
+
+const ADMIN_EMAIL = "mcrodini@gmail.com";
+const MANAGEMENT_EMAILS = new Set([ADMIN_EMAIL, "mrodini@gmail.com"]);
+const ARARAS_EMAILS = new Set([
+  "estoqueararascasatimoni@gmail.com",
+  "comercialara@casatimoni.com.br",
+  "fotoscasatimoni@gmail.com",
+  "reginaldo@casatimoni.com.br",
+  "casatimoniararas@gmail.com",
+]);
+
+function normalizeEmail(value?: string | null) {
+  return value?.trim().toLowerCase() ?? "";
+}
+
+function allowedUnit(email: string) {
+  if (MANAGEMENT_EMAILS.has(email)) return "geral";
+  return ARARAS_EMAILS.has(email) ? "Araras" : "Rio Claro";
+}
+
+async function context() {
+  const session = await auth();
+  const email = normalizeEmail(session?.user?.email);
+  if (!email || !getPortalUser(email) || !session?.accessToken) return null;
+  return { email, accessToken: session.accessToken };
+}
+
+export async function GET() {
+  const current = await context();
+  if (!current) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
+  if (current.email !== ADMIN_EMAIL) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 403 });
+
+  try {
+    const [reads, employees] = await Promise.all([
+      listAvisoLeituras(current.accessToken),
+      listFuncionariosAvisos(current.accessToken),
+    ]);
+    return NextResponse.json({ ok: true, reads, employees });
+  } catch (error) {
+    console.error("[avisos-leituras][GET]", error);
+    return NextResponse.json({ error: "Não foi possível carregar as leituras." }, { status: 500 });
+  }
+}
+
+export async function POST(request: Request) {
+  const current = await context();
+  if (!current) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
+
+  try {
+    const body = await request.json();
+    const action = String(body?.action ?? "read");
+    const employee = String(body?.employee ?? "").trim();
+    const unit = String(body?.unit ?? "").trim();
+    const pin = String(body?.pin ?? "").trim();
+
+    if (!findTeamMember(employee, unit)) {
+      return NextResponse.json({ error: "Selecione um funcionário válido." }, { status: 400 });
+    }
+    if (!/^\d{4}$/.test(pin)) {
+      return NextResponse.json({ error: "A senha deve ter 4 números." }, { status: 400 });
+    }
+
+    if (action === "set_pin") {
+      if (current.email !== ADMIN_EMAIL) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 403 });
+      await setFuncionarioPin(current.accessToken, employee, unit, pin);
+      return NextResponse.json({ ok: true });
+    }
+
+    const permittedUnit = allowedUnit(current.email);
+    if (permittedUnit !== "geral" && unit !== permittedUnit) {
+      return NextResponse.json({ error: "Funcionário fora da unidade deste acesso." }, { status: 403 });
+    }
+
+    const avisoId = String(body?.avisoId ?? "").trim();
+    if (!avisoId) return NextResponse.json({ error: "Aviso inválido." }, { status: 400 });
+    const notices = await listComunicados(current.accessToken);
+    const notice = notices.find((item) => item.id === avisoId && item.status === "ativo");
+    if (!notice) return NextResponse.json({ error: "Aviso não encontrado ou encerrado." }, { status: 404 });
+    const noticeUnit = notice.unit === "rio claro" ? "Rio Claro" : notice.unit === "araras" ? "Araras" : "geral";
+    if (noticeUnit !== "geral" && noticeUnit !== unit) {
+      return NextResponse.json({ error: "Este aviso não pertence à unidade selecionada." }, { status: 403 });
+    }
+    const result = await registerAvisoLeitura(current.accessToken, {
+      avisoId,
+      employee,
+      unit,
+      pin,
+      title: notice.title,
+      portalEmail: current.email,
+    });
+    return NextResponse.json({ ok: true, ...result });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Não foi possível registrar a leitura.";
+    console.error("[avisos-leituras][POST]", error);
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}

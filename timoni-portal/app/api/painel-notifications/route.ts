@@ -47,6 +47,22 @@ function logIntegrationError(area: string, error: unknown) {
   console.error(`[Painel Timoni] ${area}: falha desconhecida`);
 }
 
+function isWithinDisplayEndDate(value: string, now = Date.now()) {
+  if (!value) return true;
+  const expiresAt = new Date(value);
+  if (Number.isNaN(expiresAt.getTime())) return false;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(expiresAt);
+  const year = Number(parts.find((part) => part.type === "year")?.value);
+  const month = Number(parts.find((part) => part.type === "month")?.value);
+  const day = Number(parts.find((part) => part.type === "day")?.value);
+  return now < Date.UTC(year, month - 1, day + 1, 3);
+}
+
 export async function GET() {
   const session = await auth();
   const email = normalizeEmail(session?.user?.email ?? "");
@@ -65,14 +81,14 @@ export async function GET() {
       for (const notice of notices
         .filter((item) => item.status === "ativo")
         .filter((item) => !item.startsAt || Date.parse(item.startsAt) <= now)
-        .filter((item) => !item.expiresAt || Date.parse(item.expiresAt) >= now)
+        .filter((item) => isWithinDisplayEndDate(item.expiresAt, now))
         .filter((item) => unit === "geral" || item.unit === "geral" || item.unit.replace("_", " ") === unit.replace("_", " "))
         .slice(0, 10)) {
         items.push({
           id: `comunicado:${notice.id}:${notice.updatedAt}`,
           type: "comunicado",
-          title: "Novo comunicado",
-          body: notice.title,
+          title: notice.title,
+          body: notice.message.slice(0, 140),
           url: "/colaboradores",
         });
       }

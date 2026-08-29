@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { TeamMember } from "@/lib/team-members";
 
 type PanelStore = "geral" | "rio claro" | "araras";
 type Comunicado = {
@@ -14,12 +15,6 @@ type Comunicado = {
   startsAt: string;
   expiresAt: string;
 };
-
-function label(unit: Comunicado["unit"]) {
-  if (unit === "araras") return "Araras";
-  if (unit === "rio claro") return "Rio Claro";
-  return "Geral";
-}
 
 function formatDate(value: string) {
   if (!value) return "";
@@ -53,10 +48,14 @@ function isWithinDisplayEndDate(value: string, now = Date.now()) {
   return now < nextDayInSaoPaulo;
 }
 
-export default function ComunicadosFeed({ store, isAdmin = false }: { store: PanelStore; isAdmin?: boolean }) {
+export default function ComunicadosFeed({ store, isAdmin = false, members = [] }: { store: PanelStore; isAdmin?: boolean; members?: TeamMember[] }) {
   const [items, setItems] = useState<Comunicado[]>([]);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
+  const [readingId, setReadingId] = useState("");
+  const [employee, setEmployee] = useState("");
+  const [pin, setPin] = useState("");
+  const [readFeedback, setReadFeedback] = useState("");
 
   async function load() {
     try {
@@ -97,7 +96,7 @@ export default function ComunicadosFeed({ store, isAdmin = false }: { store: Pan
   }
 
   async function remove(id: string) {
-    if (!window.confirm("Excluir este comunicado definitivamente?")) return;
+    if (!window.confirm("Excluir este aviso definitivamente?")) return;
     setBusyId(id);
     setError("");
     try {
@@ -116,6 +115,39 @@ export default function ComunicadosFeed({ store, isAdmin = false }: { store: Pan
     }
   }
 
+  async function confirmRead(item: Comunicado) {
+    const selected = members.find((member) => `${member.unit}::${member.name}` === employee);
+    if (!selected || !/^\d{4}$/.test(pin)) {
+      setReadFeedback("Selecione seu nome e informe sua senha de 4 números.");
+      return;
+    }
+    setBusyId(item.id);
+    setReadFeedback("");
+    try {
+      const response = await fetch("/api/avisos-leituras", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "read",
+          avisoId: item.id,
+          title: item.title,
+          employee: selected.name,
+          unit: selected.unit,
+          pin,
+        }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || "Não foi possível registrar a leitura.");
+      setReadFeedback(data.alreadyRegistered ? `A leitura de ${selected.name} já estava registrada.` : `Leitura registrada para ${selected.name}.`);
+      setPin("");
+      setReadingId("");
+    } catch (err) {
+      setReadFeedback(err instanceof Error ? err.message : "Não foi possível registrar a leitura.");
+    } finally {
+      setBusyId("");
+    }
+  }
+
   const visible = useMemo(
     () =>
       items.filter(
@@ -128,28 +160,56 @@ export default function ComunicadosFeed({ store, isAdmin = false }: { store: Pan
     [items, store],
   );
 
-  if (!visible.length) return <p className="text-sm text-slate-500">Nenhum comunicado ativo.</p>;
+  if (!visible.length) return <p className="text-sm text-slate-500">Nenhum aviso ativo.</p>;
 
   return (
     <section className="space-y-4">
       {error && <p className="text-sm font-medium text-red-700">{error}</p>}
       {visible.map((item) => (
-        <article key={item.id} className="border-t border-blue-200 pt-4 first:border-t-0 first:pt-0">
+        <article key={item.id} className="border-l-4 border-l-amber-400 border-t border-t-blue-200 pl-3 pt-4 first:border-t-0 first:pt-0">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">
-                Comunicado {label(item.unit)}
-              </p>
-              <h3 className="mt-1 font-semibold text-slate-950">{item.title}</h3>
+              <h3 className="text-base font-bold text-slate-950 sm:text-lg">{item.title}</h3>
             </div>
             <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">
               {formatDate(item.createdAt)}
             </span>
           </div>
           <details className="mt-2">
-            <summary className="cursor-pointer text-sm font-semibold text-blue-800">Ver comunicado completo →</summary>
+            <summary className="cursor-pointer text-sm font-semibold text-blue-800">Ver aviso completo →</summary>
             <p className="mt-3 whitespace-pre-wrap border-t border-blue-100 pt-3 text-sm leading-6 text-slate-700">{item.message}</p>
           </details>
+          {!isAdmin && members.length > 0 && (
+            <div className="mt-3">
+              {readingId !== item.id ? (
+                <button
+                  type="button"
+                  onClick={() => { setReadingId(item.id); setReadFeedback(""); setEmployee(""); setPin(""); }}
+                  className="w-full rounded-xl bg-blue-800 px-4 py-3 text-sm font-semibold text-white sm:w-auto"
+                >
+                  Li e estou ciente
+                </button>
+              ) : (
+                <div className="grid gap-2 rounded-xl border border-blue-200 bg-white p-3 sm:grid-cols-[minmax(180px,1fr)_130px_auto] sm:items-end">
+                  <label className="text-xs font-semibold text-slate-700">
+                    Seu nome
+                    <select value={employee} onChange={(event) => setEmployee(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm">
+                      <option value="">Selecione</option>
+                      {members.map((member) => <option key={`${member.unit}-${member.name}`} value={`${member.unit}::${member.name}`}>{member.name}</option>)}
+                    </select>
+                  </label>
+                  <label className="text-xs font-semibold text-slate-700">
+                    Senha de 4 números
+                    <input value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" type="password" maxLength={4} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" />
+                  </label>
+                  <button type="button" onClick={() => confirmRead(item)} disabled={busyId === item.id} className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+                    {busyId === item.id ? "Registrando..." : "Confirmar"}
+                  </button>
+                </div>
+              )}
+              {readFeedback && <p className={`mt-2 text-sm font-medium ${readFeedback.startsWith("Leitura") || readFeedback.includes("já estava") ? "text-emerald-700" : "text-red-700"}`}>{readFeedback}</p>}
+            </div>
+          )}
           {isAdmin && (
             <div className="mt-3 flex flex-wrap gap-2">
               <button

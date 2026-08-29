@@ -1,10 +1,10 @@
 import { signOut } from "@/lib/auth";
 import { canManageMotorista, entersDirectlyInPainelTimoni, hasModuleAccess, type PortalModule } from "@/lib/access-control";
 import Link from "next/link";
-import PainelNotificationsClient from "@/app/painel-notifications-client";
+import AvisosNavLink from "@/components/avisos-nav-link";
 
 const navItems: Array<{ href: string; label: string; module: PortalModule }> = [
-  { href: "/colaboradores", label: "Painel Timoni", module: "painel" },
+  { href: "/colaboradores", label: "AVISOS", module: "painel" },
   { href: "/agenda", label: "Agenda Ciça", module: "agenda" },
   { href: "/dashboard/compras", label: "Compras", module: "compras" },
   { href: "/dashboard/conferencia-pedidos", label: "Conferência", module: "conferencia" },
@@ -42,7 +42,9 @@ export default function PortalHeader({ email }: { email: string }) {
         >
           {navItems.map(
             (item) =>
-              hasModuleAccess(email, item.module) && (
+              hasModuleAccess(email, item.module) && (item.href === "/colaboradores" ? (
+                <AvisosNavLink key={item.href} className={linkClass} />
+              ) : (
                 <Link
                   key={item.href}
                   href={item.module === "motorista" && canManageMotorista(email) ? "/dashboard/motorista" : item.href}
@@ -50,11 +52,9 @@ export default function PortalHeader({ email }: { email: string }) {
                 >
                   {item.label}
                 </Link>
-              ),
+              )),
           )}
         </nav>
-
-        <PainelNotificationsClient email={email} />
 
         <form
           action={async () => {

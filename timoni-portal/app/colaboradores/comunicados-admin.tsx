@@ -24,6 +24,9 @@ type FormState = {
   expiresAt: string;
 };
 
+type AvisoLeitura = { avisoId: string; employee: string; unit: string; portalEmail: string; readAt: string; title: string };
+type FuncionarioAviso = { employee: string; unit: string; pinConfigured: boolean };
+
 const EMPTY_FORM: FormState = { id: "", unit: "geral", title: "", message: "", startsAt: "", expiresAt: "" };
 
 function toLocalInput(value: string) {
@@ -57,17 +60,30 @@ export default function ComunicadosAdmin() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [reads, setReads] = useState<AvisoLeitura[]>([]);
+  const [employees, setEmployees] = useState<FuncionarioAviso[]>([]);
+  const [pinEmployee, setPinEmployee] = useState("");
+  const [newPin, setNewPin] = useState("");
+  const [pinFeedback, setPinFeedback] = useState("");
 
   async function load() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/comunicados", { cache: "no-store" });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data?.error || "Erro ao carregar comunicados.");
+      const [noticesResponse, readsResponse] = await Promise.all([
+        fetch("/api/comunicados", { cache: "no-store" }),
+        fetch("/api/avisos-leituras", { cache: "no-store" }),
+      ]);
+      const data = await noticesResponse.json();
+      if (!noticesResponse.ok) throw new Error(data?.error || "Erro ao carregar avisos.");
       setItems(data.items || []);
+      if (readsResponse.ok) {
+        const readsData = await readsResponse.json();
+        setReads(readsData.reads || []);
+        setEmployees(readsData.employees || []);
+      }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao carregar comunicados.");
+      setError(err instanceof Error ? err.message : "Erro ao carregar avisos.");
     } finally {
       setLoading(false);
     }
@@ -139,7 +155,7 @@ export default function ComunicadosAdmin() {
   }
 
   async function remove(id: string) {
-    if (!window.confirm("Excluir este comunicado definitivamente?")) return;
+    if (!window.confirm("Excluir este aviso definitivamente?")) return;
     setError("");
     const response = await fetch("/api/comunicados", {
       method: "DELETE",
@@ -156,6 +172,33 @@ export default function ComunicadosAdmin() {
     window.dispatchEvent(new Event("comunicados:changed"));
   }
 
+  async function savePin(event: React.FormEvent) {
+    event.preventDefault();
+    const selected = employees.find((item) => `${item.unit}::${item.employee}` === pinEmployee);
+    if (!selected || !/^\d{4}$/.test(newPin)) {
+      setPinFeedback("Selecione o funcionário e informe uma senha de 4 números.");
+      return;
+    }
+    setSaving(true);
+    setPinFeedback("");
+    try {
+      const response = await fetch("/api/avisos-leituras", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "set_pin", employee: selected.employee, unit: selected.unit, pin: newPin }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data?.error || "Não foi possível salvar a senha.");
+      setPinFeedback(`Senha definida para ${selected.employee}.`);
+      setNewPin("");
+      await load();
+    } catch (err) {
+      setPinFeedback(err instanceof Error ? err.message : "Não foi possível salvar a senha.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   function edit(item: Comunicado) {
     setForm({ id: item.id, unit: item.unit, title: item.title, message: item.message, startsAt: toLocalInput(item.startsAt), expiresAt: toLocalInput(item.expiresAt) });
     window.setTimeout(() => document.getElementById("novo-comunicado")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
@@ -165,8 +208,8 @@ export default function ComunicadosAdmin() {
     <section className="mt-6 rounded-3xl border border-blue-200 bg-white p-6 shadow-sm">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Gerenciar comunicados</p>
-          <h2 className="mt-2 text-2xl font-semibold text-slate-950">Comunicados do Painel</h2>
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Gerenciar avisos</p>
+          <h2 className="mt-2 text-2xl font-semibold text-slate-950">Avisos do Painel</h2>
           <p className="mt-2 text-sm text-slate-600">Somente no seu acesso. Escolha Geral, Araras ou Rio Claro.</p>
         </div>
       </div>
@@ -191,7 +234,7 @@ export default function ComunicadosAdmin() {
             value={form.title}
             onChange={(event) => setForm((current) => ({ ...current, title: event.target.value }))}
             className="mt-1 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 outline-none focus:border-blue-500"
-            placeholder="Título do comunicado"
+            placeholder="Ex.: Reunião dia 03"
             required
           />
         </label>
@@ -217,12 +260,12 @@ export default function ComunicadosAdmin() {
         </label>
 
         <label className="text-sm font-medium text-slate-700 lg:col-span-2">
-          Comunicado
+          Aviso
           <textarea
             value={form.message}
             onChange={(event) => setForm((current) => ({ ...current, message: event.target.value }))}
             className="mt-1 min-h-32 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 outline-none focus:border-blue-500"
-            placeholder="Digite a mensagem para a equipe"
+            placeholder="Digite o aviso para a equipe"
             required
           />
         </label>
@@ -246,7 +289,7 @@ export default function ComunicadosAdmin() {
         {loading ? (
           <p className="mt-3 text-sm text-slate-500">Carregando...</p>
         ) : active.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-500">Nenhum comunicado ativo.</p>
+          <p className="mt-3 text-sm text-slate-500">Nenhum aviso ativo.</p>
         ) : (
           <div className="mt-3 grid gap-3">
             {active.map((item) => (
@@ -264,6 +307,21 @@ export default function ComunicadosAdmin() {
                     <button type="button" onClick={() => remove(item.id)} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">Excluir</button>
                   </div>
                 </div>
+                <details className="mt-4 border-t border-slate-200 pt-3">
+                  <summary className="cursor-pointer text-sm font-semibold text-blue-800">
+                    Ver leituras ({reads.filter((read) => read.avisoId === item.id).length})
+                  </summary>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {reads.filter((read) => read.avisoId === item.id).length === 0 ? (
+                      <p className="text-sm text-slate-500">Nenhuma leitura registrada.</p>
+                    ) : reads.filter((read) => read.avisoId === item.id).map((read) => (
+                      <div key={`${read.avisoId}-${read.unit}-${read.employee}`} className="rounded-lg bg-white p-3 text-sm">
+                        <p className="font-semibold text-slate-900">{read.employee} · {read.unit}</p>
+                        <p className="mt-1 text-xs text-slate-500">{formatDate(read.readAt)}</p>
+                      </div>
+                    ))}
+                  </div>
+                </details>
               </article>
             ))}
           </div>
@@ -274,7 +332,7 @@ export default function ComunicadosAdmin() {
         <summary className="cursor-pointer text-sm font-semibold text-slate-700">Arquivados ({archived.length})</summary>
         <div className="mt-3 grid gap-3">
           {archived.length === 0 ? (
-            <p className="text-sm text-slate-500">Nenhum comunicado arquivado.</p>
+            <p className="text-sm text-slate-500">Nenhum aviso arquivado.</p>
           ) : archived.map((item) => (
             <article key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 opacity-80">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{unitLabel(item.unit)} · {formatDate(item.createdAt)}</p>
@@ -284,6 +342,29 @@ export default function ComunicadosAdmin() {
             </article>
           ))}
         </div>
+      </details>
+
+      <details className="mt-6 border-t border-slate-200 pt-4">
+        <summary className="cursor-pointer text-sm font-semibold text-slate-700">Senhas de confirmação dos funcionários</summary>
+        <form onSubmit={savePin} className="mt-4 grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-[minmax(220px,1fr)_160px_auto] sm:items-end">
+          <label className="text-sm font-semibold text-slate-700">
+            Funcionário
+            <select value={pinEmployee} onChange={(event) => setPinEmployee(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5">
+              <option value="">Selecione</option>
+              {employees.map((item) => (
+                <option key={`${item.unit}-${item.employee}`} value={`${item.unit}::${item.employee}`}>
+                  {item.employee} · {item.unit}{item.pinConfigured ? " · senha definida" : " · sem senha"}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="text-sm font-semibold text-slate-700">
+            Senha de 4 números
+            <input value={newPin} onChange={(event) => setNewPin(event.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" type="password" maxLength={4} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5" />
+          </label>
+          <button type="submit" disabled={saving} className="rounded-xl bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Definir senha</button>
+        </form>
+        {pinFeedback && <p className={`mt-2 text-sm font-medium ${pinFeedback.startsWith("Senha definida") ? "text-emerald-700" : "text-red-700"}`}>{pinFeedback}</p>}
       </details>
     </section>
   );

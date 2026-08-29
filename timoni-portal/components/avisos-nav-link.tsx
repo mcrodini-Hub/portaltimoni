@@ -3,8 +3,6 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-type NotificationItem = { type: "mensagem" | "estoque" | "comunicado" };
-
 export default function AvisosNavLink({ className }: { className: string }) {
   const [count, setCount] = useState(0);
 
@@ -12,10 +10,10 @@ export default function AvisosNavLink({ className }: { className: string }) {
     let active = true;
     async function load() {
       try {
-        const response = await fetch("/api/painel-notifications", { cache: "no-store" });
+        const response = await fetch("/api/comunicados", { cache: "no-store" });
         const data = await response.json();
         if (active && response.ok) {
-          setCount(((data.items || []) as NotificationItem[]).filter((item) => item.type === "comunicado").length);
+          setCount(Number(data.activeCount || 0));
         }
       } catch {
         if (active) setCount(0);

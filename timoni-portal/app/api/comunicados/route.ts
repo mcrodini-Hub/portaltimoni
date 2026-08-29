@@ -11,9 +11,38 @@ import { getPortalUser } from "@/lib/access-control";
 
 const ADMIN_EMAIL = "mcrodini@gmail.com";
 const VALID_UNITS = new Set<ComunicadoUnidade>(["geral", "araras", "rio claro"]);
+const MANAGEMENT_EMAILS = new Set([ADMIN_EMAIL, "mrodini@gmail.com"]);
+const ARARAS_EMAILS = new Set([
+  "estoqueararascasatimoni@gmail.com",
+  "comercialara@casatimoni.com.br",
+  "fotoscasatimoni@gmail.com",
+  "reginaldo@casatimoni.com.br",
+  "casatimoniararas@gmail.com",
+]);
 
 function normalizeEmail(value?: string | null) {
   return value?.trim().toLowerCase() ?? "";
+}
+
+function unitForEmail(email: string): ComunicadoUnidade {
+  if (MANAGEMENT_EMAILS.has(email)) return "geral";
+  return ARARAS_EMAILS.has(email) ? "araras" : "rio claro";
+}
+
+function isWithinDisplayEndDate(value: string, now = Date.now()) {
+  if (!value) return true;
+  const expiresAt = new Date(value);
+  if (Number.isNaN(expiresAt.getTime())) return false;
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(expiresAt);
+  const year = Number(parts.find((part) => part.type === "year")?.value);
+  const month = Number(parts.find((part) => part.type === "month")?.value);
+  const day = Number(parts.find((part) => part.type === "day")?.value);
+  return now < Date.UTC(year, month - 1, day + 1, 3);
 }
 
 async function getSessionContext() {
@@ -29,7 +58,15 @@ export async function GET() {
 
   try {
     const items = await listComunicados(context.accessToken);
-    return NextResponse.json({ ok: true, items, isAdmin: context.email === ADMIN_EMAIL });
+    const unit = unitForEmail(context.email);
+    const now = Date.now();
+    const activeCount = items.filter((item) =>
+      item.status === "ativo" &&
+      (!item.startsAt || Date.parse(item.startsAt) <= now) &&
+      isWithinDisplayEndDate(item.expiresAt, now) &&
+      (unit === "geral" || item.unit === "geral" || item.unit === unit)
+    ).length;
+    return NextResponse.json({ ok: true, items, activeCount, isAdmin: context.email === ADMIN_EMAIL });
   } catch (error) {
     console.error("[comunicados][GET]", error);
     return NextResponse.json({ error: "Não foi possível carregar os comunicados." }, { status: 500 });

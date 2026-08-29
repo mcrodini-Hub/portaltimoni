@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { TeamMember } from "@/lib/team-members";
 
 type PanelStore = "geral" | "rio claro" | "araras";
@@ -15,6 +15,15 @@ type Comunicado = {
   startsAt: string;
   expiresAt: string;
 };
+type AvisoLeitura = {
+  avisoId: string;
+  employee: string;
+  unit: string;
+  portalEmail: string;
+  readAt: string;
+  title: string;
+};
+type ReadFeedback = { id: string; message: string; success: boolean } | null;
 
 function formatDate(value: string) {
   if (!value) return "";
@@ -48,24 +57,33 @@ function isWithinDisplayEndDate(value: string, now = Date.now()) {
   return now < nextDayInSaoPaulo;
 }
 
-export default function ComunicadosFeed({ store, isAdmin = false, members = [] }: { store: PanelStore; isAdmin?: boolean; members?: TeamMember[] }) {
+export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead = false, members = [] }: { store: PanelStore; isAdmin?: boolean; canConfirmRead?: boolean; members?: TeamMember[] }) {
   const [items, setItems] = useState<Comunicado[]>([]);
+  const [reads, setReads] = useState<AvisoLeitura[]>([]);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
   const [readingId, setReadingId] = useState("");
   const [employee, setEmployee] = useState("");
   const [pin, setPin] = useState("");
-  const [readFeedback, setReadFeedback] = useState("");
+  const [readFeedback, setReadFeedback] = useState<ReadFeedback>(null);
 
-  async function load() {
+  const load = useCallback(async function load() {
     try {
-      const response = await fetch("/api/comunicados", { cache: "no-store" });
-      const data = await response.json();
-      setItems(response.ok ? ((data.items || []) as Comunicado[]) : []);
+      const [noticesResponse, readsResponse] = await Promise.all([
+        fetch("/api/comunicados", { cache: "no-store" }),
+        canConfirmRead ? fetch("/api/avisos-leituras", { cache: "no-store" }) : Promise.resolve(null),
+      ]);
+      const noticesData = await noticesResponse.json();
+      setItems(noticesResponse.ok ? ((noticesData.items || []) as Comunicado[]) : []);
+      if (readsResponse?.ok) {
+        const readsData = await readsResponse.json();
+        setReads((readsData.reads || []) as AvisoLeitura[]);
+      }
     } catch {
       setItems([]);
+      setReads([]);
     }
-  }
+  }, [canConfirmRead]);
 
   useEffect(() => {
     load();
@@ -74,7 +92,7 @@ export default function ComunicadosFeed({ store, isAdmin = false, members = [] }
     return () => {
       window.removeEventListener("comunicados:changed", refresh);
     };
-  }, []);
+  }, [load]);
 
   async function archive(id: string) {
     setBusyId(id);
@@ -118,11 +136,11 @@ export default function ComunicadosFeed({ store, isAdmin = false, members = [] }
   async function confirmRead(item: Comunicado) {
     const selected = members.find((member) => `${member.unit}::${member.name}` === employee);
     if (!selected || !/^\d{4}$/.test(pin)) {
-      setReadFeedback("Selecione seu nome e informe sua senha de 4 números.");
+      setReadFeedback({ id: item.id, message: "Selecione seu nome e informe a senha padrão.", success: false });
       return;
     }
     setBusyId(item.id);
-    setReadFeedback("");
+    setReadFeedback(null);
     try {
       const response = await fetch("/api/avisos-leituras", {
         method: "POST",
@@ -138,11 +156,16 @@ export default function ComunicadosFeed({ store, isAdmin = false, members = [] }
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data?.error || "Não foi possível registrar a leitura.");
-      setReadFeedback(data.alreadyRegistered ? `A leitura de ${selected.name} já estava registrada.` : `Leitura registrada para ${selected.name}.`);
+      setReadFeedback({
+        id: item.id,
+        message: data.alreadyRegistered ? `A leitura de ${selected.name} já estava registrada.` : `Leitura registrada para ${selected.name}.`,
+        success: true,
+      });
       setPin("");
       setReadingId("");
+      await load();
     } catch (err) {
-      setReadFeedback(err instanceof Error ? err.message : "Não foi possível registrar a leitura.");
+      setReadFeedback({ id: item.id, message: err instanceof Error ? err.message : "Não foi possível registrar a leitura.", success: false });
     } finally {
       setBusyId("");
     }
@@ -165,10 +188,19 @@ export default function ComunicadosFeed({ store, isAdmin = false, members = [] }
   return (
     <section className="space-y-4">
       {error && <p className="text-sm font-medium text-red-700">{error}</p>}
-      {visible.map((item) => (
+      {visible.map((item) => {
+        const itemReads = reads.filter((read) => read.avisoId === item.id);
+        const readNames = new Set(itemReads.map((read) => `${read.unit}::${read.employee}`));
+        const pendingMembers = members.filter((member) => !readNames.has(`${member.unit}::${member.name}`));
+        return (
         <article key={item.id} className="border-l-4 border-l-amber-400 border-t border-t-blue-200 pl-3 pt-4 first:border-t-0 first:pt-0">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
+              {canConfirmRead && members.length > 0 && (
+                <span className={`mb-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${pendingMembers.length > 0 ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
+                  {pendingMembers.length > 0 ? "Aviso não lido" : "Leitura concluída"}
+                </span>
+              )}
               <h3 className="text-base font-bold text-slate-950 sm:text-lg">{item.title}</h3>
             </div>
             <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">
@@ -179,12 +211,12 @@ export default function ComunicadosFeed({ store, isAdmin = false, members = [] }
             <summary className="cursor-pointer text-sm font-semibold text-blue-800">Ver aviso completo →</summary>
             <p className="mt-3 whitespace-pre-wrap border-t border-blue-100 pt-3 text-sm leading-6 text-slate-700">{item.message}</p>
           </details>
-          {!isAdmin && members.length > 0 && (
+          {canConfirmRead && members.length > 0 && (
             <div className="mt-3">
               {readingId !== item.id ? (
                 <button
                   type="button"
-                  onClick={() => { setReadingId(item.id); setReadFeedback(""); setEmployee(""); setPin(""); }}
+                  onClick={() => { setReadingId(item.id); setReadFeedback(null); setEmployee(""); setPin(""); }}
                   className="w-full rounded-xl bg-blue-800 px-4 py-3 text-sm font-semibold text-white sm:w-auto"
                 >
                   Li e estou ciente
@@ -199,15 +231,38 @@ export default function ComunicadosFeed({ store, isAdmin = false, members = [] }
                     </select>
                   </label>
                   <label className="text-xs font-semibold text-slate-700">
-                    Senha de 4 números
-                    <input value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" type="password" maxLength={4} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" />
+                    Senha padrão
+                    <input value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" type="password" maxLength={4} placeholder="0000" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" />
                   </label>
                   <button type="button" onClick={() => confirmRead(item)} disabled={busyId === item.id} className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
                     {busyId === item.id ? "Registrando..." : "Confirmar"}
                   </button>
                 </div>
               )}
-              {readFeedback && <p className={`mt-2 text-sm font-medium ${readFeedback.startsWith("Leitura") || readFeedback.includes("já estava") ? "text-emerald-700" : "text-red-700"}`}>{readFeedback}</p>}
+              {readFeedback?.id === item.id && <p className={`mt-2 text-sm font-medium ${readFeedback.success ? "text-emerald-700" : "text-red-700"}`}>{readFeedback.message}</p>}
+              <details className="mt-3 rounded-xl border border-blue-100 bg-white/70 px-3 py-2">
+                <summary className="cursor-pointer text-xs font-semibold text-slate-700">
+                  Leituras: {itemReads.length} confirmada{itemReads.length === 1 ? "" : "s"} · {pendingMembers.length} pendente{pendingMembers.length === 1 ? "" : "s"}
+                </summary>
+                <div className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
+                  <div>
+                    <p className="font-bold text-emerald-800">Leram</p>
+                    {itemReads.length === 0 ? <p className="mt-1 text-slate-500">Nenhuma confirmação.</p> : (
+                      <ul className="mt-1 space-y-1 text-slate-700">
+                        {itemReads.map((read) => <li key={`${read.avisoId}-${read.unit}-${read.employee}`}>{read.employee} · {formatDate(read.readAt)}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                  <div>
+                    <p className="font-bold text-amber-800">Ainda não leram</p>
+                    {pendingMembers.length === 0 ? <p className="mt-1 text-slate-500">Todos confirmaram.</p> : (
+                      <ul className="mt-1 space-y-1 text-slate-700">
+                        {pendingMembers.map((member) => <li key={`${member.unit}-${member.name}`}>{member.name}</li>)}
+                      </ul>
+                    )}
+                  </div>
+                </div>
+              </details>
             </div>
           )}
           {isAdmin && (
@@ -239,7 +294,8 @@ export default function ComunicadosFeed({ store, isAdmin = false, members = [] }
             </div>
           )}
         </article>
-      ))}
+        );
+      })}
     </section>
   );
 }

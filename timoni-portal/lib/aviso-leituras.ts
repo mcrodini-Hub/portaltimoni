@@ -1,9 +1,9 @@
-import { createHmac, timingSafeEqual } from "node:crypto";
 import { google } from "googleapis";
 
 export const AVISO_LEITURAS_SPREADSHEET_ID = "1QblFB50pOJdXJB_t7lH_JtHllpI4EK5isG1-T_RYHso";
 const LEITURAS_SHEET = "Leituras";
 const FUNCIONARIOS_SHEET = "Funcionarios";
+const DEFAULT_CONFIRMATION_PIN = "0000";
 
 export type AvisoLeitura = {
   avisoId: string;
@@ -26,18 +26,6 @@ function sheetsClient(accessToken: string) {
   return google.sheets({ version: "v4", auth });
 }
 
-function pinHash(employee: string, unit: string, pin: string) {
-  const secret = process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET;
-  if (!secret) throw new Error("Segredo de autenticação não configurado.");
-  return createHmac("sha256", secret).update(`${unit}:${employee}:${pin}`).digest("hex");
-}
-
-function sameHash(expected: string, received: string) {
-  const a = Buffer.from(expected, "hex");
-  const b = Buffer.from(received, "hex");
-  return a.length === b.length && timingSafeEqual(a, b);
-}
-
 async function employeeRows(accessToken: string) {
   const sheets = sheetsClient(accessToken);
   const response = await sheets.spreadsheets.values.get({
@@ -51,20 +39,7 @@ async function employeeRows(accessToken: string) {
 export async function listFuncionariosAvisos(accessToken: string): Promise<FuncionarioAviso[]> {
   return (await employeeRows(accessToken))
     .filter((row) => row[0] && row[1] && (row[4] || "Sim").toLowerCase() !== "não")
-    .map((row) => ({ employee: row[0], unit: row[1], pinConfigured: Boolean(row[2]) }));
-}
-
-export async function setFuncionarioPin(accessToken: string, employee: string, unit: string, pin: string) {
-  const rows = await employeeRows(accessToken);
-  const index = rows.findIndex((row) => row[0] === employee && row[1] === unit);
-  if (index < 0) throw new Error("Funcionário não encontrado.");
-  const sheets = sheetsClient(accessToken);
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: AVISO_LEITURAS_SPREADSHEET_ID,
-    range: `${FUNCIONARIOS_SHEET}!C${index + 2}:D${index + 2}`,
-    valueInputOption: "RAW",
-    requestBody: { values: [[pinHash(employee, unit, pin), new Date().toISOString()]] },
-  });
+    .map((row) => ({ employee: row[0], unit: row[1], pinConfigured: true }));
 }
 
 export async function listAvisoLeituras(accessToken: string): Promise<AvisoLeitura[]> {
@@ -92,10 +67,9 @@ export async function registerAvisoLeitura(
   input: { avisoId: string; employee: string; unit: string; portalEmail: string; title: string; pin: string },
 ) {
   const rows = await employeeRows(accessToken);
-  const employeeRow = rows.find((row) => row[0] === input.employee && row[1] === input.unit);
+  const employeeRow = rows.find((row) => row[0] === input.employee && row[1] === input.unit && (row[4] || "Sim").toLowerCase() !== "não");
   if (!employeeRow) throw new Error("Funcionário não encontrado.");
-  if (!employeeRow[2]) throw new Error("A senha deste funcionário ainda não foi cadastrada pela Ciça.");
-  if (!sameHash(employeeRow[2], pinHash(input.employee, input.unit, input.pin))) {
+  if (input.pin !== DEFAULT_CONFIRMATION_PIN) {
     throw new Error("Senha incorreta.");
   }
 

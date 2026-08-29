@@ -32,9 +32,11 @@ const allModules: PortalModule[] = [
 const modulesWithoutCicaAgenda = allModules.filter((module) => module !== "agenda");
 const operationalModules: PortalModule[] = ["painel", "estoque", "motorista"];
 const CICA_EMAIL = "mcrodini@gmail.com";
+const ESTOQUE_TIMONI_EMAIL = "estoquetimoni@gmail.com";
 const DIRECT_PAINEL_TIMONI_EMAILS = new Set([
   "balcaotimoni@gmail.com",
   "marketplacerc.mcr@gmail.com",
+  ESTOQUE_TIMONI_EMAIL,
 ]);
 const MANAGEMENT_MOTORISTA_EMAILS = new Set([
   "mrodini@gmail.com",
@@ -55,7 +57,11 @@ const LEADS_COLLABORATOR_EMAILS = new Set([
 ]);
 
 function operationalUser(name: string, email: string): PortalUser {
-  const modules = LEADS_COLLABORATOR_EMAILS.has(email) ? [...operationalModules, "leads" as PortalModule] : operationalModules;
+  const modules = email === ESTOQUE_TIMONI_EMAIL
+    ? [...operationalModules, "compras" as PortalModule]
+    : LEADS_COLLABORATOR_EMAILS.has(email)
+      ? [...operationalModules, "leads" as PortalModule]
+      : operationalModules;
   return { name, email, modules, requiresPassword: false, readOnly: !COLLABORATOR_MOTORISTA_CONTROL_EMAILS.has(email) };
 }
 

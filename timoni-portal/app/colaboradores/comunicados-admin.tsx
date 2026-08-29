@@ -25,7 +25,6 @@ type FormState = {
 };
 
 type AvisoLeitura = { avisoId: string; employee: string; unit: string; portalEmail: string; readAt: string; title: string };
-type FuncionarioAviso = { employee: string; unit: string; pinConfigured: boolean };
 
 const EMPTY_FORM: FormState = { id: "", unit: "geral", title: "", message: "", startsAt: "", expiresAt: "" };
 
@@ -61,10 +60,6 @@ export default function ComunicadosAdmin() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [reads, setReads] = useState<AvisoLeitura[]>([]);
-  const [employees, setEmployees] = useState<FuncionarioAviso[]>([]);
-  const [pinEmployee, setPinEmployee] = useState("");
-  const [newPin, setNewPin] = useState("");
-  const [pinFeedback, setPinFeedback] = useState("");
 
   async function load() {
     setLoading(true);
@@ -80,7 +75,6 @@ export default function ComunicadosAdmin() {
       if (readsResponse.ok) {
         const readsData = await readsResponse.json();
         setReads(readsData.reads || []);
-        setEmployees(readsData.employees || []);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao carregar avisos.");
@@ -170,33 +164,6 @@ export default function ComunicadosAdmin() {
     if (form.id === id) setForm(EMPTY_FORM);
     await load();
     window.dispatchEvent(new Event("comunicados:changed"));
-  }
-
-  async function savePin(event: React.FormEvent) {
-    event.preventDefault();
-    const selected = employees.find((item) => `${item.unit}::${item.employee}` === pinEmployee);
-    if (!selected || !/^\d{4}$/.test(newPin)) {
-      setPinFeedback("Selecione o funcionário e informe uma senha de 4 números.");
-      return;
-    }
-    setSaving(true);
-    setPinFeedback("");
-    try {
-      const response = await fetch("/api/avisos-leituras", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "set_pin", employee: selected.employee, unit: selected.unit, pin: newPin }),
-      });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data?.error || "Não foi possível salvar a senha.");
-      setPinFeedback(`Senha definida para ${selected.employee}.`);
-      setNewPin("");
-      await load();
-    } catch (err) {
-      setPinFeedback(err instanceof Error ? err.message : "Não foi possível salvar a senha.");
-    } finally {
-      setSaving(false);
-    }
   }
 
   function edit(item: Comunicado) {
@@ -344,28 +311,6 @@ export default function ComunicadosAdmin() {
         </div>
       </details>
 
-      <details className="mt-6 border-t border-slate-200 pt-4">
-        <summary className="cursor-pointer text-sm font-semibold text-slate-700">Senhas de confirmação dos funcionários</summary>
-        <form onSubmit={savePin} className="mt-4 grid gap-3 rounded-2xl bg-slate-50 p-4 sm:grid-cols-[minmax(220px,1fr)_160px_auto] sm:items-end">
-          <label className="text-sm font-semibold text-slate-700">
-            Funcionário
-            <select value={pinEmployee} onChange={(event) => setPinEmployee(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5">
-              <option value="">Selecione</option>
-              {employees.map((item) => (
-                <option key={`${item.unit}-${item.employee}`} value={`${item.unit}::${item.employee}`}>
-                  {item.employee} · {item.unit}{item.pinConfigured ? " · senha definida" : " · sem senha"}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="text-sm font-semibold text-slate-700">
-            Senha de 4 números
-            <input value={newPin} onChange={(event) => setNewPin(event.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" type="password" maxLength={4} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5" />
-          </label>
-          <button type="submit" disabled={saving} className="rounded-xl bg-blue-800 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Definir senha</button>
-        </form>
-        {pinFeedback && <p className={`mt-2 text-sm font-medium ${pinFeedback.startsWith("Senha definida") ? "text-emerald-700" : "text-red-700"}`}>{pinFeedback}</p>}
-      </details>
     </section>
   );
 }

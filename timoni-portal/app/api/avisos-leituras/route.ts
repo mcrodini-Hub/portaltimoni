@@ -7,7 +7,6 @@ import {
   listAvisoLeituras,
   listFuncionariosAvisos,
   registerAvisoLeitura,
-  setFuncionarioPin,
 } from "@/lib/aviso-leituras";
 
 const ADMIN_EMAIL = "mcrodini@gmail.com";
@@ -39,14 +38,18 @@ async function context() {
 export async function GET() {
   const current = await context();
   if (!current) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
-  if (current.email !== ADMIN_EMAIL) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 403 });
 
   try {
     const [reads, employees] = await Promise.all([
       listAvisoLeituras(current.accessToken),
       listFuncionariosAvisos(current.accessToken),
     ]);
-    return NextResponse.json({ ok: true, reads, employees });
+    const unit = allowedUnit(current.email);
+    return NextResponse.json({
+      ok: true,
+      reads: unit === "geral" ? reads : reads.filter((read) => read.unit === unit),
+      employees: unit === "geral" ? employees : employees.filter((employee) => employee.unit === unit),
+    });
   } catch (error) {
     console.error("[avisos-leituras][GET]", error);
     return NextResponse.json({ error: "Não foi possível carregar as leituras." }, { status: 500 });
@@ -59,7 +62,6 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const action = String(body?.action ?? "read");
     const employee = String(body?.employee ?? "").trim();
     const unit = String(body?.unit ?? "").trim();
     const pin = String(body?.pin ?? "").trim();
@@ -69,12 +71,6 @@ export async function POST(request: Request) {
     }
     if (!/^\d{4}$/.test(pin)) {
       return NextResponse.json({ error: "A senha deve ter 4 números." }, { status: 400 });
-    }
-
-    if (action === "set_pin") {
-      if (current.email !== ADMIN_EMAIL) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 403 });
-      await setFuncionarioPin(current.accessToken, employee, unit, pin);
-      return NextResponse.json({ ok: true });
     }
 
     const permittedUnit = allowedUnit(current.email);

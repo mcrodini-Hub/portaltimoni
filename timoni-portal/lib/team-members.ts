@@ -16,14 +16,10 @@ export const TEAM_MEMBERS: TeamMember[] = [
   { name: "Reinaldo", unit: "Araras" },
   { name: "Yan", unit: "Araras" },
   { name: "Adriel", unit: "Rio Claro" },
-  { name: "Alan", unit: "Rio Claro" },
-  { name: "Alessandro", unit: "Rio Claro" },
-  { name: "Álvaro", unit: "Rio Claro" },
   { name: "Carina", unit: "Rio Claro" },
   { name: "Carmem", unit: "Rio Claro" },
   { name: "Carolina", unit: "Rio Claro" },
   { name: "Davi", unit: "Rio Claro" },
-  { name: "Gabriel Santino", unit: "Rio Claro" },
   { name: "Jaqueline", unit: "Rio Claro" },
   { name: "Jeovana", unit: "Rio Claro" },
   { name: "João", unit: "Rio Claro" },
@@ -33,7 +29,6 @@ export const TEAM_MEMBERS: TeamMember[] = [
   { name: "Raffaela", unit: "Rio Claro" },
   { name: "San", unit: "Rio Claro" },
   { name: "Thais", unit: "Rio Claro" },
-  { name: "Veronica", unit: "Rio Claro" },
 ];
 
 export function findTeamMember(name: string, unit: string) {

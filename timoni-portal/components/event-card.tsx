@@ -58,27 +58,27 @@ export function EventCard({
       )}`;
 
   return (
-    <div className={clsx("rounded-xl border p-4", event.completed ? "border-green-200 bg-green-50" : URGENCY_CLASSES[urgency])}>
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="flex items-center gap-2">
-            <span className={clsx("h-2 w-2 rounded-full", URGENCY_DOT[urgency])} />
+    <div className={clsx("min-w-0 rounded-xl border p-3 sm:p-4", event.completed ? "border-green-200 bg-green-50" : URGENCY_CLASSES[urgency])}>
+      <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <span className={clsx("h-2 w-2 shrink-0 rounded-full", URGENCY_DOT[urgency])} />
             <span className="text-sm text-slate-500">{timeLabel}</span>
-            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+            <span className="inline-flex max-w-full items-center break-words rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
               {event.calendarLabel}
             </span>
           </div>
-          <p className={clsx("mt-1 font-medium", event.completed && "text-slate-500 line-through")}>
+          <p className={clsx("mt-2 break-words font-medium", event.completed && "text-slate-500 line-through")}>
             {event.summary}
           </p>
-          {event.location && <p className="text-sm text-slate-500">{event.location}</p>}
+          {event.location && <p className="mt-1 break-words text-sm text-slate-500">{event.location}</p>}
         </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
+        <div className="grid w-full grid-cols-3 items-center gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-wrap sm:items-center">
           <button
             type="button"
             onClick={() => onComplete(event)}
             className={clsx(
-              "rounded-lg px-3 py-2 text-sm font-medium transition",
+              "inline-flex min-h-9 min-w-0 items-center justify-center rounded-lg px-2 py-2 text-xs font-medium transition sm:px-3 sm:text-sm",
               event.completed
                 ? "bg-green-600 text-white hover:bg-green-700"
                 : "bg-green-50 text-green-700 hover:bg-green-100"
@@ -86,10 +86,10 @@ export function EventCard({
           >
             ✓ {event.completed ? "Concluído" : "Concluir"}
           </button>
-          <Button variant="secondary" onClick={() => onEdit(event)}>
+          <Button className="inline-flex min-h-9 min-w-0 items-center justify-center px-2 text-xs sm:px-3 sm:text-sm" variant="secondary" onClick={() => onEdit(event)}>
             Editar
           </Button>
-          <Button variant="danger" onClick={() => onDelete(event)}>
+          <Button className="inline-flex min-h-9 min-w-0 items-center justify-center px-2 text-xs sm:px-3 sm:text-sm" variant="danger" onClick={() => onDelete(event)}>
             Cancelar
           </Button>
         </div>

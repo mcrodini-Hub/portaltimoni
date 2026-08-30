@@ -22,22 +22,22 @@ export default function PortalHeader({ email }: { email: string }) {
 
   return (
     <header className="sticky top-0 z-40 border-b border-blue-950/50 bg-[#0b1f5e] text-white shadow-sm">
-      <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 sm:px-6">
+      <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-x-3 px-4 sm:flex-nowrap sm:gap-3 sm:px-6">
         {directPainelTimoniAccess ? (
-          <span className="shrink-0 py-3 text-base font-semibold tracking-tight text-white">
+          <span className="order-1 flex min-h-12 shrink-0 items-center py-3 text-base font-semibold tracking-tight text-white sm:order-none">
             Casa Timoni
           </span>
         ) : (
           <Link
             href="/dashboard"
-            className="shrink-0 py-3 text-base font-semibold tracking-tight text-white"
+            className="order-1 flex min-h-12 shrink-0 items-center py-3 text-base font-semibold tracking-tight text-white sm:order-none"
           >
             Casa Timoni
           </Link>
         )}
 
         <nav
-          className="flex min-w-0 flex-1 gap-1 overflow-x-auto py-2"
+          className="order-3 -mx-1 flex w-[calc(100%+0.5rem)] min-w-0 flex-none items-center gap-1 overflow-x-auto border-t border-white/10 px-1 py-2 sm:order-none sm:mx-0 sm:w-auto sm:flex-1 sm:border-0 sm:px-0"
           aria-label="Menu principal"
         >
           {navItems.map(
@@ -61,11 +61,11 @@ export default function PortalHeader({ email }: { email: string }) {
             "use server";
             await signOut({ redirectTo: "/login" });
           }}
-          className="shrink-0"
+          className="order-2 flex min-h-12 shrink-0 items-center sm:order-none"
         >
           <button
             type="submit"
-            className="rounded-lg px-3 py-2 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
+            className="inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
           >
             Sair
           </button>

@@ -398,12 +398,13 @@ export function CalendarView({
 
   return (
     <div>
-      <div className="flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-lg font-semibold">Agenda</h1>
           <p className="capitalize text-sm text-slate-400">{rangeLabel}</p>
         </div>
         <Button
+          className="inline-flex shrink-0 items-center justify-center whitespace-nowrap"
           onClick={() => {
             setEditingEvent(null);
             setFormOpen(true);
@@ -413,10 +414,11 @@ export function CalendarView({
         </Button>
       </div>
 
-      <div className="mt-4 flex flex-wrap items-center gap-2">
+      <div className="mt-4 grid grid-cols-[minmax(0,1.8fr)_minmax(0,0.7fr)_minmax(0,0.7fr)] items-center gap-2 sm:flex sm:flex-wrap">
         {(["week", "month", "year"] as ViewMode[]).map((mode) => (
           <Button
             key={mode}
+            className="inline-flex min-w-0 items-center justify-center whitespace-nowrap px-2"
             variant={view === mode ? "primary" : "secondary"}
             onClick={() => changeView(mode)}
           >
@@ -442,9 +444,9 @@ export function CalendarView({
             setSearchQuery(event.target.value);
             if (!searchSourceEvents && !searchLoading) void refreshSearchEvents();
           }}
-          placeholder="Pesquisar compromissos..."
+          placeholder="Pesquisar agenda"
           aria-label="Pesquisar compromissos"
-          className="h-11 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-24 text-base text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          className="h-11 min-w-0 w-full rounded-xl border border-slate-300 bg-white pl-10 pr-20 text-sm text-slate-900 outline-none transition placeholder:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100 sm:pr-24 sm:text-base"
         />
         {searchLoading && (
           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">
@@ -462,13 +464,14 @@ export function CalendarView({
         )}
       </div>
 
-      <div className="mt-3 flex flex-wrap items-center gap-2">
+      <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:flex sm:flex-wrap">
         <Button
           variant="secondary"
           disabled={view === "week" && !hasPreviousWeekPage}
           onClick={() => setPeriodOffset((offset) => offset - 1)}
         >
-          {previousLabel}
+          <span className="sm:hidden">← Anteriores</span>
+          <span className="hidden sm:inline">{previousLabel}</span>
         </Button>
         <Button variant="secondary" onClick={() => setPeriodOffset(0)}>
           Hoje
@@ -478,7 +481,8 @@ export function CalendarView({
           disabled={view === "week" && !hasNextWeekPage}
           onClick={() => setPeriodOffset((offset) => offset + 1)}
         >
-          {nextLabel}
+          <span className="sm:hidden">Próximos →</span>
+          <span className="hidden sm:inline">{nextLabel}</span>
         </Button>
       </div>
 

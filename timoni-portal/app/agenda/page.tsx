@@ -32,7 +32,7 @@ export default async function AgendaPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl">
-      <section className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-2 shadow-sm sm:rounded-2xl sm:p-5 [&_button]:px-2.5 [&_button]:py-1.5 [&_button]:text-xs sm:[&_button]:px-4 sm:[&_button]:py-2 sm:[&_button]:text-sm [&_section]:mt-4 sm:[&_section]:mt-6 [&_.space-y-3]:space-y-2 sm:[&_.space-y-3]:space-y-3">
+      <section className="min-w-0 overflow-hidden rounded-xl border border-slate-200 bg-white p-3 shadow-sm sm:rounded-2xl sm:p-5 [&_button]:py-2 [&_section]:mt-4 sm:[&_section]:mt-6 [&_.space-y-3]:space-y-2 sm:[&_.space-y-3]:space-y-3">
         <CalendarView initialEvents={initialEvents} initialError={loadError} />
       </section>
     </div>

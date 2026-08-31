@@ -172,17 +172,32 @@ export default function ComunicadosAdmin() {
   }
 
   return (
-    <section className="mt-6 rounded-3xl border border-blue-200 bg-white p-6 shadow-sm">
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <section className="mt-6 rounded-3xl border border-blue-200 bg-white p-6 shadow-sm lg:p-8">
+      <div className="flex flex-wrap items-start justify-between gap-3 lg:items-center">
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Gerenciar avisos</p>
           <h2 className="mt-2 text-2xl font-semibold text-slate-950">Avisos do Painel</h2>
           <p className="mt-2 text-sm text-slate-600">Somente no seu acesso. Escolha Geral, Araras ou Rio Claro.</p>
         </div>
+        <div className="hidden items-center gap-3 lg:flex">
+          <div className="min-w-28 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-center">
+            <p className="text-2xl font-bold text-blue-900">{active.length}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-blue-700">Ativos</p>
+          </div>
+          <div className="min-w-28 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-center">
+            <p className="text-2xl font-bold text-slate-700">{archived.length}</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Arquivados</p>
+          </div>
+        </div>
       </div>
 
-      <form id="novo-comunicado" onSubmit={submit} className="mt-5 grid gap-4 rounded-2xl bg-blue-50 p-4 lg:grid-cols-[180px_1fr]">
-        <label className="text-sm font-medium text-slate-700">
+      <form id="novo-comunicado" onSubmit={submit} className="mt-5 grid gap-4 rounded-2xl bg-blue-50 p-4 lg:grid-cols-12 lg:border lg:border-blue-100 lg:p-6">
+        <div className="hidden lg:col-span-12 lg:block">
+          <p className="text-sm font-semibold text-blue-950">{form.id ? "Editar aviso" : "Cadastrar novo aviso"}</p>
+          <p className="mt-1 text-xs text-blue-700">Defina o público, o período de exibição e o conteúdo.</p>
+        </div>
+
+        <label className="text-sm font-medium text-slate-700 lg:col-span-3">
           Público
           <select
             value={form.unit}
@@ -195,7 +210,7 @@ export default function ComunicadosAdmin() {
           </select>
         </label>
 
-        <label className="text-sm font-medium text-slate-700">
+        <label className="text-sm font-medium text-slate-700 lg:col-span-9">
           Título
           <input
             value={form.title}
@@ -206,7 +221,7 @@ export default function ComunicadosAdmin() {
           />
         </label>
 
-        <label className="text-sm font-medium text-slate-700">
+        <label className="text-sm font-medium text-slate-700 lg:col-span-6">
           Início da exibição
           <BrazilianDateTimeInput
             value={form.startsAt}
@@ -216,7 +231,7 @@ export default function ComunicadosAdmin() {
           <span className="mt-1 block text-xs font-normal text-slate-500">Em branco: começa imediatamente.</span>
         </label>
 
-        <label className="text-sm font-medium text-slate-700">
+        <label className="text-sm font-medium text-slate-700 lg:col-span-6">
           Exibir até
           <BrazilianDateTimeInput
             value={form.expiresAt}
@@ -226,7 +241,7 @@ export default function ComunicadosAdmin() {
           <span className="mt-1 block text-xs font-normal text-slate-500">Em branco: permanece ativo até ser concluído.</span>
         </label>
 
-        <label className="text-sm font-medium text-slate-700 lg:col-span-2">
+        <label className="text-sm font-medium text-slate-700 lg:col-span-12">
           Aviso
           <textarea
             value={form.message}
@@ -237,7 +252,7 @@ export default function ComunicadosAdmin() {
           />
         </label>
 
-        <div className="flex flex-wrap gap-2 lg:col-span-2">
+        <div className="flex flex-wrap gap-2 lg:col-span-12 lg:justify-end">
           <button type="submit" disabled={saving} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
             {saving ? "Salvando..." : form.id ? "Salvar edição" : "Registrar"}
           </button>
@@ -251,30 +266,33 @@ export default function ComunicadosAdmin() {
 
       {error && <p className="mt-4 text-sm font-medium text-red-700">{error}</p>}
 
-      <div className="mt-6">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Ativos</p>
+      <div className="mt-6 lg:mt-8">
+        <div className="lg:flex lg:items-center lg:justify-between">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Ativos</p>
+          <p className="hidden text-xs text-slate-400 lg:block">Avisos visíveis conforme o período definido</p>
+        </div>
         {loading ? (
           <p className="mt-3 text-sm text-slate-500">Carregando...</p>
         ) : active.length === 0 ? (
           <p className="mt-3 text-sm text-slate-500">Nenhum aviso ativo.</p>
         ) : (
-          <div className="mt-3 grid gap-3">
+          <div className="mt-3 grid gap-3 xl:grid-cols-2">
             {active.map((item) => (
-              <article key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
+              <article key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 xl:flex xl:h-full xl:flex-col xl:p-5">
+                <div className="flex flex-wrap items-start justify-between gap-3 xl:flex-1">
+                  <div className="xl:min-w-0 xl:flex-1">
                     <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">{unitLabel(item.unit)} · {formatDate(item.createdAt)}</p>
                     <h3 className="mt-1 text-lg font-semibold text-slate-950">{item.title}</h3>
                     <p className="mt-1 text-xs text-slate-500">{item.expiresAt ? `Ativo até ${formatDate(item.expiresAt)}` : "Ativo até retirada manual"}</p>
                     <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.message}</p>
                   </div>
-                  <div className="flex flex-wrap gap-2">
+                  <div className="flex flex-wrap gap-2 xl:w-full xl:self-end xl:border-t xl:border-slate-200 xl:pt-4">
                     <button type="button" onClick={() => edit(item)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800">Editar</button>
                     <button type="button" onClick={() => archive(item.id)} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800">Concluir</button>
                     <button type="button" onClick={() => remove(item.id)} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">Excluir</button>
                   </div>
                 </div>
-                <details className="mt-4 border-t border-slate-200 pt-3">
+                <details className="mt-4 border-t border-slate-200 pt-3 xl:shrink-0">
                   <summary className="cursor-pointer text-sm font-semibold text-blue-800">
                     Ver leituras ({reads.filter((read) => read.avisoId === item.id).length})
                   </summary>
@@ -295,9 +313,9 @@ export default function ComunicadosAdmin() {
         )}
       </div>
 
-      <details className="mt-6 border-t border-slate-200 pt-4">
+      <details className="mt-6 border-t border-slate-200 pt-4 lg:mt-8 lg:pt-5">
         <summary className="cursor-pointer text-sm font-semibold text-slate-700">Arquivados ({archived.length})</summary>
-        <div className="mt-3 grid gap-3">
+        <div className="mt-3 grid gap-3 xl:grid-cols-2">
           {archived.length === 0 ? (
             <p className="text-sm text-slate-500">Nenhum aviso arquivado.</p>
           ) : archived.map((item) => (

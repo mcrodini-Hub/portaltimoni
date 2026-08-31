@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getPortalUser } from "@/lib/access-control";
-import { findTeamMember } from "@/lib/team-members";
+import { findAvisoTeamMember } from "@/lib/team-members";
 import { listComunicados } from "@/lib/comunicados";
 import {
   listAvisoLeituras,
@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     const unit = String(body?.unit ?? "").trim();
     const pin = String(body?.pin ?? "").trim();
 
-    if (!findTeamMember(employee, unit)) {
+    if (!findAvisoTeamMember(employee, unit)) {
       return NextResponse.json({ error: "Selecione um funcionário válido." }, { status: 400 });
     }
     if (!/^\d{4}$/.test(pin)) {

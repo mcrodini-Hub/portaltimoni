@@ -31,6 +31,25 @@ export const TEAM_MEMBERS: TeamMember[] = [
   { name: "Thais", unit: "Rio Claro" },
 ];
 
+const ARARAS_AVISO_MEMBERS = new Set([
+  "Carol",
+  "Lucas",
+  "Lyra",
+  "Margareth",
+  "Paulo",
+  "Reginaldo",
+  "Reinaldo",
+  "Yan",
+]);
+
+export const AVISO_TEAM_MEMBERS = TEAM_MEMBERS.filter(
+  (member) => member.unit !== "Araras" || ARARAS_AVISO_MEMBERS.has(member.name),
+);
+
 export function findTeamMember(name: string, unit: string) {
   return TEAM_MEMBERS.find((member) => member.name === name && member.unit === unit);
+}
+
+export function findAvisoTeamMember(name: string, unit: string) {
+  return AVISO_TEAM_MEMBERS.find((member) => member.name === name && member.unit === unit);
 }

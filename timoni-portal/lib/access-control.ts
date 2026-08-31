@@ -35,6 +35,7 @@ const CICA_EMAIL = "mcrodini@gmail.com";
 const ESTOQUE_TIMONI_EMAIL = "estoquetimoni@gmail.com";
 const DIRECT_PAINEL_TIMONI_EMAILS = new Set([
   "balcaotimoni@gmail.com",
+  "caixarctimoni@gmail.com",
   "marketplacerc.mcr@gmail.com",
   ESTOQUE_TIMONI_EMAIL,
 ]);
@@ -44,6 +45,7 @@ const MANAGEMENT_MOTORISTA_EMAILS = new Set([
 ]);
 const COLLABORATOR_MOTORISTA_CONTROL_EMAILS = new Set([
   "estoquetimoni@gmail.com",
+  "caixarctimoni@gmail.com",
   "marketplacerc.mcr@gmail.com",
   "comercialara@casatimoni.com.br",
   "carolina@casatimoni.com.br",
@@ -71,7 +73,7 @@ export const portalUsers: Record<string, PortalUser> = {
   "margareth@casatimoni.com.br": { name: "Margareth", email: "margareth@casatimoni.com.br", modules: allModules, requiresPassword: true },
   "fotoscasatimoni@gmail.com": operationalUser("Lucas e Vendedores - Araras", "fotoscasatimoni@gmail.com"),
   "balcaotimoni@gmail.com": operationalUser("Vendedores - Rio Claro", "balcaotimoni@gmail.com"),
-  "caixatimonirioclaro@gmail.com": operationalUser("Thais - Rio Claro", "caixatimonirioclaro@gmail.com"),
+  "caixarctimoni@gmail.com": { name: "Thais - Rio Claro", email: "caixarctimoni@gmail.com", modules: ["painel", "motorista"], requiresPassword: false, readOnly: false },
   "estoquetimoni@gmail.com": operationalUser("Lucas - Estoque Rio Claro", "estoquetimoni@gmail.com"),
   "marketplacerc.mcr@gmail.com": operationalUser("Jaqueline - Marketplace Rio Claro", "marketplacerc.mcr@gmail.com"),
   "comercialara@casatimoni.com.br": operationalUser("Carolina - Vendas Araras", "comercialara@casatimoni.com.br"),

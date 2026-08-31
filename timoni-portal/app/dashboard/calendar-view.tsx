@@ -16,6 +16,10 @@ const SAO_PAULO_OFFSET_MS = -3 * 60 * 60 * 1000;
 const DAY_LABELS = ["Domingo", "Segunda", "Terça", "Quarta", "Quinta", "Sexta", "Sábado"];
 const CALENDAR_DAY_LABELS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 const MINI_DAY_LABELS = ["S", "T", "Q", "Q", "S", "S", "D"];
+const CALENDAR_COLOR_FALLBACKS: Record<CalendarEventDTO["calendarKey"], string> = {
+  principal: "#7986CB",
+  timoni: "#F6BF26",
+};
 type ViewMode = "week" | "month" | "year";
 
 interface CalendarDay {
@@ -370,7 +374,6 @@ export function CalendarView({
       <EventCard
         key={`${event.calendarKey}-${event.id}`}
         event={event}
-        nowMs={now}
         onEdit={(selected) => {
           setEditingEvent(selected);
           setFormOpen(true);
@@ -382,13 +385,28 @@ export function CalendarView({
   }
 
   function renderEventDots(key: string, compact = false) {
-    const count = eventsByDate.get(key)?.length ?? 0;
+    const dayEvents = eventsByDate.get(key) ?? [];
+    const count = dayEvents.length;
     if (count === 0) return null;
-    return compact ? (
-      <span className="mt-0.5 h-1 w-1 rounded-full bg-blue-600" aria-label={`${count} evento(s)`} />
-    ) : (
-      <span className="mt-1 rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-semibold text-blue-700">
-        {count} {count === 1 ? "evento" : "eventos"}
+    const colors = Array.from(
+      new Set(
+        dayEvents.map(
+          (event) => event.calendarColor || CALENDAR_COLOR_FALLBACKS[event.calendarKey]
+        )
+      )
+    );
+    return (
+      <span
+        className={clsx(
+          "mt-1 flex items-center justify-center gap-1",
+          !compact && "rounded-full border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] font-semibold text-slate-600"
+        )}
+        aria-label={`${count} evento(s)`}
+      >
+        {colors.slice(0, 3).map((color) => (
+          <span key={color} className="h-1.5 w-1.5 rounded-full" style={{ backgroundColor: color }} />
+        ))}
+        {!compact && <span>{count}</span>}
       </span>
     );
   }

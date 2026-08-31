@@ -8,17 +8,19 @@ import { Button } from "@/components/ui/button";
 
 type Urgency = "urgent" | "today" | "future";
 
-const URGENCY_CLASSES: Record<Urgency, string> = {
-  urgent: "border-red-300 bg-red-50",
-  today: "border-yellow-300 bg-yellow-50",
-  future: "border-slate-200 bg-white",
+const CALENDAR_COLOR_FALLBACKS: Record<CalendarEventDTO["calendarKey"], string> = {
+  principal: "#7986CB",
+  timoni: "#F6BF26",
 };
 
-const URGENCY_DOT: Record<Urgency, string> = {
-  urgent: "bg-red-500",
-  today: "bg-yellow-500",
-  future: "bg-slate-300",
-};
+function colorWithAlpha(color: string, alpha: number) {
+  const value = color.replace("#", "");
+  if (!/^[0-9a-f]{6}$/i.test(value)) return `rgba(100, 116, 139, ${alpha})`;
+  const red = Number.parseInt(value.slice(0, 2), 16);
+  const green = Number.parseInt(value.slice(2, 4), 16);
+  const blue = Number.parseInt(value.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
 
 export function getUrgency(startIso: string, endIso: string, nowMs: number): Urgency {
   const startMs = new Date(startIso).getTime();
@@ -35,19 +37,17 @@ export function getUrgency(startIso: string, endIso: string, nowMs: number): Urg
 
 export function EventCard({
   event,
-  nowMs,
   onEdit,
   onComplete,
   onDelete,
 }: {
   event: CalendarEventDTO;
-  nowMs: number;
   onEdit: (event: CalendarEventDTO) => void;
   onComplete: (event: CalendarEventDTO) => void;
   onDelete: (event: CalendarEventDTO) => void;
 }) {
-  const urgency = getUrgency(event.start, event.end, nowMs);
   const isAllDay = !event.start.includes("T");
+  const calendarColor = event.calendarColor || CALENDAR_COLOR_FALLBACKS[event.calendarKey];
 
   const timeLabel = isAllDay
     ? `${event.start.slice(8, 10)}/${event.start.slice(5, 7)}`
@@ -58,13 +58,22 @@ export function EventCard({
       )}`;
 
   return (
-    <div className={clsx("min-w-0 rounded-xl border p-3 sm:p-4", event.completed ? "border-green-200 bg-green-50" : URGENCY_CLASSES[urgency])}>
+    <div
+      className="min-w-0 rounded-xl border p-3 sm:p-4"
+      style={{
+        backgroundColor: colorWithAlpha(calendarColor, 0.1),
+        borderColor: colorWithAlpha(calendarColor, 0.42),
+      }}
+    >
       <div className="flex min-w-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <span className={clsx("h-2 w-2 shrink-0 rounded-full", URGENCY_DOT[urgency])} />
+            <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: calendarColor }} />
             <span className="text-sm text-slate-500">{timeLabel}</span>
-            <span className="inline-flex max-w-full items-center break-words rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-500">
+            <span
+              className="inline-flex max-w-full items-center break-words rounded-full px-2 py-0.5 text-xs text-slate-600"
+              style={{ backgroundColor: colorWithAlpha(calendarColor, 0.16) }}
+            >
               {event.calendarLabel}
             </span>
           </div>

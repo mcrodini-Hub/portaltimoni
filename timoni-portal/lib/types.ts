@@ -25,6 +25,7 @@ export interface CalendarEventDTO {
   htmlLink?: string;
   calendarKey: CalendarKey;
   calendarLabel: string;
+  calendarColor?: string;
   completed: boolean;
   recurringEventId?: string;
   originalStartTime?: string;

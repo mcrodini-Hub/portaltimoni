@@ -13,6 +13,11 @@ export const CALENDARS: Record<CalendarKey, { id: string; label: string }> = {
   },
 };
 
+const CALENDAR_COLOR_FALLBACKS: Record<CalendarKey, string> = {
+  principal: "#7986CB",
+  timoni: "#F6BF26",
+};
+
 function getCalendarClient(accessToken: string) {
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: accessToken });
@@ -39,7 +44,11 @@ function toEventDateTime(value: string): calendar_v3.Schema$EventDateTime {
     : { dateTime: value, timeZone: TIME_ZONE };
 }
 
-function toDTO(event: calendar_v3.Schema$Event, calendarKey: CalendarKey): CalendarEventDTO | null {
+function toDTO(
+  event: calendar_v3.Schema$Event,
+  calendarKey: CalendarKey,
+  calendarColor = CALENDAR_COLOR_FALLBACKS[calendarKey]
+): CalendarEventDTO | null {
   if (!event.id || !event.start || !event.end) return null;
   const start = event.start.dateTime ?? event.start.date;
   const end = event.end.dateTime ?? event.end.date;
@@ -55,6 +64,7 @@ function toDTO(event: calendar_v3.Schema$Event, calendarKey: CalendarKey): Calen
     htmlLink: event.htmlLink ?? undefined,
     calendarKey,
     calendarLabel: CALENDARS[calendarKey].label,
+    calendarColor,
     completed: event.extendedProperties?.private?.completed === "true",
     recurringEventId: event.recurringEventId ?? undefined,
     originalStartTime,
@@ -68,21 +78,35 @@ export async function listEventsInRange(
 ): Promise<CalendarEventDTO[]> {
   const calendar = getCalendarClient(accessToken);
   const calendarKeys = Object.keys(CALENDARS) as CalendarKey[];
-  const results = await Promise.all(
-    calendarKeys.map((key) =>
-      calendar.events.list({
-        calendarId: CALENDARS[key].id,
-        timeMin: opts.timeMin,
-        timeMax: opts.timeMax,
-        maxResults: opts.maxResults ?? 50,
-        singleEvents: true,
-        orderBy: "startTime",
+  const [results, calendarColors] = await Promise.all([
+    Promise.all(
+      calendarKeys.map((key) =>
+        calendar.events.list({
+          calendarId: CALENDARS[key].id,
+          timeMin: opts.timeMin,
+          timeMax: opts.timeMax,
+          maxResults: opts.maxResults ?? 50,
+          singleEvents: true,
+          orderBy: "startTime",
+        })
+      )
+    ),
+    Promise.all(
+      calendarKeys.map(async (key) => {
+        try {
+          const entry = await calendar.calendarList.get({
+            calendarId: CALENDARS[key].id,
+          });
+          return entry.data.backgroundColor || CALENDAR_COLOR_FALLBACKS[key];
+        } catch {
+          return CALENDAR_COLOR_FALLBACKS[key];
+        }
       })
-    )
-  );
+    ),
+  ]);
   const events = calendarKeys.flatMap((key, i) =>
     (results[i].data.items ?? [])
-      .map((event) => toDTO(event, key))
+      .map((event) => toDTO(event, key, calendarColors[i]))
       .filter((event): event is CalendarEventDTO => event !== null)
   );
   return events.sort((a, b) => new Date(a.start).getTime() - new Date(b.start).getTime());

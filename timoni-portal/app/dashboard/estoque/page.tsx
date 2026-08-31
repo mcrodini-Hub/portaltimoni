@@ -28,7 +28,6 @@ const RIO_CLARO_EMAILS = new Set([
   "estoquetimoni@gmail.com",
   "marketplacerc.mcr@gmail.com",
   "comercialrc@casatimoni.com.br",
-  "caixatimonirioclaro@gmail.com",
   "carolina@casatimoni.com.br",
 ]);
 

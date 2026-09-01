@@ -408,6 +408,27 @@ export async function reactivateProspect(input: { id:string; cliente:string; seg
   await logActivities([{ data: formatIsoDate(new Date()), tipo: "REATIVAÇÃO", cliente: input.cliente, proximoContato: input.proximoContato, observacoes: input.observacoes }], sessionAccessToken);
 }
 
+export async function moveLeadToProspects(input: { row:number }, sessionAccessToken?: string) {
+  if (!Number.isInteger(input.row) || input.row < 2 || input.row > 1000) throw new Error("Linha de Follow-up inválida.");
+  const [leads, prospects] = await Promise.all([listLeads(sessionAccessToken), listProspects(sessionAccessToken)]);
+  const source = leads.find((lead) => lead.row === input.row);
+  if (!source) throw new Error("Esta empresa não está mais no Follow-up.");
+  const target = source.cliente.trim().toLocaleLowerCase("pt-BR");
+  if (prospects.some((prospect) => prospect.cliente.toLocaleLowerCase("pt-BR") === target)) throw new Error("Esta empresa já existe em A Prospectar.");
+
+  const dateHistory = [source.ultimoContato ? `Último contato: ${source.ultimoContato}` : "", source.proximoContato ? `Próximo contato anterior: ${source.proximoContato}` : ""].filter(Boolean).join(" · ");
+  const observations = [source.observacoes, dateHistory].filter(Boolean).join(" · ");
+  const sheets = await ensureProspectsPortalSheet(sessionAccessToken);
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: LEADS_SPREADSHEET_ID,
+    range: `'${PROSPECTS_PORTAL_SHEET}'!A:G`,
+    valueInputOption: "USER_ENTERED",
+    insertDataOption: "INSERT_ROWS",
+    requestBody: { values: [[source.cliente, source.segmento, "", source.contato, source.canal, "Transferido do Follow-up", observations]] },
+  });
+  await sheets.spreadsheets.values.clear({ spreadsheetId: LEADS_SPREADSHEET_ID, range: `'${LEADS_SHEET}'!A${input.row}:G${input.row}` });
+}
+
 export async function updateLeadFollowUp(input: { row: number; cliente: string; segmento: string; contato: string; canal: string; ultimoContato: string; proximoContato: string; observacoes: string }, sessionAccessToken?: string) {
   if (!Number.isInteger(input.row) || input.row < 2 || input.row > 1000) throw new Error("Linha inválida");
   if (!input.cliente.trim()) throw new Error("Informe a empresa.");

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { hasModuleAccess } from "@/lib/access-control";
-import { addLead, addProspect, createLeadsReport, importLeads, listLeadActivities, listLeads, listProspects, reactivateProspect, updateLeadFollowUp } from "@/lib/leads";
+import { addLead, addProspect, createLeadsReport, importLeads, listLeadActivities, listLeads, listProspects, moveLeadToProspects, reactivateProspect, updateLeadFollowUp } from "@/lib/leads";
 
 async function authorizedAccessToken() {
   const session = await auth();
@@ -46,6 +46,10 @@ export async function POST(request: Request) {
         proximoContato: String(body?.proximoContato ?? "").trim(),
         observacoes: String(body?.observacoes ?? "").trim(),
       }, accessToken);
+      return NextResponse.json({ ok: true });
+    }
+    if (body?.action === "mover_para_prospectar") {
+      await moveLeadToProspects({ row: Number(body?.row) }, accessToken);
       return NextResponse.json({ ok: true });
     }
     const destino = String(body?.destino ?? "prospectar");

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { appendTeamMessage, listTeamMessages } from "@/lib/espaco-equipe";
-import { findTeamMember } from "@/lib/team-members";
+import { getEffectiveCollaborators } from "@/lib/portal-config";
 
 const GESTAO_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
 const FINAL_STATUSES = new Set(["concluido", "concluído", "resolvido", "feito", "finalizado"]);
@@ -15,7 +15,8 @@ export async function GET() {
   }
 
   try {
-    const messages = await listTeamMessages();
+    if (!session?.accessToken) throw new Error("Sessão Google sem credencial de acesso.");
+    const messages = await listTeamMessages(session.accessToken);
     const pending = messages.filter((item) => {
       const status = item.status.trim().toLowerCase();
       return !FINAL_STATUSES.has(status);
@@ -39,7 +40,9 @@ export async function POST(request: Request) {
     const unit = String(body?.unit ?? "").trim();
     const message = String(body?.message ?? "").trim();
 
-    if (!findTeamMember(employee, unit)) {
+    if (!session.accessToken) throw new Error("Sessão Google sem credencial de acesso.");
+    const collaborators = await getEffectiveCollaborators(session.accessToken);
+    if (!collaborators.some((member) => member.name === employee && member.unit === unit)) {
       return NextResponse.json({ error: "Selecione um funcionário válido." }, { status: 400 });
     }
 
@@ -51,7 +54,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "A mensagem deve ter no máximo 2.500 caracteres." }, { status: 400 });
     }
 
-    await appendTeamMessage({ employee, unit, message });
+    await appendTeamMessage({ employee, unit, message }, session.accessToken);
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof Error) {

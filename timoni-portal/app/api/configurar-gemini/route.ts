@@ -15,7 +15,7 @@ async function authorize() {
     );
   }
 
-  if (!hasModuleAccess(session.user.email, "conferencia")) {
+  if (!hasModuleAccess(session.user.email, "conferencia", session.portalUser)) {
     return NextResponse.json(
       { error: "Acesso não autorizado a este módulo." },
       { status: 403 },

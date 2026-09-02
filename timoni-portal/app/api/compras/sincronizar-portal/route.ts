@@ -18,7 +18,7 @@ export async function GET() {
     );
   }
 
-  if (!hasModuleAccess(email, "compras")) {
+  if (!hasModuleAccess(email, "compras", session.portalUser)) {
     return NextResponse.json(
       { ok: false, error: "Acesso não autorizado ao módulo Compras." },
       { status: 403, headers: { "Cache-Control": "no-store" } },

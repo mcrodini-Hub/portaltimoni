@@ -13,8 +13,8 @@ export type TeamMessage = {
   note: string;
 };
 
-async function getSheetsClient() {
-  const accessToken = await getAccessTokenFromRefreshToken();
+async function getSheetsClient(sessionAccessToken?: string) {
+  const accessToken = sessionAccessToken || await getAccessTokenFromRefreshToken();
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: accessToken });
   return google.sheets({ version: "v4", auth });
@@ -24,8 +24,8 @@ export async function appendTeamMessage(input: {
   unit: string;
   employee: string;
   message: string;
-}) {
-  const sheets = await getSheetsClient();
+}, accessToken?: string) {
+  const sheets = await getSheetsClient(accessToken);
   await sheets.spreadsheets.values.append({
     spreadsheetId: ESPACO_EQUIPE_SPREADSHEET_ID,
     range: `${ESPACO_EQUIPE_SHEET}!A:F`,
@@ -37,8 +37,8 @@ export async function appendTeamMessage(input: {
   });
 }
 
-export async function listTeamMessages(): Promise<TeamMessage[]> {
-  const sheets = await getSheetsClient();
+export async function listTeamMessages(accessToken?: string): Promise<TeamMessage[]> {
+  const sheets = await getSheetsClient(accessToken);
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: ESPACO_EQUIPE_SPREADSHEET_ID,
     range: `${ESPACO_EQUIPE_SHEET}!A2:F500`,
@@ -55,4 +55,21 @@ export async function listTeamMessages(): Promise<TeamMessage[]> {
     }))
     .filter((item) => item.employee && item.message)
     .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+}
+
+export async function replaceTeamMessages(accessToken: string, messages: TeamMessage[]) {
+  const sheets = await getSheetsClient(accessToken);
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId: ESPACO_EQUIPE_SPREADSHEET_ID,
+    range: `${ESPACO_EQUIPE_SHEET}!A2:F500`,
+  });
+  if (!messages.length) return;
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: ESPACO_EQUIPE_SPREADSHEET_ID,
+    range: `${ESPACO_EQUIPE_SHEET}!A2`,
+    valueInputOption: "RAW",
+    requestBody: {
+      values: messages.map((item) => [item.date, item.unit, item.employee, item.message, item.status, item.note]),
+    },
+  });
 }

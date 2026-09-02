@@ -227,7 +227,7 @@ async function readSentOrders(): Promise<SentOrder[]> {
 
 async function getSheets() {
   const session = await auth();
-  if (!session?.user?.email || !hasModuleAccess(session.user.email, "estoque")) {
+  if (!session?.user?.email || !hasModuleAccess(session.user.email, "estoque", session.portalUser)) {
     throw new Error("Acesso não autorizado ao módulo Estoque.");
   }
   if (!session.accessToken || session.error === "RefreshAccessTokenError") {

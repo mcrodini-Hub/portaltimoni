@@ -58,7 +58,7 @@ function resposta(vendedores: Seller[], fallback = false) {
 
 export async function GET() {
   const session = await auth();
-  if (!session?.user?.email || !hasModuleAccess(session.user.email, "motorista")) {
+  if (!session?.user?.email || !hasModuleAccess(session.user.email, "motorista", session.portalUser)) {
     return NextResponse.json({ ok: false, erro: "Acesso não autorizado." }, { status: 403 });
   }
 

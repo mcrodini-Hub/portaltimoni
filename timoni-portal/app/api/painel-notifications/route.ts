@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getPortalUser, hasModuleAccess } from "@/lib/access-control";
+import { getPortalUser, hasModuleAccess, type PortalUser } from "@/lib/access-control";
 import { listTeamMessages } from "@/lib/espaco-equipe";
 import { listStockAlerts, type StockAlert } from "@/lib/estoque-alerts";
 import { listComunicados } from "@/lib/comunicados";
@@ -29,7 +29,10 @@ function normalizeEmail(email: string) {
   return email.trim().toLowerCase();
 }
 
-function unitForEmail(email: string): StockAlert["unidade"] | "geral" {
+function unitForEmail(email: string, portalUser?: PortalUser | null): StockAlert["unidade"] | "geral" {
+  if (portalUser?.unit === "Geral") return "geral";
+  if (portalUser?.unit === "Araras") return "araras";
+  if (portalUser?.unit === "Rio Claro") return "rio_claro";
   if (GESTAO_EMAILS.has(email)) return "geral";
   if (ARARAS_EMAILS.has(email)) return "araras";
   return "rio_claro";
@@ -67,7 +70,7 @@ export async function GET() {
   const session = await auth();
   const email = normalizeEmail(session?.user?.email ?? "");
 
-  if (!email || !getPortalUser(email)) {
+  if (!email || !getPortalUser(email, session?.portalUser)) {
     return NextResponse.json({ ok: false, items: [] }, { status: 401 });
   }
 
@@ -76,7 +79,7 @@ export async function GET() {
   {
     try {
       const now = Date.now();
-      const unit = unitForEmail(email);
+      const unit = unitForEmail(email, session?.portalUser);
       const notices = await listComunicados(session?.accessToken ?? "");
       for (const notice of notices
         .filter((item) => item.status === "ativo")
@@ -99,7 +102,7 @@ export async function GET() {
 
   if (GESTAO_EMAILS.has(email)) {
     try {
-      const messages = await listTeamMessages();
+      const messages = await listTeamMessages(session?.accessToken);
       for (const message of messages.filter((item) => (item.status || "Novo").toLowerCase() === "novo").slice(0, 8)) {
         items.push({
           id: `mensagem:${message.date}:${message.employee}:${message.unit}`,
@@ -114,9 +117,9 @@ export async function GET() {
     }
   }
 
-  if (hasModuleAccess(email, "estoque")) {
+  if (hasModuleAccess(email, "estoque", session?.portalUser)) {
     try {
-      const unit = unitForEmail(email);
+      const unit = unitForEmail(email, session?.portalUser);
       const alerts = await listStockAlerts();
       for (const alert of alerts
         .filter((item) => item.status === "pendente")

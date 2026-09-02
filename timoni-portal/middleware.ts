@@ -11,9 +11,11 @@ const protectedRoutes: Array<{ prefix: string; module: PortalModule }> = [
   { prefix: "/dashboard/motorista-leitura", module: "motorista" },
   { prefix: "/dashboard/motorista", module: "motorista" },
   { prefix: "/dashboard/reunioes", module: "reunioes" },
+  { prefix: "/dashboard/leads", module: "leads" },
   { prefix: "/dashboard/marketing", module: "marketing" },
   { prefix: "/dashboard/financeiro", module: "financeiro" },
   { prefix: "/agenda-motorista", module: "motorista" },
+  { prefix: "/espaco-equipe", module: "painel" },
   { prefix: "/motorista", module: "motorista" },
 ];
 
@@ -29,6 +31,7 @@ const publicMotoristaAssets = new Set([
 
 export default auth((request) => {
   const pathname = request.nextUrl.pathname;
+  const configuredUser = request.auth?.portalUser;
 
   // A tela pública do motorista continua disponível para uso direto no celular.
   if (pathname === "/motorista" || pathname.startsWith("/motorista/")) {
@@ -43,9 +46,13 @@ export default auth((request) => {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
+  if (pathname.startsWith("/configuracoes") && request.auth.user.email.trim().toLowerCase() !== "mcrodini@gmail.com") {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
+  }
+
   const protectedRoute = protectedRoutes.find(({ prefix }) => pathname.startsWith(prefix));
 
-  if (protectedRoute && !hasModuleAccess(request.auth.user.email, protectedRoute.module)) {
+  if (protectedRoute && !hasModuleAccess(request.auth.user.email, protectedRoute.module, configuredUser)) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
@@ -57,8 +64,10 @@ export const config = {
     "/dashboard/:path*",
     "/agenda/:path*",
     "/colaboradores/:path*",
+    "/espaco-equipe/:path*",
     "/motorista/:path*",
     "/agenda-motorista/:path*",
     "/api/conferencia-pedidos",
+    "/configuracoes/:path*",
   ],
 };

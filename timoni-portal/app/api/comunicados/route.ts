@@ -7,7 +7,7 @@ import {
   updateComunicado,
   type ComunicadoUnidade,
 } from "@/lib/comunicados";
-import { getPortalUser } from "@/lib/access-control";
+import { getPortalUser, type PortalUser } from "@/lib/access-control";
 
 const ADMIN_EMAIL = "mcrodini@gmail.com";
 const VALID_UNITS = new Set<ComunicadoUnidade>(["geral", "araras", "rio claro"]);
@@ -24,7 +24,10 @@ function normalizeEmail(value?: string | null) {
   return value?.trim().toLowerCase() ?? "";
 }
 
-function unitForEmail(email: string): ComunicadoUnidade {
+function unitForEmail(email: string, portalUser?: PortalUser | null): ComunicadoUnidade {
+  if (portalUser?.unit === "Geral") return "geral";
+  if (portalUser?.unit === "Araras") return "araras";
+  if (portalUser?.unit === "Rio Claro") return "rio claro";
   if (MANAGEMENT_EMAILS.has(email)) return "geral";
   return ARARAS_EMAILS.has(email) ? "araras" : "rio claro";
 }
@@ -48,8 +51,8 @@ function isWithinDisplayEndDate(value: string, now = Date.now()) {
 async function getSessionContext() {
   const session = await auth();
   const email = normalizeEmail(session?.user?.email);
-  if (!email || !getPortalUser(email)) return null;
-  return { session, email, accessToken: session?.accessToken ?? "" };
+  if (!email || !getPortalUser(email, session?.portalUser)) return null;
+  return { session, email, accessToken: session?.accessToken ?? "", portalUser: session?.portalUser };
 }
 
 export async function GET() {
@@ -58,7 +61,7 @@ export async function GET() {
 
   try {
     const items = await listComunicados(context.accessToken);
-    const unit = unitForEmail(context.email);
+    const unit = unitForEmail(context.email, context.portalUser);
     const now = Date.now();
     const activeCount = items.filter((item) =>
       item.status === "ativo" &&

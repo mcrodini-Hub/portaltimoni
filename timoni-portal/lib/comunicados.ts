@@ -208,3 +208,23 @@ export async function deleteComunicado(accessToken: string, id: string) {
     },
   });
 }
+
+export async function replaceComunicados(accessToken: string, items: Comunicado[]) {
+  const sheets = await sheetsClient(accessToken);
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
+    range: `${COMUNICADOS_SHEET}!A2:I500`,
+  });
+  if (!items.length) return;
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
+    range: `${COMUNICADOS_SHEET}!A2`,
+    valueInputOption: "RAW",
+    requestBody: {
+      values: items.map((item) => [
+        item.id, item.createdAt, item.unit, item.title, item.message, item.status,
+        item.updatedAt, item.startsAt, item.expiresAt,
+      ]),
+    },
+  });
+}

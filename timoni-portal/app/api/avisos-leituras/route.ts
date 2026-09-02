@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { getPortalUser } from "@/lib/access-control";
-import { findAvisoTeamMember } from "@/lib/team-members";
+import { getPortalUser, type PortalUser } from "@/lib/access-control";
 import { listComunicados } from "@/lib/comunicados";
+import { getEffectiveCollaborators } from "@/lib/portal-config";
 import {
   listAvisoLeituras,
-  listFuncionariosAvisos,
   registerAvisoLeitura,
 } from "@/lib/aviso-leituras";
 
@@ -23,7 +22,8 @@ function normalizeEmail(value?: string | null) {
   return value?.trim().toLowerCase() ?? "";
 }
 
-function allowedUnit(email: string) {
+function allowedUnit(email: string, portalUser?: PortalUser | null) {
+  if (portalUser?.unit) return portalUser.unit;
   if (MANAGEMENT_EMAILS.has(email)) return "geral";
   return ARARAS_EMAILS.has(email) ? "Araras" : "Rio Claro";
 }
@@ -31,8 +31,8 @@ function allowedUnit(email: string) {
 async function context() {
   const session = await auth();
   const email = normalizeEmail(session?.user?.email);
-  if (!email || !getPortalUser(email) || !session?.accessToken) return null;
-  return { email, accessToken: session.accessToken };
+  if (!email || !getPortalUser(email, session?.portalUser) || !session?.accessToken) return null;
+  return { email, accessToken: session.accessToken, portalUser: session.portalUser };
 }
 
 export async function GET() {
@@ -40,11 +40,12 @@ export async function GET() {
   if (!current) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
 
   try {
-    const [reads, employees] = await Promise.all([
+    const [reads, collaborators] = await Promise.all([
       listAvisoLeituras(current.accessToken),
-      listFuncionariosAvisos(current.accessToken),
+      getEffectiveCollaborators(current.accessToken),
     ]);
-    const unit = allowedUnit(current.email);
+    const employees = collaborators.filter((member) => member.noticeRequired).map((member) => ({ employee: member.name, unit: member.unit, pinConfigured: true }));
+    const unit = allowedUnit(current.email, current.portalUser);
     return NextResponse.json({
       ok: true,
       reads: unit === "geral" ? reads : reads.filter((read) => read.unit === unit),
@@ -66,14 +67,15 @@ export async function POST(request: Request) {
     const unit = String(body?.unit ?? "").trim();
     const pin = String(body?.pin ?? "").trim();
 
-    if (!findAvisoTeamMember(employee, unit)) {
+    const collaborators = await getEffectiveCollaborators(current.accessToken);
+    if (!collaborators.some((member) => member.name === employee && member.unit === unit && member.noticeRequired)) {
       return NextResponse.json({ error: "Selecione um funcionário válido." }, { status: 400 });
     }
     if (!/^\d{4}$/.test(pin)) {
       return NextResponse.json({ error: "A senha deve ter 4 números." }, { status: 400 });
     }
 
-    const permittedUnit = allowedUnit(current.email);
+    const permittedUnit = allowedUnit(current.email, current.portalUser);
     if (permittedUnit !== "geral" && unit !== permittedUnit) {
       return NextResponse.json({ error: "Funcionário fora da unidade deste acesso." }, { status: 403 });
     }

@@ -1,6 +1,7 @@
 import { google } from "googleapis";
+import { AVISO_LEITURAS_SPREADSHEET_ID } from "@/lib/portal-data-constants";
 
-export const AVISO_LEITURAS_SPREADSHEET_ID = "1QblFB50pOJdXJB_t7lH_JtHllpI4EK5isG1-T_RYHso";
+export { AVISO_LEITURAS_SPREADSHEET_ID } from "@/lib/portal-data-constants";
 const LEITURAS_SHEET = "Leituras";
 const FUNCIONARIOS_SHEET = "Funcionarios";
 const DEFAULT_CONFIRMATION_PIN = "0000";
@@ -66,9 +67,6 @@ export async function registerAvisoLeitura(
   accessToken: string,
   input: { avisoId: string; employee: string; unit: string; portalEmail: string; title: string; pin: string },
 ) {
-  const rows = await employeeRows(accessToken);
-  const employeeRow = rows.find((row) => row[0] === input.employee && row[1] === input.unit && (row[4] || "Sim").toLowerCase() !== "não");
-  if (!employeeRow) throw new Error("Funcionário não encontrado.");
   if (input.pin !== DEFAULT_CONFIRMATION_PIN) {
     throw new Error("Senha incorreta.");
   }
@@ -89,4 +87,21 @@ export async function registerAvisoLeitura(
     },
   });
   return { alreadyRegistered: false };
+}
+
+export async function replaceAvisoLeituras(accessToken: string, reads: AvisoLeitura[]) {
+  const sheets = sheetsClient(accessToken);
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId: AVISO_LEITURAS_SPREADSHEET_ID,
+    range: `${LEITURAS_SHEET}!A2:F2000`,
+  });
+  if (!reads.length) return;
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: AVISO_LEITURAS_SPREADSHEET_ID,
+    range: `${LEITURAS_SHEET}!A2`,
+    valueInputOption: "RAW",
+    requestBody: {
+      values: reads.map((item) => [item.avisoId, item.employee, item.unit, item.portalEmail, item.readAt, item.title]),
+    },
+  });
 }

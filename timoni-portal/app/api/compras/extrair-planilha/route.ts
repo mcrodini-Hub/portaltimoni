@@ -131,7 +131,7 @@ export async function POST(request: Request) {
       { status: 401 },
     );
   }
-  if (!hasModuleAccess(session.user.email, "compras")) {
+  if (!hasModuleAccess(session.user.email, "compras", session.portalUser)) {
     return NextResponse.json(
       { error: "Acesso não autorizado ao módulo Compras." },
       { status: 403 },

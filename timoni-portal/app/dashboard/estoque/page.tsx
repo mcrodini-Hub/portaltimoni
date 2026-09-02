@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { auth } from "@/lib/auth";
+import type { PortalUser } from "@/lib/access-control";
 import EstoqueClient from "./estoque-client";
 
 export const metadata: Metadata = {
@@ -31,24 +32,29 @@ const RIO_CLARO_EMAILS = new Set([
   "carolina@casatimoni.com.br",
 ]);
 
-function resolveDefaultUnit(email: string): RequestUnit {
+function resolveDefaultUnit(email: string, portalUser?: PortalUser | null): RequestUnit {
+  if (portalUser?.unit === "Araras") return "araras";
+  if (portalUser?.unit === "Rio Claro") return "rio_claro";
   if (ARARAS_EMAILS.has(email)) return "araras";
   return "rio_claro";
 }
 
-function resolveAllowedUnits(email: string, isManager: boolean): RequestUnit[] {
+function resolveAllowedUnits(email: string, isManager: boolean, portalUser?: PortalUser | null): RequestUnit[] {
+  if (portalUser?.unit === "Geral") return ["rio_claro", "araras"];
+  if (portalUser?.unit === "Araras") return ["araras"];
+  if (portalUser?.unit === "Rio Claro") return ["rio_claro"];
   if (email === "mcrodini@gmail.com" || email === "mrodini@gmail.com") return ["rio_claro", "araras"];
   if (ARARAS_EMAILS.has(email)) return ["araras"];
   if (RIO_CLARO_EMAILS.has(email)) return ["rio_claro"];
-  return isManager ? ["rio_claro", "araras"] : [resolveDefaultUnit(email)];
+  return isManager ? ["rio_claro", "araras"] : [resolveDefaultUnit(email, portalUser)];
 }
 
 export default async function EstoquePage() {
   const session = await auth();
   const email = session?.user?.email?.trim().toLowerCase() ?? "";
-  const isManager = ESTOQUE_GESTAO_EMAILS.has(email);
-  const defaultUnit = resolveDefaultUnit(email);
-  const allowedUnits = resolveAllowedUnits(email, isManager);
+  const isManager = session?.portalUser ? session.portalUser.readOnly !== true : ESTOQUE_GESTAO_EMAILS.has(email);
+  const defaultUnit = resolveDefaultUnit(email, session?.portalUser);
+  const allowedUnits = resolveAllowedUnits(email, isManager, session?.portalUser);
   const canDelete = email === "mcrodini@gmail.com";
 
   return <EstoqueClient isManager={isManager} canDelete={canDelete} defaultUnit={defaultUnit} allowedUnits={allowedUnits} />;

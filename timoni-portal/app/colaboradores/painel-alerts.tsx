@@ -40,7 +40,7 @@ function stockUnitForEmail(email: string): StockAlert["unidade"] | "geral" {
   return "geral";
 }
 
-export default async function PainelAlerts({ email }: { email: string }) {
+export default async function PainelAlerts({ email, accessToken }: { email: string; accessToken?: string }) {
   const normalizedEmail = normalizeEmail(email);
   const showTeamMessages = TEAM_MESSAGE_ALERT_EMAILS.has(normalizedEmail);
   const showStockAlerts = STOCK_ALERT_EMAILS.has(normalizedEmail);
@@ -52,7 +52,7 @@ export default async function PainelAlerts({ email }: { email: string }) {
 
   if (showTeamMessages) {
     try {
-      const messages = await listTeamMessages();
+      const messages = await listTeamMessages(accessToken);
       newMessages = messages.filter((message) => (message.status || "Novo").toLowerCase() === "novo");
     } catch {
       newMessages = [];

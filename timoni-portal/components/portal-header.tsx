@@ -1,5 +1,5 @@
 import { signOut } from "@/lib/auth";
-import { canManageMotorista, entersDirectlyInPainelTimoni, hasModuleAccess, type PortalModule } from "@/lib/access-control";
+import { canManageMotorista, entersDirectlyInPainelTimoni, hasModuleAccess, type PortalModule, type PortalUser } from "@/lib/access-control";
 import Link from "next/link";
 import AvisosNavLink from "@/components/avisos-nav-link";
 
@@ -15,8 +15,9 @@ const navItems: Array<{ href: string; label: string; module: PortalModule }> = [
   { href: "/espaco-equipe", label: "Espaço Equipe", module: "painel" },
 ];
 
-export default function PortalHeader({ email }: { email: string }) {
-  const directPainelTimoniAccess = entersDirectlyInPainelTimoni(email);
+export default function PortalHeader({ email, portalUser }: { email: string; portalUser?: PortalUser | null }) {
+  const directPainelTimoniAccess = entersDirectlyInPainelTimoni(email, portalUser);
+  const isCica = email.trim().toLowerCase() === "mcrodini@gmail.com";
   const linkClass =
     "whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-white/90 transition hover:bg-white/10 hover:text-white";
 
@@ -42,18 +43,19 @@ export default function PortalHeader({ email }: { email: string }) {
         >
           {navItems.map(
             (item) =>
-              hasModuleAccess(email, item.module) && (item.href === "/colaboradores" ? (
+              hasModuleAccess(email, item.module, portalUser) && (item.href === "/colaboradores" ? (
                 <AvisosNavLink key={item.href} className={linkClass} />
               ) : (
                 <Link
                   key={item.href}
-                  href={item.module === "motorista" && canManageMotorista(email) ? "/dashboard/motorista" : item.href}
+                  href={item.module === "motorista" && canManageMotorista(email, portalUser) ? "/dashboard/motorista" : item.href}
                   className={linkClass}
                 >
                   {item.label}
                 </Link>
               )),
           )}
+          {isCica && <Link href="/configuracoes" className={linkClass}>Configurações</Link>}
         </nav>
 
         <form

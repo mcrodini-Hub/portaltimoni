@@ -13,12 +13,12 @@ const REQUEST_TIMEOUT_MS = 30_000;
 async function autorizado() {
   const session = await auth();
   const email = session?.user?.email;
-  return Boolean(email && hasModuleAccess(email, "motorista"));
+  return Boolean(email && hasModuleAccess(email, "motorista", session?.portalUser));
 }
 
 async function acessoLeitura() {
   const session = await auth();
-  return isReadOnlyUser(session?.user?.email);
+  return isReadOnlyUser(session?.user?.email, session?.portalUser);
 }
 
 async function encaminhar(url: string, init: RequestInit) {

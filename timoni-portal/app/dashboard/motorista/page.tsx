@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 
 export default async function MotoristaPage() {
   const session = await auth();
-  if (isReadOnlyUser(session?.user?.email)) redirect("/motorista");
+  if (isReadOnlyUser(session?.user?.email, session?.portalUser)) redirect("/motorista");
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4">

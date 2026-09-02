@@ -9,7 +9,7 @@ export async function requireAuthorizedSession() {
   const session = await auth();
   const email = session?.user?.email;
 
-  if (!email || !isAuthorizedUser(email)) {
+  if (!email || !isAuthorizedUser(email, session?.portalUser)) {
     return {
       session: null,
       errorResponse: NextResponse.json({ error: "Não autorizado." }, { status: 401 }),

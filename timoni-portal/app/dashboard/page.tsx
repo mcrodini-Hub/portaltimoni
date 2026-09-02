@@ -1,5 +1,5 @@
 import { auth } from "@/lib/auth";
-import { canManageMotorista, entersDirectlyInPainelTimoni, hasModuleAccess, type PortalModule } from "@/lib/access-control";
+import { canManageMotorista, entersDirectlyInPainelTimoni, hasModuleAccess, isBoxVisible, type PortalModule } from "@/lib/access-control";
 import DashboardOverviewClient from "./dashboard-overview-client";
 import { redirect } from "next/navigation";
 
@@ -25,17 +25,17 @@ export default async function DashboardPage() {
   const session = await auth();
   const email = session?.user?.email ?? "";
   const normalizedEmail = email.trim().toLowerCase();
-  if (entersDirectlyInPainelTimoni(normalizedEmail)) {
+  if (entersDirectlyInPainelTimoni(normalizedEmail, session?.portalUser)) {
     redirect("/colaboradores");
   }
-  const visible = modules.filter((item) => hasModuleAccess(email, item.module));
+  const visible = modules.filter((item) => hasModuleAccess(email, item.module, session?.portalUser) && isBoxVisible(email, item.module, session?.portalUser));
   return <div className="pb-4">
     <header className="mb-6">
       <div><h1 className="text-2xl font-semibold tracking-tight text-slate-950">Painel de Controle</h1><p className="mt-1 text-sm text-slate-600">Visão geral do que está acontecendo na Casa Timoni.</p></div>
     </header>
     <DashboardOverviewClient
       modules={visible}
-      motoristaControle={canManageMotorista(email)}
+      motoristaControle={canManageMotorista(email, session?.portalUser)}
       espacoEquipeControle={GESTAO_EMAILS.has(normalizedEmail)}
       showSummaryCards={!HIDE_SUMMARY_CARDS_EMAILS.has(normalizedEmail)}
     />

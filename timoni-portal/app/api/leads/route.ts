@@ -6,7 +6,7 @@ import { addLead, addProspect, createLeadsReport, importLeads, listLeadActivitie
 async function authorizedAccessToken() {
   const session = await auth();
   const email = session?.user?.email ?? "";
-  if (!hasModuleAccess(email, "leads")) return null;
+  if (!hasModuleAccess(email, "leads", session?.portalUser)) return null;
   return session?.accessToken ?? null;
 }
 

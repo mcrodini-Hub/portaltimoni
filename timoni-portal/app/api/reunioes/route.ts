@@ -19,7 +19,7 @@ function normalizeEmail(value?: string | null) {
 async function getContext() {
   const session = await auth();
   const email = normalizeEmail(session?.user?.email);
-  if (!email || !getPortalUser(email) || !session?.accessToken) return null;
+  if (!email || !getPortalUser(email, session?.portalUser) || !session?.accessToken) return null;
   return { email, accessToken: session.accessToken };
 }
 

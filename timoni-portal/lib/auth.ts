@@ -1,14 +1,17 @@
 import NextAuth from "next-auth";
 import type { JWT } from "next-auth/jwt";
 import Google from "next-auth/providers/google";
-import { isAuthorizedUser } from "@/lib/access-control";
+import type { PortalUser } from "@/lib/access-control";
+import { getEffectivePortalUser, recordPortalAccess } from "@/lib/portal-config";
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
+const PORTAL_CONFIG_REFRESH_MS = 60_000;
 
 declare module "next-auth" {
   interface Session {
     accessToken?: string;
     error?: "RefreshAccessTokenError";
+    portalUser?: PortalUser | null;
   }
 }
 
@@ -18,6 +21,8 @@ declare module "next-auth/jwt" {
     refreshToken?: string;
     expiresAt?: number;
     error?: "RefreshAccessTokenError";
+    portalUser?: PortalUser | null;
+    portalConfigAt?: number;
   }
 }
 
@@ -89,29 +94,44 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     maxAge: SESSION_MAX_AGE_SECONDS,
   },
   callbacks: {
-    async signIn({ user }) {
-      return isAuthorizedUser(user.email);
+    async signIn({ user, account }) {
+      const configured = await getEffectivePortalUser(account?.access_token, user.email);
+      return Boolean(configured);
     },
     async jwt({ token, account }) {
       if (account) {
+        const configured = await getEffectivePortalUser(account.access_token, token.email);
+        if (account.access_token && token.email) await recordPortalAccess(account.access_token, token.email);
         return {
           ...token,
           accessToken: account.access_token,
           refreshToken: account.refresh_token ?? token.refreshToken,
           expiresAt: account.expires_at,
           error: undefined,
+          portalUser: configured,
+          portalConfigAt: Date.now(),
         };
       }
 
-      if (!token.expiresAt || Date.now() / 1000 < token.expiresAt - 120) {
-        return token;
+      let current = token;
+      if (token.expiresAt && Date.now() / 1000 >= token.expiresAt - 120) {
+        current = await refreshAccessToken(token);
       }
 
-      return refreshAccessToken(token);
+      if (current.accessToken && (!current.portalConfigAt || Date.now() - current.portalConfigAt > PORTAL_CONFIG_REFRESH_MS)) {
+        current = {
+          ...current,
+          portalUser: await getEffectivePortalUser(current.accessToken, current.email),
+          portalConfigAt: Date.now(),
+        };
+      }
+
+      return current;
     },
     async session({ session, token }) {
       session.accessToken = token.accessToken;
       session.error = token.error;
+      session.portalUser = token.portalUser;
       return session;
     },
   },

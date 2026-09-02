@@ -30,11 +30,11 @@ function MessageBox({ item, index }: { item: TeamMessage; index: number }) {
   );
 }
 
-export default async function EspacoEquipeInbox() {
+export default async function EspacoEquipeInbox({ accessToken }: { accessToken?: string }) {
   let messages: TeamMessage[] = [];
 
   try {
-    messages = await listTeamMessages();
+    messages = await listTeamMessages(accessToken);
   } catch {
     messages = [];
   }

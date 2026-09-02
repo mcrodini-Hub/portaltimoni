@@ -23,7 +23,7 @@ async function authorize() {
       session: null,
     };
   }
-  if (!hasModuleAccess(session.user.email, "compras")) {
+  if (!hasModuleAccess(session.user.email, "compras", session.portalUser)) {
     return {
       response: NextResponse.json(
         { error: "Acesso não autorizado ao módulo Compras." },

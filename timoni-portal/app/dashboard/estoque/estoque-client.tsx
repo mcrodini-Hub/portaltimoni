@@ -30,6 +30,7 @@ type EstoqueClientProps = {
   isManager?: boolean;
   canDelete?: boolean;
   showRequestForm?: boolean;
+  showManagerResponseField?: boolean;
   defaultUnit?: RequestUnit;
   allowedUnits?: RequestUnit[];
 };
@@ -116,7 +117,7 @@ function canUseNotifications() {
   return typeof window !== "undefined" && "Notification" in window;
 }
 
-export default function EstoqueClient({ isManager = false, canDelete = false, showRequestForm = true, defaultUnit = "rio_claro", allowedUnits = ["rio_claro", "araras"] }: EstoqueClientProps) {
+export default function EstoqueClient({ isManager = false, canDelete = false, showRequestForm = true, showManagerResponseField = true, defaultUnit = "rio_claro", allowedUnits = ["rio_claro", "araras"] }: EstoqueClientProps) {
   const safeAllowedUnits = allowedUnits.length ? allowedUnits : [defaultUnit];
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
@@ -408,16 +409,18 @@ export default function EstoqueClient({ isManager = false, canDelete = false, sh
         <p className="mt-3 text-xs text-slate-400">{date(need.criadoEm)}</p>
         {need.status !== "chegou" && isManager && (
           <div className="mt-4 space-y-3">
-            <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Observação / resposta da necessidade</span>
-              <textarea
-                defaultValue={draft}
-                onChange={(event) => { responseDraftsRef.current[need.id] = event.target.value; }}
-                rows={3}
-                placeholder="Registre aqui a resposta, orientação ou observação sobre esta necessidade."
-                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              />
-            </label>
+            {(showManagerResponseField || !need.observacao) && (
+              <label className="block">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Observação / resposta da necessidade</span>
+                <textarea
+                  defaultValue={draft}
+                  onChange={(event) => { responseDraftsRef.current[need.id] = event.target.value; }}
+                  rows={3}
+                  placeholder="Registre aqui a resposta, orientação ou observação sobre esta necessidade."
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                />
+              </label>
+            )}
             <div className="flex flex-wrap gap-2">
               {["pendente", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void markAsConsultation(need)} className="rounded-lg bg-slate-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Consulta</button>}
               {["pendente", "observacao", "consulta"].includes(need.status) && <button disabled={disabled} onClick={() => void post({ action: "em_compra", id: need.id }, need.id)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Relação de compra</button>}

@@ -47,7 +47,7 @@ export default function ModuleUpdatesNav({
 
   useEffect(() => {
     void load();
-    const interval = window.setInterval(load, 45_000);
+    const interval = window.setInterval(load, 10_000);
     return () => window.clearInterval(interval);
   }, [load]);
 

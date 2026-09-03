@@ -63,7 +63,6 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
   const [loadedMembers, setLoadedMembers] = useState<TeamMember[]>([]);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
-  const [readingId, setReadingId] = useState("");
   const [employee, setEmployee] = useState("");
   const [readFeedback, setReadFeedback] = useState<ReadFeedback>(null);
 
@@ -174,7 +173,7 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
         message: data.alreadyRegistered ? `A leitura de ${selected.name} já estava registrada.` : `Leitura registrada para ${selected.name}.`,
         success: true,
       });
-      setReadingId("");
+      setEmployee("");
       await load();
     } catch (err) {
       setReadFeedback({ id: item.id, message: err instanceof Error ? err.message : "Não foi possível registrar a leitura.", success: false });
@@ -250,29 +249,19 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
           )}
           {canConfirmRead && (
             <div className="mt-3">
-              {readingId !== item.id ? (
-                <button
-                  type="button"
-                  onClick={() => { setReadingId(item.id); setReadFeedback(null); setEmployee(""); }}
-                  className="w-full rounded-xl bg-blue-800 px-4 py-3 text-sm font-semibold text-white sm:w-auto"
-                >
-                  Li e estou ciente
+              <div className="grid gap-2 rounded-xl border border-blue-200 bg-white p-3 sm:grid-cols-[minmax(180px,1fr)_auto] sm:items-end">
+                <label className="text-xs font-semibold text-slate-700">
+                  Seu nome
+                  <select value={employee} onChange={(event) => { setEmployee(event.target.value); setReadFeedback(null); }} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm">
+                    <option value="">Selecione</option>
+                    {effectiveMembers.map((member) => <option key={`${member.unit}-${member.name}`} value={`${member.unit}::${member.name}`}>{member.name}</option>)}
+                  </select>
+                </label>
+                <button type="button" onClick={() => confirmRead(item)} disabled={busyId === item.id || effectiveMembers.length === 0} className="rounded-lg bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+                  {busyId === item.id ? "Registrando..." : "OK"}
                 </button>
-              ) : (
-                <div className="grid gap-2 rounded-xl border border-blue-200 bg-white p-3 sm:grid-cols-[minmax(180px,1fr)_auto] sm:items-end">
-                  <label className="text-xs font-semibold text-slate-700">
-                    Seu nome
-                    <select value={employee} onChange={(event) => setEmployee(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm">
-                      <option value="">Selecione</option>
-                      {effectiveMembers.map((member) => <option key={`${member.unit}-${member.name}`} value={`${member.unit}::${member.name}`}>{member.name}</option>)}
-                    </select>
-                  </label>
-                  <button type="button" onClick={() => confirmRead(item)} disabled={busyId === item.id || effectiveMembers.length === 0} className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
-                    {busyId === item.id ? "Registrando..." : "Confirmar leitura"}
-                  </button>
-                  {effectiveMembers.length === 0 && <p className="text-xs font-medium text-red-700 sm:col-span-2">Não foi possível carregar os nomes. Atualize a página e tente novamente.</p>}
-                </div>
-              )}
+                {effectiveMembers.length === 0 && <p className="text-xs font-medium text-red-700 sm:col-span-2">Não foi possível carregar os nomes. Atualize a página e tente novamente.</p>}
+              </div>
               {readFeedback?.id === item.id && <p className={`mt-2 text-sm font-medium ${readFeedback.success ? "text-emerald-700" : "text-red-700"}`}>{readFeedback.message}</p>}
               <details className="mt-3 rounded-xl border border-blue-100 bg-white/70 px-3 py-2">
                 <summary className="cursor-pointer text-xs font-semibold text-slate-700">

@@ -29,6 +29,7 @@ type Data = { ok: boolean; necessidades: Need[]; produtos: Product[]; vendedores
 type EstoqueClientProps = {
   isManager?: boolean;
   canDelete?: boolean;
+  showRequestForm?: boolean;
   defaultUnit?: RequestUnit;
   allowedUnits?: RequestUnit[];
 };
@@ -115,7 +116,7 @@ function canUseNotifications() {
   return typeof window !== "undefined" && "Notification" in window;
 }
 
-export default function EstoqueClient({ isManager = false, canDelete = false, defaultUnit = "rio_claro", allowedUnits = ["rio_claro", "araras"] }: EstoqueClientProps) {
+export default function EstoqueClient({ isManager = false, canDelete = false, showRequestForm = true, defaultUnit = "rio_claro", allowedUnits = ["rio_claro", "araras"] }: EstoqueClientProps) {
   const safeAllowedUnits = allowedUnits.length ? allowedUnits : [defaultUnit];
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
@@ -603,13 +604,13 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
 
       {!isManager ? (
         <div className="space-y-5">
-          {RequestForm()}
+          {showRequestForm && <RequestForm />}
           {NeedsSection()}
           {SentOrdersSection()}
         </div>
       ) : (
         <div className="mt-5 space-y-5">
-          {RequestForm()}
+          {showRequestForm && <RequestForm />}
           {NeedsSection()}
           {SentOrdersSection()}
         </div>

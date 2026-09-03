@@ -47,6 +47,11 @@ async function ensureSchema() {
         CREATE INDEX IF NOT EXISTS portal_team_messages_created_at_idx
         ON portal_team_messages (created_at DESC)
       `;
+      await sql`
+        UPDATE portal_team_messages
+        SET unit = '', employee = ''
+        WHERE unit <> '' OR employee <> ''
+      `;
     })().catch((error) => {
       schemaReady = null;
       throw error;
@@ -56,8 +61,6 @@ async function ensureSchema() {
 }
 
 export async function appendTeamMessage(input: {
-  unit: string;
-  employee: string;
   message: string;
 }, _accessToken?: string) {
   void _accessToken;
@@ -65,7 +68,7 @@ export async function appendTeamMessage(input: {
   const sql = getDatabase();
   await sql`
     INSERT INTO portal_team_messages (unit, employee, message)
-    VALUES (${input.unit}, ${input.employee}, ${input.message})
+    VALUES ('', '', ${input.message})
   `;
 }
 
@@ -100,8 +103,8 @@ export async function replaceTeamMessages(_accessToken: string, messages: TeamMe
       INSERT INTO portal_team_messages (created_at, unit, employee, message, status, note)
       VALUES (
         ${item.date || new Date().toISOString()},
-        ${item.unit},
-        ${item.employee},
+        ${""},
+        ${""},
         ${item.message},
         ${item.status || "Novo"},
         ${item.note || ""}

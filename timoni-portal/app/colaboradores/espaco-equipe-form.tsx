@@ -1,29 +1,19 @@
 "use client";
 
-import { FormEvent, useMemo, useState } from "react";
-import type { TeamMember } from "@/lib/team-members";
+import { FormEvent, useState } from "react";
 
-export default function EspacoEquipeForm({ members }: { members: TeamMember[] }) {
-  const [selected, setSelected] = useState("");
+export default function EspacoEquipeForm() {
   const [message, setMessage] = useState("");
   const [status, setStatus] = useState<"idle" | "saving" | "success" | "error">("idle");
   const [feedback, setFeedback] = useState("");
-
-  const groups = useMemo(() => {
-    return {
-      Araras: members.filter((member) => member.unit === "Araras"),
-      "Rio Claro": members.filter((member) => member.unit === "Rio Claro"),
-    };
-  }, [members]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFeedback("");
 
-    const [unit, employee] = selected.split("::");
-    if (!unit || !employee || !message.trim()) {
+    if (!message.trim()) {
       setStatus("error");
-      setFeedback("Selecione seu nome e escreva a mensagem.");
+      setFeedback("Escreva a mensagem antes de registrar.");
       return;
     }
 
@@ -33,7 +23,7 @@ export default function EspacoEquipeForm({ members }: { members: TeamMember[] })
       const response = await fetch("/api/espaco-equipe", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ unit, employee, message: message.trim() }),
+        body: JSON.stringify({ message: message.trim() }),
       });
       const data = await response.json();
 
@@ -60,28 +50,7 @@ export default function EspacoEquipeForm({ members }: { members: TeamMember[] })
         </p>
       </div>
 
-      <form onSubmit={handleSubmit} className="mt-5 grid gap-4 lg:grid-cols-[280px_1fr_auto] lg:items-end">
-        <label className="block">
-          <span className="text-sm font-semibold text-slate-800">Funcionário</span>
-          <select
-            value={selected}
-            onChange={(event) => setSelected(event.target.value)}
-            className="mt-2 w-full rounded-xl border border-slate-300 bg-white px-3 py-3 text-sm text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-            required
-          >
-            <option value="">Selecione seu nome</option>
-            {Object.entries(groups).map(([unit, unitMembers]) => (
-              <optgroup key={unit} label={unit}>
-                {unitMembers.map((member) => (
-                  <option key={`${member.unit}-${member.name}`} value={`${member.unit}::${member.name}`}>
-                    {member.name}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-          </select>
-        </label>
-
+      <form onSubmit={handleSubmit} className="mt-5 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-end">
         <label className="block">
           <span className="text-sm font-semibold text-slate-800">Mensagem</span>
           <textarea

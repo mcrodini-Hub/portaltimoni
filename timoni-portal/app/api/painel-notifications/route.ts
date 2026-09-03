@@ -105,10 +105,10 @@ export async function GET() {
       const messages = await listTeamMessages(session?.accessToken);
       for (const message of messages.filter((item) => (item.status || "Novo").toLowerCase() === "novo").slice(0, 8)) {
         items.push({
-          id: `mensagem:${message.date}:${message.employee}:${message.unit}`,
+          id: `mensagem:${message.date}`,
           type: "mensagem",
           title: "Nova mensagem no Painel Timoni",
-          body: `${message.employee} · ${message.unit}: ${message.message.slice(0, 120)}`,
+          body: message.message.slice(0, 120),
           url: "/colaboradores",
         });
       }

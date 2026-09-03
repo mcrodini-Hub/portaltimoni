@@ -5,7 +5,7 @@ import {
   type PortalModule,
   type PortalUser,
 } from "@/lib/access-control";
-import { AVISO_TEAM_MEMBERS, TEAM_MEMBERS, type TeamMember } from "@/lib/team-members";
+import { AVISO_TEAM_MEMBERS, requiresAvisoConfirmation, TEAM_MEMBERS, type TeamMember } from "@/lib/team-members";
 import { AVISO_LEITURAS_SPREADSHEET_ID } from "@/lib/portal-data-constants";
 
 const USERS_SHEET = "PortalUsuarios";
@@ -259,7 +259,9 @@ export async function getEffectiveCollaborators(accessToken?: string) {
   if (!accessToken) return defaultCollaborators();
   try {
     await ensurePortalConfiguration(accessToken);
-    return (await readCollaborators(accessToken)).filter((member) => member.active);
+    return (await readCollaborators(accessToken))
+      .filter((member) => member.active)
+      .map((member) => ({ ...member, noticeRequired: requiresAvisoConfirmation(member) }));
   } catch (error) {
     console.warn("[portal-config] Não foi possível carregar colaboradores; usando base segura.", error);
     return defaultCollaborators().filter((member) => member.active);

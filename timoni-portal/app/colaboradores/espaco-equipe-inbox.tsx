@@ -17,13 +17,11 @@ function formatMessageDate(value: string) {
 function MessageBox({ item, index }: { item: TeamMessage; index: number }) {
   return (
     <article
-      key={`${item.date}-${item.employee}-${index}`}
+      key={`${item.date}-${index}`}
       className="rounded-2xl border border-blue-100 bg-white/80 p-4 shadow-sm"
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold uppercase tracking-wider text-blue-700">
         <span>{formatMessageDate(item.date)}</span>
-        <span className="text-slate-300">•</span>
-        <span>{item.employee}</span>
       </div>
       <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.message}</p>
     </article>
@@ -56,7 +54,7 @@ export default async function EspacoEquipeInbox({ accessToken }: { accessToken?:
       {messages.length ? (
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           {messages.map((item, index) => (
-            <MessageBox key={`${item.date}-${item.employee}-${index}`} item={item} index={index} />
+            <MessageBox key={`${item.date}-${index}`} item={item} index={index} />
           ))}
         </div>
       ) : (

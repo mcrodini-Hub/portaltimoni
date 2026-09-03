@@ -42,8 +42,24 @@ const ARARAS_AVISO_MEMBERS = new Set([
   "Yan",
 ]);
 
+const RIO_CLARO_AVISO_MEMBERS = new Set([
+  "Adriel",
+  "Carina",
+  "Davi",
+  "Jeovana",
+  "José Roberto",
+  "Raffaela",
+  "San",
+]);
+
+export function requiresAvisoConfirmation(member: TeamMember) {
+  return member.unit === "Araras"
+    ? ARARAS_AVISO_MEMBERS.has(member.name)
+    : RIO_CLARO_AVISO_MEMBERS.has(member.name);
+}
+
 export const AVISO_TEAM_MEMBERS = TEAM_MEMBERS.filter(
-  (member) => member.unit !== "Araras" || ARARAS_AVISO_MEMBERS.has(member.name),
+  requiresAvisoConfirmation,
 );
 
 export function findTeamMember(name: string, unit: string) {

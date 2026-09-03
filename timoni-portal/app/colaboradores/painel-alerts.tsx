@@ -88,8 +88,7 @@ export default async function PainelAlerts({ email, accessToken }: { email: stri
           </div>
           <div className="mt-4 space-y-2">
             {newMessages.slice(0, 3).map((message, index) => (
-              <div key={`${message.date}-${message.employee}-${index}`} className="rounded-2xl bg-white/80 p-3 text-sm text-slate-700">
-                <p className="font-semibold text-slate-950">{message.employee} · {message.unit}</p>
+              <div key={`${message.date}-${index}`} className="rounded-2xl bg-white/80 p-3 text-sm text-slate-700">
                 <p className="mt-1 text-xs text-slate-500">{formatDateTime(message.date)}</p>
                 <p className="mt-2 line-clamp-2">{message.message}</p>
               </div>

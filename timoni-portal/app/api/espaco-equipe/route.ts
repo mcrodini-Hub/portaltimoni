@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { appendTeamMessage, listTeamMessages } from "@/lib/espaco-equipe";
-import { getEffectiveCollaborators } from "@/lib/portal-config";
 
 const GESTAO_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
 const FINAL_STATUSES = new Set(["concluido", "concluído", "resolvido", "feito", "finalizado"]);
@@ -35,14 +34,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const employee = String(body?.employee ?? "").trim();
-    const unit = String(body?.unit ?? "").trim();
     const message = String(body?.message ?? "").trim();
-
-    const collaborators = await getEffectiveCollaborators(session.accessToken);
-    if (!collaborators.some((member) => member.name === employee && member.unit === unit)) {
-      return NextResponse.json({ error: "Selecione um funcionário válido." }, { status: 400 });
-    }
 
     if (message.length < 3) {
       return NextResponse.json({ error: "Escreva a mensagem antes de registrar." }, { status: 400 });
@@ -52,7 +44,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "A mensagem deve ter no máximo 2.500 caracteres." }, { status: 400 });
     }
 
-    await appendTeamMessage({ employee, unit, message });
+    await appendTeamMessage({ message });
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof Error) {

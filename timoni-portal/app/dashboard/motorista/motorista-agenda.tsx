@@ -407,6 +407,15 @@ export default function MotoristaAgenda() {
     setModal(true);
   }
 
+  function duplicarViagem(v: Viagem) {
+    setEditandoId(null);
+    setForm({ ...formFromViagem(v), notasJson: "[]" });
+    setInvalidos(new Set());
+    setErro("");
+    setAviso("");
+    setModal(true);
+  }
+
   function fieldClass(name: keyof FormState) {
     return `mt-1 w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 ${invalidos.has(name) ? "border-red-500" : "border-slate-300"}`;
   }
@@ -694,7 +703,7 @@ export default function MotoristaAgenda() {
                             {lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">Concluído</span> : <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">Concluir</button>}
                             <button type="button" disabled={saving} onClick={() => void retirarViagem(v)} className="rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">Retirado</button>
                           </>}
-                          <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50">Editar</button>
+                          <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50">Editar</button><button type="button" onClick={() => duplicarViagem(v)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Duplicar</button>
                           <button type="button" disabled={saving} onClick={() => void excluirViagem(v)} className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">Excluir</button>
                         </div>
                         {lerConclusao(v.notasJson)?.observacaoConclusao && <p className="mt-2 text-xs text-emerald-800">Conclusão: {lerConclusao(v.notasJson)?.observacaoConclusao}</p>}
@@ -729,7 +738,7 @@ export default function MotoristaAgenda() {
                       {lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-2 text-sm font-semibold text-emerald-800">Concluído</span> : <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Concluir</button>}
                       <button type="button" disabled={saving} onClick={() => void retirarViagem(v)} className="rounded-lg bg-amber-600 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Retirado</button>
                     </>}
-                    <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50">Editar</button>
+                    <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50">Editar</button><button type="button" onClick={() => duplicarViagem(v)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Duplicar</button>
                     <button type="button" disabled={saving} onClick={() => void excluirViagem(v)} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">Excluir</button>
                   </div>
                 </div>

@@ -7,6 +7,7 @@ import {
   recordModuleUpdateSafely,
 } from "@/lib/module-updates";
 import { listTeamMessages } from "@/lib/espaco-equipe";
+import { listAvisoLeituras } from "@/lib/aviso-leituras";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,15 +28,26 @@ export async function GET() {
   }
 
   try {
-    const messages = await listTeamMessages(current.session.accessToken);
-    await Promise.all(messages
-      .filter((item) => (item.status || "Novo").toLowerCase() === "novo")
-      .map((item) => recordModuleUpdateSafely(
-        "espaco-equipe",
-        "colaborador",
-        "Nova mensagem anônima recebida.",
-        `espaco-equipe:${item.date}`,
-      )));
+    const [messages, noticeReads] = await Promise.all([
+      listTeamMessages(current.session.accessToken),
+      listAvisoLeituras(current.session.accessToken ?? ""),
+    ]);
+    await Promise.all([
+      ...messages
+        .filter((item) => (item.status || "Novo").toLowerCase() === "novo")
+        .map((item) => recordModuleUpdateSafely(
+          "espaco-equipe",
+          "colaborador",
+          "Nova mensagem anônima recebida.",
+          `espaco-equipe:${item.date}`,
+        )),
+      ...noticeReads.slice(0, 200).map((read) => recordModuleUpdateSafely(
+        "avisos",
+        read.portalEmail || "colaborador",
+        `${read.employee} confirmou a leitura de ${read.title || "um aviso"}.`,
+        `aviso-leitura:${read.avisoId}:${read.unit}:${read.employee}`,
+      )),
+    ]);
     return NextResponse.json(
       { ok: true, updates: await listPendingModuleUpdates(current.email) },
       { headers: { "Cache-Control": "no-store" } },

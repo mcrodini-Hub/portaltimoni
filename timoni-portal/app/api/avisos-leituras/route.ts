@@ -93,7 +93,12 @@ export async function POST(request: Request) {
       portalEmail: current.email,
     });
     if (!result.alreadyRegistered) {
-      await recordModuleUpdateSafely("avisos", current.email, `${employee} confirmou a leitura de ${notice.title}.`);
+      await recordModuleUpdateSafely(
+        "avisos",
+        current.email,
+        `${employee} confirmou a leitura de ${notice.title}.`,
+        `aviso-leitura:${avisoId}:${unit}:${employee}`,
+      );
     }
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {

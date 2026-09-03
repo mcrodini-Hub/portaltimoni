@@ -16,11 +16,11 @@ type PendingUpdate = { module: UpdateModule; count: number; latestAt: string };
 
 export default function ModuleUpdatesNav({
   items,
-  isCica,
+  canViewUpdates,
   linkClass,
 }: {
   items: NavItem[];
-  isCica: boolean;
+  canViewUpdates: boolean;
   linkClass: string;
 }) {
   const [updates, setUpdates] = useState<Record<string, PendingUpdate>>({});
@@ -29,7 +29,7 @@ export default function ModuleUpdatesNav({
   const acknowledgedThrough = useRef<Record<string, string>>({});
 
   const load = useCallback(async () => {
-    if (!isCica) return;
+    if (!canViewUpdates) return;
     try {
       const response = await fetch("/api/module-updates", { cache: "no-store" });
       const data = await response.json();
@@ -45,7 +45,7 @@ export default function ModuleUpdatesNav({
     } catch {
       // Uma falha temporária não deve impedir a navegação pelo Portal.
     }
-  }, [isCica]);
+  }, [canViewUpdates]);
 
   useEffect(() => {
     void load();
@@ -83,7 +83,7 @@ export default function ModuleUpdatesNav({
     return (
       <span key={item.href} className="inline-flex shrink-0 items-center">
         {item.href === "/colaboradores" ? (
-          <AvisosNavLink className={linkClass} showActiveCount={!isCica} />
+          <AvisosNavLink className={linkClass} showActiveCount={!canViewUpdates} />
         ) : (
           <Link href={item.targetHref} className={linkClass}>{item.label}</Link>
         )}
@@ -101,7 +101,9 @@ export default function ModuleUpdatesNav({
             {justConfirmed ? (
               <span className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-emerald-400 text-xs font-bold text-blue-950">✓</span>
             ) : (
-              <span className="h-3.5 w-3.5 rounded-full bg-amber-400 shadow-[0_0_0_2px_rgba(255,255,255,0.22)]" />
+              <span className="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold leading-none text-white shadow-[0_0_0_2px_rgba(255,255,255,0.22)]">
+                {pending && pending.count > 99 ? "99+" : pending?.count}
+              </span>
             )}
           </button>
         )}

@@ -14,11 +14,14 @@ const navItems: Array<{ href: string; label: string; module: PortalModule; updat
   { href: "/dashboard/reunioes", label: "Reuniões", module: "reunioes", updateModule: "reunioes" },
   { href: "/dashboard/leads", label: "Leads", module: "leads", updateModule: "leads" },
   { href: "/espaco-equipe", label: "Espaço Equipe", module: "painel", updateModule: "espaco-equipe" },
+  { href: "/dashboard/marketing", label: "Marketing", module: "marketing", updateModule: "marketing" },
+  { href: "/dashboard/financeiro", label: "Financeiro", module: "financeiro", updateModule: "financeiro" },
 ];
 
 export default function PortalHeader({ email, portalUser }: { email: string; portalUser?: PortalUser | null }) {
   const directPainelTimoniAccess = entersDirectlyInPainelTimoni(email, portalUser);
   const isCica = email.trim().toLowerCase() === "mcrodini@gmail.com";
+  const canViewUpdates = ["mcrodini@gmail.com", "mrodini@gmail.com"].includes(email.trim().toLowerCase());
   const linkClass =
     "whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-white/90 transition hover:bg-white/10 hover:text-white";
   const allowedItems = navItems
@@ -50,7 +53,7 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
           className="order-3 -mx-1 flex w-[calc(100%+0.5rem)] min-w-0 flex-none items-center gap-1 overflow-x-auto border-t border-white/10 px-1 py-2 sm:order-none sm:mx-0 sm:w-auto sm:flex-1 sm:border-0 sm:px-0"
           aria-label="Menu principal"
         >
-          <ModuleUpdatesNav items={allowedItems} isCica={isCica} linkClass={linkClass} />
+          <ModuleUpdatesNav items={allowedItems} canViewUpdates={canViewUpdates} linkClass={linkClass} />
           {isCica && <Link href="/configuracoes" className={linkClass}>Configurações</Link>}
         </nav>
 

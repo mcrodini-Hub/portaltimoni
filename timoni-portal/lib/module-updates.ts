@@ -10,6 +10,8 @@ export const UPDATE_MODULES = [
   "reunioes",
   "leads",
   "espaco-equipe",
+  "marketing",
+  "financeiro",
 ] as const;
 
 export type UpdateModule = (typeof UPDATE_MODULES)[number];
@@ -57,6 +59,14 @@ async function ensureSchema() {
         ON portal_module_updates (source_key)
         WHERE source_key IS NOT NULL
       `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS portal_module_update_reads (
+          viewer_email TEXT NOT NULL,
+          module TEXT NOT NULL,
+          read_through TIMESTAMPTZ NOT NULL,
+          PRIMARY KEY (viewer_email, module)
+        )
+      `;
     })().catch((error) => {
       schemaReady = null;
       throw error;
@@ -100,14 +110,18 @@ export async function recordModuleUpdateSafely(
   }
 }
 
-export async function listPendingModuleUpdates(): Promise<PendingModuleUpdate[]> {
+export async function listPendingModuleUpdates(viewerEmail: string): Promise<PendingModuleUpdate[]> {
   await ensureSchema();
   const sql = getDatabase();
   const rows = await sql`
-    SELECT module, COUNT(*)::int AS count, MAX(created_at) AS latest_at
-    FROM portal_module_updates
-    WHERE read_at IS NULL
-    GROUP BY module
+    SELECT updates.module, COUNT(*)::int AS count, MAX(updates.created_at) AS latest_at
+    FROM portal_module_updates updates
+    LEFT JOIN portal_module_update_reads reads
+      ON reads.module = updates.module
+      AND reads.viewer_email = ${viewerEmail.trim().toLowerCase()}
+    WHERE updates.read_at IS NULL
+      AND updates.created_at > COALESCE(reads.read_through, TIMESTAMPTZ '1970-01-01')
+    GROUP BY updates.module
   ` as Array<{ module: string; count: number; latest_at: Date | string }>;
 
   return rows
@@ -119,17 +133,16 @@ export async function listPendingModuleUpdates(): Promise<PendingModuleUpdate[]>
     }));
 }
 
-export async function markModuleUpdatesRead(module: UpdateModule, through: string) {
+export async function markModuleUpdatesRead(module: UpdateModule, through: string, viewerEmail: string) {
   const throughDate = new Date(through);
   if (Number.isNaN(throughDate.getTime())) throw new Error("Data de atualização inválida.");
 
   await ensureSchema();
   const sql = getDatabase();
   await sql`
-    UPDATE portal_module_updates
-    SET read_at = NOW()
-    WHERE module = ${module}
-      AND read_at IS NULL
-      AND created_at <= ${throughDate.toISOString()}
+    INSERT INTO portal_module_update_reads (viewer_email, module, read_through)
+    VALUES (${viewerEmail.trim().toLowerCase()}, ${module}, ${throughDate.toISOString()})
+    ON CONFLICT (viewer_email, module)
+    DO UPDATE SET read_through = GREATEST(portal_module_update_reads.read_through, EXCLUDED.read_through)
   `;
 }

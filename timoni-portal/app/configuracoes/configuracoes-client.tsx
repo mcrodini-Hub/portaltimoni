@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useState } from "react";
 import type { PortalModule, PortalUser } from "@/lib/access-control";
 import type { ConfiguredCollaborator, PortalAuditEntry } from "@/lib/portal-config";
 
@@ -48,7 +48,6 @@ export default function ConfiguracoesClient() {
   const [error, setError] = useState("");
   const [userForm, setUserForm] = useState<PortalUser | null>(null);
   const [collaboratorForm, setCollaboratorForm] = useState<ConfiguredCollaborator | null>(null);
-  const [previewEmail, setPreviewEmail] = useState("");
 
   async function load() {
     setLoading(true);
@@ -69,7 +68,6 @@ export default function ConfiguracoesClient() {
 
   const activeUsers = data.users.filter((user) => user.active !== false).length;
   const activeCollaborators = data.collaborators.filter((member) => member.active).length;
-  const preview = useMemo(() => data.users.find((user) => user.email === previewEmail), [data.users, previewEmail]);
 
   function toggleModule(module: PortalModule, checked: boolean) {
     setUserForm((current) => current ? {
@@ -130,6 +128,29 @@ export default function ConfiguracoesClient() {
 
   const tabs: Array<[Tab, string]> = [["acessos", "Acessos e permissões"], ["colaboradores", "Colaboradores"], ["backup", "Backup"], ["historico", "Histórico"]];
 
+  function renderUserEditor(inline = false) {
+    if (!userForm) return null;
+    const isExisting = data.users.some((user) => user.email === userForm.email);
+    return (
+      <div className={inline ? "mt-4 border-t border-blue-100 pt-4" : "rounded-3xl border border-blue-200 bg-white p-5 shadow-sm sm:p-6"}>
+        <h3 className="text-base font-semibold text-slate-950 sm:text-lg">{isExisting ? "Editar permissões" : "Novo acesso"}</h3>
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <label className="text-sm font-medium text-slate-700">Nome<input value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
+          <label className="text-sm font-medium text-slate-700">E-mail<input type="email" value={userForm.email} disabled={isExisting} onChange={(e) => setUserForm({ ...userForm, email: e.target.value.toLowerCase() })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 disabled:bg-slate-100" /></label>
+          <label className="text-sm font-medium text-slate-700">Unidade<select value={userForm.unit} onChange={(e) => setUserForm({ ...userForm, unit: e.target.value as PortalUser["unit"] })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option>Rio Claro</option><option>Araras</option><option>Geral</option></select></label>
+        </div>
+        <div className="mt-5"><p className="text-sm font-semibold text-slate-900">Permissões dos módulos</p><div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{MODULES.map((module) => <Checkbox key={module.id} label={module.label} checked={userForm.modules.includes(module.id)} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => toggleModule(module.id, checked)} />)}</div></div>
+        <div className="mt-5"><p className="text-sm font-semibold text-slate-900">Boxes visíveis no Painel</p><div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{BOXES.map((box) => <Checkbox key={box.id} label={box.label} checked={(userForm.boxes || []).includes(box.id)} disabled={!userForm.modules.includes(box.id)} onChange={(checked) => setUserForm({ ...userForm, boxes: checked ? [...new Set([...(userForm.boxes || []), box.id])] : (userForm.boxes || []).filter((item) => item !== box.id) })} />)}</div></div>
+        <div className="mt-5 grid gap-2 sm:grid-cols-3">
+          <Checkbox label="Acesso ativo" checked={userForm.active !== false} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => setUserForm({ ...userForm, active: checked })} />
+          <Checkbox label="Somente leitura" checked={Boolean(userForm.readOnly)} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => setUserForm({ ...userForm, readOnly: checked })} />
+          <Checkbox label="Entrar direto em Avisos" checked={Boolean(userForm.directPainel)} onChange={(checked) => setUserForm({ ...userForm, directPainel: checked })} />
+        </div>
+        <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setUserForm(null)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancelar</button><button type="button" disabled={saving} onClick={() => void save("user", userForm)} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? "Salvando..." : "Salvar acesso"}</button></div>
+      </div>
+    );
+  }
+
   return (
     <div className="pb-10">
       <header className="mb-6">
@@ -159,28 +180,24 @@ export default function ConfiguracoesClient() {
             <button type="button" onClick={() => setUserForm({ ...EMPTY_USER })} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white">+ Novo acesso</button>
           </div>
 
-          {userForm && (
-            <div className="rounded-3xl border border-blue-200 bg-white p-5 shadow-sm sm:p-6">
-              <h3 className="text-lg font-semibold text-slate-950">{userForm.email ? "Editar acesso" : "Novo acesso"}</h3>
-              <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                <label className="text-sm font-medium text-slate-700">Nome<input value={userForm.name} onChange={(e) => setUserForm({ ...userForm, name: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-                <label className="text-sm font-medium text-slate-700">E-mail<input type="email" value={userForm.email} disabled={data.users.some((user) => user.email === userForm.email)} onChange={(e) => setUserForm({ ...userForm, email: e.target.value.toLowerCase() })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 disabled:bg-slate-100" /></label>
-                <label className="text-sm font-medium text-slate-700">Unidade<select value={userForm.unit} onChange={(e) => setUserForm({ ...userForm, unit: e.target.value as PortalUser["unit"] })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option>Rio Claro</option><option>Araras</option><option>Geral</option></select></label>
-              </div>
-              <div className="mt-5"><p className="text-sm font-semibold text-slate-900">Permissões dos módulos</p><div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{MODULES.map((module) => <Checkbox key={module.id} label={module.label} checked={userForm.modules.includes(module.id)} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => toggleModule(module.id, checked)} />)}</div></div>
-              <div className="mt-5"><p className="text-sm font-semibold text-slate-900">Boxes visíveis no Painel</p><div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">{BOXES.map((box) => <Checkbox key={box.id} label={box.label} checked={(userForm.boxes || []).includes(box.id)} disabled={!userForm.modules.includes(box.id)} onChange={(checked) => setUserForm({ ...userForm, boxes: checked ? [...new Set([...(userForm.boxes || []), box.id])] : (userForm.boxes || []).filter((item) => item !== box.id) })} />)}</div></div>
-              <div className="mt-5 grid gap-2 sm:grid-cols-3">
-                <Checkbox label="Acesso ativo" checked={userForm.active !== false} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => setUserForm({ ...userForm, active: checked })} />
-                <Checkbox label="Somente leitura" checked={Boolean(userForm.readOnly)} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => setUserForm({ ...userForm, readOnly: checked })} />
-                <Checkbox label="Entrar direto em Avisos" checked={Boolean(userForm.directPainel)} onChange={(checked) => setUserForm({ ...userForm, directPainel: checked })} />
-              </div>
-              <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setUserForm(null)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancelar</button><button type="button" disabled={saving} onClick={() => void save("user", userForm)} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">Salvar acesso</button></div>
-            </div>
-          )}
+          {userForm && !data.users.some((user) => user.email === userForm.email) && renderUserEditor()}
 
-          {preview && <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4"><div className="flex items-start justify-between gap-3"><div><p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Pré-visualização</p><h3 className="mt-1 font-semibold text-violet-950">{preview.name}</h3><p className="mt-2 text-sm text-violet-800">Menu: {MODULES.filter((m) => preview.modules.includes(m.id)).map((m) => m.label).join(" · ") || "Nenhum módulo"}</p><p className="mt-1 text-sm text-violet-800">Boxes: {BOXES.filter((m) => (preview.boxes || []).includes(m.id)).map((m) => m.label).join(" · ") || "Nenhum box"}</p></div><button type="button" onClick={() => setPreviewEmail("")} className="text-sm font-semibold text-violet-800">Fechar</button></div></div>}
-
-          <div className="grid gap-3 lg:grid-cols-2">{data.users.sort((a, b) => a.name.localeCompare(b.name)).map((user) => <article key={user.email} className={`rounded-2xl border bg-white p-4 ${user.active === false ? "border-slate-200 opacity-65" : "border-slate-200"}`}><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold text-slate-950">{user.name}</p><p className="mt-1 text-sm text-slate-600">{user.email}</p><p className="mt-1 text-xs text-slate-500">{user.unit} · Último acesso: {dateLabel(user.lastAccess)}</p></div><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${user.active === false ? "bg-slate-100 text-slate-600" : "bg-emerald-100 text-emerald-800"}`}>{user.active === false ? "Desativado" : "Ativo"}</span></div><p className="mt-3 text-sm text-slate-700">{user.modules.length} módulos · {(user.boxes || []).length} boxes</p><div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => setUserForm({ ...user, boxes: [...(user.boxes || [])], modules: [...user.modules] })} className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-800">Editar</button><button type="button" onClick={() => setPreviewEmail(user.email)} className="rounded-lg border border-violet-200 px-3 py-2 text-xs font-semibold text-violet-800">Pré-visualizar</button><button type="button" onClick={() => setUserForm({ ...user, email: "", name: `Cópia de ${user.name}`, lastAccess: "" })} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">Duplicar permissões</button></div></article>)}</div>
+          <div className="grid items-start gap-3 lg:grid-cols-2">
+            {[...data.users].sort((a, b) => a.name.localeCompare(b.name)).map((user) => {
+              const editing = userForm?.email === user.email;
+              return (
+                <article key={user.email} className={`rounded-2xl border bg-white p-4 ${editing ? "border-blue-300 shadow-sm lg:col-span-2" : "border-slate-200"} ${user.active === false && !editing ? "opacity-65" : ""}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div><p className="font-semibold text-slate-950">{user.name}</p><p className="mt-1 text-sm text-slate-600">{user.email}</p><p className="mt-1 text-xs text-slate-500">{user.unit} · Último acesso: {dateLabel(user.lastAccess)}</p></div>
+                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${user.active === false ? "bg-slate-100 text-slate-600" : "bg-emerald-100 text-emerald-800"}`}>{user.active === false ? "Desativado" : "Ativo"}</span>
+                  </div>
+                  <p className="mt-3 text-sm text-slate-700">{user.modules.length} módulos · {(user.boxes || []).length} boxes</p>
+                  {!editing && <div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => setUserForm({ ...user, boxes: [...(user.boxes || [])], modules: [...user.modules] })} className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-800">Editar permissões</button><button type="button" onClick={() => setUserForm({ ...user, email: "", name: `Cópia de ${user.name}`, lastAccess: "" })} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">Duplicar permissões</button></div>}
+                  {editing && renderUserEditor(true)}
+                </article>
+              );
+            })}
+          </div>
         </section>
       )}
 

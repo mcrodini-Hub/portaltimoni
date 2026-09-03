@@ -11,21 +11,23 @@ import { listTeamMessages } from "@/lib/espaco-equipe";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const CICA_EMAIL = "mcrodini@gmail.com";
+const MANAGEMENT_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
 
-async function cicaSession() {
+async function managementSession() {
   const session = await auth();
-  return session?.user?.email?.trim().toLowerCase() === CICA_EMAIL ? session : null;
+  if (!session?.user?.email) return null;
+  const email = session.user.email.trim().toLowerCase();
+  return MANAGEMENT_EMAILS.has(email) ? { session, email } : null;
 }
 
 export async function GET() {
-  const session = await cicaSession();
-  if (!session) {
-    return NextResponse.json({ error: "Acesso exclusivo da Ciça." }, { status: 403 });
+  const current = await managementSession();
+  if (!current) {
+    return NextResponse.json({ error: "Acesso exclusivo da gestão." }, { status: 403 });
   }
 
   try {
-    const messages = await listTeamMessages(session.accessToken);
+    const messages = await listTeamMessages(current.session.accessToken);
     await Promise.all(messages
       .filter((item) => (item.status || "Novo").toLowerCase() === "novo")
       .map((item) => recordModuleUpdateSafely(
@@ -35,7 +37,7 @@ export async function GET() {
         `espaco-equipe:${item.date}`,
       )));
     return NextResponse.json(
-      { ok: true, updates: await listPendingModuleUpdates() },
+      { ok: true, updates: await listPendingModuleUpdates(current.email) },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
@@ -45,8 +47,9 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!(await cicaSession())) {
-    return NextResponse.json({ error: "Acesso exclusivo da Ciça." }, { status: 403 });
+  const current = await managementSession();
+  if (!current) {
+    return NextResponse.json({ error: "Acesso exclusivo da gestão." }, { status: 403 });
   }
 
   try {
@@ -54,7 +57,7 @@ export async function POST(request: Request) {
     if (!isUpdateModule(body?.module)) {
       return NextResponse.json({ error: "Módulo inválido." }, { status: 400 });
     }
-    await markModuleUpdatesRead(body.module, String(body?.through || ""));
+    await markModuleUpdatesRead(body.module, String(body?.through || ""), current.email);
     return NextResponse.json({ ok: true, readAt: new Date().toISOString() });
   } catch (error) {
     console.error("[module-updates][POST]", error);

@@ -35,7 +35,6 @@ type EstoqueClientProps = {
 
 const input = "rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm disabled:bg-slate-50 disabled:text-slate-500";
 const primary = "rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50";
-const secondary = "rounded-xl border border-slate-200 bg-white px-5 py-3 text-sm font-semibold text-slate-700";
 
 function norm(value: string) {
   return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -408,29 +407,27 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
         <p className="mt-3 text-xs text-slate-400">{date(need.criadoEm)}</p>
         {need.status !== "chegou" && isManager && (
           <div className="mt-4 space-y-3">
-            {!["observacao", "consulta"].includes(need.status) && (
-              <label className="block">
-                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Observação / resposta da necessidade</span>
-                <textarea
-                  defaultValue={draft}
-                  onChange={(event) => { responseDraftsRef.current[need.id] = event.target.value; }}
-                  rows={3}
-                  placeholder="Registre aqui a resposta, orientação ou observação sobre esta necessidade."
-                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-                />
-              </label>
-            )}
+            <label className="block">
+              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Observação / resposta da necessidade</span>
+              <textarea
+                defaultValue={draft}
+                onChange={(event) => { responseDraftsRef.current[need.id] = event.target.value; }}
+                rows={3}
+                placeholder="Registre aqui a resposta, orientação ou observação sobre esta necessidade."
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+              />
+            </label>
             <div className="flex flex-wrap gap-2">
               {["pendente", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void markAsConsultation(need)} className="rounded-lg bg-slate-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Consulta</button>}
-              {need.status === "pendente" && <button disabled={disabled} onClick={() => void post({ action: "em_compra", id: need.id }, need.id)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Relação de compra</button>}
-              {["pendente", "em_compra"].includes(need.status) && <button disabled={disabled} onClick={() => void order(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Pedido feito</button>}
-              {["pendente", "em_compra"].includes(need.status) && <button disabled={disabled} onClick={() => void observe(need)} className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50">Salvar observação</button>}
+              {["pendente", "observacao", "consulta"].includes(need.status) && <button disabled={disabled} onClick={() => void post({ action: "em_compra", id: need.id }, need.id)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Relação de compra</button>}
+              {["pendente", "em_compra", "observacao", "consulta"].includes(need.status) && <button disabled={disabled} onClick={() => void order(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Pedido feito</button>}
+              {["pendente", "em_compra", "observacao", "consulta"].includes(need.status) && <button disabled={disabled} onClick={() => void observe(need)} className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50">Salvar observação</button>}
               {need.status === "pedido_existente" && <button disabled={disabled} onClick={() => void arrived(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Produto chegou</button>}
               {canDelete && <button disabled={disabled} onClick={() => void remove(need)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50">Excluir</button>}
             </div>
           </div>
         )}
-        {["observacao", "consulta"].includes(need.status) && !isManager && (
+        {need.status !== "chegou" && !isManager && (
           <div className="mt-4 border-t border-slate-100 pt-4">
             <label className="block">
               <span className="text-xs font-semibold uppercase tracking-wider text-blue-700">Responder à consulta</span>
@@ -583,19 +580,20 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
   return (
     <div className="pb-10">
       {isManager && (
-        <section className="rounded-3xl border border-emerald-100 bg-white p-5 shadow-sm sm:p-6">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Módulo Estoque</p>
-            <h1 className="mt-2 text-3xl font-semibold">Estoque CT</h1>
-            <p className="mt-3 text-sm text-slate-600">Uso direto no Portal Timoni, no computador ou celular.</p>
-            <p className="mt-2 text-xs text-slate-500">As notificações aparecem quando o Portal estiver aberto neste aparelho e o navegador permitir avisos.</p>
-          </div>
-          <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-            <button onClick={() => void refresh()} className={primary}>Atualizar informações</button>
-            <button onClick={() => void requestNotifications()} className={secondary}>
-              {notificationPermission === "granted" ? "Notificações ativadas" : "Ativar notificações"}
-            </button>
-            <a href={SHEET_URL} target="_blank" rel="noreferrer" className={secondary + " text-center"}>Abrir planilha</a>
+        <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-emerald-700">Módulo Estoque</p>
+              <h1 className="mt-1 text-xl font-semibold">Estoque CT</h1>
+              <p className="mt-1 text-xs text-slate-500">Uso direto no Portal Timoni · notificações com o Portal aberto.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => void refresh()} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Atualizar informações</button>
+              <button onClick={() => void requestNotifications()} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700">
+                {notificationPermission === "granted" ? "Notificações ativadas" : "Ativar notificações"}
+              </button>
+              <a href={SHEET_URL} target="_blank" rel="noreferrer" className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center text-xs font-semibold text-slate-700">Abrir planilha</a>
+            </div>
           </div>
         </section>
       )}

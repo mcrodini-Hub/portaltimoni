@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { getPortalUser, type PortalUser } from "@/lib/access-control";
 import { listComunicados } from "@/lib/comunicados";
 import { getEffectiveCollaborators } from "@/lib/portal-config";
+import { recordModuleUpdateSafely } from "@/lib/module-updates";
 import {
   listAvisoLeituras,
   registerAvisoLeitura,
@@ -97,6 +98,9 @@ export async function POST(request: Request) {
       title: notice.title,
       portalEmail: current.email,
     });
+    if (!result.alreadyRegistered) {
+      await recordModuleUpdateSafely("avisos", current.email, `${employee} confirmou a leitura de ${notice.title}.`);
+    }
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Não foi possível registrar a leitura.";

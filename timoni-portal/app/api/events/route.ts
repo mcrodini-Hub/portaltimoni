@@ -3,6 +3,7 @@ import { requireAuthorizedSession } from "@/lib/auth-guard";
 import { createEvent, isCalendarKey, listEventsInRange, toApiError } from "@/lib/google-calendar";
 import type { CalendarEventInput, CalendarKey } from "@/lib/types";
 import { getWeekRange } from "@/lib/week";
+import { recordModuleUpdateSafely } from "@/lib/module-updates";
 
 function isValidRecurrence(value: unknown): value is string[] | undefined {
   if (value === undefined) return true;
@@ -67,6 +68,7 @@ export async function POST(request: NextRequest) {
       end: body.end,
       recurrence: body.recurrence,
     });
+    await recordModuleUpdateSafely("agenda", session?.user?.email, `Evento criado: ${body.summary.trim()}.`);
     return NextResponse.json({ event }, { status: 201 });
   } catch (error) {
     const { message, status } = toApiError(error);

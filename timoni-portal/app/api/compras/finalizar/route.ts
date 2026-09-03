@@ -7,6 +7,7 @@ import {
 } from "@/lib/trello";
 import { google } from "googleapis";
 import { NextResponse } from "next/server";
+import { recordModuleUpdateSafely } from "@/lib/module-updates";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -285,6 +286,13 @@ export async function POST(request: Request) {
       dataEnvio,
       dataEntrega,
       unit,
+    );
+
+    const session = await auth();
+    await recordModuleUpdateSafely(
+      "compras",
+      session?.user?.email,
+      `Pedido enviado: ${updatedCard.name || finalTitle}.`,
     );
 
     return NextResponse.json({

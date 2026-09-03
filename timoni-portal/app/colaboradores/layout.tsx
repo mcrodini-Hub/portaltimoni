@@ -1,6 +1,5 @@
 import { auth } from "@/lib/auth";
 import { redirect } from "next/navigation";
-import PainelAlerts from "@/app/colaboradores/painel-alerts";
 import PortalHeader from "@/components/portal-header";
 
 export default async function ColaboradoresLayout({
@@ -21,7 +20,6 @@ export default async function ColaboradoresLayout({
       <PortalHeader email={email} portalUser={session.portalUser} />
 
       <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
-        <PainelAlerts email={email} accessToken={session.accessToken} />
         {children}
       </main>
     </div>

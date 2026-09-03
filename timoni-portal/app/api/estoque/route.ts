@@ -3,6 +3,7 @@ import { hasModuleAccess } from "@/lib/access-control";
 import { normalizeTrelloText, trelloFetch, TRELLO_BOARD_SHORT_LINK } from "@/lib/trello";
 import { google, type sheets_v4 } from "googleapis";
 import { NextResponse } from "next/server";
+import { recordModuleUpdateSafely } from "@/lib/module-updates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -326,6 +327,11 @@ function normalizeUnit(input: unknown): "rio_claro" | "araras" {
   return input === "araras" ? "araras" : "rio_claro";
 }
 
+async function recordStockUpdate(summary: string) {
+  const session = await auth();
+  await recordModuleUpdateSafely("estoque", session?.user?.email, summary);
+}
+
 export async function POST(request: Request) {
   try {
     const sheets = await getSheets();
@@ -350,6 +356,7 @@ export async function POST(request: Request) {
         if (cliente && !existing.clienteAguardando) {
           const index = data.needRows.slice(1).findIndex((row) => value(row, 0) === existing.id);
           if (index >= 0) await updateCells(sheets, [{ range: `Necessidades!J${index + 2}`, values: [[true]] }]);
+          await recordStockUpdate(`Produto atualizado: ${produto.codigo} · ${produto.descricao}.`);
         }
         return NextResponse.json({ ok: true, existing: true, id: existing.id });
       }
@@ -365,6 +372,7 @@ export async function POST(request: Request) {
         insertDataOption: "INSERT_ROWS",
         requestBody: { values: [row] },
       });
+      await recordStockUpdate(`Nova solicitação: ${produto.codigo} · ${produto.descricao}.`);
       return NextResponse.json({ ok: true, id });
     }
 
@@ -399,6 +407,7 @@ export async function POST(request: Request) {
         { range: `Necessidades!D${rowNumber}`, values: [[STATUS.EM_COMPRA]] },
         { range: `Necessidades!F${rowNumber}`, values: [[now]] },
       ]);
+      await recordStockUpdate("Solicitação encaminhada para compra.");
       return NextResponse.json({ ok: true });
     }
     if (action === "pedido") {
@@ -411,6 +420,7 @@ export async function POST(request: Request) {
         { range: `Necessidades!G${rowNumber}`, values: [[numeroPedido]] },
         { range: `Necessidades!H${rowNumber}`, values: [[previsao]] },
       ]);
+      await recordStockUpdate(`Pedido informado: ${numeroPedido}.`);
       return NextResponse.json({ ok: true });
     }
     if (action === "observacao") {
@@ -421,6 +431,7 @@ export async function POST(request: Request) {
         { range: `Necessidades!F${rowNumber}`, values: [[now]] },
         { range: `Necessidades!I${rowNumber}`, values: [[texto]] },
       ]);
+      await recordStockUpdate("Observação adicionada em uma solicitação.");
       return NextResponse.json({ ok: true });
     }
     if (action === "chegou") {
@@ -428,6 +439,7 @@ export async function POST(request: Request) {
         { range: `Necessidades!D${rowNumber}`, values: [[STATUS.CHEGOU]] },
         { range: `Necessidades!O${rowNumber}`, values: [[now]] },
       ]);
+      await recordStockUpdate("Chegada de produto confirmada.");
       return NextResponse.json({ ok: true });
     }
     throw new Error("Ação desconhecida.");

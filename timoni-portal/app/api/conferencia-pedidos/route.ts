@@ -1,6 +1,7 @@
 import { auth } from "@/lib/auth";
 import { hasModuleAccess } from "@/lib/access-control";
 import { cookies } from "next/headers";
+import { recordModuleUpdateSafely } from "@/lib/module-updates";
 import { NextResponse } from "next/server";
 
 export const runtime = "nodejs";
@@ -451,6 +452,7 @@ export async function POST(request: Request) {
       throw new Error("Não foi possível identificar com segurança o pedido-base e o documento do fornecedor.");
     }
     const result = normalizeResult(parsed, pedidoFiles, fornecedorFiles);
+    await recordModuleUpdateSafely("conferencia", session.user.email, "Nova conferência de documentos concluída.");
     return NextResponse.json(result, {
       headers: { "Cache-Control": "no-store" },
     });

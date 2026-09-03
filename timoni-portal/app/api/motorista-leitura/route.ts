@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { recordModuleUpdateSafely } from "@/lib/module-updates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -66,9 +67,13 @@ export async function POST(request: NextRequest) {
   });
   const payload = new URLSearchParams({ action: "atualizar", id, notasJson });
 
-  return encaminhar(WEBAPP_URL, {
+  const response = await encaminhar(WEBAPP_URL, {
     method: "POST",
     body: payload.toString(),
     headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
   });
+  if (response.ok) {
+    await recordModuleUpdateSafely("motorista", "motorista", "Motorista confirmou uma atividade como concluída.");
+  }
+  return response;
 }

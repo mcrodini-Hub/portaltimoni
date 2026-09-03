@@ -1,18 +1,19 @@
 import { signOut } from "@/lib/auth";
 import { canManageMotorista, entersDirectlyInPainelTimoni, hasModuleAccess, type PortalModule, type PortalUser } from "@/lib/access-control";
 import Link from "next/link";
-import AvisosNavLink from "@/components/avisos-nav-link";
+import ModuleUpdatesNav from "@/components/module-updates-nav";
+import type { UpdateModule } from "@/lib/module-updates";
 
-const navItems: Array<{ href: string; label: string; module: PortalModule }> = [
-  { href: "/colaboradores", label: "AVISOS", module: "painel" },
-  { href: "/agenda", label: "Agenda Ciça", module: "agenda" },
-  { href: "/dashboard/compras", label: "Compras", module: "compras" },
-  { href: "/dashboard/conferencia-pedidos", label: "Conferência", module: "conferencia" },
-  { href: "/dashboard/estoque", label: "Estoque", module: "estoque" },
-  { href: "/dashboard/motorista-leitura", label: "Motorista", module: "motorista" },
-  { href: "/dashboard/reunioes", label: "Reuniões", module: "reunioes" },
-  { href: "/dashboard/leads", label: "Leads", module: "leads" },
-  { href: "/espaco-equipe", label: "Espaço Equipe", module: "painel" },
+const navItems: Array<{ href: string; label: string; module: PortalModule; updateModule: UpdateModule }> = [
+  { href: "/colaboradores", label: "AVISOS", module: "painel", updateModule: "avisos" },
+  { href: "/agenda", label: "Agenda Ciça", module: "agenda", updateModule: "agenda" },
+  { href: "/dashboard/compras", label: "Compras", module: "compras", updateModule: "compras" },
+  { href: "/dashboard/conferencia-pedidos", label: "Conferência", module: "conferencia", updateModule: "conferencia" },
+  { href: "/dashboard/estoque", label: "Estoque", module: "estoque", updateModule: "estoque" },
+  { href: "/dashboard/motorista-leitura", label: "Motorista", module: "motorista", updateModule: "motorista" },
+  { href: "/dashboard/reunioes", label: "Reuniões", module: "reunioes", updateModule: "reunioes" },
+  { href: "/dashboard/leads", label: "Leads", module: "leads", updateModule: "leads" },
+  { href: "/espaco-equipe", label: "Espaço Equipe", module: "painel", updateModule: "espaco-equipe" },
 ];
 
 export default function PortalHeader({ email, portalUser }: { email: string; portalUser?: PortalUser | null }) {
@@ -20,6 +21,14 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
   const isCica = email.trim().toLowerCase() === "mcrodini@gmail.com";
   const linkClass =
     "whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-white/90 transition hover:bg-white/10 hover:text-white";
+  const allowedItems = navItems
+    .filter((item) => hasModuleAccess(email, item.module, portalUser))
+    .map((item) => ({
+      ...item,
+      targetHref: item.module === "motorista" && canManageMotorista(email, portalUser)
+        ? "/dashboard/motorista"
+        : item.href,
+    }));
 
   return (
     <header className="sticky top-0 z-40 border-b border-blue-950/50 bg-[#0b1f5e] text-white shadow-sm">
@@ -41,20 +50,7 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
           className="order-3 -mx-1 flex w-[calc(100%+0.5rem)] min-w-0 flex-none items-center gap-1 overflow-x-auto border-t border-white/10 px-1 py-2 sm:order-none sm:mx-0 sm:w-auto sm:flex-1 sm:border-0 sm:px-0"
           aria-label="Menu principal"
         >
-          {navItems.map(
-            (item) =>
-              hasModuleAccess(email, item.module, portalUser) && (item.href === "/colaboradores" ? (
-                <AvisosNavLink key={item.href} className={linkClass} />
-              ) : (
-                <Link
-                  key={item.href}
-                  href={item.module === "motorista" && canManageMotorista(email, portalUser) ? "/dashboard/motorista" : item.href}
-                  className={linkClass}
-                >
-                  {item.label}
-                </Link>
-              )),
-          )}
+          <ModuleUpdatesNav items={allowedItems} isCica={isCica} linkClass={linkClass} />
           {isCica && <Link href="/configuracoes" className={linkClass}>Configurações</Link>}
         </nav>
 

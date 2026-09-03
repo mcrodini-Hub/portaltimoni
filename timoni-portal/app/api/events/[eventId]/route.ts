@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuthorizedSession } from "@/lib/auth-guard";
 import { deleteEvent, isCalendarKey, toApiError, updateEvent } from "@/lib/google-calendar";
 import type { CalendarEventInput } from "@/lib/types";
+import { recordModuleUpdateSafely } from "@/lib/module-updates";
 
 export async function PATCH(
   request: NextRequest,
@@ -26,6 +27,7 @@ export async function PATCH(
 
   try {
     const event = await updateEvent(session!.accessToken!, calendarKey, eventId, body);
+    await recordModuleUpdateSafely("agenda", session?.user?.email, `Evento atualizado: ${body.summary || "compromisso"}.`);
     return NextResponse.json({ event });
   } catch (error) {
     const { message, status } = toApiError(error);
@@ -48,6 +50,7 @@ export async function DELETE(
 
   try {
     await deleteEvent(session!.accessToken!, calendarKey, eventId);
+    await recordModuleUpdateSafely("agenda", session?.user?.email, "Evento removido da agenda.");
     return new NextResponse(null, { status: 204 });
   } catch (error) {
     const { message, status } = toApiError(error);

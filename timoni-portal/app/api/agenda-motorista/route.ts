@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { hasModuleAccess, isReadOnlyUser } from "@/lib/access-control";
+import { recordModuleUpdateSafely } from "@/lib/module-updates";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -75,9 +76,15 @@ export async function POST(request: NextRequest) {
   }
 
   const corpo = await request.text();
-  return encaminhar(WEBAPP_URL, {
+  const response = await encaminhar(WEBAPP_URL, {
     method: "POST",
     body: corpo,
     headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
   });
+  if (response.ok) {
+    const session = await auth();
+    const action = new URLSearchParams(corpo).get("action") || "atualizar";
+    await recordModuleUpdateSafely("motorista", session?.user?.email, `Agenda do motorista: ${action}.`);
+  }
+  return response;
 }

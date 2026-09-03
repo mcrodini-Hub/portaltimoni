@@ -24,8 +24,6 @@ type FormState = {
   expiresAt: string;
 };
 
-type AvisoLeitura = { avisoId: string; employee: string; unit: string; portalEmail: string; readAt: string; title: string };
-
 const EMPTY_FORM: FormState = { id: "", unit: "geral", title: "", message: "", startsAt: "", expiresAt: "" };
 
 function toLocalInput(value: string) {
@@ -56,30 +54,18 @@ function unitLabel(unit: Comunicado["unit"]) {
 export default function ComunicadosAdmin() {
   const [items, setItems] = useState<Comunicado[]>([]);
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
-  const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [reads, setReads] = useState<AvisoLeitura[]>([]);
 
   async function load() {
-    setLoading(true);
     setError("");
     try {
-      const [noticesResponse, readsResponse] = await Promise.all([
-        fetch("/api/comunicados", { cache: "no-store" }),
-        fetch("/api/avisos-leituras", { cache: "no-store" }),
-      ]);
+      const noticesResponse = await fetch("/api/comunicados", { cache: "no-store" });
       const data = await noticesResponse.json();
       if (!noticesResponse.ok) throw new Error(data?.error || "Erro ao carregar avisos.");
       setItems(data.items || []);
-      if (readsResponse.ok) {
-        const readsData = await readsResponse.json();
-        setReads(readsData.reads || []);
-      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao carregar avisos.");
-    } finally {
-      setLoading(false);
     }
   }
 
@@ -129,23 +115,6 @@ export default function ComunicadosAdmin() {
     } finally {
       setSaving(false);
     }
-  }
-
-  async function archive(id: string) {
-    setError("");
-    const response = await fetch("/api/comunicados", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, action: "archive" }),
-    });
-    const data = await response.json();
-    if (!response.ok) {
-      setError(data?.error || "Não foi possível concluir.");
-      return;
-    }
-    if (form.id === id) setForm(EMPTY_FORM);
-    await load();
-    window.dispatchEvent(new Event("comunicados:changed"));
   }
 
   async function remove(id: string) {
@@ -266,55 +235,8 @@ export default function ComunicadosAdmin() {
 
       {error && <p className="mt-4 text-sm font-medium text-red-700">{error}</p>}
 
-      <div className="mt-6 lg:mt-8">
-        <div className="lg:flex lg:items-center lg:justify-between">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Ativos</p>
-          <p className="hidden text-xs text-slate-400 lg:block">Avisos visíveis conforme o período definido</p>
-        </div>
-        {loading ? (
-          <p className="mt-3 text-sm text-slate-500">Carregando...</p>
-        ) : active.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-500">Nenhum aviso ativo.</p>
-        ) : (
-          <div className="mt-3 grid gap-3 xl:grid-cols-2">
-            {active.map((item) => (
-              <article key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 xl:flex xl:h-full xl:flex-col xl:p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3 xl:flex-1">
-                  <div className="xl:min-w-0 xl:flex-1">
-                    <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">{unitLabel(item.unit)} · {formatDate(item.createdAt)}</p>
-                    <h3 className="mt-1 text-lg font-semibold text-slate-950">{item.title}</h3>
-                    <p className="mt-1 text-xs text-slate-500">{item.expiresAt ? `Ativo até ${formatDate(item.expiresAt)}` : "Ativo até retirada manual"}</p>
-                    <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.message}</p>
-                  </div>
-                  <div className="flex flex-wrap gap-2 xl:w-full xl:self-end xl:border-t xl:border-slate-200 xl:pt-4">
-                    <button type="button" onClick={() => edit(item)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800">Editar</button>
-                    <button type="button" onClick={() => archive(item.id)} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800">Concluir</button>
-                    <button type="button" onClick={() => remove(item.id)} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">Excluir</button>
-                  </div>
-                </div>
-                <details className="mt-4 border-t border-slate-200 pt-3 xl:shrink-0">
-                  <summary className="cursor-pointer text-sm font-semibold text-blue-800">
-                    Ver leituras ({reads.filter((read) => read.avisoId === item.id).length})
-                  </summary>
-                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
-                    {reads.filter((read) => read.avisoId === item.id).length === 0 ? (
-                      <p className="text-sm text-slate-500">Nenhuma leitura registrada.</p>
-                    ) : reads.filter((read) => read.avisoId === item.id).map((read) => (
-                      <div key={`${read.avisoId}-${read.unit}-${read.employee}`} className="rounded-lg bg-white p-3 text-sm">
-                        <p className="font-semibold text-slate-900">{read.employee} · {read.unit}</p>
-                        <p className="mt-1 text-xs text-slate-500">{formatDate(read.readAt)}</p>
-                      </div>
-                    ))}
-                  </div>
-                </details>
-              </article>
-            ))}
-          </div>
-        )}
-      </div>
-
       <details className="mt-6 border-t border-slate-200 pt-4 lg:mt-8 lg:pt-5">
-        <summary className="cursor-pointer text-sm font-semibold text-slate-700">Arquivados ({archived.length})</summary>
+        <summary className="cursor-pointer text-sm font-semibold text-slate-700">Avisos desativados ({archived.length})</summary>
         <div className="mt-3 grid gap-3 xl:grid-cols-2">
           {archived.length === 0 ? (
             <p className="text-sm text-slate-500">Nenhum aviso arquivado.</p>

@@ -75,6 +75,7 @@ function label(status: string) {
       em_compra: "Relação de compra",
       pedido_existente: "A caminho",
       observacao: "Aguardando retorno",
+      consulta: "Consulta",
       chegou: "Finalizado",
     } as Record<string, string>
   )[status] || status;
@@ -258,6 +259,15 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
     await post({ action: "observacao", id: need.id, texto: text }, need.id);
   }
 
+  async function markAsConsultation(need: Need) {
+    const text = (responseDraftsRef.current[need.id] ?? need.observacao ?? "").trim();
+    if (!text) {
+      setError("Escreva a resposta da consulta.");
+      return;
+    }
+    await post({ action: "consulta", id: need.id, texto: text }, need.id);
+  }
+
   async function replyToConsultation(need: Need) {
     const text = (responseDraftsRef.current[need.id] ?? "").trim();
     if (!text) {
@@ -368,7 +378,7 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
 
   const sortedNeeds = useMemo(() => [...needs].sort((a, b) => timestamp(b.criadoEm) - timestamp(a.criadoEm)), [needs]);
   const filtered = useMemo(() => sortedNeeds.filter((need) => unit === "todas" || need.unidade === unit), [sortedNeeds, unit]);
-  const openNeeds = filtered.filter((need) => ["pendente", "observacao"].includes(need.status));
+  const openNeeds = filtered.filter((need) => ["pendente", "observacao", "consulta"].includes(need.status));
   const purchaseNeeds = filtered.filter((need) => need.status === "em_compra");
   const onWay = filtered.filter((need) => need.status === "pedido_existente");
   const history = filtered.filter((need) => need.status === "chegou").slice(0, 50);
@@ -398,26 +408,29 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
         <p className="mt-3 text-xs text-slate-400">{date(need.criadoEm)}</p>
         {need.status !== "chegou" && isManager && (
           <div className="mt-4 space-y-3">
-            <label className="block">
-              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Observação / resposta da necessidade</span>
-              <textarea
-                defaultValue={draft}
-                onChange={(event) => { responseDraftsRef.current[need.id] = event.target.value; }}
-                rows={3}
-                placeholder="Registre aqui a resposta, orientação ou observação sobre esta necessidade."
-                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
-              />
-            </label>
+            {!["observacao", "consulta"].includes(need.status) && (
+              <label className="block">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Observação / resposta da necessidade</span>
+                <textarea
+                  defaultValue={draft}
+                  onChange={(event) => { responseDraftsRef.current[need.id] = event.target.value; }}
+                  rows={3}
+                  placeholder="Registre aqui a resposta, orientação ou observação sobre esta necessidade."
+                  className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-900 outline-none transition focus:border-emerald-500 focus:ring-2 focus:ring-emerald-100"
+                />
+              </label>
+            )}
             <div className="flex flex-wrap gap-2">
-              {["pendente", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void post({ action: "em_compra", id: need.id }, need.id)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Relação de compra</button>}
-              {["pendente", "em_compra", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void order(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Pedido feito</button>}
-              {["pendente", "em_compra", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void observe(need)} className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50">Salvar observação</button>}
+              {["pendente", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void markAsConsultation(need)} className="rounded-lg bg-slate-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Consulta</button>}
+              {need.status === "pendente" && <button disabled={disabled} onClick={() => void post({ action: "em_compra", id: need.id }, need.id)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Relação de compra</button>}
+              {["pendente", "em_compra"].includes(need.status) && <button disabled={disabled} onClick={() => void order(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Pedido feito</button>}
+              {["pendente", "em_compra"].includes(need.status) && <button disabled={disabled} onClick={() => void observe(need)} className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50">Salvar observação</button>}
               {need.status === "pedido_existente" && <button disabled={disabled} onClick={() => void arrived(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Produto chegou</button>}
               {canDelete && <button disabled={disabled} onClick={() => void remove(need)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50">Excluir</button>}
             </div>
           </div>
         )}
-        {need.status !== "chegou" && !isManager && (
+        {["observacao", "consulta"].includes(need.status) && !isManager && (
           <div className="mt-4 border-t border-slate-100 pt-4">
             <label className="block">
               <span className="text-xs font-semibold uppercase tracking-wider text-blue-700">Responder à consulta</span>

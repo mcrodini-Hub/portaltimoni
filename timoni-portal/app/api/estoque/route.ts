@@ -19,6 +19,7 @@ const STATUS = {
   EM_COMPRA: "em_compra",
   PEDIDO_EXISTENTE: "pedido_existente",
   OBSERVACAO: "observacao",
+  CONSULTA: "consulta",
   CHEGOU: "chegou",
 } as const;
 
@@ -133,7 +134,7 @@ function summarize(needs: Need[]) {
   const porUnidade = { rio_claro: emptyCounts(), araras: emptyCounts() };
   for (const need of needs) {
     let field: keyof Counts | null = null;
-    if (need.status === STATUS.PENDENTE || need.status === STATUS.OBSERVACAO) field = "emAberto";
+    if (need.status === STATUS.PENDENTE || need.status === STATUS.OBSERVACAO || need.status === STATUS.CONSULTA) field = "emAberto";
     if (need.status === STATUS.EM_COMPRA) field = "aguardandoCompra";
     if (need.status === STATUS.PEDIDO_EXISTENTE) field = "aguardandoChegada";
     if (need.status === STATUS.CHEGOU) field = "finalizadas";
@@ -412,6 +413,17 @@ export async function POST(request: Request) {
       await recordStockUpdate("Solicitação encaminhada para compra.");
       return NextResponse.json({ ok: true });
     }
+    if (action === "consulta") {
+      const texto = String(body.texto ?? currentNeed.observacao).trim();
+      if (!texto) throw new Error("Escreva a resposta da consulta.");
+      await updateCells(sheets, [
+        { range: `Necessidades!D${rowNumber}`, values: [[STATUS.CONSULTA]] },
+        { range: `Necessidades!F${rowNumber}`, values: [[now]] },
+        { range: `Necessidades!I${rowNumber}`, values: [[texto]] },
+      ]);
+      await recordStockUpdate(`Consulta registrada: ${currentNeed.codigo} · ${currentNeed.descricao}.`);
+      return NextResponse.json({ ok: true });
+    }
     if (action === "pedido") {
       const numeroPedido = String(body.numeroPedido ?? "").trim();
       const previsao = String(body.previsao ?? "").trim();
@@ -448,8 +460,11 @@ export async function POST(request: Request) {
       const resposta = `Resposta de ${currentNeed.vendedor || "vendedor"} · ${momento}:\n${texto}`;
       const historico = currentNeed.observacao.trim();
       const observacao = historico ? `${historico}\n\n${resposta}` : resposta;
+      const nextStatus = [STATUS.OBSERVACAO, STATUS.CONSULTA].includes(currentNeed.status as typeof STATUS.OBSERVACAO | typeof STATUS.CONSULTA)
+        ? STATUS.CONSULTA
+        : STATUS.PENDENTE;
       await updateCells(sheets, [
-        { range: `Necessidades!D${rowNumber}`, values: [[STATUS.PENDENTE]] },
+        { range: `Necessidades!D${rowNumber}`, values: [[nextStatus]] },
         { range: `Necessidades!F${rowNumber}`, values: [[now]] },
         { range: `Necessidades!I${rowNumber}`, values: [[observacao.slice(0, 50000)]] },
       ]);

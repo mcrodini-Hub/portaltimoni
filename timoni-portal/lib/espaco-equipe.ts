@@ -1,8 +1,4 @@
-import { google } from "googleapis";
-import { getAccessTokenFromRefreshToken } from "@/lib/google-calendar";
-
-export const ESPACO_EQUIPE_SPREADSHEET_ID = "1aLAj_PJv8MjDpzKkGqyLnALCiP_uJfe9udj9_Yk0X-I";
-export const ESPACO_EQUIPE_SHEET = "Registros";
+import { neon } from "@neondatabase/serverless";
 
 export type TeamMessage = {
   date: string;
@@ -13,63 +9,103 @@ export type TeamMessage = {
   note: string;
 };
 
-async function getSheetsClient(sessionAccessToken?: string) {
-  const accessToken = sessionAccessToken || await getAccessTokenFromRefreshToken();
-  const auth = new google.auth.OAuth2();
-  auth.setCredentials({ access_token: accessToken });
-  return google.sheets({ version: "v4", auth });
+type TeamMessageRow = {
+  created_at: Date | string;
+  unit: string;
+  employee: string;
+  message: string;
+  status: string;
+  note: string;
+};
+
+let database: ReturnType<typeof neon> | null = null;
+let schemaReady: Promise<void> | null = null;
+
+function getDatabase() {
+  const databaseUrl = process.env.DATABASE_URL?.trim();
+  if (!databaseUrl) throw new Error("DATABASE_URL não configurada no servidor.");
+  if (!database) database = neon(databaseUrl);
+  return database;
+}
+
+async function ensureSchema() {
+  if (!schemaReady) {
+    schemaReady = (async () => {
+      const sql = getDatabase();
+      await sql`
+        CREATE TABLE IF NOT EXISTS portal_team_messages (
+          id BIGSERIAL PRIMARY KEY,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          unit TEXT NOT NULL,
+          employee TEXT NOT NULL,
+          message TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'Novo',
+          note TEXT NOT NULL DEFAULT ''
+        )
+      `;
+      await sql`
+        CREATE INDEX IF NOT EXISTS portal_team_messages_created_at_idx
+        ON portal_team_messages (created_at DESC)
+      `;
+    })().catch((error) => {
+      schemaReady = null;
+      throw error;
+    });
+  }
+  await schemaReady;
 }
 
 export async function appendTeamMessage(input: {
   unit: string;
   employee: string;
   message: string;
-}, accessToken?: string) {
-  const sheets = await getSheetsClient(accessToken);
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: ESPACO_EQUIPE_SPREADSHEET_ID,
-    range: `${ESPACO_EQUIPE_SHEET}!A:F`,
-    valueInputOption: "RAW",
-    insertDataOption: "INSERT_ROWS",
-    requestBody: {
-      values: [[new Date().toISOString(), input.unit, input.employee, input.message, "Novo", ""]],
-    },
-  });
+}, _accessToken?: string) {
+  void _accessToken;
+  await ensureSchema();
+  const sql = getDatabase();
+  await sql`
+    INSERT INTO portal_team_messages (unit, employee, message)
+    VALUES (${input.unit}, ${input.employee}, ${input.message})
+  `;
 }
 
-export async function listTeamMessages(accessToken?: string): Promise<TeamMessage[]> {
-  const sheets = await getSheetsClient(accessToken);
-  const response = await sheets.spreadsheets.values.get({
-    spreadsheetId: ESPACO_EQUIPE_SPREADSHEET_ID,
-    range: `${ESPACO_EQUIPE_SHEET}!A2:F500`,
-  });
+export async function listTeamMessages(_accessToken?: string): Promise<TeamMessage[]> {
+  void _accessToken;
+  await ensureSchema();
+  const sql = getDatabase();
+  const rows = await sql`
+    SELECT created_at, unit, employee, message, status, note
+    FROM portal_team_messages
+    ORDER BY created_at DESC, id DESC
+    LIMIT 500
+  ` as TeamMessageRow[];
 
-  return (response.data.values ?? [])
-    .map((row) => ({
-      date: row[0] ?? "",
-      unit: row[1] ?? "",
-      employee: row[2] ?? "",
-      message: row[3] ?? "",
-      status: row[4] ?? "Novo",
-      note: row[5] ?? "",
-    }))
-    .filter((item) => item.employee && item.message)
-    .sort((a, b) => Date.parse(b.date) - Date.parse(a.date));
+  return rows.map((row) => ({
+    date: new Date(row.created_at).toISOString(),
+    unit: row.unit,
+    employee: row.employee,
+    message: row.message,
+    status: row.status,
+    note: row.note,
+  }));
 }
 
-export async function replaceTeamMessages(accessToken: string, messages: TeamMessage[]) {
-  const sheets = await getSheetsClient(accessToken);
-  await sheets.spreadsheets.values.clear({
-    spreadsheetId: ESPACO_EQUIPE_SPREADSHEET_ID,
-    range: `${ESPACO_EQUIPE_SHEET}!A2:F500`,
-  });
-  if (!messages.length) return;
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: ESPACO_EQUIPE_SPREADSHEET_ID,
-    range: `${ESPACO_EQUIPE_SHEET}!A2`,
-    valueInputOption: "RAW",
-    requestBody: {
-      values: messages.map((item) => [item.date, item.unit, item.employee, item.message, item.status, item.note]),
-    },
-  });
+export async function replaceTeamMessages(_accessToken: string, messages: TeamMessage[]) {
+  await ensureSchema();
+  const sql = getDatabase();
+  await sql`DELETE FROM portal_team_messages`;
+
+  for (const item of messages) {
+    await sql`
+      INSERT INTO portal_team_messages (created_at, unit, employee, message, status, note)
+      VALUES (
+        ${item.date || new Date().toISOString()},
+        ${item.unit},
+        ${item.employee},
+        ${item.message},
+        ${item.status || "Novo"},
+        ${item.note || ""}
+      )
+    `;
+  }
 }

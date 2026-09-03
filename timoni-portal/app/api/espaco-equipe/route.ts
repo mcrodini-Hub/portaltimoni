@@ -15,8 +15,7 @@ export async function GET() {
   }
 
   try {
-    if (!session?.accessToken) throw new Error("Sessão Google sem credencial de acesso.");
-    const messages = await listTeamMessages(session.accessToken);
+    const messages = await listTeamMessages();
     const pending = messages.filter((item) => {
       const status = item.status.trim().toLowerCase();
       return !FINAL_STATUSES.has(status);
@@ -40,7 +39,6 @@ export async function POST(request: Request) {
     const unit = String(body?.unit ?? "").trim();
     const message = String(body?.message ?? "").trim();
 
-    if (!session.accessToken) throw new Error("Sessão Google sem credencial de acesso.");
     const collaborators = await getEffectiveCollaborators(session.accessToken);
     if (!collaborators.some((member) => member.name === employee && member.unit === unit)) {
       return NextResponse.json({ error: "Selecione um funcionário válido." }, { status: 400 });
@@ -54,7 +52,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "A mensagem deve ter no máximo 2.500 caracteres." }, { status: 400 });
     }
 
-    await appendTeamMessage({ employee, unit, message }, session.accessToken);
+    await appendTeamMessage({ employee, unit, message });
     return NextResponse.json({ ok: true });
   } catch (error) {
     if (error instanceof Error) {

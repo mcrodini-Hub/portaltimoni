@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AvisosNavLink from "@/components/avisos-nav-link";
 import type { UpdateModule } from "@/lib/module-updates";
@@ -23,6 +24,7 @@ export default function ModuleUpdatesNav({
   canViewUpdates: boolean;
   linkClass: string;
 }) {
+  const pathname = usePathname();
   const [updates, setUpdates] = useState<Record<string, PendingUpdate>>({});
   const acknowledgedThrough = useRef<Record<string, string>>({});
 
@@ -75,6 +77,16 @@ export default function ModuleUpdatesNav({
       void load();
     }
   }, [load]);
+
+  useEffect(() => {
+    if (!canViewUpdates) return;
+    const activeItem = items
+      .filter((item) => pathname === item.targetHref || pathname.startsWith(`${item.targetHref}/`))
+      .sort((a, b) => b.targetHref.length - a.targetHref.length)[0];
+    if (!activeItem) return;
+    const pending = updates[activeItem.updateModule];
+    if (pending) void markRead(pending, true);
+  }, [canViewUpdates, items, markRead, pathname, updates]);
 
   return items.map((item) => {
     const pending = updates[item.updateModule];

@@ -87,7 +87,7 @@ export default function ModuleUpdatesNav({
             onClick={() => pending && void markRead(pending, item.label)}
             title={`Marcar atualizações de ${item.label} como lidas`}
             aria-label={pending
-              ? `${pending.count} atualização${pending.count === 1 ? "" : "ões"} em ${item.label}. Marcar como lida${pending.count === 1 ? "" : "s"}.`
+              ? `${pending.count} ${pending.count === 1 ? "atualização" : "atualizações"} em ${item.label}. Marcar como lida${pending.count === 1 ? "" : "s"}.`
               : `Atualizações de ${item.label} marcadas como lidas.`}
             className="-ml-3 inline-flex h-10 w-10 items-center justify-center rounded-full transition hover:bg-white/10 disabled:opacity-70 sm:h-8 sm:w-8"
           >

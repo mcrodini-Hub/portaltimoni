@@ -56,8 +56,9 @@ export default async function EstoquePage() {
   const defaultUnit = resolveDefaultUnit(email, session?.portalUser);
   const allowedUnits = resolveAllowedUnits(email, isManager, session?.portalUser);
   const canDelete = email === "mcrodini@gmail.com";
+  const canEdit = email === "mcrodini@gmail.com";
   const showRequestForm = email !== "mcrodini@gmail.com";
   const showManagerResponseField = email !== "mcrodini@gmail.com";
 
-  return <EstoqueClient isManager={isManager} canDelete={canDelete} showRequestForm={showRequestForm} showManagerResponseField={showManagerResponseField} defaultUnit={defaultUnit} allowedUnits={allowedUnits} />;
+  return <EstoqueClient isManager={isManager} canDelete={canDelete} canEdit={canEdit} showRequestForm={showRequestForm} showManagerResponseField={showManagerResponseField} defaultUnit={defaultUnit} allowedUnits={allowedUnits} />;
 }

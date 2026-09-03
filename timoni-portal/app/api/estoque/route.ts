@@ -448,6 +448,17 @@ export async function POST(request: Request) {
       await recordStockUpdate("Observação adicionada em uma solicitação.");
       return NextResponse.json({ ok: true });
     }
+    if (action === "editar_observacao") {
+      if (!(await canDeleteStockRecords())) throw new Error("Somente Ciça pode editar respostas do Estoque.");
+      const texto = String(body.texto ?? "").trim();
+      if (!texto) throw new Error("Escreva a resposta.");
+      await updateCells(sheets, [
+        { range: `Necessidades!F${rowNumber}`, values: [[now]] },
+        { range: `Necessidades!I${rowNumber}`, values: [[texto]] },
+      ]);
+      await recordStockUpdate("Resposta editada em uma solicitação.");
+      return NextResponse.json({ ok: true });
+    }
     if (action === "resposta_vendedor") {
       const texto = String(body.texto ?? "").trim();
       if (!texto) throw new Error("Escreva a resposta.");

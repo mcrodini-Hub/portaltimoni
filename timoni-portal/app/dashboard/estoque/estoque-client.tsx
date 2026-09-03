@@ -29,6 +29,7 @@ type Data = { ok: boolean; necessidades: Need[]; produtos: Product[]; vendedores
 type EstoqueClientProps = {
   isManager?: boolean;
   canDelete?: boolean;
+  canEdit?: boolean;
   showRequestForm?: boolean;
   showManagerResponseField?: boolean;
   defaultUnit?: RequestUnit;
@@ -117,7 +118,7 @@ function canUseNotifications() {
   return typeof window !== "undefined" && "Notification" in window;
 }
 
-export default function EstoqueClient({ isManager = false, canDelete = false, showRequestForm = true, showManagerResponseField = true, defaultUnit = "rio_claro", allowedUnits = ["rio_claro", "araras"] }: EstoqueClientProps) {
+export default function EstoqueClient({ isManager = false, canDelete = false, canEdit = false, showRequestForm = true, showManagerResponseField = true, defaultUnit = "rio_claro", allowedUnits = ["rio_claro", "araras"] }: EstoqueClientProps) {
   const safeAllowedUnits = allowedUnits.length ? allowedUnits : [defaultUnit];
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState("");
@@ -137,6 +138,7 @@ export default function EstoqueClient({ isManager = false, canDelete = false, sh
   const [note, setNote] = useState("");
   const [waiting, setWaiting] = useState(false);
   const [responseDrafts, setResponseDrafts] = useState<Record<string, string>>({});
+  const [editingResponseIds, setEditingResponseIds] = useState<Set<string>>(new Set());
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
 
   const codeInputRef = useRef<HTMLInputElement>(null);
@@ -236,8 +238,10 @@ export default function EstoqueClient({ isManager = false, canDelete = false, sh
       if (!response.ok || !payload.ok) throw new Error(payload.error || "Falha ao atualizar");
       setNotice(payload.existing ? "Produto já ativo; solicitação mantida." : "Atualização registrada.");
       await refresh();
+      return true;
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao atualizar");
+      return false;
     } finally {
       setBusy("");
     }
@@ -257,7 +261,25 @@ export default function EstoqueClient({ isManager = false, canDelete = false, sh
       setError("Escreva a observação/resposta da necessidade.");
       return;
     }
-    await post({ action: "observacao", id: need.id, texto: text }, need.id);
+    const isEditing = editingResponseIds.has(need.id);
+    const saved = await post({ action: isEditing ? "editar_observacao" : "observacao", id: need.id, texto: text }, need.id);
+    if (isEditing && saved) {
+      setEditingResponseIds((current) => {
+        const next = new Set(current);
+        next.delete(need.id);
+        return next;
+      });
+    }
+  }
+
+  function toggleEditResponse(need: Need) {
+    responseDraftsRef.current[need.id] = need.observacao;
+    setEditingResponseIds((current) => {
+      const next = new Set(current);
+      if (next.has(need.id)) next.delete(need.id);
+      else next.add(need.id);
+      return next;
+    });
   }
 
   async function markAsConsultation(need: Need) {
@@ -409,7 +431,7 @@ export default function EstoqueClient({ isManager = false, canDelete = false, sh
         <p className="mt-3 text-xs text-slate-400">{date(need.criadoEm)}</p>
         {need.status !== "chegou" && isManager && (
           <div className="mt-4 space-y-3">
-            {(showManagerResponseField || !need.observacao) && (
+            {(showManagerResponseField || !need.observacao || editingResponseIds.has(need.id)) && (
               <label className="block">
                 <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">Observação / resposta da necessidade</span>
                 <textarea
@@ -425,8 +447,9 @@ export default function EstoqueClient({ isManager = false, canDelete = false, sh
               {["pendente", "observacao"].includes(need.status) && <button disabled={disabled} onClick={() => void markAsConsultation(need)} className="rounded-lg bg-slate-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Consulta</button>}
               {["pendente", "observacao", "consulta"].includes(need.status) && <button disabled={disabled} onClick={() => void post({ action: "em_compra", id: need.id }, need.id)} className="rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Relação de compra</button>}
               {["pendente", "em_compra", "observacao", "consulta"].includes(need.status) && <button disabled={disabled} onClick={() => void order(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Pedido feito</button>}
-              {["pendente", "em_compra", "observacao", "consulta"].includes(need.status) && <button disabled={disabled} onClick={() => void observe(need)} className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50">Salvar observação</button>}
+              {(["pendente", "em_compra", "observacao", "consulta"].includes(need.status) || editingResponseIds.has(need.id)) && <button disabled={disabled} onClick={() => void observe(need)} className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50">{editingResponseIds.has(need.id) ? "Salvar edição" : "Salvar observação"}</button>}
               {need.status === "pedido_existente" && <button disabled={disabled} onClick={() => void arrived(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Produto chegou</button>}
+              {canEdit && need.observacao && <button disabled={disabled} onClick={() => toggleEditResponse(need)} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 disabled:opacity-50">{editingResponseIds.has(need.id) ? "Cancelar edição" : "Editar"}</button>}
               {canDelete && <button disabled={disabled} onClick={() => void remove(need)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50">Excluir</button>}
             </div>
           </div>

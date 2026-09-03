@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import AvisosNavLink from "@/components/avisos-nav-link";
 import type { UpdateModule } from "@/lib/module-updates";
@@ -25,7 +24,6 @@ export default function ModuleUpdatesNav({
   linkClass: string;
 }) {
   const [updates, setUpdates] = useState<Record<string, PendingUpdate>>({});
-  const pathname = usePathname();
   const acknowledgedThrough = useRef<Record<string, string>>({});
 
   const load = useCallback(async () => {
@@ -78,13 +76,6 @@ export default function ModuleUpdatesNav({
     }
   }, [load]);
 
-  useEffect(() => {
-    if (!canViewUpdates) return;
-    const currentItem = items.find((item) => pathname === item.targetHref || pathname.startsWith(`${item.targetHref}/`));
-    const pending = currentItem && updates[currentItem.updateModule];
-    if (pending) void markRead(pending, true);
-  }, [canViewUpdates, items, markRead, pathname, updates]);
-
   return items.map((item) => {
     const pending = updates[item.updateModule];
     const content = <span>{item.label}</span>;
@@ -96,11 +87,11 @@ export default function ModuleUpdatesNav({
           <Link
             href={item.targetHref}
             onClick={() => pending && void markRead(pending, true)}
-            className={`${linkClass} inline-flex items-center gap-2 ${pending ? "bg-red-500 text-white hover:bg-red-400" : ""}`}
+            className={`${linkClass} inline-flex items-center gap-2`}
             aria-label={pending ? `${item.label} tem novidades. Abrir e visualizar.` : item.label}
           >
             {content}
-            {pending && <span className="text-[10px] font-bold uppercase tracking-wide">Novo</span>}
+            {pending && <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-red-500 shadow-[0_0_0_2px_rgba(255,255,255,0.22)]" aria-hidden="true" />}
           </Link>
         )}
       </span>

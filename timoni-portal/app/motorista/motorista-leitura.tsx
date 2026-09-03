@@ -214,7 +214,7 @@ export default function MotoristaLeitura() {
                                   {(v.contatoNome || v.contatoWhats) && <p className="mt-1 text-sm text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
                                 </>
                               )}
-                              {v.info && <p className="mt-2 text-sm text-slate-600">Observação: {v.info}</p>}
+                              {v.info && <p className="mt-2 whitespace-pre-line text-sm text-slate-600">Observação: {v.info}</p>}
                               {v.preenchidoPor && <p className="mt-3 font-[Arial] text-[9px] text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
                             </div>
                           </div>

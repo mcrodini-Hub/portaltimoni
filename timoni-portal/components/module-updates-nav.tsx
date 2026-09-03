@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import AvisosNavLink from "@/components/avisos-nav-link";
 import type { UpdateModule } from "@/lib/module-updates";
 
@@ -26,6 +26,7 @@ export default function ModuleUpdatesNav({
   const [updates, setUpdates] = useState<Record<string, PendingUpdate>>({});
   const [saving, setSaving] = useState<string>("");
   const [confirmed, setConfirmed] = useState<string>("");
+  const acknowledgedThrough = useRef<Record<string, string>>({});
 
   const load = useCallback(async () => {
     if (!isCica) return;
@@ -34,7 +35,12 @@ export default function ModuleUpdatesNav({
       const data = await response.json();
       if (!response.ok) return;
       const next: Record<string, PendingUpdate> = {};
-      for (const item of data.updates || []) next[item.module] = item;
+      for (const item of data.updates || []) {
+        const acknowledgedAt = acknowledgedThrough.current[item.module];
+        if (!acknowledgedAt || Date.parse(item.latestAt) > Date.parse(acknowledgedAt)) {
+          next[item.module] = item;
+        }
+      }
       setUpdates(next);
     } catch {
       // Uma falha temporária não deve impedir a navegação pelo Portal.
@@ -56,6 +62,7 @@ export default function ModuleUpdatesNav({
         body: JSON.stringify({ module: item.module, through: item.latestAt }),
       });
       if (!response.ok) throw new Error("Falha ao confirmar leitura.");
+      acknowledgedThrough.current[item.module] = item.latestAt;
       setUpdates((current) => {
         const next = { ...current };
         delete next[item.module];
@@ -76,7 +83,7 @@ export default function ModuleUpdatesNav({
     return (
       <span key={item.href} className="inline-flex shrink-0 items-center">
         {item.href === "/colaboradores" ? (
-          <AvisosNavLink className={linkClass} />
+          <AvisosNavLink className={linkClass} showActiveCount={!isCica} />
         ) : (
           <Link href={item.targetHref} className={linkClass}>{item.label}</Link>
         )}

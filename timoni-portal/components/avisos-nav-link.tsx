@@ -3,12 +3,16 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-export default function AvisosNavLink({ className }: { className: string }) {
+export default function AvisosNavLink({ className, showActiveCount = true }: { className: string; showActiveCount?: boolean }) {
   const [count, setCount] = useState(0);
 
   useEffect(() => {
     let active = true;
     async function load() {
+      if (!showActiveCount) {
+        setCount(0);
+        return;
+      }
       try {
         const response = await fetch("/api/comunicados", { cache: "no-store" });
         const data = await response.json();
@@ -25,12 +29,12 @@ export default function AvisosNavLink({ className }: { className: string }) {
       active = false;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [showActiveCount]);
 
   return (
     <Link href="/colaboradores" className={`${className} inline-flex items-center gap-2`}>
       <span>AVISOS</span>
-      {count > 0 && (
+      {showActiveCount && count > 0 && (
         <span className="min-w-5 rounded-full bg-amber-400 px-1.5 py-0.5 text-center text-[11px] font-bold leading-4 text-blue-950">
           {count > 99 ? "99+" : count}
         </span>

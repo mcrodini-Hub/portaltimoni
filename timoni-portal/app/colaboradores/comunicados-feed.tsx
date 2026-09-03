@@ -71,7 +71,7 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
     try {
       const [noticesResponse, readsResponse] = await Promise.all([
         fetch("/api/comunicados", { cache: "no-store" }),
-        canConfirmRead ? fetch("/api/avisos-leituras", { cache: "no-store" }) : Promise.resolve(null),
+        (canConfirmRead || isAdmin) ? fetch("/api/avisos-leituras", { cache: "no-store" }) : Promise.resolve(null),
       ]);
       const noticesData = await noticesResponse.json();
       setItems(noticesResponse.ok ? ((noticesData.items || []) as Comunicado[]) : []);
@@ -83,7 +83,7 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
       setItems([]);
       setReads([]);
     }
-  }, [canConfirmRead]);
+  }, [canConfirmRead, isAdmin]);
 
   useEffect(() => {
     load();
@@ -211,6 +211,31 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
             <summary className="cursor-pointer text-sm font-semibold text-blue-800">Ver aviso completo →</summary>
             <p className="mt-3 whitespace-pre-wrap border-t border-blue-100 pt-3 text-sm leading-6 text-slate-700">{item.message}</p>
           </details>
+          {isAdmin && members.length > 0 && (
+            <details className="mt-3 rounded-xl border border-blue-200 bg-white/70 px-3 py-2">
+              <summary className="cursor-pointer text-sm font-semibold text-blue-800">
+                Leituras: {itemReads.length} de {members.length} · Ver quem leu
+              </summary>
+              <div className="mt-3 grid gap-3 border-t border-blue-100 pt-3 text-xs sm:grid-cols-2">
+                <div>
+                  <p className="font-bold text-emerald-800">✓ Leram</p>
+                  {itemReads.length === 0 ? <p className="mt-1 text-slate-500">Nenhuma confirmação.</p> : (
+                    <ul className="mt-1 space-y-1 text-slate-700">
+                      {itemReads.map((read) => <li key={`${read.avisoId}-${read.unit}-${read.employee}`}>{read.employee} · {formatDate(read.readAt)}</li>)}
+                    </ul>
+                  )}
+                </div>
+                <div>
+                  <p className="font-bold text-amber-800">Ainda não leram</p>
+                  {pendingMembers.length === 0 ? <p className="mt-1 text-slate-500">Todos confirmaram.</p> : (
+                    <ul className="mt-1 space-y-1 text-slate-700">
+                      {pendingMembers.map((member) => <li key={`${member.unit}-${member.name}`}>{member.name}</li>)}
+                    </ul>
+                  )}
+                </div>
+              </div>
+            </details>
+          )}
           {canConfirmRead && members.length > 0 && (
             <div className="mt-3">
               {readingId !== item.id ? (

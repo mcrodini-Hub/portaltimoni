@@ -20,6 +20,7 @@ export type PendingModuleUpdate = {
   module: UpdateModule;
   count: number;
   latestAt: string;
+  summaries: string[];
 };
 
 const MANAGEMENT_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
@@ -114,23 +115,35 @@ export async function listPendingModuleUpdates(viewerEmail: string): Promise<Pen
   await ensureSchema();
   const sql = getDatabase();
   const rows = await sql`
-    SELECT updates.module, COUNT(*)::int AS count, MAX(updates.created_at) AS latest_at
+    SELECT updates.module, updates.summary, updates.created_at
     FROM portal_module_updates updates
     LEFT JOIN portal_module_update_reads reads
       ON reads.module = updates.module
       AND reads.viewer_email = ${viewerEmail.trim().toLowerCase()}
     WHERE updates.read_at IS NULL
       AND updates.created_at > COALESCE(reads.read_through, TIMESTAMPTZ '1970-01-01')
-    GROUP BY updates.module
-  ` as Array<{ module: string; count: number; latest_at: Date | string }>;
+    ORDER BY updates.created_at DESC
+  ` as Array<{ module: string; summary: string; created_at: Date | string }>;
 
-  return rows
-    .filter((row) => isUpdateModule(row.module))
-    .map((row) => ({
-      module: row.module as UpdateModule,
-      count: Number(row.count),
-      latestAt: new Date(row.latest_at).toISOString(),
-    }));
+  const grouped = new Map<UpdateModule, PendingModuleUpdate>();
+  for (const row of rows) {
+    if (!isUpdateModule(row.module)) continue;
+    const current = grouped.get(row.module);
+    if (!current) {
+      grouped.set(row.module, {
+        module: row.module,
+        count: 1,
+        latestAt: new Date(row.created_at).toISOString(),
+        summaries: row.summary ? [row.summary] : [],
+      });
+      continue;
+    }
+    current.count += 1;
+    if (row.summary && current.summaries.length < 3 && !current.summaries.includes(row.summary)) {
+      current.summaries.push(row.summary);
+    }
+  }
+  return [...grouped.values()];
 }
 
 export async function markModuleUpdatesRead(module: UpdateModule, through: string, viewerEmail: string) {

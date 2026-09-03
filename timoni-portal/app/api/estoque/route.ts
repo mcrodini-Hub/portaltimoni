@@ -380,6 +380,8 @@ export async function POST(request: Request) {
     if (!id) throw new Error("Solicitação não identificada.");
     const rowIndex = data.needRows.slice(1).findIndex((row) => value(row, 0) === id);
     if (rowIndex < 0) throw new Error("Solicitação não encontrada.");
+    const currentNeed = data.necessidades.find((item) => item.id === id);
+    if (!currentNeed) throw new Error("Solicitação não encontrada.");
     const rowNumber = rowIndex + 2;
     const now = new Date().toISOString();
 
@@ -432,6 +434,26 @@ export async function POST(request: Request) {
         { range: `Necessidades!I${rowNumber}`, values: [[texto]] },
       ]);
       await recordStockUpdate("Observação adicionada em uma solicitação.");
+      return NextResponse.json({ ok: true });
+    }
+    if (action === "resposta_vendedor") {
+      const texto = String(body.texto ?? "").trim();
+      if (!texto) throw new Error("Escreva a resposta.");
+      if (texto.length > 1000) throw new Error("A resposta deve ter no máximo 1.000 caracteres.");
+      const momento = new Intl.DateTimeFormat("pt-BR", {
+        timeZone: "America/Sao_Paulo",
+        dateStyle: "short",
+        timeStyle: "short",
+      }).format(new Date(now));
+      const resposta = `Resposta de ${currentNeed.vendedor || "vendedor"} · ${momento}:\n${texto}`;
+      const historico = currentNeed.observacao.trim();
+      const observacao = historico ? `${historico}\n\n${resposta}` : resposta;
+      await updateCells(sheets, [
+        { range: `Necessidades!D${rowNumber}`, values: [[STATUS.PENDENTE]] },
+        { range: `Necessidades!F${rowNumber}`, values: [[now]] },
+        { range: `Necessidades!I${rowNumber}`, values: [[observacao.slice(0, 50000)]] },
+      ]);
+      await recordStockUpdate(`Resposta do vendedor recebida: ${currentNeed.codigo} · ${currentNeed.descricao}.`);
       return NextResponse.json({ ok: true });
     }
     if (action === "chegou") {

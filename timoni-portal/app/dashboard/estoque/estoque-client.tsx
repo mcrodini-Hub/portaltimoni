@@ -258,6 +258,17 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
     await post({ action: "observacao", id: need.id, texto: text }, need.id);
   }
 
+  async function replyToConsultation(need: Need) {
+    const text = (responseDraftsRef.current[need.id] ?? "").trim();
+    if (!text) {
+      setError("Escreva a resposta da consulta.");
+      return;
+    }
+    await post({ action: "resposta_vendedor", id: need.id, texto: text }, need.id);
+    responseDraftsRef.current[need.id] = "";
+    setResponseDrafts((current) => ({ ...current, [need.id]: "" }));
+  }
+
   async function arrived(need: Need) {
     if (window.confirm(`Confirmar chegada de ${need.codigo}?`)) await post({ action: "chegou", id: need.id }, need.id);
   }
@@ -404,6 +415,26 @@ export default function EstoqueClient({ isManager = false, canDelete = false, de
               {need.status === "pedido_existente" && <button disabled={disabled} onClick={() => void arrived(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Produto chegou</button>}
               {canDelete && <button disabled={disabled} onClick={() => void remove(need)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50">Excluir</button>}
             </div>
+          </div>
+        )}
+        {need.status !== "chegou" && !isManager && (
+          <div className="mt-4 border-t border-slate-100 pt-4">
+            <label className="block">
+              <span className="text-xs font-semibold uppercase tracking-wider text-blue-700">Responder à consulta</span>
+              <textarea
+                value={responseDrafts[need.id] ?? ""}
+                onChange={(event) => {
+                  responseDraftsRef.current[need.id] = event.target.value;
+                  setResponseDrafts((current) => ({ ...current, [need.id]: event.target.value }));
+                }}
+                rows={2}
+                placeholder="Digite sua resposta para o Estoque"
+                className="mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm leading-6 text-slate-900 outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              />
+            </label>
+            <button type="button" disabled={disabled} onClick={() => void replyToConsultation(need)} className="mt-2 w-full rounded-lg bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50 sm:w-auto">
+              {disabled ? "Enviando..." : "Enviar resposta"}
+            </button>
           </div>
         )}
         {need.status === "chegou" && canDelete && (

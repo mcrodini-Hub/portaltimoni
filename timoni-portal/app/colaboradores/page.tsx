@@ -6,6 +6,7 @@ import ComunicadosAdmin from "@/app/colaboradores/comunicados-admin";
 import type { PortalUser } from "@/lib/access-control";
 import type { ConfiguredCollaborator } from "@/lib/portal-config";
 import { getEffectiveCollaborators } from "@/lib/portal-config";
+import ModuleArrivalSummary from "@/components/module-arrival-summary";
 
 type PanelStore = "geral" | "rio claro" | "araras";
 type Store = "rio claro" | "araras";
@@ -35,13 +36,14 @@ function MeetingSummaryCard({title,list}:{title:string;list:FixedMeeting[]}){ret
 function EventCard({title,tone,events}:{title:string;tone:"pink"|"amber";events:PanelDateItem[]}){const cls=tone==="pink"?"border-pink-200 bg-pink-50":"border-amber-200 bg-amber-50";return <article className={`rounded-3xl border p-5 shadow-sm ${cls}`}><p className="text-xs font-semibold uppercase tracking-wider text-slate-700">{title}</p>{events.length?<ul className="mt-3 space-y-2">{events.map(e=><li key={e.id} className="rounded-xl bg-white/70 p-3"><p className="font-semibold text-slate-900">{cleanSummary(e.summary)}</p><p className="mt-1 text-sm text-slate-600">{title==="Férias"&&e.end?`${formatDate(e.start)} a ${formatDate(e.end)}`:formatDate(e.start)}</p></li>)}</ul>:<p className="mt-3 text-sm text-slate-500">Nenhum registro informado.</p>}</article>}
 
 export default async function ColaboradoresPage(){
- const session=await auth();const email=session?.user?.email??"";const normalized=email.trim().toLowerCase();const panelStore=getPanelStore(email,session?.portalUser);const isCica=normalized==="mcrodini@gmail.com";const canConfirmRead=!["mcrodini@gmail.com","mrodini@gmail.com"].includes(normalized);const now=new Date();let events:CalendarEventDTO[]=[];
+ const session=await auth();const email=session?.user?.email??"";const normalized=email.trim().toLowerCase();const panelStore=getPanelStore(email,session?.portalUser);const isCica=normalized==="mcrodini@gmail.com";const isManagement=["mcrodini@gmail.com","mrodini@gmail.com"].includes(normalized);const canConfirmRead=!isManagement;const now=new Date();let events:CalendarEventDTO[]=[];
  if(session?.accessToken&&session.error!=="RefreshAccessTokenError"){try{const min=new Date(now);min.setDate(min.getDate()-45);const max=new Date(now);max.setFullYear(max.getFullYear()+1);events=(await listEventsInRange(session.accessToken,{timeMin:min.toISOString(),timeMax:max.toISOString(),maxResults:500})).filter(e=>e.calendarKey==="timoni")}catch{events=[]}}
  const araras=meetings(now,"araras"),rioClaro=meetings(now,"rio claro");
  const collaborators=await getEffectiveCollaborators(session?.accessToken);
  const birthdays=unique([...fixedBirthdays,...events.filter(isBirthday).filter(e=>parseEventDate(e.start)>=now).map(panelItem)]);
  const vacations=unique([...fixedVacations,...events.filter(e=>isVacation(e)&&parseEventDate(e.end)>now).map(panelItem)]);
  return <div className="pb-10"><header className="mb-6"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Comunicação interna</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Painel Timoni</h1></header>
+ {isManagement&&<ModuleArrivalSummary module="avisos"/>}
  {panelStore==="geral"?<section className="grid items-start gap-4 lg:grid-cols-2"><AnnouncementCard store="rio claro" isAdmin={isCica} canConfirmRead={canConfirmRead} collaborators={collaborators}/><AnnouncementCard store="araras" isAdmin={isCica} canConfirmRead={canConfirmRead} collaborators={collaborators}/><MeetingSummaryCard title="Rio Claro" list={rioClaro}/><MeetingSummaryCard title="Araras" list={araras}/><EventCard title="Aniversários" tone="pink" events={birthdays}/><EventCard title="Férias" tone="amber" events={vacations}/></section>:<section className="grid items-start gap-4 lg:grid-cols-2"><AnnouncementCard store={panelStore} isAdmin={isCica} canConfirmRead={canConfirmRead} collaborators={collaborators}/><MeetingSummaryCard title={panelStore==="araras"?"Araras":"Rio Claro"} list={panelStore==="araras"?araras:rioClaro}/><EventCard title="Aniversários" tone="pink" events={birthdays}/><EventCard title="Férias" tone="amber" events={vacations}/></section>}
  {isCica&&<ComunicadosAdmin/>}<p className="mt-10 text-center text-xs text-slate-400">Idealizado por Ciça Rodini para fortalecer a comunicação interna da Casa Timoni.</p></div>
 }

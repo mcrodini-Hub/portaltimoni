@@ -64,7 +64,6 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
   const [busyId, setBusyId] = useState("");
   const [readingId, setReadingId] = useState("");
   const [employee, setEmployee] = useState("");
-  const [pin, setPin] = useState("");
   const [readFeedback, setReadFeedback] = useState<ReadFeedback>(null);
 
   const load = useCallback(async function load() {
@@ -135,8 +134,8 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
 
   async function confirmRead(item: Comunicado) {
     const selected = members.find((member) => `${member.unit}::${member.name}` === employee);
-    if (!selected || !/^\d{4}$/.test(pin)) {
-      setReadFeedback({ id: item.id, message: "Selecione seu nome e informe a senha padrão.", success: false });
+    if (!selected) {
+      setReadFeedback({ id: item.id, message: "Selecione seu nome.", success: false });
       return;
     }
     setBusyId(item.id);
@@ -151,7 +150,6 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
           title: item.title,
           employee: selected.name,
           unit: selected.unit,
-          pin,
         }),
       });
       const data = await response.json();
@@ -161,7 +159,6 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
         message: data.alreadyRegistered ? `A leitura de ${selected.name} já estava registrada.` : `Leitura registrada para ${selected.name}.`,
         success: true,
       });
-      setPin("");
       setReadingId("");
       await load();
     } catch (err) {
@@ -241,13 +238,13 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
               {readingId !== item.id ? (
                 <button
                   type="button"
-                  onClick={() => { setReadingId(item.id); setReadFeedback(null); setEmployee(""); setPin(""); }}
+                  onClick={() => { setReadingId(item.id); setReadFeedback(null); setEmployee(""); }}
                   className="w-full rounded-xl bg-blue-800 px-4 py-3 text-sm font-semibold text-white sm:w-auto"
                 >
                   Li e estou ciente
                 </button>
               ) : (
-                <div className="grid gap-2 rounded-xl border border-blue-200 bg-white p-3 sm:grid-cols-[minmax(180px,1fr)_130px_auto] sm:items-end">
+                <div className="grid gap-2 rounded-xl border border-blue-200 bg-white p-3 sm:grid-cols-[minmax(180px,1fr)_auto] sm:items-end">
                   <label className="text-xs font-semibold text-slate-700">
                     Seu nome
                     <select value={employee} onChange={(event) => setEmployee(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm">
@@ -255,12 +252,8 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
                       {members.map((member) => <option key={`${member.unit}-${member.name}`} value={`${member.unit}::${member.name}`}>{member.name}</option>)}
                     </select>
                   </label>
-                  <label className="text-xs font-semibold text-slate-700">
-                    Senha padrão
-                    <input value={pin} onChange={(event) => setPin(event.target.value.replace(/\D/g, "").slice(0, 4))} inputMode="numeric" type="password" maxLength={4} placeholder="0000" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm" />
-                  </label>
                   <button type="button" onClick={() => confirmRead(item)} disabled={busyId === item.id} className="rounded-lg bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
-                    {busyId === item.id ? "Registrando..." : "Confirmar"}
+                    {busyId === item.id ? "Registrando..." : "Confirmar leitura"}
                   </button>
                 </div>
               )}

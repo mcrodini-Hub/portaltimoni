@@ -4,7 +4,6 @@ import { AVISO_LEITURAS_SPREADSHEET_ID } from "@/lib/portal-data-constants";
 export { AVISO_LEITURAS_SPREADSHEET_ID } from "@/lib/portal-data-constants";
 const LEITURAS_SHEET = "Leituras";
 const FUNCIONARIOS_SHEET = "Funcionarios";
-const DEFAULT_CONFIRMATION_PIN = "0000";
 
 export type AvisoLeitura = {
   avisoId: string;
@@ -65,12 +64,8 @@ export async function listAvisoLeituras(accessToken: string): Promise<AvisoLeitu
 
 export async function registerAvisoLeitura(
   accessToken: string,
-  input: { avisoId: string; employee: string; unit: string; portalEmail: string; title: string; pin: string },
+  input: { avisoId: string; employee: string; unit: string; portalEmail: string; title: string },
 ) {
-  if (input.pin !== DEFAULT_CONFIRMATION_PIN) {
-    throw new Error("Senha incorreta.");
-  }
-
   const current = await listAvisoLeituras(accessToken);
   if (current.some((item) => item.avisoId === input.avisoId && item.employee === input.employee && item.unit === input.unit)) {
     return { alreadyRegistered: true };

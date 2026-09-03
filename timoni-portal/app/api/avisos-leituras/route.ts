@@ -66,16 +66,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     const employee = String(body?.employee ?? "").trim();
     const unit = String(body?.unit ?? "").trim();
-    const pin = String(body?.pin ?? "").trim();
 
     const collaborators = await getEffectiveCollaborators(current.accessToken);
     if (!collaborators.some((member) => member.name === employee && member.unit === unit && member.noticeRequired)) {
       return NextResponse.json({ error: "Selecione um funcionário válido." }, { status: 400 });
     }
-    if (!/^\d{4}$/.test(pin)) {
-      return NextResponse.json({ error: "A senha deve ter 4 números." }, { status: 400 });
-    }
-
     const permittedUnit = allowedUnit(current.email, current.portalUser);
     if (permittedUnit !== "geral" && unit !== permittedUnit) {
       return NextResponse.json({ error: "Funcionário fora da unidade deste acesso." }, { status: 403 });
@@ -94,7 +89,6 @@ export async function POST(request: Request) {
       avisoId,
       employee,
       unit,
-      pin,
       title: notice.title,
       portalEmail: current.email,
     });

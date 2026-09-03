@@ -68,6 +68,14 @@ async function ensureSchema() {
           PRIMARY KEY (viewer_email, module)
         )
       `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS portal_module_update_resets (
+          viewer_email TEXT NOT NULL,
+          version TEXT NOT NULL,
+          reset_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          PRIMARY KEY (viewer_email, version)
+        )
+      `;
     })().catch((error) => {
       schemaReady = null;
       throw error;
@@ -154,5 +162,25 @@ export async function markModuleUpdatesRead(module: UpdateModule, _through: stri
     VALUES (${viewerEmail.trim().toLowerCase()}, ${module}, NOW())
     ON CONFLICT (viewer_email, module)
     DO UPDATE SET read_through = GREATEST(portal_module_update_reads.read_through, EXCLUDED.read_through)
+  `;
+}
+
+export async function initializeModuleUpdateBaseline(viewerEmail: string, version: string) {
+  await ensureSchema();
+  const sql = getDatabase();
+  const normalizedViewer = viewerEmail.trim().toLowerCase();
+  const existing = await sql`
+    SELECT viewer_email
+    FROM portal_module_update_resets
+    WHERE viewer_email = ${normalizedViewer} AND version = ${version}
+    LIMIT 1
+  ` as Array<{ viewer_email: string }>;
+  if (existing.length) return;
+
+  await Promise.all(UPDATE_MODULES.map((module) => markModuleUpdatesRead(module, "", normalizedViewer)));
+  await sql`
+    INSERT INTO portal_module_update_resets (viewer_email, version)
+    VALUES (${normalizedViewer}, ${version})
+    ON CONFLICT DO NOTHING
   `;
 }

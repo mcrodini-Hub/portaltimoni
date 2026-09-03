@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
   isUpdateModule,
+  initializeModuleUpdateBaseline,
   listPendingModuleUpdates,
   markModuleUpdatesRead,
   recordModuleUpdateSafely,
@@ -13,6 +14,8 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MANAGEMENT_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
+const VISIBLE_NOTIFICATION_MODULES = new Set(["estoque", "compras"]);
+const NOTIFICATION_BASELINE_VERSION = "2026-09-03-estoque-compras-v1";
 
 async function managementSession() {
   const session = await auth();
@@ -48,8 +51,11 @@ export async function GET() {
         `aviso-leitura:${read.avisoId}:${read.unit}:${read.employee}`,
       )),
     ]);
+    await initializeModuleUpdateBaseline(current.email, NOTIFICATION_BASELINE_VERSION);
+    const updates = (await listPendingModuleUpdates(current.email))
+      .filter((item) => VISIBLE_NOTIFICATION_MODULES.has(item.module));
     return NextResponse.json(
-      { ok: true, updates: await listPendingModuleUpdates(current.email) },
+      { ok: true, updates },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

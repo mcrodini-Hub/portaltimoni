@@ -146,15 +146,12 @@ export async function listPendingModuleUpdates(viewerEmail: string): Promise<Pen
   return [...grouped.values()];
 }
 
-export async function markModuleUpdatesRead(module: UpdateModule, through: string, viewerEmail: string) {
-  const throughDate = new Date(through);
-  if (Number.isNaN(throughDate.getTime())) throw new Error("Data de atualização inválida.");
-
+export async function markModuleUpdatesRead(module: UpdateModule, _through: string, viewerEmail: string) {
   await ensureSchema();
   const sql = getDatabase();
   await sql`
     INSERT INTO portal_module_update_reads (viewer_email, module, read_through)
-    VALUES (${viewerEmail.trim().toLowerCase()}, ${module}, ${throughDate.toISOString()})
+    VALUES (${viewerEmail.trim().toLowerCase()}, ${module}, NOW())
     ON CONFLICT (viewer_email, module)
     DO UPDATE SET read_through = GREATEST(portal_module_update_reads.read_through, EXCLUDED.read_through)
   `;

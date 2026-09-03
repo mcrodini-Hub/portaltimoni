@@ -32,8 +32,8 @@ function allowedUnit(email: string, portalUser?: PortalUser | null) {
 async function context() {
   const session = await auth();
   const email = normalizeEmail(session?.user?.email);
-  if (!email || !getPortalUser(email, session?.portalUser) || !session?.accessToken) return null;
-  return { email, accessToken: session.accessToken, portalUser: session.portalUser };
+  if (!email || !getPortalUser(email, session?.portalUser)) return null;
+  return { email, accessToken: session?.accessToken ?? "", portalUser: session?.portalUser };
 }
 
 export async function GET() {

@@ -1,9 +1,8 @@
+import { neon } from "@neondatabase/serverless";
 import { google } from "googleapis";
-import { getAccessTokenFromRefreshToken } from "@/lib/google-calendar";
 
 export const COMUNICADOS_SPREADSHEET_ID = "1xR4DTaNKad0yfVdnww3KwSAmOcK61ZIbM-v4eX43sjQ";
 export const COMUNICADOS_SHEET = "Comunicados";
-export const COMUNICADOS_SHEET_ID = 1956041927;
 
 export type ComunicadoUnidade = "geral" | "araras" | "rio claro";
 export type ComunicadoStatus = "ativo" | "arquivado" | "excluido";
@@ -19,6 +18,22 @@ export type Comunicado = {
   startsAt: string;
   expiresAt: string;
 };
+
+type ComunicadoRow = {
+  id: string;
+  created_at: Date | string;
+  unit: ComunicadoUnidade;
+  title: string;
+  message: string;
+  status: ComunicadoStatus;
+  updated_at: Date | string;
+  starts_at: Date | string;
+  expires_at: Date | string | null;
+};
+
+const MIGRATION_KEY = "comunicados_google_v1";
+let database: ReturnType<typeof neon> | null = null;
+let schemaReady: Promise<void> | null = null;
 
 const LEGACY_COMUNICADOS: Comunicado[] = [
   {
@@ -45,33 +60,63 @@ const LEGACY_COMUNICADOS: Comunicado[] = [
   },
 ];
 
-async function sheetsClient(sessionAccessToken?: string) {
-  const accessToken = sessionAccessToken || await getAccessTokenFromRefreshToken();
-  const auth = new google.auth.OAuth2();
-  auth.setCredentials({ access_token: accessToken });
-  return google.sheets({ version: "v4", auth });
+function getDatabase() {
+  const databaseUrl = process.env.DATABASE_URL?.trim();
+  if (!databaseUrl) throw new Error("DATABASE_URL não configurada no servidor.");
+  if (!database) database = neon(databaseUrl);
+  return database;
+}
+
+async function ensureSchema() {
+  if (!schemaReady) {
+    schemaReady = (async () => {
+      const sql = getDatabase();
+      await sql`
+        CREATE TABLE IF NOT EXISTS portal_notices (
+          id TEXT PRIMARY KEY,
+          created_at TIMESTAMPTZ NOT NULL,
+          unit TEXT NOT NULL,
+          title TEXT NOT NULL,
+          message TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'ativo',
+          updated_at TIMESTAMPTZ NOT NULL,
+          starts_at TIMESTAMPTZ NOT NULL,
+          expires_at TIMESTAMPTZ
+        )
+      `;
+      await sql`CREATE INDEX IF NOT EXISTS portal_notices_created_at_idx ON portal_notices (created_at DESC)`;
+      await sql`
+        CREATE TABLE IF NOT EXISTS portal_data_migrations (
+          key TEXT PRIMARY KEY,
+          completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+    })().catch((error) => {
+      schemaReady = null;
+      throw error;
+    });
+  }
+  await schemaReady;
 }
 
 function parseRows(rows: string[][]): Comunicado[] {
-  return rows
-    .map((row) => ({
-      id: row[0] ?? "",
-      createdAt: row[1] ?? "",
-      unit: (row[2] ?? "geral") as ComunicadoUnidade,
-      title: row[3] ?? "",
-      message: row[4] ?? "",
-      status: (row[5] ?? "ativo") as ComunicadoStatus,
-      updatedAt: row[6] ?? row[1] ?? "",
-      startsAt: row[7] ?? row[1] ?? "",
-      expiresAt: row[8] ?? "",
-    }))
-    .filter((item) => item.id && item.title && item.message)
-    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  return rows.map((row) => ({
+    id: row[0] ?? "",
+    createdAt: row[1] ?? "",
+    unit: (row[2] ?? "geral") as ComunicadoUnidade,
+    title: row[3] ?? "",
+    message: row[4] ?? "",
+    status: (row[5] ?? "ativo") as ComunicadoStatus,
+    updatedAt: row[6] ?? row[1] ?? "",
+    startsAt: row[7] ?? row[1] ?? "",
+    expiresAt: row[8] ?? "",
+  })).filter((item) => item.id && item.title && item.message);
 }
 
-async function fetchRows(sessionAccessToken?: string) {
-  const sheets = await sheetsClient(sessionAccessToken);
-  const response = await sheets.spreadsheets.values.get({
+async function fetchLegacyRows(accessToken: string) {
+  const auth = new google.auth.OAuth2();
+  auth.setCredentials({ access_token: accessToken });
+  const response = await google.sheets({ version: "v4", auth }).spreadsheets.values.get({
     spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
     range: `${COMUNICADOS_SHEET}!A2:I500`,
     valueRenderOption: "FORMATTED_VALUE",
@@ -79,22 +124,58 @@ async function fetchRows(sessionAccessToken?: string) {
   return (response.data.values ?? []) as string[][];
 }
 
-async function readRows(accessToken?: string) {
-  // No acesso da Ciça, usa primeiro a própria sessão autenticada. Para os
-  // demais acessos, ou se a sessão não tiver permissão direta na planilha,
-  // mantém a credencial persistente do Portal como alternativa.
-  if (accessToken) {
-    try {
-      return await fetchRows(accessToken);
-    } catch (error) {
-      console.warn("[comunicados] leitura pela sessão falhou; usando credencial do Portal", error);
-    }
-  }
-  return fetchRows();
+async function upsertComunicado(item: Comunicado) {
+  const sql = getDatabase();
+  await sql`
+    INSERT INTO portal_notices (id, created_at, unit, title, message, status, updated_at, starts_at, expires_at)
+    VALUES (
+      ${item.id}, ${item.createdAt}, ${item.unit}, ${item.title}, ${item.message}, ${item.status},
+      ${item.updatedAt || item.createdAt}, ${item.startsAt || item.createdAt}, ${item.expiresAt || null}
+    )
+    ON CONFLICT (id) DO UPDATE SET
+      created_at = EXCLUDED.created_at, unit = EXCLUDED.unit, title = EXCLUDED.title,
+      message = EXCLUDED.message, status = EXCLUDED.status, updated_at = EXCLUDED.updated_at,
+      starts_at = EXCLUDED.starts_at, expires_at = EXCLUDED.expires_at
+  `;
 }
 
-export async function listComunicados(accessToken: string) {
-  const stored = parseRows(await readRows(accessToken));
+async function importFromGoogleIfNeeded(accessToken?: string) {
+  if (!accessToken) return;
+  const sql = getDatabase();
+  const completed = await sql`SELECT key FROM portal_data_migrations WHERE key = ${MIGRATION_KEY} LIMIT 1` as Array<{ key: string }>;
+  if (completed.length) return;
+  try {
+    const items = parseRows(await fetchLegacyRows(accessToken));
+    for (const item of items) await upsertComunicado(item);
+    await sql`INSERT INTO portal_data_migrations (key) VALUES (${MIGRATION_KEY}) ON CONFLICT DO NOTHING`;
+  } catch (error) {
+    console.warn("[comunicados] importação da planilha aguardando acesso da gestão", error);
+  }
+}
+
+function fromRow(row: ComunicadoRow): Comunicado {
+  return {
+    id: row.id,
+    createdAt: new Date(row.created_at).toISOString(),
+    unit: row.unit,
+    title: row.title,
+    message: row.message,
+    status: row.status,
+    updatedAt: new Date(row.updated_at).toISOString(),
+    startsAt: new Date(row.starts_at).toISOString(),
+    expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : "",
+  };
+}
+
+export async function listComunicados(accessToken = "") {
+  await ensureSchema();
+  await importFromGoogleIfNeeded(accessToken);
+  const sql = getDatabase();
+  const rows = await sql`
+    SELECT id, created_at, unit, title, message, status, updated_at, starts_at, expires_at
+    FROM portal_notices ORDER BY created_at DESC
+  ` as ComunicadoRow[];
+  const stored = rows.map(fromRow);
   const storedIds = new Set(stored.map((item) => item.id));
   return [...stored, ...LEGACY_COMUNICADOS.filter((item) => !storedIds.has(item.id))]
     .filter((item) => item.status !== "excluido")
@@ -105,25 +186,12 @@ export async function createComunicado(
   accessToken: string,
   input: { unit: ComunicadoUnidade; title: string; message: string; startsAt?: string; expiresAt?: string },
 ) {
-  const sheets = await sheetsClient(accessToken);
+  await ensureSchema();
+  await importFromGoogleIfNeeded(accessToken);
   const now = new Date().toISOString();
   const id = `com-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  await sheets.spreadsheets.values.append({
-    spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
-    range: `${COMUNICADOS_SHEET}!A:I`,
-    valueInputOption: "RAW",
-    insertDataOption: "INSERT_ROWS",
-    requestBody: {
-      values: [[id, now, input.unit, input.title, input.message, "ativo", now, input.startsAt || now, input.expiresAt || ""]],
-    },
-  });
+  await upsertComunicado({ id, createdAt: now, unit: input.unit, title: input.title, message: input.message, status: "ativo", updatedAt: now, startsAt: input.startsAt || now, expiresAt: input.expiresAt || "" });
   return id;
-}
-
-async function findRow(accessToken: string, id: string) {
-  const rows = await readRows(accessToken);
-  const index = rows.findIndex((row) => row[0] === id);
-  return index < 0 ? null : index + 2;
 }
 
 export async function updateComunicado(
@@ -131,100 +199,19 @@ export async function updateComunicado(
   id: string,
   input: Partial<Pick<Comunicado, "unit" | "title" | "message" | "status" | "startsAt" | "expiresAt">>,
 ) {
-  const rowNumber = await findRow(accessToken, id);
-  if (!rowNumber) {
-    const legacy = LEGACY_COMUNICADOS.find((item) => item.id === id);
-    if (!legacy) throw new Error("Comunicado não encontrado.");
-    const sheets = await sheetsClient(accessToken);
-    const now = new Date().toISOString();
-    await sheets.spreadsheets.values.append({
-      spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
-      range: `${COMUNICADOS_SHEET}!A:I`,
-      valueInputOption: "RAW",
-      insertDataOption: "INSERT_ROWS",
-      requestBody: {
-        values: [[
-          legacy.id,
-          legacy.createdAt,
-          input.unit ?? legacy.unit,
-          input.title ?? legacy.title,
-          input.message ?? legacy.message,
-          input.status ?? legacy.status,
-          now,
-          input.startsAt ?? legacy.startsAt,
-          input.expiresAt ?? legacy.expiresAt,
-        ]],
-      },
-    });
-    return;
-  }
-
   const current = (await listComunicados(accessToken)).find((item) => item.id === id);
   if (!current) throw new Error("Comunicado não encontrado.");
-
-  const sheets = await sheetsClient(accessToken);
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
-    range: `${COMUNICADOS_SHEET}!C${rowNumber}:I${rowNumber}`,
-    valueInputOption: "RAW",
-    requestBody: {
-      values: [[
-        input.unit ?? current.unit,
-        input.title ?? current.title,
-        input.message ?? current.message,
-        input.status ?? current.status,
-        new Date().toISOString(),
-        input.startsAt ?? current.startsAt,
-        input.expiresAt ?? current.expiresAt,
-      ]],
-    },
-  });
+  await upsertComunicado({ ...current, ...input, updatedAt: new Date().toISOString() });
 }
 
 export async function deleteComunicado(accessToken: string, id: string) {
-  const rowNumber = await findRow(accessToken, id);
-  if (!rowNumber) {
-    const legacy = LEGACY_COMUNICADOS.find((item) => item.id === id);
-    if (!legacy) throw new Error("Comunicado não encontrado.");
-    await updateComunicado(accessToken, id, { status: "excluido" });
-    return;
-  }
-  const sheets = await sheetsClient(accessToken);
-  await sheets.spreadsheets.batchUpdate({
-    spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
-    requestBody: {
-      requests: [
-        {
-          deleteDimension: {
-            range: {
-              sheetId: COMUNICADOS_SHEET_ID,
-              dimension: "ROWS",
-              startIndex: rowNumber - 1,
-              endIndex: rowNumber,
-            },
-          },
-        },
-      ],
-    },
-  });
+  await updateComunicado(accessToken, id, { status: "excluido" });
 }
 
-export async function replaceComunicados(accessToken: string, items: Comunicado[]) {
-  const sheets = await sheetsClient(accessToken);
-  await sheets.spreadsheets.values.clear({
-    spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
-    range: `${COMUNICADOS_SHEET}!A2:I500`,
-  });
-  if (!items.length) return;
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
-    range: `${COMUNICADOS_SHEET}!A2`,
-    valueInputOption: "RAW",
-    requestBody: {
-      values: items.map((item) => [
-        item.id, item.createdAt, item.unit, item.title, item.message, item.status,
-        item.updatedAt, item.startsAt, item.expiresAt,
-      ]),
-    },
-  });
+export async function replaceComunicados(_accessToken: string, items: Comunicado[]) {
+  await ensureSchema();
+  const sql = getDatabase();
+  await sql`DELETE FROM portal_notices`;
+  for (const item of items) await upsertComunicado(item);
+  await sql`INSERT INTO portal_data_migrations (key) VALUES (${MIGRATION_KEY}) ON CONFLICT DO NOTHING`;
 }

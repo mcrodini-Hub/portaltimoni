@@ -119,14 +119,18 @@ export default function MotoristaLeitura() {
 
   useEffect(() => {
     let ativo = true;
+    let primeiraCarga = true;
+
     async function carregar() {
-      setLoading(true);
+      if (primeiraCarga) setLoading(true);
       setErro("");
       try {
         const pares = await Promise.all(
           dias.map(async (d) => {
             const data = localDateString(d);
-            const resposta = await fetch(`/api/motorista-leitura?action=dia&data=${data}`, { cache: "no-store" });
+            const resposta = await fetch(`/api/motorista-leitura?action=dia&data=${data}&_=${Date.now()}`, {
+              cache: "no-store",
+            });
             const body = await resposta.json().catch(() => null);
             if (!resposta.ok || !body?.ok) throw new Error(body?.erro || "Não foi possível carregar a agenda.");
             return [data, body.viagens || []] as const;
@@ -136,12 +140,25 @@ export default function MotoristaLeitura() {
       } catch (e) {
         if (ativo) setErro(e instanceof Error ? e.message : "Não foi possível carregar a agenda.");
       } finally {
-        if (ativo) setLoading(false);
+        if (ativo && primeiraCarga) setLoading(false);
+        primeiraCarga = false;
       }
     }
+
+    const atualizarAoVoltar = () => {
+      if (document.visibilityState === "visible") void carregar();
+    };
+
     void carregar();
+    const intervalo = window.setInterval(() => void carregar(), 15_000);
+    window.addEventListener("focus", atualizarAoVoltar);
+    document.addEventListener("visibilitychange", atualizarAoVoltar);
+
     return () => {
       ativo = false;
+      window.clearInterval(intervalo);
+      window.removeEventListener("focus", atualizarAoVoltar);
+      document.removeEventListener("visibilitychange", atualizarAoVoltar);
     };
   }, [dias]);
 

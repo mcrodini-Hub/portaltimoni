@@ -5,9 +5,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const WEBAPP_URL =
+const DEFAULT_WEBAPP_URL =
   "https://script.google.com/macros/s/AKfycbwy9QfpEbdGtTIiC2OFuZAUx0jIPFsXPLZKedfGp79VJ6mlzLYus_wjI2IvFPoeE6Pc/exec";
 const REQUEST_TIMEOUT_MS = 30_000;
+
+function webAppUrl() {
+  return process.env.MOTORISTA_WEBAPP_URL || DEFAULT_WEBAPP_URL;
+}
 
 async function encaminhar(url: string, init: RequestInit) {
   const controller = new AbortController();
@@ -49,7 +53,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, erro: "Consulta não permitida." }, { status: 400 });
   }
 
-  const destino = new URL(WEBAPP_URL);
+  const destino = new URL(webAppUrl());
   request.nextUrl.searchParams.forEach((valor, chave) => destino.searchParams.set(chave, valor));
   return encaminhar(destino.toString(), { method: "GET" });
 }
@@ -67,7 +71,7 @@ export async function POST(request: NextRequest) {
   });
   const payload = new URLSearchParams({ action: "atualizar", id, notasJson });
 
-  const response = await encaminhar(WEBAPP_URL, {
+  const response = await encaminhar(webAppUrl(), {
     method: "POST",
     body: payload.toString(),
     headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },

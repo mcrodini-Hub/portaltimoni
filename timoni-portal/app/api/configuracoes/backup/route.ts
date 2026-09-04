@@ -16,6 +16,7 @@ import {
 
 export const runtime = "nodejs";
 const SCHEMA_VERSION = 1;
+const MANAGEMENT_EMAILS = new Set([CICA_EMAIL, "mrodini@gmail.com"]);
 
 type PortalBackup = {
   schemaVersion: number;
@@ -31,7 +32,7 @@ type PortalBackup = {
 async function adminContext() {
   const session = await auth();
   const email = normalizeEmail(session?.user?.email);
-  if (email !== CICA_EMAIL || !session?.accessToken) return null;
+  if (!MANAGEMENT_EMAILS.has(email) || !session?.accessToken) return null;
   return { email, accessToken: session.accessToken };
 }
 
@@ -65,7 +66,7 @@ function validateBackup(value: unknown): asserts value is PortalBackup {
 
 export async function GET() {
   const current = await adminContext();
-  if (!current) return Response.json({ error: "Acesso exclusivo da Ciça." }, { status: 403 });
+  if (!current) return Response.json({ error: "Acesso exclusivo da gestão." }, { status: 403 });
   try {
     const backup = await createBackup(current.accessToken);
     const zip = new JSZip();
@@ -88,7 +89,7 @@ export async function GET() {
 
 export async function POST(request: Request) {
   const current = await adminContext();
-  if (!current) return Response.json({ error: "Acesso exclusivo da Ciça." }, { status: 403 });
+  if (!current) return Response.json({ error: "Acesso exclusivo da gestão." }, { status: 403 });
   try {
     const formData = await request.formData();
     const file = formData.get("backup");

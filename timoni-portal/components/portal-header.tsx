@@ -20,8 +20,8 @@ const navItems: Array<{ href: string; label: string; module: PortalModule; updat
 
 export default function PortalHeader({ email, portalUser }: { email: string; portalUser?: PortalUser | null }) {
   const directPainelTimoniAccess = entersDirectlyInPainelTimoni(email, portalUser);
-  const isCica = email.trim().toLowerCase() === "mcrodini@gmail.com";
-  const canViewUpdates = ["mcrodini@gmail.com", "mrodini@gmail.com"].includes(email.trim().toLowerCase());
+  const isManagement = ["mcrodini@gmail.com", "mrodini@gmail.com"].includes(email.trim().toLowerCase());
+  const canViewUpdates = isManagement;
   const linkClass =
     "whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium text-white/90 transition hover:bg-white/10 hover:text-white";
   const allowedItems = navItems
@@ -54,7 +54,7 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
           aria-label="Menu principal"
         >
           <ModuleUpdatesNav items={allowedItems} canViewUpdates={canViewUpdates} linkClass={linkClass} />
-          {isCica && <Link href="/configuracoes" className={linkClass}>Configurações</Link>}
+          {isManagement && <Link href="/configuracoes" className={linkClass}>Configurações</Link>}
         </nav>
 
         <form

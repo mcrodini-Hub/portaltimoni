@@ -154,7 +154,7 @@ export default function ConfiguracoesClient() {
   return (
     <div className="pb-10">
       <header className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Acesso exclusivo da Ciça</p>
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Acesso da gestão</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Configurações</h1>
         <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Gerencie quem utiliza o Portal, o que cada acesso pode abrir e quais boxes aparecem no Painel.</p>
       </header>

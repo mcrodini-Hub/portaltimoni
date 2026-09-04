@@ -13,11 +13,12 @@ import {
 const VALID_MODULES = new Set<PortalModule>([
   "painel", "agenda", "compras", "conferencia", "estoque", "motorista", "reunioes", "leads", "marketing", "financeiro",
 ]);
+const MANAGEMENT_EMAILS = new Set([CICA_EMAIL, "mrodini@gmail.com"]);
 
 async function adminContext() {
   const session = await auth();
   const email = normalizeEmail(session?.user?.email);
-  if (email !== CICA_EMAIL || !session?.accessToken) return null;
+  if (!MANAGEMENT_EMAILS.has(email) || !session?.accessToken) return null;
   return { email, accessToken: session.accessToken };
 }
 
@@ -62,7 +63,7 @@ function cleanCollaborator(value: Record<string, unknown>): ConfiguredCollaborat
 
 export async function GET() {
   const current = await adminContext();
-  if (!current) return NextResponse.json({ error: "Acesso exclusivo da Ciça." }, { status: 403 });
+  if (!current) return NextResponse.json({ error: "Acesso exclusivo da gestão." }, { status: 403 });
   try {
     return NextResponse.json({ ok: true, ...(await loadPortalConfiguration(current.accessToken)) });
   } catch (error) {
@@ -73,7 +74,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   const current = await adminContext();
-  if (!current) return NextResponse.json({ error: "Acesso exclusivo da Ciça." }, { status: 403 });
+  if (!current) return NextResponse.json({ error: "Acesso exclusivo da gestão." }, { status: 403 });
   try {
     const body = await request.json();
     const configuration = await loadPortalConfiguration(current.accessToken);

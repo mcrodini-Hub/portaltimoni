@@ -46,7 +46,7 @@ export default auth((request) => {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (pathname.startsWith("/configuracoes") && request.auth.user.email.trim().toLowerCase() !== "mcrodini@gmail.com") {
+  if (pathname.startsWith("/configuracoes") && !["mcrodini@gmail.com", "mrodini@gmail.com"].includes(request.auth.user.email.trim().toLowerCase())) {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

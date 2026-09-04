@@ -37,6 +37,7 @@ const allModules: PortalModule[] = [
 const modulesWithoutCicaAgenda = allModules.filter((module) => module !== "agenda");
 const operationalModules: PortalModule[] = ["painel", "estoque", "motorista"];
 const CICA_EMAIL = "mcrodini@gmail.com";
+const MARCELO_EMAIL = "mrodini@gmail.com";
 const ESTOQUE_TIMONI_EMAIL = "estoquetimoni@gmail.com";
 const DIRECT_PAINEL_TIMONI_EMAILS = new Set([
   "balcaotimoni@gmail.com",
@@ -93,7 +94,12 @@ export function normalizeEmail(email?: string | null) { return email?.trim().toL
 export function isAuthorizedUser(email?: string | null, configured?: PortalUser | null) { return Boolean(getPortalUser(email, configured)); }
 export function getPortalUser(email?: string | null, configured?: PortalUser | null) {
   const normalized = normalizeEmail(email);
-  if (configured && normalizeEmail(configured.email) === normalized) return configured.active === false ? null : configured;
+  if (configured && normalizeEmail(configured.email) === normalized) {
+    if (configured.active === false) return null;
+    return normalized === MARCELO_EMAIL
+      ? { ...configured, modules: modulesWithoutCicaAgenda }
+      : configured;
+  }
   const fallback = portalUsers[normalized] ?? null;
   return fallback?.active === false ? null : fallback;
 }

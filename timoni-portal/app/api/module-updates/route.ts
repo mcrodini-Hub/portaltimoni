@@ -14,7 +14,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MANAGEMENT_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
-const VISIBLE_NOTIFICATION_MODULES = new Set(["estoque", "compras"]);
+const VISIBLE_NOTIFICATION_MODULES = new Set(["estoque", "compras", "leads"]);
 const NOTIFICATION_BASELINE_VERSION = "2026-09-03-estoque-compras-v1";
 
 async function managementSession() {

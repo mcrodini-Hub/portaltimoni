@@ -185,7 +185,10 @@ export default function MotoristaLeitura() {
         <div className="space-y-4">
           {dias.map((d) => {
             const data = localDateString(d);
-            const itens = (viagens[data] || []).filter((v) => !finalizada(v));
+            const itens = (viagens[data] || [])
+              .filter((v) => !finalizada(v))
+              .slice()
+              .sort((a, b) => (a.horario || "").localeCompare(b.horario || ""));
             const hoje = data === localDateString();
             return (
               <section key={data} className={`rounded-2xl border bg-white p-4 shadow-sm ${hoje ? "border-blue-300" : "border-slate-200"}`}>

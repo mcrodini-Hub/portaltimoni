@@ -4,7 +4,7 @@ import { ChangeEvent, useEffect, useState } from "react";
 import type { PortalModule, PortalUser } from "@/lib/access-control";
 import type { ConfiguredCollaborator, PortalAuditEntry } from "@/lib/portal-config";
 
-type Tab = "acessos" | "colaboradores" | "backup" | "historico";
+type Tab = "acessos" | "colaboradores" | "backup" | "historico" | "guia";
 type ConfigurationResponse = { users: PortalUser[]; collaborators: ConfiguredCollaborator[]; history: PortalAuditEntry[] };
 
 const MODULES: Array<{ id: PortalModule; label: string }> = [
@@ -36,6 +36,18 @@ function Checkbox({ checked, label, disabled, onChange }: { checked: boolean; la
       <input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} className="h-4 w-4 accent-blue-700" />
       <span>{label}</span>
     </label>
+  );
+}
+
+function GuideItem({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <details className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-slate-950">
+        <span>{title}</span>
+        <span className="text-lg text-blue-700 transition group-open:rotate-45">+</span>
+      </summary>
+      <div className="mt-3 border-t border-slate-100 pt-3 text-sm leading-6 text-slate-600">{children}</div>
+    </details>
   );
 }
 
@@ -126,7 +138,7 @@ export default function ConfiguracoesClient() {
     } finally { setSaving(false); }
   }
 
-  const tabs: Array<[Tab, string]> = [["acessos", "Acessos e permissões"], ["colaboradores", "Colaboradores"], ["backup", "Backup"], ["historico", "Histórico"]];
+  const tabs: Array<[Tab, string]> = [["acessos", "Acessos e permissões"], ["colaboradores", "Colaboradores"], ["backup", "Backup"], ["historico", "Histórico"], ["guia", "Guia de uso"]];
 
   function renderUserEditor(inline = false) {
     if (!userForm) return null;
@@ -212,6 +224,45 @@ export default function ConfiguracoesClient() {
       {!loading && tab === "backup" && <section className="mt-5 grid gap-4 lg:grid-cols-2"><div className="rounded-3xl border border-blue-200 bg-white p-6 shadow-sm"><h2 className="text-xl font-semibold text-slate-950">Fazer backup</h2><p className="mt-2 text-sm leading-6 text-slate-600">Baixa um arquivo ZIP importável com acessos, colaboradores, Avisos, leituras e mensagens do Espaço Equipe.</p><button type="button" onClick={() => void downloadBackup()} className="mt-5 rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white">Baixar backup agora</button></div><div className="rounded-3xl border border-amber-200 bg-amber-50 p-6"><h2 className="text-xl font-semibold text-amber-950">Restaurar backup</h2><p className="mt-2 text-sm leading-6 text-amber-800">Antes de restaurar, o Portal baixa automaticamente uma cópia do estado atual. Revise sempre o nome e a data do arquivo.</p><label className="mt-5 inline-flex cursor-pointer rounded-xl bg-amber-700 px-5 py-3 text-sm font-semibold text-white"><input type="file" accept=".zip" onChange={(event) => void restoreBackup(event)} className="sr-only" />Selecionar arquivo ZIP</label></div></section>}
 
       {!loading && tab === "historico" && <section className="mt-5"><h2 className="text-xl font-semibold text-slate-950">Histórico de alterações</h2><div className="mt-4 space-y-2">{data.history.length ? data.history.map((item, index) => <div key={`${item.date}-${index}`} className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex flex-wrap justify-between gap-2"><p className="font-semibold text-slate-900">{item.action}</p><p className="text-xs text-slate-500">{dateLabel(item.date)}</p></div><p className="mt-1 text-sm text-slate-600">{item.details}</p></div>) : <p className="text-sm text-slate-500">Nenhuma alteração registrada.</p>}</div></section>}
+
+      {!loading && tab === "guia" && (
+        <section className="mt-5">
+          <div className="rounded-3xl border border-blue-200 bg-blue-50 p-5 sm:p-6">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Portal Timoni</p>
+            <h2 className="mt-2 text-2xl font-semibold text-slate-950">Guia de uso</h2>
+            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Consulte abaixo o funcionamento dos principais módulos. Abra cada tópico para ver as orientações. O Portal mostra a cada usuário apenas os módulos liberados para o seu acesso.</p>
+          </div>
+          <div className="mt-4 grid gap-3">
+            <GuideItem title="1. Painel e Avisos">
+              <p>O Painel é o ponto inicial do Portal. Use os boxes para entrar nos módulos disponíveis. Em Avisos, leia os comunicados da unidade e, quando o seu acesso exigir confirmação, registre a ciência pelo botão disponível no card.</p>
+            </GuideItem>
+            <GuideItem title="2. Motorista">
+              <p>No Dashboard do Motorista, consulte viagens, bloqueios, endereços, observações e situação de cada serviço. Use os botões de ação somente quando necessário e confira data, empresa, NF/Pedido e endereço antes de alterar um registro. A tela pública do motorista recebe as atualizações do mesmo cadastro.</p>
+            </GuideItem>
+            <GuideItem title="3. Compras">
+              <p>Use Compras para acompanhar demandas, pedidos e informações enviadas ao processo de compra. Antes de atualizar um pedido, confira fornecedor, número do pedido, empresa, unidade e itens. Utilize Consulta quando a necessidade ainda não for um pedido efetivamente realizado.</p>
+            </GuideItem>
+            <GuideItem title="4. Estoque">
+              <p>O Estoque concentra consultas e solicitações de produtos e acompanha os pedidos integrados com Compras. Sempre confira a unidade correta, os itens e o status antes de responder ou dar andamento.</p>
+            </GuideItem>
+            <GuideItem title="5. Leads">
+              <p>Em Leads, acompanhe as listas FOLLOW UP e A PROSPECTAR. Registre contatos, próxima data e observações. Use STATUS para transferir o cliente entre as listas e consulte os indicadores para acompanhar realizado, pendente e evolução do trabalho comercial.</p>
+            </GuideItem>
+            <GuideItem title="6. Reuniões e demais módulos">
+              <p>Use cada módulo apenas para a finalidade indicada no Portal. Os conteúdos e botões disponíveis variam conforme a permissão do usuário. Quando um módulo não aparecer no cabeçalho ou no Painel, ele não está liberado para aquele acesso.</p>
+            </GuideItem>
+            <GuideItem title="7. Configurações — Ciça e Marcelo">
+              <p>Configurações é uma área de gestão. Ciça e Marcelo podem administrar acessos, permissões, boxes do Painel, colaboradores, backups e histórico. Ao alterar permissões, revise com cuidado quais módulos e boxes ficarão disponíveis para cada usuário.</p>
+            </GuideItem>
+            <GuideItem title="8. Backup e restauração">
+              <p>Faça backups periódicos pelo botão Baixar backup agora. Para restaurar, selecione um ZIP válido. Antes da restauração, o Portal gera automaticamente uma cópia do estado atual. Confirme sempre o arquivo e a data antes de prosseguir.</p>
+            </GuideItem>
+            <GuideItem title="9. Boas práticas de uso">
+              <p>Evite cadastros duplicados, confira unidade e datas antes de salvar e mantenha as observações objetivas. No celular, prefira os botões do próprio Portal e role horizontalmente os menus quando necessário. Se uma informação parecer desatualizada, atualize a página antes de repetir a operação.</p>
+            </GuideItem>
+          </div>
+        </section>
+      )}
     </div>
   );
 }

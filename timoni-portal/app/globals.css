@@ -12,3 +12,108 @@ body {
 section.border-blue-100.bg-blue-50 {
   display: none;
 }
+
+/* Regra Ciça — mobile compacto em todo o Portal Timoni.
+   Somente apresentação: não altera dados, regras, integrações ou permissões. */
+@media (max-width: 640px) {
+  html {
+    font-size: 13px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    overflow-x: hidden;
+  }
+
+  main {
+    padding: 0.65rem !important;
+  }
+
+  h1 {
+    font-size: 1.25rem !important;
+    line-height: 1.35 !important;
+    margin-bottom: 0.5rem !important;
+  }
+
+  h2 {
+    font-size: 1.05rem !important;
+    line-height: 1.35 !important;
+  }
+
+  h3 {
+    font-size: 0.95rem !important;
+    line-height: 1.35 !important;
+  }
+
+  p, label, li, td, th, input, select, textarea, button, a {
+    font-size: 0.82rem;
+  }
+
+  input, select, textarea {
+    min-height: 2.15rem;
+    padding: 0.4rem 0.55rem !important;
+  }
+
+  textarea {
+    min-height: 4.5rem;
+  }
+
+  button,
+  [role="button"] {
+    min-height: 2.05rem;
+    padding: 0.35rem 0.6rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .p-8 { padding: 0.75rem !important; }
+  .p-6 { padding: 0.7rem !important; }
+  .p-5 { padding: 0.65rem !important; }
+  .p-4 { padding: 0.6rem !important; }
+  .p-3 { padding: 0.5rem !important; }
+  .px-8 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+  .px-6 { padding-left: 0.7rem !important; padding-right: 0.7rem !important; }
+  .px-4 { padding-left: 0.6rem !important; padding-right: 0.6rem !important; }
+  .py-6 { padding-top: 0.7rem !important; padding-bottom: 0.7rem !important; }
+  .py-4 { padding-top: 0.6rem !important; padding-bottom: 0.6rem !important; }
+
+  .gap-8 { gap: 0.75rem !important; }
+  .gap-6 { gap: 0.7rem !important; }
+  .gap-5 { gap: 0.65rem !important; }
+  .gap-4 { gap: 0.6rem !important; }
+  .space-y-8 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.75rem !important; }
+  .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.7rem !important; }
+  .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: 0.6rem !important; }
+
+  .rounded-2xl,
+  .rounded-xl {
+    border-radius: 0.7rem !important;
+  }
+
+  table {
+    font-size: 0.76rem;
+  }
+
+  th, td {
+    padding: 0.4rem !important;
+  }
+
+  img, svg, video, canvas {
+    max-width: 100%;
+  }
+
+  /* Evita que caixas comuns forcem largura além do iPhone. */
+  main > *,
+  main section,
+  main article,
+  main form {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  /* Quando uma tabela realmente precisar exceder a tela, o movimento fica
+     restrito ao próprio bloco e não empurra o Portal inteiro para os lados. */
+  .overflow-x-auto {
+    max-width: calc(100vw - 1.3rem);
+    -webkit-overflow-scrolling: touch;
+  }
+}

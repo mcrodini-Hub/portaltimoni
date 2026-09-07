@@ -25,7 +25,7 @@ export function BrazilianDateInput({ value, onChange, className, ...props }: Dat
 export function BrazilianDateTimeInput({ value, onChange, className, disabled, required, ...props }: DateTimeInputProps) {
   const [date = "", time = ""] = value.split("T");
   return (
-    <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_7.5rem]">
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_6.75rem] gap-2">
       <BrazilianDateInput
         {...props}
         value={date}

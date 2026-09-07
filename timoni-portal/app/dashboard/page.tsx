@@ -30,8 +30,8 @@ export default async function DashboardPage() {
   }
   const visible = modules.filter((item) => hasModuleAccess(email, item.module, session?.portalUser) && isBoxVisible(email, item.module, session?.portalUser));
   return <div className="pb-3 sm:pb-4">
-    <header className="mb-3 sm:mb-6">
-      <div><h1 className="text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">Painel de Controle</h1><p className="mt-0.5 text-xs text-slate-600 sm:mt-1 sm:text-sm">Visão geral do que está acontecendo na Casa Timoni.</p></div>
+    <header className="mb-2 sm:mb-4">
+      <h1 className="text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">Painel de Controle</h1>
     </header>
     <DashboardOverviewClient
       modules={visible}

@@ -2,11 +2,10 @@
 
 import { useEffect } from "react";
 
-const hiddenTextFragments = [
+const commonHiddenTextFragments = [
   "módulo operacional",
   "escolha o fornecedor uma vez, filtre itens quando precisar e finalize o pedido",
   "fluxo rápido",
-  "casa timoni",
   "entregas, retiradas e bloqueios de horário em uma agenda única",
   "gestão e acompanhamento",
   "pautas, atas, apresentações e duas datas futuras por loja",
@@ -28,10 +27,14 @@ function normalizeText(value: string) {
 }
 
 function hideExplanatoryText(root: ParentNode) {
+  const pathname = window.location.pathname;
+  const fragments = [...commonHiddenTextFragments];
+  if (pathname.includes("/dashboard/motorista")) fragments.push("casa timoni");
+
   root.querySelectorAll<HTMLElement>("p, h2, h3, span").forEach((element) => {
     const text = normalizeText(element.textContent || "");
     if (!text) return;
-    const shouldHide = hiddenTextFragments.some((fragment) => text.includes(normalizeText(fragment)));
+    const shouldHide = fragments.some((fragment) => text.includes(normalizeText(fragment)));
     if (shouldHide) element.dataset.ctHiddenCopy = "true";
   });
 }

@@ -38,10 +38,7 @@ async function optimizeImage(file: File) {
     bitmap.close();
     const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.88));
     if (!blob || blob.size >= file.size) return file;
-    return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "imagem"}.jpg`, {
-      type: "image/jpeg",
-      lastModified: file.lastModified,
-    });
+    return new File([blob], `${file.name.replace(/\.[^.]+$/, "") || "imagem"}.jpg`, { type: "image/jpeg", lastModified: file.lastModified });
   } catch {
     return file;
   }
@@ -134,26 +131,25 @@ export default function ConferenciaPedidosClient() {
   const disabled = loading || geminiStatus !== "ready";
 
   return (
-    <div>
+    <div className="space-y-4">
       {geminiStatus === "missing" && (
-        <div className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 p-4">
-          <a href="/dashboard/conferencia-pedidos/configurar" target="_blank" rel="noreferrer"
-            className="inline-flex min-h-11 items-center rounded-xl bg-amber-700 px-5 text-sm font-semibold text-white hover:bg-amber-800">
-            Configurar agora
-          </a>
+        <div className="rounded-xl border border-amber-300 bg-amber-50 p-3">
+          <a href="/dashboard/conferencia-pedidos/configurar" target="_blank" rel="noreferrer" className="inline-flex items-center rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800">Configurar agora</a>
         </div>
       )}
 
-      <section className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-950">Insira os arquivos que serão conferidos</h2>
+      <section className="rounded-2xl border border-blue-200 bg-white p-4 shadow-sm">
+        <div className="flex items-start gap-3">
+          <div className="text-xl text-blue-700">📎</div>
+          <div className="min-w-0 flex-1">
+            <h2 className="font-semibold text-slate-950">Inserir arquivos</h2>
+            <p className="mt-1 text-sm text-slate-500">Envie os documentos que serão conferidos.</p>
+          </div>
+        </div>
+
         <div role="button" tabIndex={disabled ? -1 : 0} aria-disabled={disabled}
           onClick={() => !disabled && inputRef.current?.click()}
-          onKeyDown={(event) => {
-            if (!disabled && (event.key === "Enter" || event.key === " ")) {
-              event.preventDefault();
-              inputRef.current?.click();
-            }
-          }}
+          onKeyDown={(event) => { if (!disabled && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); inputRef.current?.click(); } }}
           onPaste={(event) => {
             if (disabled) return;
             const pasted = Array.from(event.clipboardData.items).map((item) => item.getAsFile()).filter((file): file is File => Boolean(file));
@@ -162,78 +158,59 @@ export default function ConferenciaPedidosClient() {
           onDragEnter={(event) => { event.preventDefault(); if (!disabled) setDragging(true); }}
           onDragOver={(event) => event.preventDefault()}
           onDragLeave={(event) => { event.preventDefault(); setDragging(false); }}
-          onDrop={(event) => {
-            event.preventDefault();
-            setDragging(false);
-            if (!disabled) addFiles(Array.from(event.dataTransfer.files));
-          }}
-          className={`mt-4 cursor-pointer rounded-2xl border-2 border-dashed px-5 py-10 text-center transition ${dragging ? "border-cyan-500 bg-cyan-50" : "border-slate-300 bg-slate-50 hover:border-cyan-400 hover:bg-cyan-50/50"} ${disabled ? "cursor-not-allowed opacity-60" : ""}`}>
-          <input ref={inputRef} type="file" multiple disabled={disabled}
-            accept=".pdf,image/jpeg,image/png,image/webp" className="hidden"
-            onChange={(event) => { if (event.target.files) addFiles(Array.from(event.target.files)); event.target.value = ""; }} />
-          <p className="font-semibold text-slate-800">Clique, arraste ou cole com Ctrl+V</p>
-          <p className="mt-2 text-sm text-slate-500">PDF, JPG, PNG ou WEBP — inclusive foto de anotação manuscrita</p>
+          onDrop={(event) => { event.preventDefault(); setDragging(false); if (!disabled) addFiles(Array.from(event.dataTransfer.files)); }}
+          className={`mt-3 cursor-pointer rounded-xl border-2 border-dashed px-4 py-6 text-center transition ${dragging ? "border-blue-500 bg-blue-50" : "border-blue-200 bg-slate-50 hover:border-blue-400 hover:bg-blue-50/50"} ${disabled ? "cursor-not-allowed opacity-60" : ""}`}>
+          <input ref={inputRef} type="file" multiple disabled={disabled} accept=".pdf,image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => { if (event.target.files) addFiles(Array.from(event.target.files)); event.target.value = ""; }} />
+          <p className="font-semibold text-blue-700">Clique, arraste ou cole com Ctrl+V</p>
+          <p className="mt-1 text-sm text-slate-500">PDF, JPG, PNG ou WEBP</p>
+          <p className="mt-1 text-xs text-slate-400">inclusive foto de anotação manuscrita</p>
         </div>
+      </section>
 
-        {files.length > 0 && (
-          <div className="mt-4 space-y-2">
+      <section className="rounded-2xl border border-blue-200 bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <h2 className="font-semibold text-slate-950">Arquivos adicionados</h2>
+          <span className="text-sm font-medium text-slate-500">{files.length} arquivo(s)</span>
+        </div>
+        {files.length === 0 ? (
+          <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-4 py-5 text-center text-sm text-slate-400">Nenhum arquivo selecionado.</div>
+        ) : (
+          <div className="mt-3 space-y-2">
             {files.map((file, index) => (
-              <div key={`${file.name}-${file.size}-${file.lastModified}-${index}`}
-                className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2.5">
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-800">{file.name}</p>
-                  <p className="text-xs text-slate-400">{fileSize(file.size)}</p>
-                </div>
-                <button type="button" disabled={loading}
-                  onClick={() => setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))}
-                  className="rounded-lg px-2 py-1 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50">
-                  Remover
-                </button>
+              <div key={`${file.name}-${file.size}-${file.lastModified}-${index}`} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2">
+                <div className="min-w-0"><p className="truncate text-sm font-medium text-slate-800">{file.name}</p><p className="text-xs text-slate-400">{fileSize(file.size)}</p></div>
+                <button type="button" disabled={loading} onClick={() => setFiles((current) => current.filter((_, itemIndex) => itemIndex !== index))} className="rounded-lg px-2 py-1 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50">Remover</button>
               </div>
             ))}
           </div>
         )}
       </section>
 
-      {error && <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">{error}</div>}
+      {error && <div className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">{error}</div>}
 
-      <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <button type="button" disabled={disabled || files.length < 2} onClick={submit}
-          className="min-h-12 rounded-xl bg-cyan-700 px-6 py-3 text-base font-semibold text-white hover:bg-cyan-800 disabled:cursor-not-allowed disabled:bg-slate-300">
-          {loading ? "Conferindo documentos..." : "Conferir e gerar Excel"}
-        </button>
-        {(files.length > 0 || result) && (
-          <button type="button" disabled={loading} onClick={reset}
-            className="min-h-12 rounded-xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">
-            Nova conferência
-          </button>
-        )}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <button type="button" disabled={disabled || files.length < 2} onClick={submit} className="w-full rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white hover:bg-blue-800 disabled:cursor-not-allowed disabled:bg-slate-300 sm:w-auto">{loading ? "Conferindo documentos..." : "Conferir e gerar Excel"}</button>
+        {(files.length > 0 || result) && <button type="button" disabled={loading} onClick={reset} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50">Nova conferência</button>}
         {status && <p className="text-sm font-medium text-slate-600">{status}</p>}
       </div>
 
+      <section className="rounded-2xl border border-blue-200 bg-white p-4 shadow-sm">
+        <div className="flex items-center gap-2"><span className="text-blue-700">ⓘ</span><h2 className="font-semibold text-blue-700">Informações</h2></div>
+        <ul className="mt-2 space-y-1 text-sm text-slate-600">
+          <li>• Você pode enviar vários arquivos de uma vez.</li>
+          <li>• Formatos aceitos: PDF, JPG, PNG e WEBP.</li>
+          <li>• Após a conferência, será gerado um arquivo Excel com o resultado.</li>
+        </ul>
+      </section>
+
       {result && (
-        <section className="mt-7 rounded-3xl border border-emerald-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Conferência concluída</p>
-              <h2 className="mt-2 text-2xl font-semibold text-slate-950">
-                Pedido {result.pedido_numero || "não identificado"} — {result.fornecedor_curto || result.fornecedor_nome}
-              </h2>
-            </div>
-            <button type="button" onClick={() => downloadWorkbook(result)}
-              className="rounded-xl bg-emerald-700 px-5 py-3 text-sm font-semibold text-white hover:bg-emerald-800">
-              Baixar Excel novamente
-            </button>
+        <section className="rounded-2xl border border-emerald-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+            <div><p className="text-xs font-semibold uppercase tracking-wider text-emerald-700">Conferência concluída</p><h2 className="mt-1 font-semibold text-slate-950">Pedido {result.pedido_numero || "não identificado"} — {result.fornecedor_curto || result.fornecedor_nome}</h2></div>
+            <button type="button" onClick={() => downloadWorkbook(result)} className="rounded-xl bg-emerald-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-800">Baixar Excel novamente</button>
           </div>
-          <p className="mt-5 whitespace-pre-line rounded-2xl bg-slate-50 p-4 text-base leading-7 text-slate-700">{result.resumo_texto}</p>
-          {result.pontos_atencao.length > 0 && (
-            <div className="mt-5">
-              <h3 className="font-semibold text-rose-700">Pontos de atenção</h3>
-              <ol className="mt-2 space-y-2 text-sm text-slate-800">
-                {result.pontos_atencao.map((point, index) => <li key={`${point}-${index}`}>{index + 1}. {point}</li>)}
-              </ol>
-            </div>
-          )}
+          <p className="mt-4 whitespace-pre-line rounded-xl bg-slate-50 p-3 text-sm leading-6 text-slate-700">{result.resumo_texto}</p>
+          {result.pontos_atencao.length > 0 && <div className="mt-4"><h3 className="font-semibold text-rose-700">Pontos de atenção</h3><ol className="mt-2 space-y-1 text-sm text-slate-800">{result.pontos_atencao.map((point, index) => <li key={`${point}-${index}`}>{index + 1}. {point}</li>)}</ol></div>}
         </section>
       )}
     </div>

@@ -29,9 +29,9 @@ export default async function DashboardPage() {
     redirect("/colaboradores");
   }
   const visible = modules.filter((item) => hasModuleAccess(email, item.module, session?.portalUser) && isBoxVisible(email, item.module, session?.portalUser));
-  return <div className="pb-4">
-    <header className="mb-6">
-      <div><h1 className="text-2xl font-semibold tracking-tight text-slate-950">Painel de Controle</h1><p className="mt-1 text-sm text-slate-600">Visão geral do que está acontecendo na Casa Timoni.</p></div>
+  return <div className="pb-3 sm:pb-4">
+    <header className="mb-3 sm:mb-6">
+      <div><h1 className="text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">Painel de Controle</h1><p className="mt-0.5 text-xs text-slate-600 sm:mt-1 sm:text-sm">Visão geral do que está acontecendo na Casa Timoni.</p></div>
     </header>
     <DashboardOverviewClient
       modules={visible}

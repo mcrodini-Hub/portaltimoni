@@ -10,34 +10,26 @@ section.border-blue-100.bg-blue-50 { display:none; }
 [data-ct-collapsible="true"] { cursor:pointer; }
 [data-ct-always-visible="true"] { display:inline-flex!important; }
 
-/* Regra Ciça: todo o Portal segue a densidade e a escala visual do Painel. */
+/* Regra Ciça: todo o Portal segue o padrão visual aprovado, com fonte mobile menor. */
 @media (max-width:640px){
- html{font-size:13px;-webkit-text-size-adjust:100%}
+ html{font-size:12.5px;-webkit-text-size-adjust:100%}
  body{overflow-x:hidden}
  main{padding:.65rem!important}
- h1{font-size:1.25rem!important;line-height:1.3!important;margin-bottom:.45rem!important}
- h2{font-size:1.05rem!important;line-height:1.3!important}
- h3{font-size:.95rem!important;line-height:1.3!important}
- p,label,li,td,th,input,select,textarea,button,a{font-size:.82rem}
- input,select,textarea{min-height:2.1rem;padding:.38rem .52rem!important}
- textarea{min-height:4.25rem}
- button,[role="button"]{min-height:2.05rem;padding:.35rem .6rem!important;line-height:1.15!important}
+ h1{font-size:1.18rem!important;line-height:1.28!important;margin-bottom:.4rem!important}
+ h2{font-size:1rem!important;line-height:1.3!important}
+ h3{font-size:.92rem!important;line-height:1.3!important}
+ p,label,li,td,th,input,select,textarea,button,a{font-size:.78rem}
+ input,select,textarea{min-height:2.05rem;padding:.36rem .5rem!important}
+ textarea{min-height:4.1rem}
+ button,[role="button"]{min-height:2rem;padding:.33rem .56rem!important;line-height:1.15!important}
  .p-8{padding:.75rem!important}.p-6{padding:.7rem!important}.p-5{padding:.65rem!important}.p-4{padding:.6rem!important}.p-3{padding:.5rem!important}
  .px-8{padding-left:.75rem!important;padding-right:.75rem!important}.px-6{padding-left:.7rem!important;padding-right:.7rem!important}.px-4{padding-left:.6rem!important;padding-right:.6rem!important}
  .py-6{padding-top:.7rem!important;padding-bottom:.7rem!important}.py-4{padding-top:.6rem!important;padding-bottom:.6rem!important}
  .gap-8{gap:.75rem!important}.gap-6{gap:.7rem!important}.gap-5{gap:.65rem!important}.gap-4{gap:.6rem!important}
  .space-y-8>:not([hidden])~:not([hidden]){margin-top:.75rem!important}.space-y-6>:not([hidden])~:not([hidden]){margin-top:.7rem!important}.space-y-4>:not([hidden])~:not([hidden]){margin-top:.6rem!important}
  .rounded-3xl,.rounded-2xl,.rounded-xl{border-radius:.7rem!important}
- table{font-size:.76rem}th,td{padding:.4rem!important}
+ table{font-size:.72rem}th,td{padding:.38rem!important}
  img,svg,video,canvas{max-width:100%}
  main>*,main section,main article,main form{max-width:100%;min-width:0}
  .overflow-x-auto{max-width:calc(100vw - 1.3rem);-webkit-overflow-scrolling:touch}
-
- /* Conferência: elimina o aspecto grande/grosseiro e traz para a escala do Painel. */
- body:has(form[action*="conferencia"]) main section,
- body:has(a[href*="conferencia"]) main section{padding:.65rem!important;border-radius:.7rem!important}
- body:has(form[action*="conferencia"]) main button,
- body:has(a[href*="conferencia"]) main button{min-height:2.15rem!important;font-size:.82rem!important}
- body:has(form[action*="conferencia"]) main input,
- body:has(a[href*="conferencia"]) main input{font-size:.82rem!important}
 }

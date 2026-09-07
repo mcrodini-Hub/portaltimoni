@@ -24,8 +24,11 @@ function normalizeEmail(value?: string | null) {
 }
 
 function allowedUnit(email: string, portalUser?: PortalUser | null) {
-  if (portalUser?.unit) return portalUser.unit;
+  // Ciça e Marcelo são sempre gestão geral. Essa regra vem antes da unidade
+  // salva na configuração para evitar que um valor antigo de sessão/planilha
+  // filtre as leituras já registradas de uma das lojas.
   if (MANAGEMENT_EMAILS.has(email)) return "geral";
+  if (portalUser?.unit) return portalUser.unit;
   return ARARAS_EMAILS.has(email) ? "Araras" : "Rio Claro";
 }
 

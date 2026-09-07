@@ -13,6 +13,23 @@ section.border-blue-100.bg-blue-50 {
   display: none;
 }
 
+[data-ct-hidden-copy="true"],
+[data-ct-store-filter="true"] {
+  display: none !important;
+}
+
+[data-ct-card-detail="true"] {
+  display: none !important;
+}
+
+[data-ct-collapsible="true"][data-ct-expanded="true"] [data-ct-card-detail="true"] {
+  display: block !important;
+}
+
+[data-ct-collapsible="true"] {
+  cursor: pointer;
+}
+
 /* Regra Ciça — mobile compacto em todo o Portal Timoni.
    Somente apresentação: não altera dados, regras, integrações ou permissões. */
 @media (max-width: 640px) {
@@ -101,7 +118,6 @@ section.border-blue-100.bg-blue-50 {
     max-width: 100%;
   }
 
-  /* Evita que caixas comuns forcem largura além do iPhone. */
   main > *,
   main section,
   main article,
@@ -110,8 +126,6 @@ section.border-blue-100.bg-blue-50 {
     min-width: 0;
   }
 
-  /* Quando uma tabela realmente precisar exceder a tela, o movimento fica
-     restrito ao próprio bloco e não empurra o Portal inteiro para os lados. */
   .overflow-x-auto {
     max-width: calc(100vw - 1.3rem);
     -webkit-overflow-scrolling: touch;

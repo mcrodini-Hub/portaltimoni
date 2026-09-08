@@ -3,6 +3,7 @@ import { hasModuleAccess } from "@/lib/access-control";
 import { cookies } from "next/headers";
 import { recordModuleUpdateSafely } from "@/lib/module-updates";
 import { NextResponse } from "next/server";
+import * as XLSX from "xlsx";
 
 export const runtime = "nodejs";
 export const maxDuration = 120;
@@ -10,6 +11,7 @@ export const dynamic = "force-dynamic";
 
 const MAX_FILES = 16;
 const MAX_TOTAL_BYTES = 4_200_000;
+const MAX_SPREADSHEET_TEXT_CHARS = 180_000;
 const GEMINI_MODELS = ["gemini-flash-latest", "gemini-3.1-flash-lite"] as const;
 const RETRYABLE_GEMINI_STATUS = new Set([408, 429, 500, 502, 503, 504]);
 const ALLOWED_TYPES = new Set([
@@ -17,7 +19,10 @@ const ALLOWED_TYPES = new Set([
   "image/jpeg",
   "image/png",
   "image/webp",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
 ]);
+const EXCEL_EXTENSIONS = new Set(["xls", "xlsx"]);
 
 const ALLOWED_DIVERGENCES = new Set([
   "preco",
@@ -96,7 +101,7 @@ const RESPONSE_TEMPLATE = {
 const INSTRUCTIONS = `
 Você é o motor de conferência de pedidos da Casa Timoni.
 Receba todos os arquivos em um único conjunto. Identifique automaticamente quais são pedidos MCR/Rodini (documentos-base) e quais são documentos do fornecedor; então compare os grupos identificados.
-Use conteúdo, cabeçalhos, razão social, números do pedido e estrutura das tabelas para classificar. Os arquivos podem ser PDFs, fotos, prints de tela ou imagens manuscritas. Leia também caligrafia e anotações feitas à mão.
+Use conteúdo, cabeçalhos, razão social, números do pedido e estrutura das tabelas para classificar. Os arquivos podem ser PDFs, planilhas Excel, fotos, prints de tela ou imagens manuscritas. Em planilhas, examine todas as abas e linhas fornecidas. Leia também caligrafia e anotações feitas à mão.
 
 REGRAS OBRIGATÓRIAS
 1. O pedido MCR/Rodini é sempre o documento-base.
@@ -137,20 +142,53 @@ function getFiles(formData: FormData, key: string) {
   return formData.getAll(key).filter(isFile).filter((file) => file.size > 0);
 }
 
+function fileExtension(file: File) {
+  return file.name.split(".").pop()?.toLowerCase() || "";
+}
+
+function isSpreadsheet(file: File) {
+  return EXCEL_EXTENSIONS.has(fileExtension(file));
+}
+
+function isAllowedFile(file: File) {
+  return ALLOWED_TYPES.has(file.type) || isSpreadsheet(file);
+}
+
 function validateFiles(files: File[]) {
   if (files.length < 2) throw new Error("Insira pelo menos dois arquivos para comparar.");
   if (files.length > MAX_FILES) {
     throw new Error(`Máximo de ${MAX_FILES} arquivos por conferência.`);
   }
   for (const file of files) {
-    if (!ALLOWED_TYPES.has(file.type)) {
-      throw new Error(`${file.name}: formato não aceito. Use PDF, JPG, PNG ou WEBP.`);
+    if (!isAllowedFile(file)) {
+      throw new Error(`${file.name}: formato não aceito. Use PDF, JPG, PNG, WEBP, XLSX ou XLS.`);
     }
   }
 }
 
 async function fileToPart(file: File) {
   const bytes = Buffer.from(await file.arrayBuffer());
+  if (isSpreadsheet(file)) {
+    let workbook: XLSX.WorkBook;
+    try {
+      workbook = XLSX.read(bytes, { type: "buffer", cellDates: true });
+    } catch {
+      throw new Error(`${file.name}: não foi possível ler a planilha. Verifique se o arquivo Excel não está corrompido ou protegido por senha.`);
+    }
+
+    const worksheets = workbook.SheetNames.map((sheetName) => {
+      const worksheet = workbook.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_csv(worksheet, { FS: "\t", blankrows: false });
+      return `ABA: ${sheetName}\n${rows || "(aba vazia)"}`;
+    }).join("\n\n");
+
+    if (worksheets.length > MAX_SPREADSHEET_TEXT_CHARS) {
+      throw new Error(`${file.name}: a planilha contém dados demais para uma conferência segura. Remova abas ou linhas que não fazem parte do pedido.`);
+    }
+
+    return { text: `CONTEÚDO DA PLANILHA EXCEL\n${worksheets}` };
+  }
+
   return {
     inlineData: {
       mimeType: file.type,
@@ -365,7 +403,7 @@ export async function POST(request: Request) {
     );
     if (totalBytes > MAX_TOTAL_BYTES) {
       throw new Error(
-        "Os arquivos ultrapassam 4,2 MB. Reduza o tamanho das imagens ou envie menos páginas por vez.",
+        "Os arquivos ultrapassam 4,2 MB. Reduza o tamanho ou envie menos arquivos por vez.",
       );
     }
 

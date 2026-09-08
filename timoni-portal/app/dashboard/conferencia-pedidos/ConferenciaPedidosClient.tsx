@@ -3,7 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type ConferenciaResult, downloadWorkbook } from "./xlsx";
 
-const ACCEPTED_TYPES = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
+const ACCEPTED_TYPES = new Set([
+  "application/pdf",
+  "image/jpeg",
+  "image/png",
+  "image/webp",
+  "application/vnd.ms-excel",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+]);
+const EXCEL_EXTENSIONS = new Set(["xls", "xlsx"]);
 const MAX_FILES = 16;
 const MAX_TOTAL_BYTES = 4_200_000;
 
@@ -20,6 +28,11 @@ function uniqueFiles(current: File[], incoming: File[]) {
     seen.add(key);
     return true;
   })];
+}
+
+function isAcceptedFile(file: File) {
+  const extension = file.name.split(".").pop()?.toLowerCase() || "";
+  return ACCEPTED_TYPES.has(file.type) || EXCEL_EXTENSIONS.has(extension);
 }
 
 async function optimizeImage(file: File) {
@@ -76,8 +89,8 @@ export default function ConferenciaPedidosClient() {
 
   function addFiles(incoming: File[]) {
     setError("");
-    const invalid = incoming.find((file) => !ACCEPTED_TYPES.has(file.type));
-    if (invalid) return setError(`${invalid.name}: use PDF, JPG, PNG ou WEBP.`);
+    const invalid = incoming.find((file) => !isAcceptedFile(file));
+    if (invalid) return setError(`${invalid.name}: use PDF, JPG, PNG, WEBP, XLSX ou XLS.`);
     setFiles((current) => {
       const next = uniqueFiles(current, incoming);
       if (next.length > MAX_FILES) {
@@ -101,7 +114,7 @@ export default function ConferenciaPedidosClient() {
     try {
       const optimized = await Promise.all(files.map(optimizeImage));
       if (optimized.reduce((sum, file) => sum + file.size, 0) > MAX_TOTAL_BYTES) {
-        throw new Error("Os arquivos ultrapassam 4,2 MB. Reduza o PDF ou envie menos imagens.");
+        throw new Error("Os arquivos ultrapassam 4,2 MB. Reduza o tamanho ou envie menos arquivos.");
       }
       const formData = new FormData();
       optimized.forEach((file) => formData.append("arquivos", file));
@@ -160,9 +173,9 @@ export default function ConferenciaPedidosClient() {
           onDragLeave={(event) => { event.preventDefault(); setDragging(false); }}
           onDrop={(event) => { event.preventDefault(); setDragging(false); if (!disabled) addFiles(Array.from(event.dataTransfer.files)); }}
           className={`mt-3 cursor-pointer rounded-xl border-2 border-dashed px-4 py-6 text-center transition ${dragging ? "border-blue-500 bg-blue-50" : "border-blue-200 bg-slate-50 hover:border-blue-400 hover:bg-blue-50/50"} ${disabled ? "cursor-not-allowed opacity-60" : ""}`}>
-          <input ref={inputRef} type="file" multiple disabled={disabled} accept=".pdf,image/jpeg,image/png,image/webp" className="hidden" onChange={(event) => { if (event.target.files) addFiles(Array.from(event.target.files)); event.target.value = ""; }} />
+          <input ref={inputRef} type="file" multiple disabled={disabled} accept=".pdf,.jpg,.jpeg,.png,.webp,.xlsx,.xls,application/pdf,image/jpeg,image/png,image/webp,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" className="hidden" onChange={(event) => { if (event.target.files) addFiles(Array.from(event.target.files)); event.target.value = ""; }} />
           <p className="font-semibold text-blue-700">Clique, arraste ou cole com Ctrl+V</p>
-          <p className="mt-1 text-sm text-slate-500">PDF, JPG, PNG ou WEBP</p>
+          <p className="mt-1 text-sm text-slate-500">PDF, imagens ou Excel (XLSX/XLS)</p>
           <p className="mt-1 text-xs text-slate-400">inclusive foto de anotação manuscrita</p>
         </div>
       </section>
@@ -198,7 +211,7 @@ export default function ConferenciaPedidosClient() {
         <div className="flex items-center gap-2"><span className="text-blue-700">ⓘ</span><h2 className="font-semibold text-blue-700">Informações</h2></div>
         <ul className="mt-2 space-y-1 text-sm text-slate-600">
           <li>• Você pode enviar vários arquivos de uma vez.</li>
-          <li>• Formatos aceitos: PDF, JPG, PNG e WEBP.</li>
+          <li>• Formatos aceitos: PDF, JPG, PNG, WEBP, XLSX e XLS.</li>
           <li>• Após a conferência, será gerado um arquivo Excel com o resultado.</li>
         </ul>
       </section>

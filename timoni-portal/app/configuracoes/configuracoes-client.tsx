@@ -76,7 +76,10 @@ export default function ConfiguracoesClient() {
     }
   }
 
-  useEffect(() => { void load(); }, []);
+  useEffect(() => {
+    if (window.location.hash === "#guia") setTab("guia");
+    void load();
+  }, []);
 
   const activeUsers = data.users.filter((user) => user.active !== false).length;
   const activeCollaborators = data.collaborators.filter((member) => member.active).length;
@@ -251,8 +254,19 @@ export default function ConfiguracoesClient() {
             <GuideItem title="6. Reuniões e demais módulos">
               <p>Use cada módulo apenas para a finalidade indicada no Portal. Os conteúdos e botões disponíveis variam conforme a permissão do usuário. Quando um módulo não aparecer no cabeçalho ou no Painel, ele não está liberado para aquele acesso.</p>
             </GuideItem>
-            <GuideItem title="7. Configurações — Ciça e Marcelo">
-              <p>Configurações é uma área de gestão. Ciça e Marcelo podem administrar acessos, permissões, boxes do Painel, colaboradores, backups e histórico. Ao alterar permissões, revise com cuidado quais módulos e boxes ficarão disponíveis para cada usuário.</p>
+            <GuideItem title="7. Configurações — permissões">
+              <p>Configurações é uma área de gestão.</p>
+              <p><strong>Acesso dos administradores</strong></p>
+              <p>Os administradores do Portal têm acesso às seguintes funcionalidades:</p>
+              <ul className="list-disc space-y-1 pl-5">
+                <li>Gerenciar colaboradores e acessos.</li>
+                <li>Configurar módulos e permissões.</li>
+                <li>Realizar backups e restauração de dados.</li>
+                <li>Consultar o histórico de ações.</li>
+                <li>Acessar e editar o Guia de uso.</li>
+                <li>Acessar todas as informações e módulos do Painel.</li>
+              </ul>
+              <p>O nível de acesso e as permissões de cada usuário podem variar conforme a necessidade da função. Ao alterar permissões, revise com cuidado quais módulos e boxes ficarão disponíveis para cada usuário.</p>
             </GuideItem>
             <GuideItem title="8. Backup e restauração">
               <p>Faça backups periódicos pelo botão Baixar backup agora. Para restaurar, selecione um ZIP válido. Antes da restauração, o Portal gera automaticamente uma cópia do estado atual. Confirme sempre o arquivo e a data antes de prosseguir.</p>

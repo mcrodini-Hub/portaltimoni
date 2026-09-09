@@ -32,10 +32,8 @@ export const TEAM_MEMBERS: TeamMember[] = [
 ];
 
 const ARARAS_AVISO_MEMBERS = new Set([
-  "Carol",
   "Lucas",
   "Lyra",
-  "Margareth",
   "Paulo",
   "Reginaldo",
   "Reinaldo",

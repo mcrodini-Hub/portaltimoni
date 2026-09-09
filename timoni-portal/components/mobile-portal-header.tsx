@@ -62,8 +62,7 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, init
         <PortalIcon name="menu" className="h-7 w-7" />
       </button>
       <Link href="/dashboard" className="flex flex-col items-center leading-none" aria-label="Casa Timoni — Painel">
-        <svg viewBox="0 0 90 22" className="mb-0.5 h-4 w-20" fill="none" aria-hidden="true"><path d="M2 20 44 3l42 17M24 14l20-8 20 8" stroke="currentColor" strokeWidth="2"/></svg>
-        <span className="text-[1.35rem] font-light tracking-[.08em]">CASA TIMONI</span>
+        <span className="text-[1.35rem] font-bold tracking-[.08em]">CASA TIMONI</span>
       </Link>
       <div className="flex items-center justify-end">
         <button type="button" onClick={() => setOpen(true)} className="relative flex h-10 w-10 items-center justify-center rounded-xl" aria-label={total ? `${total} atualizações` : "Abrir notificações"}>
@@ -79,8 +78,7 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, init
       <aside className="absolute inset-y-0 left-0 flex w-[84%] max-w-[22rem] flex-col bg-white shadow-2xl">
         <div className="flex h-[6.3rem] items-center justify-between border-b border-slate-100 px-5">
           <Link href="/dashboard" onClick={() => setOpen(false)} className="flex flex-col items-center text-[#084a8e]" aria-label="Casa Timoni — Painel">
-            <svg viewBox="0 0 90 22" className="h-4 w-20" fill="none" aria-hidden="true"><path d="M2 20 44 3l42 17M24 14l20-8 20 8" stroke="currentColor" strokeWidth="2"/></svg>
-            <span className="text-[1.2rem] font-light tracking-[.08em]">CASA TIMONI</span>
+            <span className="text-[1.2rem] font-bold tracking-[.08em]">CASA TIMONI</span>
           </Link>
           <button type="button" onClick={() => setOpen(false)} className="flex h-10 w-10 items-center justify-center text-slate-800" aria-label="Fechar menu"><PortalIcon name="close" className="h-6 w-6" /></button>
         </div>

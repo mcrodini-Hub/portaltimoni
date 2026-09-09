@@ -1,12 +1,13 @@
 "use client";
 
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import PortalIcon, { type PortalIconName } from "@/components/portal-icon";
 import type { UpdateModule } from "@/lib/module-updates";
 
-type MobileNavItem = { href: string; label: string; updateModule?: UpdateModule; icon: PortalIconName; color: string };
+type MobileNavItem = { href: string; targetHref?: string; label: string; updateModule?: UpdateModule; icon: PortalIconName; color: string };
 type PendingUpdate = { module: UpdateModule; count: number; latestAt: string };
 
 export default function MobilePortalHeader({ items, showUpdates, showGuide, initials }: { items: MobileNavItem[]; showUpdates: boolean; showGuide: boolean; initials: string }) {
@@ -33,6 +34,15 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, init
     return () => window.clearInterval(interval);
   }, [load]);
 
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") setOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => { document.body.style.overflow = previousOverflow; window.removeEventListener("keydown", onKey); };
+  }, [open]);
+
   const total = useMemo(() => Object.values(updates).reduce((sum, item) => sum + item.count, 0), [updates]);
 
   async function openItem(item: MobileNavItem) {
@@ -57,12 +67,12 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, init
   }
 
   return <>
-    <div className="grid h-[4.65rem] grid-cols-[5rem_1fr_5rem] items-center bg-gradient-to-r from-[#083f82] to-[#0875bd] px-3 text-white sm:hidden">
-      <button type="button" onClick={() => setOpen(true)} className="flex h-11 w-11 items-center justify-center rounded-xl" aria-label="Abrir menu">
+    <div className="portal-mobile-header grid h-[4.65rem] grid-cols-[3rem_1fr_auto] items-center bg-[#0F2D8F] px-3 text-white sm:hidden">
+      <button type="button" onClick={() => setOpen(true)} className="flex h-11 w-11 items-center justify-center rounded-xl" aria-label="Abrir menu" aria-expanded={open} aria-controls="portal-mobile-menu">
         <PortalIcon name="menu" className="h-7 w-7" />
       </button>
-      <Link href="/dashboard" className="flex flex-col items-center leading-none" aria-label="Casa Timoni — Painel">
-        <span className="text-[1.35rem] font-bold tracking-[.08em]">CASA TIMONI</span>
+      <Link href="/dashboard" className="flex items-center justify-start leading-none" aria-label="Casa Timoni — Painel">
+        <span className="text-lg font-bold tracking-tight">Casa Timoni</span>
       </Link>
       <div className="flex items-center justify-end">
         <button type="button" onClick={() => setOpen(true)} className="relative flex h-10 w-10 items-center justify-center rounded-xl" aria-label={total ? `${total} atualizações` : "Abrir notificações"}>
@@ -73,19 +83,19 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, init
       </div>
     </div>
 
-    {open ? <div className="fixed inset-0 z-[80] sm:hidden" role="dialog" aria-modal="true" aria-label="Menu principal">
+    {open ? createPortal(<div id="portal-mobile-menu" className="fixed inset-0 z-[80] sm:hidden" role="dialog" aria-modal="true" aria-label="Menu principal">
       <button type="button" className="absolute inset-0 bg-slate-950/60" onClick={() => setOpen(false)} aria-label="Fechar menu" />
       <aside className="absolute inset-y-0 left-0 flex w-[84%] max-w-[22rem] flex-col bg-white shadow-2xl">
         <div className="flex h-[6.3rem] items-center justify-between border-b border-slate-100 px-5">
-          <Link href="/dashboard" onClick={() => setOpen(false)} className="flex flex-col items-center text-[#084a8e]" aria-label="Casa Timoni — Painel">
-            <span className="text-[1.2rem] font-bold tracking-[.08em]">CASA TIMONI</span>
+          <Link href="/dashboard" onClick={() => setOpen(false)} className="flex items-center text-[#0F2D8F]" aria-label="Casa Timoni — Painel">
+            <span className="text-lg font-bold tracking-tight">Casa Timoni</span>
           </Link>
           <button type="button" onClick={() => setOpen(false)} className="flex h-10 w-10 items-center justify-center text-slate-800" aria-label="Fechar menu"><PortalIcon name="close" className="h-6 w-6" /></button>
         </div>
         <nav className="flex-1 overflow-y-auto px-4 py-3" aria-label="Menu mobile">
           {items.map((item, index) => {
             const pending = item.updateModule ? updates[item.updateModule] : undefined;
-            return <Link key={`${item.label}-${index}`} href={item.href} onClick={() => void openItem(item)} className={`flex min-h-12 items-center gap-4 rounded-xl px-3 text-[1.05rem] font-medium text-slate-900 ${index === 0 ? "bg-blue-50" : ""}`}>
+            return <Link key={`${item.label}-${index}`} href={item.targetHref ?? item.href} onClick={() => void openItem(item)} className={`flex min-h-12 items-center gap-4 rounded-xl px-3 text-[1.05rem] font-medium text-slate-900 ${index === 0 ? "bg-blue-50" : ""}`}>
               <span className={item.color}><PortalIcon name={item.icon} className="h-6 w-6" /></span>
               <span className="min-w-0 flex-1 truncate">{item.label}</span>
               {pending ? <span className="min-w-7 rounded-full bg-red-500 px-2 text-center text-xs font-bold leading-7 text-white">{pending.count}</span> : null}
@@ -96,6 +106,6 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, init
           <button type="button" onClick={() => void signOut({ callbackUrl: "/login" })} className="mt-2 flex min-h-14 w-full items-center gap-4 border-b border-slate-200 px-3 text-left text-[1.05rem] font-medium text-slate-900"><PortalIcon name="logout" className="h-6 w-6"/><span>Sair</span></button>
         </nav>
       </aside>
-    </div> : null}
+    </div>, document.body) : null}
   </>;
 }

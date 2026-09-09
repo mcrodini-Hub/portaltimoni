@@ -48,7 +48,7 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
   const initials = email.trim().toLowerCase() === "mcrodini@gmail.com" ? "CR" : email.trim().toLowerCase() === "mrodini@gmail.com" ? "MR" : "CT";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-blue-950/50 bg-[#0b1f5e] text-white shadow-sm">
+    <header className="sticky top-0 z-40 border-b border-blue-950/50 bg-[#0F2D8F] text-white shadow-sm">
       <MobilePortalHeader items={mobileItems} showUpdates={canViewUpdates} showGuide={isManagement} initials={initials} />
       <div className="mx-auto hidden max-w-7xl flex-wrap items-center justify-between gap-x-3 px-4 sm:flex sm:flex-nowrap sm:gap-3 sm:px-6">
         {directPainelTimoniAccess ? (

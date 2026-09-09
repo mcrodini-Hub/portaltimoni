@@ -43,3 +43,14 @@ section.border-blue-100.bg-blue-50 { display:none; }
  main>*,main section,main article,main form{max-width:100%;min-width:0}
  .overflow-x-auto{max-width:calc(100vw - 1.3rem);-webkit-overflow-scrolling:touch}
 }
+
+/* O painel mobile replica a referência web sem alterar as telas dos módulos. */
+@media (max-width: 639px) {
+  .portal-dashboard h1 { font-size: 20px!important; }
+  .portal-dashboard section > a { min-height: 140px; padding: 16px!important; }
+  .portal-dashboard section > a p:first-child { font-size: 16px; }
+  .portal-dashboard section > a p + p { font-size: 28px; }
+  .portal-mobile-header button, #portal-mobile-menu button { min-height: 44px; min-width: 44px; }
+  .portal-mobile-header a > span, #portal-mobile-menu a[aria-label] > span { font-size: 18px; }
+  #portal-mobile-menu nav a, #portal-mobile-menu nav button { min-height: 44px; font-size: 15px; }
+}

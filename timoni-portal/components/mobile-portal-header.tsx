@@ -95,7 +95,7 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, init
         <nav className="flex-1 overflow-y-auto px-4 py-3" aria-label="Menu mobile">
           {items.map((item, index) => {
             const pending = item.updateModule ? updates[item.updateModule] : undefined;
-            return <Link key={`${item.label}-${index}`} href={item.targetHref ?? item.href} onClick={() => void openItem(item)} className={`flex min-h-12 items-center gap-4 rounded-xl px-3 text-[1.05rem] font-medium text-slate-900 ${index === 0 ? "bg-blue-50" : ""}`}>
+            return <Link key={`${item.label}-${index}`} href={item.targetHref ?? item.href} onClick={() => void openItem(item)} className={`flex min-h-12 items-center gap-4 rounded-xl px-3 text-[1.05rem] font-medium text-slate-900 ${(item.targetHref ?? item.href) === "/dashboard" ? "bg-blue-50" : ""}`}>
               <span className={item.color}><PortalIcon name={item.icon} className="h-6 w-6" /></span>
               <span className="min-w-0 flex-1 truncate">{item.label}</span>
               {pending ? <span className="min-w-7 rounded-full bg-red-500 px-2 text-center text-xs font-bold leading-7 text-white">{pending.count}</span> : null}

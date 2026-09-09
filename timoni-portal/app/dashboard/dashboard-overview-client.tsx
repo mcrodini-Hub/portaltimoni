@@ -106,10 +106,10 @@ export default function DashboardOverviewClient({ modules, motoristaControle, es
 
   const desktopCards = [
     ...(allowed.has("agenda") ? [["Agenda", "/agenda", "📅", snapshot.agenda] as const] : []),
-    ...(allowed.has("motorista") ? [["Motorista", motoristaControle ? "/dashboard/motorista" : "/dashboard/motorista-leitura", "🚚", snapshot.motorista] as const] : []),
     ...(allowed.has("compras") ? [["Compras", "/dashboard/compras", "🛒", snapshot.compras] as const] : []),
-    ...(allowed.has("leads") ? [["Leads", "/dashboard/leads", "🎯", snapshot.leads] as const] : []),
     ...(allowed.has("estoque") ? [["Estoque", "/dashboard/estoque", "📦", snapshot.solicitacoes] as const] : []),
+    ...(allowed.has("leads") ? [["Leads", "/dashboard/leads", "🎯", snapshot.leads] as const] : []),
+    ...(allowed.has("motorista") ? [["Motorista", motoristaControle ? "/dashboard/motorista" : "/dashboard/motorista-leitura", "🚚", snapshot.motorista] as const] : []),
   ];
 
   return <>

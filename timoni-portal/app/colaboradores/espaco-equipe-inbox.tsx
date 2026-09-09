@@ -48,7 +48,15 @@ export default async function EspacoEquipeInbox({ accessToken }: { accessToken?:
       </div>
 
       <div className="mt-5 border-t border-blue-200 pt-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Mensagens recebidas</p>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Mensagens recebidas</p>
+          <a
+            href="/api/espaco-equipe/planilha"
+            className="inline-flex min-h-10 items-center justify-center rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-800 shadow-sm transition hover:bg-blue-50"
+          >
+            Baixar planilha para pauta
+          </a>
+        </div>
       </div>
 
       {messages.length ? (

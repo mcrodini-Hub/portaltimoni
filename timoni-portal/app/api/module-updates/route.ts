@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { hasModuleAccess } from "@/lib/access-control";
 import { auth } from "@/lib/auth";
 import {
   isUpdateModule,
@@ -14,7 +15,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MANAGEMENT_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
-const VISIBLE_NOTIFICATION_MODULES = new Set(["estoque", "compras", "leads"]);
+const VISIBLE_NOTIFICATION_MODULES = new Set(["estoque", "compras", "leads", "motorista", "agenda"]);
 const NOTIFICATION_BASELINE_VERSION = "2026-09-03-estoque-compras-v1";
 
 async function managementSession() {
@@ -31,10 +32,12 @@ export async function GET() {
   }
 
   try {
-    const [messages, noticeReads] = await Promise.all([
+    const [messageResult, noticeResult] = await Promise.allSettled([
       listTeamMessages(current.session.accessToken),
       listAvisoLeituras(current.session.accessToken ?? ""),
     ]);
+    const messages = messageResult.status === "fulfilled" ? messageResult.value : [];
+    const noticeReads = noticeResult.status === "fulfilled" ? noticeResult.value : [];
     await Promise.all([
       ...messages
         .filter((item) => (item.status || "Novo").toLowerCase() === "novo")
@@ -53,7 +56,7 @@ export async function GET() {
     ]);
     await initializeModuleUpdateBaseline(current.email, NOTIFICATION_BASELINE_VERSION);
     const updates = (await listPendingModuleUpdates(current.email))
-      .filter((item) => VISIBLE_NOTIFICATION_MODULES.has(item.module));
+      .filter((item) => VISIBLE_NOTIFICATION_MODULES.has(item.module) && (item.module !== "agenda" || hasModuleAccess(current.email, "agenda", current.session.portalUser)));
     return NextResponse.json(
       { ok: true, updates },
       { headers: { "Cache-Control": "no-store" } },

@@ -73,7 +73,7 @@ export default function DashboardOverviewClient({ modules, motoristaControle, es
       const today = localDate();
       const requests = [
         allowed.has("compras") ? fetch("/api/compras", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
-        allowed.has("painel") ? fetch("/api/painel-notifications", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
+        allowed.has("estoque") ? fetch("/api/painel-notifications", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
         allowed.has("agenda") ? fetch(`/api/events?timeMin=${encodeURIComponent(start.toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}`, { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
         allowed.has("estoque") ? fetch("/api/estoque", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
         allowed.has("motorista") ? fetch(`/api/motorista-leitura?action=dia&data=${today}`, { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,

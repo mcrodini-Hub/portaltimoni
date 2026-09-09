@@ -62,7 +62,7 @@ export default async function PainelAlerts({ email, accessToken }: { email: stri
   if (showStockAlerts) {
     try {
       const unit = stockUnitForEmail(normalizedEmail);
-      const alerts = await listStockAlerts();
+      const alerts = await listStockAlerts(accessToken);
       stockAlerts = alerts
         .filter((alert) => alert.status === "pendente")
         .filter((alert) => unit === "geral" || alert.unidade === unit);

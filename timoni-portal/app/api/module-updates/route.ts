@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { hasModuleAccess } from "@/lib/access-control";
+import { hasModuleAccess, type PortalModule } from "@/lib/access-control";
 import { auth } from "@/lib/auth";
 import {
   isUpdateModule,
@@ -15,7 +15,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MANAGEMENT_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
-const VISIBLE_NOTIFICATION_MODULES = new Set(["estoque", "compras", "leads", "motorista", "agenda"]);
+const VISIBLE_NOTIFICATION_MODULES = new Set(["estoque", "compras", "leads"]);
 const NOTIFICATION_BASELINE_VERSION = "2026-09-03-estoque-compras-v1";
 
 async function managementSession() {
@@ -56,7 +56,7 @@ export async function GET() {
     ]);
     await initializeModuleUpdateBaseline(current.email, NOTIFICATION_BASELINE_VERSION);
     const updates = (await listPendingModuleUpdates(current.email))
-      .filter((item) => VISIBLE_NOTIFICATION_MODULES.has(item.module) && (item.module !== "agenda" || hasModuleAccess(current.email, "agenda", current.session.portalUser)));
+      .filter((item) => VISIBLE_NOTIFICATION_MODULES.has(item.module) && hasModuleAccess(current.email, item.module as PortalModule, current.session.portalUser));
     return NextResponse.json(
       { ok: true, updates },
       { headers: { "Cache-Control": "no-store" } },

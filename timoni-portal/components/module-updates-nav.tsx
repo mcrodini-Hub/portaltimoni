@@ -10,7 +10,7 @@ type NavItem = {
   href: string;
   targetHref: string;
   label: string;
-  updateModule: UpdateModule;
+  updateModule?: UpdateModule;
 };
 
 type PendingUpdate = { module: UpdateModule; count: number; latestAt: string; summaries: string[] };
@@ -83,13 +83,13 @@ export default function ModuleUpdatesNav({
     const activeItem = items
       .filter((item) => pathname === item.targetHref || pathname.startsWith(`${item.targetHref}/`))
       .sort((a, b) => b.targetHref.length - a.targetHref.length)[0];
-    if (!activeItem) return;
+    if (!activeItem?.updateModule) return;
     const pending = updates[activeItem.updateModule];
     if (pending) void markRead(pending, true);
   }, [canViewUpdates, items, markRead, pathname, updates]);
 
   return items.map((item) => {
-    const pending = updates[item.updateModule];
+    const pending = item.updateModule ? updates[item.updateModule] : undefined;
     const content = <span>{item.label}</span>;
     return (
       <span key={item.href} className="inline-flex shrink-0">

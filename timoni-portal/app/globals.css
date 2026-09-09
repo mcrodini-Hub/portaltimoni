@@ -2,7 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
-body { background: radial-gradient(circle at 90% 0%, rgba(37,99,235,.08), transparent 25rem), #f8fafc; }
+body {
+  background: radial-gradient(circle at 90% 0%, rgba(37,99,235,.08), transparent 25rem), #f8fafc;
+  font-weight: 300;
+}
+
+/* Tipografia leve: preserva a hierarquia com menos peso visual. */
+.font-normal { font-weight: 300!important; }
+.font-medium { font-weight: 400!important; }
+.font-semibold { font-weight: 500!important; }
+.font-bold, .font-extrabold, strong, b { font-weight: 600!important; }
+input, select, textarea, button { font-weight: 400; }
 section.border-blue-100.bg-blue-50 { display:none; }
 [data-ct-hidden-copy="true"],[data-ct-store-filter="true"] { display:none!important; }
 [data-ct-card-detail="true"] { display:none!important; }

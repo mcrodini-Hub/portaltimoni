@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
+import { Roboto } from "next/font/google";
 import "./globals.css";
 import MobileUiRules from "@/components/mobile-ui-rules";
+
+const roboto = Roboto({
+  subsets: ["latin"],
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
@@ -26,7 +32,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="pt-BR">
-      <body className="min-h-screen text-slate-900 antialiased">
+      <body className={`${roboto.className} min-h-screen text-slate-900 antialiased`}>
         {children}
         <MobileUiRules />
       </body>

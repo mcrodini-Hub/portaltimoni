@@ -25,6 +25,15 @@ type AvisoLeitura = {
 };
 type ReadFeedback = { id: string; message: string; success: boolean } | null;
 
+function memberKey(unit: string, name: string) {
+  return `${unit}::${name}`
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function formatDate(value: string) {
   if (!value) return "";
   return new Intl.DateTimeFormat("pt-BR", {
@@ -186,9 +195,17 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
     <section className="space-y-4">
       {error && <p className="text-sm font-medium text-red-700">{error}</p>}
       {visible.map((item) => {
-        const itemReads = reads.filter((read) => read.avisoId === item.id);
-        const readNames = new Set(itemReads.map((read) => `${read.unit}::${read.employee}`));
-        const pendingMembers = members.filter((member) => !readNames.has(`${member.unit}::${member.name}`));
+        const currentMemberKeys = new Set(members.map((member) => memberKey(member.unit, member.name)));
+        const itemReadsByMember = new Map<string, AvisoLeitura>();
+        for (const read of reads) {
+          const key = memberKey(read.unit, read.employee);
+          if (read.avisoId === item.id && currentMemberKeys.has(key) && !itemReadsByMember.has(key)) {
+            itemReadsByMember.set(key, read);
+          }
+        }
+        const itemReads = Array.from(itemReadsByMember.values());
+        const readNames = new Set(itemReadsByMember.keys());
+        const pendingMembers = members.filter((member) => !readNames.has(memberKey(member.unit, member.name)));
         return (
         <article key={item.id} className="border-l-4 border-l-amber-400 border-t border-t-blue-200 pl-3 pt-4 first:border-t-0 first:pt-0">
           <div className="flex flex-wrap items-start justify-between gap-3">

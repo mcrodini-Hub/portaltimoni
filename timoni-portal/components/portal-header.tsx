@@ -34,17 +34,16 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
         ? "/dashboard/motorista"
         : item.href,
     }));
-  const agendaItem = allowedItems.find((item) => item.module === "agenda");
-  const mobileOrder: UpdateModule[] = ["agenda", "reunioes", "motorista", "compras", "estoque", "conferencia", "leads", "espaco-equipe", "avisos", "marketing", "financeiro"];
-  const mobileAllowedItems = allowedItems
-    .map((item) => item.module === "agenda" ? { ...item, label: "Agenda", icon: "calendar" as PortalIconName, color: "text-green-700" } : { ...item, label: item.label === "AVISOS" ? "Avisos" : item.label })
-    .sort((a, b) => mobileOrder.indexOf(a.updateModule) - mobileOrder.indexOf(b.updateModule));
+  const byLabel = (a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label, "pt-BR", { sensitivity: "base" });
+  const desktopItems = [
+    ...allowedItems,
+    ...(isManagement ? [{ href: "/configuracoes", targetHref: "/configuracoes", label: "Configurações", updateModule: undefined }] : []),
+  ].sort(byLabel);
   const mobileItems = [
     ...(!directPainelTimoniAccess ? [{ href: "/dashboard", targetHref: "/dashboard", label: "Painel", module: "painel" as PortalModule, updateModule: undefined, icon: "home" as PortalIconName, color: "text-blue-600" }] : []),
-    ...mobileAllowedItems,
-    ...(email.trim().toLowerCase() === "mcrodini@gmail.com" && agendaItem ? [{ ...agendaItem, label: "Agenda Ciça", icon: "star" as PortalIconName, color: "text-cyan-700" }] : []),
+    ...allowedItems.map((item) => ({ ...item, label: item.label === "AVISOS" ? "Avisos" : item.label })),
     ...(isManagement ? [{ href: "/configuracoes", targetHref: "/configuracoes", label: "Configurações", module: "painel" as PortalModule, updateModule: undefined, icon: "settings" as PortalIconName, color: "text-slate-800" }] : []),
-  ];
+  ].sort(byLabel);
   const initials = email.trim().toLowerCase() === "mcrodini@gmail.com" ? "CR" : email.trim().toLowerCase() === "mrodini@gmail.com" ? "MR" : "CT";
 
   return (
@@ -68,8 +67,7 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
           className="order-3 -mx-1 flex w-[calc(100%+0.5rem)] min-w-0 flex-none items-center gap-1 overflow-x-auto border-t border-white/10 px-1 py-2 sm:order-none sm:mx-0 sm:w-auto sm:flex-1 sm:border-0 sm:px-0"
           aria-label="Menu principal"
         >
-          <ModuleUpdatesNav items={allowedItems} canViewUpdates={canViewUpdates} linkClass={linkClass} />
-          {isManagement && <Link href="/configuracoes" className={linkClass}>Configurações</Link>}
+          <ModuleUpdatesNav items={desktopItems} canViewUpdates={canViewUpdates} linkClass={linkClass} />
         </nav>
 
         <form

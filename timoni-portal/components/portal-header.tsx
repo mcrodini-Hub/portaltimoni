@@ -52,13 +52,13 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
       <MobilePortalHeader items={mobileItems} showUpdates={canViewUpdates} showGuide={isManagement} initials={initials} />
       <div className="mx-auto hidden max-w-7xl flex-wrap items-center justify-between gap-x-3 px-4 sm:flex sm:flex-nowrap sm:gap-3 sm:px-6">
         {directPainelTimoniAccess ? (
-          <span className="order-1 flex min-h-12 shrink-0 items-center py-3 text-base font-semibold tracking-tight text-white sm:order-none">
+          <span className="order-1 flex min-h-12 shrink-0 items-center py-3 text-base font-bold tracking-tight text-white sm:order-none">
             Casa Timoni
           </span>
         ) : (
           <Link
             href="/dashboard"
-            className="order-1 flex min-h-12 shrink-0 items-center py-3 text-base font-semibold tracking-tight text-white sm:order-none"
+            className="order-1 flex min-h-12 shrink-0 items-center py-3 text-base font-bold tracking-tight text-white sm:order-none"
           >
             Casa Timoni
           </Link>

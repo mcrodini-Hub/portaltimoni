@@ -7,7 +7,7 @@ import type { UpdateModule } from "@/lib/module-updates";
 import type { PortalIconName } from "@/components/portal-icon";
 
 const navItems: Array<{ href: string; label: string; module: PortalModule; updateModule: UpdateModule; icon: PortalIconName; color: string }> = [
-  { href: "/colaboradores", label: "AVISOS", module: "painel", updateModule: "avisos", icon: "notice", color: "text-rose-700" },
+  { href: "/colaboradores", label: "Avisos", module: "painel", updateModule: "avisos", icon: "notice", color: "text-rose-700" },
   { href: "/agenda", label: "Agenda Ciça", module: "agenda", updateModule: "agenda", icon: "star", color: "text-cyan-700" },
   { href: "/dashboard/compras", label: "Compras", module: "compras", updateModule: "compras", icon: "cart", color: "text-orange-700" },
   { href: "/dashboard/conferencia-pedidos", label: "Conferência", module: "conferencia", updateModule: "conferencia", icon: "document", color: "text-rose-700" },
@@ -41,7 +41,7 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
   ].sort(byLabel);
   const mobileItems = [
     ...(!directPainelTimoniAccess ? [{ href: "/dashboard", targetHref: "/dashboard", label: "Painel", module: "painel" as PortalModule, updateModule: undefined, icon: "home" as PortalIconName, color: "text-blue-600" }] : []),
-    ...allowedItems.map((item) => ({ ...item, label: item.label === "AVISOS" ? "Avisos" : item.label })),
+    ...allowedItems,
     ...(isManagement ? [{ href: "/configuracoes", targetHref: "/configuracoes", label: "Configurações", module: "painel" as PortalModule, updateModule: undefined, icon: "settings" as PortalIconName, color: "text-slate-800" }] : []),
   ].sort(byLabel);
   const initials = email.trim().toLowerCase() === "mcrodini@gmail.com" ? "CR" : email.trim().toLowerCase() === "mrodini@gmail.com" ? "MR" : "CT";

@@ -120,7 +120,7 @@ export async function GET() {
   if (hasModuleAccess(email, "estoque", session?.portalUser)) {
     try {
       const unit = unitForEmail(email, session?.portalUser);
-      const alerts = await listStockAlerts();
+      const alerts = await listStockAlerts(session?.accessToken);
       for (const alert of alerts
         .filter((item) => item.status === "pendente")
         .filter((item) => unit === "geral" || item.unidade === unit)

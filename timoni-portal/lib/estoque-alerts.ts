@@ -24,15 +24,15 @@ function normalizeUnit(input: unknown): "rio_claro" | "araras" {
   return input === "araras" ? "araras" : "rio_claro";
 }
 
-async function getSheetsClient() {
-  const accessToken = await getAccessTokenFromRefreshToken();
+async function getSheetsClient(sessionAccessToken?: string) {
+  const accessToken = sessionAccessToken?.trim() || await getAccessTokenFromRefreshToken();
   const auth = new google.auth.OAuth2();
   auth.setCredentials({ access_token: accessToken });
   return google.sheets({ version: "v4", auth });
 }
 
-export async function listStockAlerts(): Promise<StockAlert[]> {
-  const sheets = await getSheetsClient();
+export async function listStockAlerts(sessionAccessToken?: string): Promise<StockAlert[]> {
+  const sheets = await getSheetsClient(sessionAccessToken);
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: SPREADSHEET_ID,
     range: SHEET_RANGE,

@@ -100,11 +100,11 @@ export default function ComprasClient() {
     [selectedId, suppliers],
   );
   const dataEnvio = todayLocal();
-  const finalTitle = selectedSupplier && orderNumber.trim()
-    ? `${selectedSupplier.name.trim()} ${orderNumber.trim()}${company}`
-    : "";
+  const finalTitle = selectedSupplier
+    ? [selectedSupplier.name.trim(), orderNumber.trim() ? `${orderNumber.trim()}${company}` : company].filter(Boolean).join(" ")
+    : `Compra ${company} ${dataEnvio}`;
   const summary = trello.summary;
-  const canFinalize = Boolean(selectedSupplier && orderNumber.trim() && unit && dataEntrega);
+  const canFinalize = Boolean(unit && dataEntrega);
 
   const loadTrello = useCallback(async () => {
     setLoadingTrello(true);
@@ -219,20 +219,18 @@ export default function ComprasClient() {
     setSuccess("");
     setUpdatedCardUrl("");
 
-    if (!selectedSupplier) {
-      setError("Selecione o fornecedor na lista de pedidos pendentes.");
-      return;
-    }
-    if (!orderNumber.trim() || !unit || !dataEntrega) {
-      setError("Informe o número do pedido, a unidade e a previsão de entrega.");
+    if (!unit || !dataEntrega) {
+      setError("Informe a unidade e a previsão de entrega.");
       return;
     }
 
     setBusy(true);
     try {
       const formData = new FormData();
-      formData.set("cardId", selectedSupplier.id);
-      formData.set("supplierName", selectedSupplier.name);
+      if (selectedSupplier) {
+        formData.set("cardId", selectedSupplier.id);
+        formData.set("supplierName", selectedSupplier.name);
+      }
       formData.set("finalTitle", finalTitle);
       formData.set("unit", unit);
       formData.set("empresa", company);
@@ -269,7 +267,7 @@ export default function ComprasClient() {
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Módulo operacional</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Compras</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-              Escolha o fornecedor uma vez, filtre itens quando precisar e finalize o pedido.
+              Selecione um fornecedor quando houver cartão pendente ou atualize diretamente criando um novo cartão no Trello.
             </p>
           </div>
           <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
@@ -313,7 +311,7 @@ export default function ComprasClient() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">1. Fornecedor</p>
               <h2 className="mt-2 text-xl font-semibold text-slate-950">Pedidos pendentes</h2>
-              <p className="mt-1 text-sm text-slate-500">Clique uma vez no fornecedor que será atualizado.</p>
+              <p className="mt-1 text-sm text-slate-500">Opcional. Sem seleção, o Portal cria um novo cartão no Trello.</p>
             </div>
             <button
               type="button"
@@ -517,7 +515,7 @@ export default function ComprasClient() {
         <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">3. Finalizar</p>
         <h2 className="mt-2 text-xl font-semibold text-slate-950">Atualizar Trello</h2>
         <p className="mt-2 text-sm text-slate-600">
-          O fornecedor já foi escolhido. Informe agora os dados finais do pedido.
+          Fornecedor e número do pedido são opcionais. Informe os dados disponíveis para atualizar o Trello.
         </p>
 
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -526,12 +524,12 @@ export default function ComprasClient() {
             <input
               value={selectedSupplier?.name || ""}
               readOnly
-              placeholder="Selecione acima"
+              placeholder="Opcional — novo cartão sem fornecedor"
               className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-700"
             />
           </label>
           <label className="text-sm font-semibold text-slate-800">
-            Número do pedido
+            Número do pedido <span className="font-normal text-slate-500">(opcional)</span>
             <input
               value={orderNumber}
               onChange={(event) => setOrderNumber(event.target.value)}
@@ -584,13 +582,7 @@ export default function ComprasClient() {
 
         {!canFinalize && (
           <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
-            {!selectedSupplier
-              ? "Selecione o fornecedor na lista de pedidos pendentes."
-              : !orderNumber.trim()
-                ? "Falta informar o número do pedido."
-                : !unit
-                  ? "Falta escolher a unidade."
-                  : "Falta informar a previsão de entrega."}
+            {!unit ? "Falta escolher a unidade." : "Falta informar a previsão de entrega."}
           </p>
         )}
 

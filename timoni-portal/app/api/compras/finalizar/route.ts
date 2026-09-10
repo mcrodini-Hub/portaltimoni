@@ -48,6 +48,14 @@ type PurchaseItem = {
   quantidade: string;
 };
 
+type Company = "MCR" | "ROD" | "CT";
+
+const COMPANY_INFO: Record<Company, { name: string; cnpj: string; location: string }> = {
+  CT: { name: "CASA TIMONI COMERCIO DE PLASTICOS LTDA", cnpj: "07.064.709/0001-08", location: "Araras" },
+  ROD: { name: "RODINI & CIA LTDA.", cnpj: "56.372.055/0001-87", location: "Rio Claro" },
+  MCR: { name: "MCR COMERCIO DE PLASTICOS E LONAS", cnpj: "42.093.705/0001-40", location: "Rio Claro" },
+};
+
 async function authorize() {
   const session = await auth();
   if (!session?.user?.email) {
@@ -96,11 +104,17 @@ function buildDescription(
   items: PurchaseItem[],
   dataEnvio: string,
   dataEntrega: string,
+  company: Company,
 ) {
   const lines = items.map(
     (item) => `${item.codigo} | ${item.descricao} | ${item.quantidade}`,
   );
+  const companyInfo = COMPANY_INFO[company];
   return [
+    companyInfo.name,
+    `CNPJ ${companyInfo.cnpj}`,
+    companyInfo.location,
+    "",
     `Data de envio: ${formatBrazilianDate(dataEnvio)}`,
     `Previsão de entrega: ${formatBrazilianDate(dataEntrega)}`,
     `Total: ${items.length} itens`,
@@ -199,18 +213,18 @@ export async function POST(request: Request) {
 
   try {
     const formData = await request.formData();
-    const cardId = String(formData.get("cardId") || "").trim();
-    const supplierName = String(formData.get("supplierName") || "").trim();
+    let cardId = String(formData.get("cardId") || "").trim();
     const finalTitle = String(formData.get("finalTitle") || "").trim();
     const unit = String(formData.get("unit") || "rio_claro");
+    const company = String(formData.get("empresa") || "MCR") as Company;
     const dataEnvio = String(formData.get("dataEnvio") || "").trim();
     const dataEntrega = String(formData.get("dataEntrega") || "").trim();
     const items = parseItems(formData.get("items"));
     const attachment = formData.get("attachment");
     const orderFile = formData.get("orderFile");
 
-    if (!cardId || !supplierName) throw new Error("Selecione o fornecedor.");
-    if (!finalTitle) throw new Error("Informe o título final do cartão, incluindo o número do pedido.");
+    if (!finalTitle) throw new Error("Não foi possível definir o título do cartão.");
+    if (!COMPANY_INFO[company]) throw new Error("Selecione uma empresa válida.");
     if (!dataEnvio) throw new Error("Informe a data de envio.");
     if (!dataEntrega) throw new Error("Informe a previsão de entrega.");
     if (unit !== "rio_claro" && unit !== "araras") {
@@ -239,12 +253,19 @@ export async function POST(request: Request) {
       );
     }
 
-    const card = await trelloFetch<TrelloCard>(`/cards/${encodeURIComponent(cardId)}`, {
-      params: { fields: "name,url,idLabels" },
-    });
-    const description = items.length
-      ? buildDescription(items, dataEnvio, dataEntrega)
-      : undefined;
+    let card: TrelloCard;
+    if (cardId) {
+      card = await trelloFetch<TrelloCard>(`/cards/${encodeURIComponent(cardId)}`, {
+        params: { fields: "name,url,idLabels" },
+      });
+    } else {
+      card = await trelloFetch<TrelloCard>("/cards", {
+        method: "POST",
+        params: { idList: destination.id, name: finalTitle, pos: "top" },
+      });
+      cardId = card.id;
+    }
+    const description = buildDescription(items, dataEnvio, dataEntrega, company);
     const updatedCard = await trelloFetch<TrelloCard>(`/cards/${encodeURIComponent(cardId)}`, {
       method: "PUT",
       params: {

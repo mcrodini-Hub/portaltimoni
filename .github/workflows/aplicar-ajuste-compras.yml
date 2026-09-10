@@ -1,0 +1,55 @@
+name: Aplicar ajuste autorizado do Compras
+on:
+  push:
+    branches: [ajuste-compras-rapido-20260910]
+    paths: [".github/workflows/aplicar-ajuste-compras.yml"]
+permissions:
+  contents: write
+jobs:
+  aplicar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ajuste-compras-rapido-20260910
+          fetch-depth: 0
+      - name: Aplicar alterações pontuais
+        run: |
+          node <<'NODE'
+          const fs = require('fs');
+          const cp='timoni-portal/app/dashboard/compras/ComprasClient.tsx';
+          let c=fs.readFileSync(cp,'utf8');
+          const x=(a,b)=>{if(!c.includes(a))throw new Error('Client: trecho não encontrado');c=c.replace(a,b)};
+          x('  const finalTitle = selectedSupplier && orderNumber.trim()\n    ? `${selectedSupplier.name.trim()} ${orderNumber.trim()}${company}`\n    : "";\n  const summary = trello.summary;\n  const canFinalize = Boolean(selectedSupplier && orderNumber.trim() && unit && dataEntrega);','  const finalTitle = selectedSupplier\n    ? [selectedSupplier.name.trim(), orderNumber.trim() ? `${orderNumber.trim()}${company}` : company].filter(Boolean).join(" ")\n    : `Compra ${company} ${dataEnvio}`;\n  const summary = trello.summary;\n  const canFinalize = Boolean(unit && dataEntrega);');
+          x('    if (!selectedSupplier) {\n      setError("Selecione o fornecedor na lista de pedidos pendentes.");\n      return;\n    }\n    if (!orderNumber.trim() || !unit || !dataEntrega) {\n      setError("Informe o número do pedido, a unidade e a previsão de entrega.");\n      return;\n    }','    if (!unit || !dataEntrega) {\n      setError("Informe a unidade e a previsão de entrega.");\n      return;\n    }');
+          x('      formData.set("cardId", selectedSupplier.id);\n      formData.set("supplierName", selectedSupplier.name);','      if (selectedSupplier) {\n        formData.set("cardId", selectedSupplier.id);\n        formData.set("supplierName", selectedSupplier.name);\n      }');
+          x('              Escolha o fornecedor uma vez, filtre itens quando precisar e finalize o pedido.','              Selecione um fornecedor quando houver cartão pendente ou atualize diretamente criando um novo cartão no Trello.');
+          x('<p className="mt-1 text-sm text-slate-500">Clique uma vez no fornecedor que será atualizado.</p>','<p className="mt-1 text-sm text-slate-500">Opcional. Sem seleção, o Portal cria um novo cartão no Trello.</p>');
+          x('          O fornecedor já foi escolhido. Informe agora os dados finais do pedido.','          Fornecedor e número do pedido são opcionais. Informe os dados disponíveis para atualizar o Trello.');
+          x('              placeholder="Selecione acima"','              placeholder="Opcional — novo cartão sem fornecedor"');
+          x('            Número do pedido\n            <input','            Número do pedido <span className="font-normal text-slate-500">(opcional)</span>\n            <input');
+          x('        {!canFinalize && (\n          <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">\n            {!selectedSupplier\n              ? "Selecione o fornecedor na lista de pedidos pendentes."\n              : !orderNumber.trim()\n                ? "Falta informar o número do pedido."\n                : !unit\n                  ? "Falta escolher a unidade."\n                  : "Falta informar a previsão de entrega."}\n          </p>\n        )}','        {!canFinalize && (\n          <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">\n            {!unit ? "Falta escolher a unidade." : "Falta informar a previsão de entrega."}\n          </p>\n        )}');
+          fs.writeFileSync(cp,c);
+
+          const rp='timoni-portal/app/api/compras/finalizar/route.ts';
+          let r=fs.readFileSync(rp,'utf8');
+          const y=(a,b)=>{if(!r.includes(a))throw new Error('API: trecho não encontrado');r=r.replace(a,b)};
+          y('type PurchaseItem = {\n  codigo: string;\n  descricao: string;\n  quantidade: string;\n};','type PurchaseItem = {\n  codigo: string;\n  descricao: string;\n  quantidade: string;\n};\n\ntype Company = "MCR" | "ROD" | "CT";\n\nconst COMPANY_INFO: Record<Company, { name: string; cnpj: string; location: string }> = {\n  CT: { name: "CASA TIMONI COMERCIO DE PLASTICOS LTDA", cnpj: "07.064.709/0001-08", location: "Araras" },\n  ROD: { name: "RODINI & CIA LTDA.", cnpj: "56.372.055/0001-87", location: "Rio Claro" },\n  MCR: { name: "MCR COMERCIO DE PLASTICOS E LONAS", cnpj: "42.093.705/0001-40", location: "Rio Claro" },\n};');
+          y('function buildDescription(\n  items: PurchaseItem[],\n  dataEnvio: string,\n  dataEntrega: string,\n) {','function buildDescription(\n  items: PurchaseItem[],\n  dataEnvio: string,\n  dataEntrega: string,\n  company: Company,\n) {');
+          y('  return [\n    `Data de envio: ${formatBrazilianDate(dataEnvio)}`,','  const companyInfo = COMPANY_INFO[company];\n  return [\n    companyInfo.name,\n    `CNPJ ${companyInfo.cnpj}`,\n    companyInfo.location,\n    "",\n    `Data de envio: ${formatBrazilianDate(dataEnvio)}`,');
+          y('    const cardId = String(formData.get("cardId") || "").trim();\n    const supplierName = String(formData.get("supplierName") || "").trim();\n    const finalTitle = String(formData.get("finalTitle") || "").trim();\n    const unit = String(formData.get("unit") || "rio_claro");','    let cardId = String(formData.get("cardId") || "").trim();\n    const finalTitle = String(formData.get("finalTitle") || "").trim();\n    const unit = String(formData.get("unit") || "rio_claro");\n    const company = String(formData.get("empresa") || "MCR") as Company;');
+          y('    if (!cardId || !supplierName) throw new Error("Selecione o fornecedor.");\n    if (!finalTitle) throw new Error("Informe o título final do cartão, incluindo o número do pedido.");','    if (!finalTitle) throw new Error("Não foi possível definir o título do cartão.");\n    if (!COMPANY_INFO[company]) throw new Error("Selecione uma empresa válida.");');
+          y('    const card = await trelloFetch<TrelloCard>(`/cards/${encodeURIComponent(cardId)}`, {\n      params: { fields: "name,url,idLabels" },\n    });\n    const description = items.length\n      ? buildDescription(items, dataEnvio, dataEntrega)\n      : undefined;','    let card: TrelloCard;\n    if (cardId) {\n      card = await trelloFetch<TrelloCard>(`/cards/${encodeURIComponent(cardId)}`, {\n        params: { fields: "name,url,idLabels" },\n      });\n    } else {\n      card = await trelloFetch<TrelloCard>("/cards", {\n        method: "POST",\n        params: { idList: destination.id, name: finalTitle, pos: "top" },\n      });\n      cardId = card.id;\n    }\n    const description = buildDescription(items, dataEnvio, dataEntrega, company);');
+          fs.writeFileSync(rp,r);
+          NODE
+      - name: Validar TypeScript
+        working-directory: timoni-portal
+        run: npm ci && npx tsc --noEmit
+      - name: Consolidar alteração
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/aplicar-ajuste-compras.yml
+          git add timoni-portal/app/dashboard/compras/ComprasClient.tsx timoni-portal/app/api/compras/finalizar/route.ts
+          git commit -m "Ajusta atualização rápida e resumo do Compras"
+          git push origin ajuste-compras-rapido-20260910

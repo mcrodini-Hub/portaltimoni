@@ -51,9 +51,9 @@ type PurchaseItem = {
 type Company = "MCR" | "ROD" | "CT";
 
 const COMPANY_INFO: Record<Company, { name: string; cnpj: string; location: string }> = {
-  CT: { name: "CASA TIMONI COMERCIO DE PLASTICOS LTDA", cnpj: "07.064.709/0001-08", location: "Araras" },
-  ROD: { name: "RODINI & CIA LTDA.", cnpj: "56.372.055/0001-87", location: "Rio Claro" },
-  MCR: { name: "MCR COMERCIO DE PLASTICOS E LONAS", cnpj: "42.093.705/0001-40", location: "Rio Claro" },
+  CT: { name: "CASA TIMONI COMERCIO DE PLASTICOS LTDA", cnpj: "07.064.709/0001-08", location: "Araras - Av Washington Luiz, 620 Vila Michelin" },
+  ROD: { name: "RODINI & CIA LTDA.", cnpj: "56.372.055/0001-87", location: "Rio Claro - Rua 1, 1375 Centro" },
+  MCR: { name: "MCR COMERCIO DE PLASTICOS E LONAS", cnpj: "42.093.705/0001-40", location: "Rio Claro - Av 6, 25 Centro" },
 };
 
 async function authorize() {

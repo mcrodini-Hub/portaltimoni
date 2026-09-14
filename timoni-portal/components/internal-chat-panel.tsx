@@ -12,32 +12,6 @@ type Contact = {
 type Message = { id: string; sender_user_id: string; recipient_user_id: string; body: string; created_at: string; read_at: string | null };
 type Overview = { currentUser?: { email: string; name: string }; contacts: Contact[]; totalUnread: number };
 
-function connectRealtime(onChange: () => void) {
-  const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-  if (!baseUrl || !key || typeof WebSocket === "undefined") return () => undefined;
-  const socket = new WebSocket(`wss://${new URL(baseUrl).host}/realtime/v1/websocket?apikey=${encodeURIComponent(key)}&vsn=1.0.0`);
-  const topic = "realtime:portal-chat";
-  let ref = 1;
-  let heartbeat: number | undefined;
-  socket.addEventListener("open", () => {
-    socket.send(JSON.stringify({ topic, event: "phx_join", payload: { config: { broadcast: { ack: false, self: false }, presence: { enabled: false }, private: false } }, ref: String(ref), join_ref: String(ref++) }));
-    heartbeat = window.setInterval(() => {
-      if (socket.readyState === WebSocket.OPEN) socket.send(JSON.stringify({ topic: "phoenix", event: "heartbeat", payload: {}, ref: String(ref++), join_ref: null }));
-    }, 25000);
-  });
-  socket.addEventListener("message", (event) => {
-    try {
-      const data = JSON.parse(String(event.data));
-      if (data?.event === "broadcast" && data?.payload?.event === "chat_changed") onChange();
-    } catch {}
-  });
-  return () => {
-    if (heartbeat) window.clearInterval(heartbeat);
-    socket.close();
-  };
-}
-
 function formatActivity(value: string | null) {
   if (!value) return "Sem mensagens";
   const date = new Date(value);
@@ -61,17 +35,18 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
 
   const loadOverview = useCallback(async () => {
     const response = await fetch("/api/internal-chat", { cache: "no-store" });
-    if (!response.ok) throw new Error();
-    const data = (await response.json()) as Overview;
-    setOverview(data);
-    onUnreadChange?.(data.totalUnread || 0);
-    setSelected((value) => value || data.contacts[0]?.email || null);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Não foi possível carregar o chat.");
+    const overviewData = data as Overview;
+    setOverview(overviewData);
+    onUnreadChange?.(overviewData.totalUnread || 0);
+    setSelected((value) => value || overviewData.contacts[0]?.email || null);
   }, [onUnreadChange]);
 
   const loadMessages = useCallback(async (peer: string, markRead: boolean) => {
     const response = await fetch(`/api/internal-chat?peer=${encodeURIComponent(peer)}`, { cache: "no-store" });
-    if (!response.ok) throw new Error();
     const data = await response.json();
+    if (!response.ok) throw new Error(data.error || "Não foi possível carregar esta conversa.");
     setMessages(data.messages || []);
     setCurrentUserId(data.currentUserId || "");
     if (markRead) {
@@ -84,13 +59,17 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
     try {
       await loadOverview();
       if (selected) await loadMessages(selected, open);
-    } catch {}
+    } catch (cause) {
+      if (open) setError(cause instanceof Error ? cause.message : "Não foi possível atualizar o chat.");
+    }
   }, [loadMessages, loadOverview, open, selected]);
 
   useEffect(() => {
-    void loadOverview().catch(() => undefined);
-    return connectRealtime(() => void refresh());
-  }, [loadOverview, refresh]);
+    if (!open) return;
+    void refresh();
+    const interval = window.setInterval(() => void refresh(), 5_000);
+    return () => window.clearInterval(interval);
+  }, [open, refresh]);
 
   useEffect(() => {
     if (!open || !selected) return;
@@ -134,7 +113,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
   const contact = overview.contacts.find((item) => item.email === selected) ?? null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-end bg-slate-950/20 sm:items-center sm:justify-end sm:p-5" role="dialog" aria-modal="true">
+    <div className="fixed inset-0 z-[100] flex items-end bg-slate-950/20 sm:items-center sm:justify-end sm:p-5" role="dialog" aria-modal="true">
       <button type="button" className="absolute inset-0" onClick={onClose} aria-label="Fechar chat" />
       <section className="relative flex h-[86vh] w-full max-w-4xl overflow-hidden bg-white shadow-2xl sm:h-[680px] sm:rounded-2xl sm:border sm:border-slate-200">
         <aside className={`${selected ? "hidden sm:flex" : "flex"} w-full flex-col border-r border-slate-200 bg-slate-50 sm:w-80`}>

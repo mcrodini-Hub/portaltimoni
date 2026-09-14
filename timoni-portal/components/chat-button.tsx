@@ -2,7 +2,15 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import PortalIcon from "@/components/portal-icon";
+
+function GoogleChatMark({ className = "h-6 w-6" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
+      <path fill="#00A67E" d="M8 6h32a4 4 0 0 1 4 4v22a4 4 0 0 1-4 4H22L11 45v-9H8a4 4 0 0 1-4-4V10a4 4 0 0 1 4-4Z" />
+      <path fill="#FFFFFF" d="M15 14h18a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H23l-6 5v-5h-2a3 3 0 0 1-3-3V17a3 3 0 0 1 3-3Z" />
+    </svg>
+  );
+}
 
 export default function ChatButton({ mobile = false, onOpen }: { mobile?: boolean; onOpen?: () => void }) {
   const [unreadConversations, setUnreadConversations] = useState(0);
@@ -45,7 +53,7 @@ export default function ChatButton({ mobile = false, onOpen }: { mobile?: boolea
         className="mt-2 flex min-h-14 w-full items-center gap-4 border-b border-slate-200 px-3 text-left text-[1.05rem] font-medium text-slate-900"
       >
         <span className="relative flex h-9 w-9 items-center justify-center rounded-lg bg-white ring-1 ring-slate-200">
-          <PortalIcon name="chat" className="h-6 w-6 text-emerald-600" />
+          <GoogleChatMark className="h-7 w-7" />
           {badge}
         </span>
         <span className="flex-1">Chat</span>
@@ -61,7 +69,7 @@ export default function ChatButton({ mobile = false, onOpen }: { mobile?: boolea
       className="relative order-2 inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-semibold text-slate-900 shadow-sm ring-1 ring-white/40 transition hover:bg-slate-50 sm:order-none"
       aria-label={unreadConversations ? `Chat: ${unreadConversations} conversas não lidas` : "Abrir Google Chat"}
     >
-      <PortalIcon name="chat" className="h-5 w-5 text-emerald-600" />
+      <GoogleChatMark className="h-6 w-6" />
       <span>Chat</span>
       {badge}
     </Link>

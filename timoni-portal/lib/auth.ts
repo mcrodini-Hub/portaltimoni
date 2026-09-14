@@ -6,6 +6,7 @@ import { getEffectivePortalUser, recordPortalAccess } from "@/lib/portal-config"
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 const PORTAL_CONFIG_REFRESH_MS = 60_000;
+const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.GOOGLE_CLIENT_SECRET;
 
 declare module "next-auth" {
   interface Session {
@@ -62,6 +63,7 @@ async function refreshAccessToken(token: JWT): Promise<JWT> {
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
+  secret: AUTH_SECRET,
   providers: [
     Google({
       clientId: process.env.GOOGLE_CLIENT_ID!,

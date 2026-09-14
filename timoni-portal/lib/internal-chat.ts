@@ -4,8 +4,8 @@ import { hasModuleAccess, normalizeEmail } from "@/lib/access-control";
 export const INTERNAL_CHAT_PARTICIPANTS = [
   { name: "Ciça", email: "mcrodini@gmail.com" },
   { name: "Marcelo", email: "mrodini@gmail.com" },
-  { name: "Lucas", email: "fotoscasatimoni@gmail.com" },
-  { name: "Carolina", email: "comercialara@casatimoni.com.br" },
+  { name: "Lucas", email: "estoquetimoni@gmail.com" },
+  { name: "Carolina", email: "carolina@casatimoni.com.br" },
 ] as const;
 
 export type InternalChatParticipant = (typeof INTERNAL_CHAT_PARTICIPANTS)[number];

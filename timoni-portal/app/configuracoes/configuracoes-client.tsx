@@ -10,6 +10,7 @@ type ConfigurationResponse = { users: PortalUser[]; collaborators: ConfiguredCol
 const MODULES: Array<{ id: PortalModule; label: string }> = [
   { id: "painel", label: "Avisos/Painel" },
   { id: "agenda", label: "Agenda Ciça" },
+  { id: "chat", label: "Chat" },
   { id: "compras", label: "Compras" },
   { id: "conferencia", label: "Conferência" },
   { id: "estoque", label: "Estoque" },
@@ -154,7 +155,7 @@ export default function ConfiguracoesClient() {
           <label className="text-sm font-medium text-slate-700">E-mail<input type="email" value={userForm.email} disabled={isExisting} onChange={(e) => setUserForm({ ...userForm, email: e.target.value.toLowerCase() })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 disabled:bg-slate-100" /></label>
           <label className="text-sm font-medium text-slate-700">Unidade<select value={userForm.unit} onChange={(e) => setUserForm({ ...userForm, unit: e.target.value as PortalUser["unit"] })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option>Rio Claro</option><option>Araras</option><option>Geral</option></select></label>
         </div>
-        <div className="mt-5"><p className="text-sm font-semibold text-slate-900">Permissões dos módulos</p><div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{MODULES.map((module) => <Checkbox key={module.id} label={module.label} checked={userForm.modules.includes(module.id)} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => toggleModule(module.id, checked)} />)}</div></div>
+        <div className="mt-5"><p className="text-sm font-semibold text-slate-900">Permissões dos módulos</p><div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{MODULES.map((module) => <Checkbox key={module.id} label={module.label} checked={userForm.modules.includes(module.id)} onChange={(checked) => toggleModule(module.id, checked)} />)}</div></div>
         <div className="mt-5"><p className="text-sm font-semibold text-slate-900">Boxes visíveis no Painel</p><div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{BOXES.map((box) => <Checkbox key={box.id} label={box.label} checked={(userForm.boxes || []).includes(box.id)} disabled={!userForm.modules.includes(box.id)} onChange={(checked) => setUserForm({ ...userForm, boxes: checked ? [...new Set([...(userForm.boxes || []), box.id])] : (userForm.boxes || []).filter((item) => item !== box.id) })} />)}</div></div>
         <div className="mt-5 grid gap-2 sm:grid-cols-3">
           <Checkbox label="Acesso ativo" checked={userForm.active !== false} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => setUserForm({ ...userForm, active: checked })} />

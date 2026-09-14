@@ -11,6 +11,7 @@ type NavItem = {
   targetHref: string;
   label: string;
   updateModule?: UpdateModule;
+  external?: boolean;
 };
 
 type PendingUpdate = { module: UpdateModule; count: number; latestAt: string; summaries: string[] };
@@ -81,7 +82,7 @@ export default function ModuleUpdatesNav({
   useEffect(() => {
     if (!canViewUpdates) return;
     const activeItem = items
-      .filter((item) => pathname === item.targetHref || pathname.startsWith(`${item.targetHref}/`))
+      .filter((item) => !item.external && (pathname === item.targetHref || pathname.startsWith(`${item.targetHref}/`)))
       .sort((a, b) => b.targetHref.length - a.targetHref.length)[0];
     if (!activeItem?.updateModule) return;
     const pending = updates[activeItem.updateModule];
@@ -98,6 +99,8 @@ export default function ModuleUpdatesNav({
         ) : (
           <Link
             href={item.targetHref}
+            target={item.external ? "_blank" : undefined}
+            rel={item.external ? "noopener noreferrer" : undefined}
             onClick={() => pending && void markRead(pending, true)}
             className={`${linkClass} inline-flex items-center gap-2`}
             aria-label={pending ? `${item.label} tem novidades. Abrir e visualizar.` : item.label}

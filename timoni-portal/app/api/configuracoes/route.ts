@@ -11,7 +11,7 @@ import {
 } from "@/lib/portal-config";
 
 const VALID_MODULES = new Set<PortalModule>([
-  "painel", "agenda", "compras", "conferencia", "estoque", "motorista", "reunioes", "leads", "marketing", "financeiro",
+  "painel", "agenda", "chat", "compras", "conferencia", "estoque", "motorista", "reunioes", "leads", "marketing", "financeiro",
 ]);
 const MANAGEMENT_EMAILS = new Set([CICA_EMAIL, "mrodini@gmail.com"]);
 

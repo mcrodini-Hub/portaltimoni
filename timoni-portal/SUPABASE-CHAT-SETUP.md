@@ -51,8 +51,8 @@ Não há novo login. O chat usa a sessão Google/NextAuth já existente no Porta
 Mapeamento inicial:
 - Ciça -> `mcrodini@gmail.com`
 - Marcelo -> `mrodini@gmail.com`
-- Lucas -> `fotoscasatimoni@gmail.com`
-- Carolina -> `comercialara@casatimoni.com.br`
+- Lucas -> `estoquetimoni@gmail.com`
+- Carolina -> `carolina@casatimoni.com.br`
 
 ## 6. Segurança
 

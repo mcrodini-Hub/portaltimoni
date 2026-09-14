@@ -48,8 +48,8 @@ alter table public.chat_messages enable row level security;
 insert into public.chat_users (email, name) values
   ('mcrodini@gmail.com', 'Ciça'),
   ('mrodini@gmail.com', 'Marcelo'),
-  ('fotoscasatimoni@gmail.com', 'Lucas'),
-  ('comercialara@casatimoni.com.br', 'Carolina')
+  ('estoquetimoni@gmail.com', 'Lucas'),
+  ('carolina@casatimoni.com.br', 'Carolina')
 on conflict (email) do update set name = excluded.name, active = true;
 
 create or replace function public.notify_portal_chat_change()

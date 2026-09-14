@@ -5,6 +5,7 @@ import Link from "next/link";
 import { signOut } from "next-auth/react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import PortalIcon, { type PortalIconName } from "@/components/portal-icon";
+import ChatButton from "@/components/chat-button";
 import type { UpdateModule } from "@/lib/module-updates";
 
 type MobileNavItem = { href: string; targetHref?: string; label: string; updateModule?: UpdateModule; icon: PortalIconName; color: string; external?: boolean };
@@ -103,7 +104,7 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, show
             </Link>;
           })}
           {showGuide ? <Link href="/configuracoes#guia" onClick={() => setOpen(false)} className="mt-2 flex min-h-14 items-center gap-4 border-y border-slate-200 px-3 text-[1.05rem] font-medium text-slate-900"><PortalIcon name="guide" className="h-6 w-6 text-slate-800"/><span className="flex-1">Guia de uso</span><span className="text-2xl font-light text-slate-500">›</span></Link> : null}
-          {showChat ? <a href="https://chat.google.com/app/home" target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)} className="mt-2 flex min-h-14 items-center gap-4 rounded-xl bg-slate-50 px-3 text-[1.05rem] font-medium text-slate-900"><PortalIcon name="chat" className="h-6 w-6 text-emerald-500"/><span className="flex-1">Chat</span><span className="text-2xl font-light text-slate-500">›</span></a> : null}
+          {showChat ? <ChatButton mobile onOpen={() => setOpen(false)} /> : null}
           <button type="button" onClick={() => void signOut({ callbackUrl: "/login" })} className="mt-2 flex min-h-14 w-full items-center gap-4 border-b border-slate-200 px-3 text-left text-[1.05rem] font-medium text-slate-900"><PortalIcon name="logout" className="h-6 w-6"/><span>Sair</span></button>
         </nav>
       </aside>

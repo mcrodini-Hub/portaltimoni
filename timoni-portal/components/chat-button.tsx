@@ -6,8 +6,12 @@ import InternalChatPanel from "@/components/internal-chat-panel";
 function GoogleChatMark({ className = "h-6 w-6" }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
-      <path fill="#0ABC65" d="M13 8h38c5.5 0 10 4.5 10 10v26c0 5.5-4.5 10-10 10H32L17 63V54h-4C7.5 54 3 49.5 3 44V18C3 12.5 7.5 8 13 8Z" />
-      <path d="M20 30c3.4 6.3 9.2 9.5 15.5 9.5S47.7 36.3 51 30" fill="none" stroke="#FFFFFF" strokeWidth="5.5" strokeLinecap="round" />
+      <path
+        fill="#2296E8"
+        d="M12 8h38a8 8 0 0 1 8 8v27a8 8 0 0 1-8 8H29L17 60v-9h-5a8 8 0 0 1-8-8V16a8 8 0 0 1 8-8Z"
+      />
+      <rect x="17" y="23" width="29" height="5" rx="2.5" fill="#FFFFFF" />
+      <rect x="17" y="34" width="23" height="5" rx="2.5" fill="#FFFFFF" />
     </svg>
   );
 }

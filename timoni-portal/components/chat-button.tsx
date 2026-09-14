@@ -7,9 +7,13 @@ const CHAT_URL = "https://chat.google.com/app/home";
 
 function GoogleChatMark({ className = "h-6 w-6" }: { className?: string }) {
   return (
-    <svg viewBox="0 0 48 48" className={className} aria-hidden="true">
-      <path fill="#00A67E" d="M8 6h32a4 4 0 0 1 4 4v22a4 4 0 0 1-4 4H22L11 45v-9H8a4 4 0 0 1-4-4V10a4 4 0 0 1 4-4Z" />
-      <path fill="#FFFFFF" d="M15 14h18a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H23l-6 5v-5h-2a3 3 0 0 1-3-3V17a3 3 0 0 1 3-3Z" />
+    <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
+      <path
+        fill="#2296E8"
+        d="M12 8h38a8 8 0 0 1 8 8v27a8 8 0 0 1-8 8H29L17 60v-9h-5a8 8 0 0 1-8-8V16a8 8 0 0 1 8-8Z"
+      />
+      <rect x="17" y="23" width="29" height="5" rx="2.5" fill="#FFFFFF" />
+      <rect x="17" y="34" width="23" height="5" rx="2.5" fill="#FFFFFF" />
     </svg>
   );
 }
@@ -40,7 +44,7 @@ export default function ChatButton({ mobile = false, onOpen }: { mobile?: boolea
   }, [loadUnread]);
 
   const badge = unreadConversations > 0 ? (
-    <span className="absolute -right-1.5 -top-1.5 min-w-5 rounded-full bg-red-500 px-1 text-center text-[.65rem] font-bold leading-5 text-white">
+    <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-center text-[.65rem] font-bold leading-5 text-white shadow-sm ring-2 ring-white">
       {unreadConversations > 99 ? "99+" : unreadConversations}
     </span>
   ) : null;
@@ -54,8 +58,8 @@ export default function ChatButton({ mobile = false, onOpen }: { mobile?: boolea
         onClick={onOpen}
         className="mt-2 flex min-h-14 w-full items-center gap-4 border-b border-slate-200 px-3 text-left text-[1.05rem] font-medium text-slate-900"
       >
-        <span className="relative flex h-8 w-8 items-center justify-center">
-          <GoogleChatMark className="h-7 w-7" />
+        <span className="relative flex h-10 w-10 items-center justify-center">
+          <GoogleChatMark className="h-10 w-10" />
           {badge}
         </span>
         <span className="flex-1">Chat</span>
@@ -85,11 +89,11 @@ export default function ChatButton({ mobile = false, onOpen }: { mobile?: boolea
     <button
       type="button"
       onClick={openCompactChat}
-      className="relative order-2 inline-flex h-9 shrink-0 items-center gap-1.5 rounded-lg bg-white px-2.5 text-sm font-medium text-slate-800 transition hover:bg-slate-50 sm:order-none"
+      className="relative order-2 inline-flex h-10 shrink-0 items-center justify-center rounded-lg bg-transparent px-1.5 transition hover:bg-white/10 sm:order-none"
       aria-label={unreadConversations ? `Chat: ${unreadConversations} conversas não lidas` : "Abrir Google Chat"}
+      title="Chat"
     >
-      <GoogleChatMark className="h-[1.35rem] w-[1.35rem]" />
-      <span>Chat</span>
+      <GoogleChatMark className="h-9 w-9" />
       {badge}
     </button>
   );

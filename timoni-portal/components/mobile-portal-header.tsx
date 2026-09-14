@@ -104,7 +104,7 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, show
             </Link>;
           })}
           {showGuide ? <Link href="/configuracoes#guia" onClick={() => setOpen(false)} className="mt-2 flex min-h-14 items-center gap-4 border-y border-slate-200 px-3 text-[1.05rem] font-medium text-slate-900"><PortalIcon name="guide" className="h-6 w-6 text-slate-800"/><span className="flex-1">Guia de uso</span><span className="text-2xl font-light text-slate-500">›</span></Link> : null}
-          {showChat ? <ChatButton mobile onOpen={() => setOpen(false)} /> : null}
+          {showChat ? <ChatButton mobile /> : null}
           <button type="button" onClick={() => void signOut({ callbackUrl: "/login" })} className="mt-2 flex min-h-14 w-full items-center gap-4 border-b border-slate-200 px-3 text-left text-[1.05rem] font-medium text-slate-900"><PortalIcon name="logout" className="h-6 w-6"/><span>Sair</span></button>
         </nav>
       </aside>

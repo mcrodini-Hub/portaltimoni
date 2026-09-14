@@ -27,6 +27,7 @@ export type PortalUser = {
 const allModules: PortalModule[] = [
   "painel",
   "agenda",
+  "chat",
   "compras",
   "conferencia",
   "estoque",

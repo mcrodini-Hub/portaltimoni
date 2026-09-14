@@ -65,13 +65,22 @@ const LEADS_COLLABORATOR_EMAILS = new Set([
   "comercialrc@casatimoni.com.br",
   "comercialara@casatimoni.com.br",
 ]);
+const CHAT_COLLABORATOR_EMAILS = new Set([
+  "estoquetimoni@gmail.com",
+  "carolina@casatimoni.com.br",
+]);
 
 function operationalUser(name: string, email: string): PortalUser {
-  const modules = email === ESTOQUE_TIMONI_EMAIL
-    ? [...operationalModules, "compras" as PortalModule]
+  let modules: PortalModule[] = email === ESTOQUE_TIMONI_EMAIL
+    ? [...operationalModules, "compras"]
     : LEADS_COLLABORATOR_EMAILS.has(email)
-      ? [...operationalModules, "leads" as PortalModule]
-      : operationalModules;
+      ? [...operationalModules, "leads"]
+      : [...operationalModules];
+
+  if (CHAT_COLLABORATOR_EMAILS.has(email) && !modules.includes("chat")) {
+    modules = [...modules, "chat"];
+  }
+
   return { name, email, modules, requiresPassword: false, readOnly: !COLLABORATOR_MOTORISTA_CONTROL_EMAILS.has(email) };
 }
 

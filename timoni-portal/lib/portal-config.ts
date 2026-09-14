@@ -181,10 +181,8 @@ export async function writeUsers(accessToken: string, users: PortalUser[]) {
     ...normalized[cicaIndex],
     email: CICA_EMAIL,
     name: "Ciça Rodini",
-    modules: cicaDefault.modules,
     active: true,
     readOnly: false,
-    directPainel: false,
   };
   await replaceRange(accessToken, `${USERS_SHEET}!A2:K500`, normalized.map((user) => [
     user.email,

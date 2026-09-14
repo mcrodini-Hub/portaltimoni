@@ -39,13 +39,13 @@ export async function GET(request: NextRequest) {
     if (context.peer) {
       const conversation = await getConversationBetween(context.me.id, context.peer.id);
       if (!conversation) {
-        return NextResponse.json({ conversationId: null, messages: [] });
+        return NextResponse.json({ currentUserId: context.me.id, conversationId: null, messages: [] });
       }
       const response = await supabaseAdminFetch(
         `chat_messages?conversation_id=eq.${conversation.id}&select=id,conversation_id,sender_user_id,recipient_user_id,body,created_at,read_at&order=created_at.asc&limit=300`,
       );
       const messages = (await response.json()) as ChatMessage[];
-      return NextResponse.json({ conversationId: conversation.id, messages });
+      return NextResponse.json({ currentUserId: context.me.id, conversationId: conversation.id, messages });
     }
 
     const conversationsResponse = await supabaseAdminFetch(

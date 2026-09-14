@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { appendTeamMessage, listTeamMessages } from "@/lib/espaco-equipe";
+import { appendTeamMessage, deleteTeamMessage, listTeamMessages } from "@/lib/espaco-equipe";
 
 const GESTAO_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
+const CICA_EMAIL = "mcrodini@gmail.com";
 const FINAL_STATUSES = new Set(["concluido", "concluído", "resolvido", "feito", "finalizado"]);
 
 export async function GET() {
@@ -57,5 +58,34 @@ export async function POST(request: Request) {
       { error: "Não foi possível registrar agora. Tente novamente." },
       { status: 500 },
     );
+  }
+}
+
+export async function DELETE(request: Request) {
+  const session = await auth();
+  const email = session?.user?.email?.trim().toLowerCase() ?? "";
+
+  if (email !== CICA_EMAIL) {
+    return NextResponse.json({ error: "Ação exclusiva do acesso da Ciça." }, { status: 403 });
+  }
+
+  try {
+    const body = await request.json();
+    const id = String(body?.id ?? "").trim();
+
+    if (!/^\d+$/.test(id)) {
+      return NextResponse.json({ error: "Mensagem inválida." }, { status: 400 });
+    }
+
+    await deleteTeamMessage(id);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (error instanceof Error) {
+      console.error(`[Painel Timoni] Espaço Equipe / exclusão: ${error.name}: ${error.message}`);
+    } else {
+      console.error("[Painel Timoni] Espaço Equipe / exclusão: falha desconhecida");
+    }
+
+    return NextResponse.json({ error: "Não foi possível excluir a mensagem." }, { status: 500 });
   }
 }

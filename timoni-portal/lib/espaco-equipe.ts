@@ -1,6 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 
 export type TeamMessage = {
+  id: string;
   date: string;
   unit: string;
   employee: string;
@@ -10,6 +11,7 @@ export type TeamMessage = {
 };
 
 type TeamMessageRow = {
+  id: string | number;
   created_at: Date | string;
   unit: string;
   employee: string;
@@ -77,13 +79,14 @@ export async function listTeamMessages(_accessToken?: string): Promise<TeamMessa
   await ensureSchema();
   const sql = getDatabase();
   const rows = await sql`
-    SELECT created_at, unit, employee, message, status, note
+    SELECT id, created_at, unit, employee, message, status, note
     FROM portal_team_messages
     ORDER BY created_at DESC, id DESC
     LIMIT 500
   ` as TeamMessageRow[];
 
   return rows.map((row) => ({
+    id: String(row.id),
     date: new Date(row.created_at).toISOString(),
     unit: row.unit,
     employee: row.employee,
@@ -91,6 +94,15 @@ export async function listTeamMessages(_accessToken?: string): Promise<TeamMessa
     status: row.status,
     note: row.note,
   }));
+}
+
+export async function deleteTeamMessage(id: string) {
+  await ensureSchema();
+  const sql = getDatabase();
+  await sql`
+    DELETE FROM portal_team_messages
+    WHERE id = ${id}
+  `;
 }
 
 export async function replaceTeamMessages(_accessToken: string, messages: TeamMessage[]) {

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import InternalChatPanel from "@/components/internal-chat-panel";
 
-function GoogleChatMark({ className = "h-6 w-6" }: { className?: string }) {
+function InternalChatMark({ className = "h-6 w-6" }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
       <path
@@ -42,12 +42,12 @@ export default function ChatButton({ mobile = false, onOpen }: { mobile?: boolea
     <>
       {mobile ? (
         <button type="button" onClick={openChat} className="mt-2 flex min-h-14 w-full items-center gap-4 border-b border-slate-200 px-3 text-left text-[1.05rem] font-medium text-slate-900">
-          <span className="relative flex h-10 w-10 items-center justify-center"><GoogleChatMark className="h-10 w-10" />{badge}</span>
+          <span className="relative flex h-10 w-10 items-center justify-center"><InternalChatMark className="h-10 w-10" />{badge}</span>
           <span className="flex-1">Chat</span>
         </button>
       ) : (
         <button type="button" onClick={openChat} className="relative order-2 inline-flex h-10 shrink-0 items-center justify-center rounded-lg px-1.5 transition hover:bg-white/10 sm:order-none" aria-label={unread ? `Chat: ${unread} mensagens não lidas` : "Abrir chat interno"} title="Chat">
-          <GoogleChatMark className="h-9 w-9" />{badge}
+          <InternalChatMark className="h-9 w-9" />{badge}
         </button>
       )}
       <InternalChatPanel open={open} onClose={() => setOpen(false)} onUnreadChange={setUnread} />

@@ -8,12 +8,27 @@ const CHAT_URL = "https://chat.google.com/app/home";
 function GoogleChatMark({ className = "h-6 w-6" }: { className?: string }) {
   return (
     <svg viewBox="0 0 64 64" className={className} aria-hidden="true">
+      <defs>
+        <linearGradient id="chat-app-highlight" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stopColor="#7DDDEB" stopOpacity="0.95" />
+          <stop offset="1" stopColor="#7DDDEB" stopOpacity="0" />
+        </linearGradient>
+      </defs>
       <path
-        fill="#2296E8"
-        d="M12 8h38a8 8 0 0 1 8 8v27a8 8 0 0 1-8 8H29L17 60v-9h-5a8 8 0 0 1-8-8V16a8 8 0 0 1 8-8Z"
+        fill="#0ABC65"
+        d="M13 8h38c5.5 0 10 4.5 10 10v26c0 5.5-4.5 10-10 10H32L17 63V54h-4C7.5 54 3 49.5 3 44V18C3 12.5 7.5 8 13 8Z"
       />
-      <rect x="17" y="23" width="29" height="5" rx="2.5" fill="#FFFFFF" />
-      <rect x="17" y="34" width="23" height="5" rx="2.5" fill="#FFFFFF" />
+      <path
+        fill="url(#chat-app-highlight)"
+        d="M10 18c5-6 13-8 23-8h18c5.5 0 10 4.5 10 10v8c-8-5-17-7-28-7-9 0-17 1-23 4Z"
+      />
+      <path
+        d="M20 30c3.4 6.3 9.2 9.5 15.5 9.5S47.7 36.3 51 30"
+        fill="none"
+        stroke="#FFFFFF"
+        strokeWidth="5.5"
+        strokeLinecap="round"
+      />
     </svg>
   );
 }

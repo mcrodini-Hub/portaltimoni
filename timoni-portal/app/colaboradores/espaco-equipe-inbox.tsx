@@ -1,3 +1,4 @@
+import EspacoEquipeDeleteButton from "@/app/colaboradores/espaco-equipe-delete-button";
 import { listTeamMessages, type TeamMessage } from "@/lib/espaco-equipe";
 
 function formatMessageDate(value: string) {
@@ -14,7 +15,7 @@ function formatMessageDate(value: string) {
   }).format(date);
 }
 
-function MessageBox({ item, index }: { item: TeamMessage; index: number }) {
+function MessageBox({ item, index, canDelete }: { item: TeamMessage; index: number; canDelete: boolean }) {
   return (
     <article
       key={`${item.date}-${index}`}
@@ -24,11 +25,18 @@ function MessageBox({ item, index }: { item: TeamMessage; index: number }) {
         <span>{formatMessageDate(item.date)}</span>
       </div>
       <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.message}</p>
+      {canDelete && item.id ? <EspacoEquipeDeleteButton id={item.id} /> : null}
     </article>
   );
 }
 
-export default async function EspacoEquipeInbox({ accessToken }: { accessToken?: string }) {
+export default async function EspacoEquipeInbox({
+  accessToken,
+  canDelete = false,
+}: {
+  accessToken?: string;
+  canDelete?: boolean;
+}) {
   let messages: TeamMessage[] = [];
 
   try {
@@ -62,7 +70,7 @@ export default async function EspacoEquipeInbox({ accessToken }: { accessToken?:
       {messages.length ? (
         <div className="mt-3 grid gap-3 md:grid-cols-2">
           {messages.map((item, index) => (
-            <MessageBox key={`${item.date}-${index}`} item={item} index={index} />
+            <MessageBox key={`${item.date}-${index}`} item={item} index={index} canDelete={canDelete} />
           ))}
         </div>
       ) : (

@@ -5,6 +5,7 @@ import EspacoEquipeForm from "@/app/colaboradores/espaco-equipe-form";
 import EspacoEquipeInbox from "@/app/colaboradores/espaco-equipe-inbox";
 
 const GESTAO_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
+const CICA_EMAIL = "mcrodini@gmail.com";
 
 export default async function EspacoEquipePage() {
   const session = await auth();
@@ -15,12 +16,17 @@ export default async function EspacoEquipePage() {
 
   const email = session.user.email.trim().toLowerCase();
   const isGestao = GESTAO_EMAILS.has(email);
+  const canDelete = email === CICA_EMAIL;
 
   return (
     <div className="min-h-screen bg-slate-50">
       <PortalHeader email={email} portalUser={session.portalUser} />
       <main className="mx-auto max-w-7xl px-4 py-5 sm:px-6 sm:py-7">
-        {isGestao ? <EspacoEquipeInbox accessToken={session.accessToken} /> : <EspacoEquipeForm />}
+        {isGestao ? (
+          <EspacoEquipeInbox accessToken={session.accessToken} canDelete={canDelete} />
+        ) : (
+          <EspacoEquipeForm />
+        )}
       </main>
     </div>
   );

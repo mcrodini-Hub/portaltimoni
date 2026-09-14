@@ -3,8 +3,9 @@ import { canManageMotorista, entersDirectlyInPainelTimoni, hasModuleAccess, type
 import Link from "next/link";
 import ModuleUpdatesNav from "@/components/module-updates-nav";
 import MobilePortalHeader from "@/components/mobile-portal-header";
+import ChatButton from "@/components/chat-button";
 import type { UpdateModule } from "@/lib/module-updates";
-import PortalIcon, { type PortalIconName } from "@/components/portal-icon";
+import type { PortalIconName } from "@/components/portal-icon";
 
 const navItems: Array<{ href: string; label: string; module: PortalModule; updateModule?: UpdateModule; icon: PortalIconName; color: string; external?: boolean }> = [
   { href: "/colaboradores", label: "Avisos", module: "painel", updateModule: "avisos", icon: "notice", color: "text-rose-700" },
@@ -72,18 +73,7 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
           <ModuleUpdatesNav items={desktopItems} canViewUpdates={canViewUpdates} linkClass={linkClass} />
         </nav>
 
-        {canUseChat ? (
-          <a
-            href="https://chat.google.com/app/home"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="order-2 inline-flex min-h-10 shrink-0 items-center gap-2 rounded-xl bg-white px-3 py-2 text-sm font-medium text-slate-900 shadow-sm transition hover:bg-slate-50 sm:order-none"
-            aria-label="Abrir Google Chat"
-          >
-            <PortalIcon name="chat" className="h-5 w-5 text-emerald-500" />
-            <span>Chat</span>
-          </a>
-        ) : null}
+        {canUseChat ? <ChatButton /> : null}
 
         <form
           action={async () => {

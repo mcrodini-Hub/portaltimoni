@@ -10,7 +10,7 @@ import type { UpdateModule } from "@/lib/module-updates";
 type MobileNavItem = { href: string; targetHref?: string; label: string; updateModule?: UpdateModule; icon: PortalIconName; color: string; external?: boolean };
 type PendingUpdate = { module: UpdateModule; count: number; latestAt: string };
 
-export default function MobilePortalHeader({ items, showUpdates, showGuide, initials }: { items: MobileNavItem[]; showUpdates: boolean; showGuide: boolean; initials: string }) {
+export default function MobilePortalHeader({ items, showUpdates, showGuide, showChat, initials }: { items: MobileNavItem[]; showUpdates: boolean; showGuide: boolean; showChat: boolean; initials: string }) {
   const [open, setOpen] = useState(false);
   const [updates, setUpdates] = useState<Record<string, PendingUpdate>>({});
 
@@ -103,6 +103,7 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, init
             </Link>;
           })}
           {showGuide ? <Link href="/configuracoes#guia" onClick={() => setOpen(false)} className="mt-2 flex min-h-14 items-center gap-4 border-y border-slate-200 px-3 text-[1.05rem] font-medium text-slate-900"><PortalIcon name="guide" className="h-6 w-6 text-slate-800"/><span className="flex-1">Guia de uso</span><span className="text-2xl font-light text-slate-500">›</span></Link> : null}
+          {showChat ? <a href="https://chat.google.com/app/home" target="_blank" rel="noopener noreferrer" onClick={() => setOpen(false)} className="mt-2 flex min-h-14 items-center gap-4 rounded-xl bg-slate-50 px-3 text-[1.05rem] font-medium text-slate-900"><PortalIcon name="chat" className="h-6 w-6 text-emerald-500"/><span className="flex-1">Chat</span><span className="text-2xl font-light text-slate-500">›</span></a> : null}
           <button type="button" onClick={() => void signOut({ callbackUrl: "/login" })} className="mt-2 flex min-h-14 w-full items-center gap-4 border-b border-slate-200 px-3 text-left text-[1.05rem] font-medium text-slate-900"><PortalIcon name="logout" className="h-6 w-6"/><span>Sair</span></button>
         </nav>
       </aside>

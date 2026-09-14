@@ -6,9 +6,10 @@ import MobilePortalHeader from "@/components/mobile-portal-header";
 import type { UpdateModule } from "@/lib/module-updates";
 import type { PortalIconName } from "@/components/portal-icon";
 
-const navItems: Array<{ href: string; label: string; module: PortalModule; updateModule: UpdateModule; icon: PortalIconName; color: string }> = [
+const navItems: Array<{ href: string; label: string; module: PortalModule; updateModule?: UpdateModule; icon: PortalIconName; color: string; external?: boolean }> = [
   { href: "/colaboradores", label: "Avisos", module: "painel", updateModule: "avisos", icon: "notice", color: "text-rose-700" },
   { href: "/agenda", label: "Agenda Ciça", module: "agenda", updateModule: "agenda", icon: "star", color: "text-cyan-700" },
+  { href: "https://chat.google.com/app/home", label: "Chat", module: "chat", icon: "chat", color: "text-blue-700", external: true },
   { href: "/dashboard/compras", label: "Compras", module: "compras", updateModule: "compras", icon: "cart", color: "text-orange-700" },
   { href: "/dashboard/conferencia-pedidos", label: "Conferência", module: "conferencia", updateModule: "conferencia", icon: "document", color: "text-rose-700" },
   { href: "/dashboard/estoque", label: "Estoque", module: "estoque", updateModule: "estoque", icon: "stock", color: "text-amber-700" },
@@ -35,15 +36,16 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
         : item.href,
     }));
   const byLabel = (a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label, "pt-BR", { sensitivity: "base" });
+  const sortedAllowedItems = [...allowedItems].sort(byLabel);
   const desktopItems = [
-    ...allowedItems,
+    ...sortedAllowedItems,
     ...(isManagement ? [{ href: "/configuracoes", targetHref: "/configuracoes", label: "Configurações", updateModule: undefined }] : []),
-  ].sort(byLabel);
+  ];
   const mobileItems = [
     ...(!directPainelTimoniAccess ? [{ href: "/dashboard", targetHref: "/dashboard", label: "Painel", module: "painel" as PortalModule, updateModule: undefined, icon: "home" as PortalIconName, color: "text-blue-600" }] : []),
-    ...allowedItems,
+    ...sortedAllowedItems,
     ...(isManagement ? [{ href: "/configuracoes", targetHref: "/configuracoes", label: "Configurações", module: "painel" as PortalModule, updateModule: undefined, icon: "settings" as PortalIconName, color: "text-slate-800" }] : []),
-  ].sort(byLabel);
+  ];
   const initials = email.trim().toLowerCase() === "mcrodini@gmail.com" ? "CR" : email.trim().toLowerCase() === "mrodini@gmail.com" ? "MR" : "CT";
 
   return (

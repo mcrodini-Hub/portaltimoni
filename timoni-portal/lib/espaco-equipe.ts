@@ -1,7 +1,7 @@
 import { neon } from "@neondatabase/serverless";
 
 export type TeamMessage = {
-  id: string;
+  id?: string;
   date: string;
   unit: string;
   employee: string;

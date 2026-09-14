@@ -28,19 +28,58 @@ export async function GET(request: NextRequest) {
     }
 
     const convRes = await supabaseAdminFetch(`chat_conversations?or=(user_a.eq.${ctx.me.id},user_b.eq.${ctx.me.id})&select=id,user_a,user_b`);
-    const conversations = await convRes.json() as Array<{ id: string }>;
+    const conversations = await convRes.json() as Array<{ id: string; user_a: string; user_b: string }>;
     let unread: ChatMessage[] = [];
+    let recentMessages: ChatMessage[] = [];
+
     if (conversations.length) {
       const ids = conversations.map((c) => c.id).join(",");
       const unreadRes = await supabaseAdminFetch(`chat_messages?conversation_id=in.(${ids})&recipient_user_id=eq.${ctx.me.id}&read_at=is.null&select=id,conversation_id,sender_user_id,recipient_user_id,body,created_at,read_at`);
       unread = await unreadRes.json() as ChatMessage[];
+
+      const recentRes = await supabaseAdminFetch(`chat_messages?conversation_id=in.(${ids})&select=id,conversation_id,sender_user_id,recipient_user_id,body,created_at,read_at&order=created_at.desc&limit=500`);
+      recentMessages = await recentRes.json() as ChatMessage[];
     }
+
     const usersRes = await supabaseAdminFetch("chat_users?select=id,email,name&active=eq.true");
     const users = await usersRes.json() as Array<{ id: string; email: string }>;
     const idsByEmail = new Map(users.map((u) => [normalizeEmail(u.email), u.id]));
+    const emailById = new Map(users.map((u) => [u.id, normalizeEmail(u.email)]));
     const counts = new Map<string, number>();
     unread.forEach((m) => counts.set(m.sender_user_id, (counts.get(m.sender_user_id) ?? 0) + 1));
-    const contacts = INTERNAL_CHAT_PARTICIPANTS.filter((p) => p.email !== ctx.authorized.email).map((p) => ({ ...p, unread: counts.get(idsByEmail.get(p.email) ?? "") ?? 0 }));
+
+    const latestByConversation = new Map<string, ChatMessage>();
+    for (const message of recentMessages) {
+      if (!latestByConversation.has(message.conversation_id)) latestByConversation.set(message.conversation_id, message);
+    }
+
+    const conversationByPeerEmail = new Map<string, { id: string }>();
+    for (const conversation of conversations) {
+      const peerId = conversation.user_a === ctx.me.id ? conversation.user_b : conversation.user_a;
+      const peerEmail = emailById.get(peerId);
+      if (peerEmail) conversationByPeerEmail.set(peerEmail, { id: conversation.id });
+    }
+
+    const contacts = INTERNAL_CHAT_PARTICIPANTS
+      .filter((p) => p.email !== ctx.authorized.email)
+      .map((p) => {
+        const peerId = idsByEmail.get(p.email) ?? "";
+        const conversation = conversationByPeerEmail.get(p.email);
+        const latest = conversation ? latestByConversation.get(conversation.id) : undefined;
+        return {
+          ...p,
+          unread: counts.get(peerId) ?? 0,
+          lastMessageAt: latest?.created_at ?? null,
+          lastMessagePreview: latest?.body ?? "",
+        };
+      })
+      .sort((a, b) => {
+        if (a.lastMessageAt && b.lastMessageAt) return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
+        if (a.lastMessageAt) return -1;
+        if (b.lastMessageAt) return 1;
+        return a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" });
+      });
+
     return NextResponse.json({ currentUser: { email: ctx.authorized.email, name: ctx.me.name }, contacts, totalUnread: unread.length });
   } catch (error) {
     console.error("[internal-chat][GET]", error);

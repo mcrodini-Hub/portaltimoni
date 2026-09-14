@@ -98,7 +98,7 @@ export function getPortalUser(email?: string | null, configured?: PortalUser | n
   if (configured && normalizeEmail(configured.email) === normalized) {
     if (configured.active === false) return null;
     return normalized === MARCELO_EMAIL
-      ? { ...configured, modules: modulesWithoutCicaAgenda }
+      ? { ...configured, modules: configured.modules.filter((module) => module !== "agenda") }
       : configured;
   }
   const fallback = portalUsers[normalized] ?? null;

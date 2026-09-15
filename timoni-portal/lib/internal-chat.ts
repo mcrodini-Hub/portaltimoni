@@ -6,6 +6,7 @@ export const INTERNAL_CHAT_PARTICIPANTS = [
   { name: "Ciça", email: "mcrodini@gmail.com" },
   { name: "Lucas", email: "estoquetimoni@gmail.com" },
   { name: "Carolina", email: "carolina@casatimoni.com.br" },
+  { name: "Jeovana", email: "comercialrc@casatimoni.com.br" },
 ] as const;
 
 export type InternalChatParticipant = (typeof INTERNAL_CHAT_PARTICIPANTS)[number];

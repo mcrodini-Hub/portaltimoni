@@ -86,6 +86,7 @@ export default function ComprasClient() {
 
   const [unit, setUnit] = useState<Unit | "">("");
   const [company, setCompany] = useState<Company>("MCR");
+  const [supplierName, setSupplierName] = useState("");
   const [orderNumber, setOrderNumber] = useState("");
   const [dataEntrega, setDataEntrega] = useState("");
 
@@ -100,8 +101,8 @@ export default function ComprasClient() {
     [selectedId, suppliers],
   );
   const dataEnvio = todayLocal();
-  const finalTitle = selectedSupplier
-    ? [selectedSupplier.name.trim(), orderNumber.trim() ? `${orderNumber.trim()}${company}` : company].filter(Boolean).join(" ")
+  const finalTitle = supplierName.trim()
+    ? [supplierName.trim(), orderNumber.trim() ? `${orderNumber.trim()}${company}` : company].filter(Boolean).join(" ")
     : `Compra ${company} ${dataEnvio}`;
   const summary = trello.summary;
   const canFinalize = Boolean(unit && dataEntrega);
@@ -156,6 +157,7 @@ export default function ComprasClient() {
 
   function chooseSupplier(supplier: Supplier) {
     setSelectedId(supplier.id);
+    setSupplierName(supplier.name);
     setOrderNumber("");
     setUnit("");
     setError("");
@@ -229,7 +231,9 @@ export default function ComprasClient() {
       const formData = new FormData();
       if (selectedSupplier) {
         formData.set("cardId", selectedSupplier.id);
-        formData.set("supplierName", selectedSupplier.name);
+      }
+      if (supplierName.trim()) {
+        formData.set("supplierName", supplierName.trim());
       }
       formData.set("finalTitle", finalTitle);
       formData.set("unit", unit);
@@ -248,6 +252,7 @@ export default function ComprasClient() {
       setSuccess("Pronto!");
       setUpdatedCardUrl(payload.cardUrl || "");
       setSelectedId("");
+      setSupplierName("");
       setOrderNumber("");
       setUnit("");
       setDataEntrega("");
@@ -517,15 +522,14 @@ export default function ComprasClient() {
         <p className="mt-2 text-sm text-slate-600">
           Fornecedor e número do pedido são opcionais. Informe os dados disponíveis para atualizar o Trello.
         </p>
-
         <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
           <label className="text-sm font-semibold text-slate-800">
-            Fornecedor
+            Fornecedor <span className="font-normal text-slate-500">(opcional)</span>
             <input
-              value={selectedSupplier?.name || ""}
-              readOnly
-              placeholder="Opcional — novo cartão sem fornecedor"
-              className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 text-sm text-slate-700"
+              value={supplierName}
+              onChange={(event) => setSupplierName(event.target.value)}
+              placeholder="Digite o fornecedor"
+              className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
             />
           </label>
           <label className="text-sm font-semibold text-slate-800">

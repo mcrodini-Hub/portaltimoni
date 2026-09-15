@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
 
 type Contact = {
   name: string;
@@ -9,7 +10,7 @@ type Contact = {
   lastMessageAt: string | null;
   lastMessagePreview: string;
 };
-type Message = { id: string; sender_user_id: string; recipient_user_id: string; body: string; created_at: string; read_at: string | null };
+type Message = { id: string; sender_user_id: string; recipient_user_id: string; body: string; created_at: string; read_at: string | null; edited_at: string | null };
 type Overview = { currentUser?: { email: string; name: string }; contacts: Contact[]; totalUnread: number };
 
 function formatActivity(value: string | null) {
@@ -31,6 +32,12 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
   const [search, setSearch] = useState("");
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
+  const [minimized, setMinimized] = useState(false);
+  const [contactsWidth, setContactsWidth] = useState(208);
+  const [editingMessage, setEditingMessage] = useState<Message | null>(null);
+  const [activeMessageMenu, setActiveMessageMenu] = useState<string | null>(null);
+  const [messageAction, setMessageAction] = useState<string | null>(null);
+  const panelRef = useRef<HTMLElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
   const loadOverview = useCallback(async () => {
@@ -78,8 +85,22 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
   }, [open, selected, loadMessages]);
 
   useEffect(() => {
-    if (open) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
-  }, [messages, open]);
+    if (open && !minimized) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
+  }, [messages, minimized, open]);
+
+  useEffect(() => {
+    if (!open) {
+      setMinimized(false);
+      setEditingMessage(null);
+      setActiveMessageMenu(null);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    setEditingMessage(null);
+    setActiveMessageMenu(null);
+    setDraft("");
+  }, [selected]);
 
   const filteredContacts = useMemo(() => {
     const term = search.trim().toLocaleLowerCase("pt-BR");
@@ -97,26 +118,111 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
     setSending(true);
     setError("");
     try {
-      const response = await fetch("/api/internal-chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ peer: selected, message }) });
+      const response = editingMessage
+        ? await fetch("/api/internal-chat", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ peer: selected, action: "edit", messageId: editingMessage.id, message }),
+          })
+        : await fetch("/api/internal-chat", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ peer: selected, message }),
+          });
       if (!response.ok) throw new Error();
       setDraft("");
+      setEditingMessage(null);
       await loadMessages(selected, false);
       await loadOverview();
     } catch {
-      setError("Não foi possível enviar a mensagem.");
+      setError(editingMessage ? "Não foi possível editar a mensagem." : "Não foi possível enviar a mensagem.");
     } finally {
       setSending(false);
     }
   }
 
+  function startEditingMessage(message: Message) {
+    setEditingMessage(message);
+    setDraft(message.body);
+    setActiveMessageMenu(null);
+  }
+
+  async function removeMessage(message: Message) {
+    if (!selected || messageAction || !window.confirm("Excluir esta mensagem?")) return;
+    setMessageAction(message.id);
+    setActiveMessageMenu(null);
+    setError("");
+    try {
+      const response = await fetch("/api/internal-chat", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ peer: selected, messageId: message.id }),
+      });
+      if (!response.ok) throw new Error();
+      if (editingMessage?.id === message.id) {
+        setEditingMessage(null);
+        setDraft("");
+      }
+      await loadMessages(selected, false);
+      await loadOverview();
+    } catch {
+      setError("Não foi possível excluir a mensagem.");
+    } finally {
+      setMessageAction(null);
+    }
+  }
+
+  function startContactsResize(event: ReactPointerEvent<HTMLDivElement>) {
+    if (window.innerWidth < 640) return;
+    event.preventDefault();
+    const startX = event.clientX;
+    const startWidth = contactsWidth;
+    const panelWidth = panelRef.current?.clientWidth ?? 640;
+    const maxWidth = Math.max(240, Math.min(340, panelWidth - 300));
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      setContactsWidth(Math.min(maxWidth, Math.max(176, startWidth + moveEvent.clientX - startX)));
+    };
+    const stopResize = () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", stopResize);
+      document.body.style.removeProperty("user-select");
+      document.body.style.removeProperty("cursor");
+    };
+
+    document.body.style.setProperty("user-select", "none");
+    document.body.style.setProperty("cursor", "col-resize");
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", stopResize);
+  }
+
   if (!open) return null;
   const contact = overview.contacts.find((item) => item.email === selected) ?? null;
+  const panelStyle = { "--contacts-width": `${contactsWidth}px` } as CSSProperties;
+
+  if (minimized) {
+    return (
+      <div className="pointer-events-none fixed bottom-5 right-5 z-[100] hidden sm:block">
+        <section className="pointer-events-auto flex w-80 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-2xl">
+          <button type="button" onClick={() => setMinimized(false)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#2296E8] text-base text-white">☰</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm font-semibold text-[#0F2D8F]">Chat interno</span>
+              <span className="block text-xs text-slate-500">Clique para restaurar</span>
+            </span>
+            {overview.totalUnread > 0 ? <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">{overview.totalUnread}</span> : null}
+          </button>
+          <button type="button" onClick={onClose} className="flex h-8 w-8 items-center justify-center rounded-full text-xl text-slate-500 hover:bg-slate-100" aria-label="Fechar chat">×</button>
+        </section>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-end bg-slate-950/20 sm:items-center sm:justify-end sm:p-5" role="dialog" aria-modal="true">
       <button type="button" className="absolute inset-0" onClick={onClose} aria-label="Fechar chat" />
-      <section className="relative flex h-[86vh] w-full overflow-hidden bg-white font-sans shadow-2xl sm:h-[500px] sm:min-h-[380px] sm:w-[min(90vw,640px)] sm:min-w-[520px] sm:max-h-[calc(100vh-2.5rem)] sm:max-w-[calc(100vw-2.5rem)] sm:resize sm:rounded-2xl sm:border sm:border-slate-200">
-        <aside className={`${selected ? "hidden sm:flex" : "flex"} w-full flex-col border-r border-slate-200 bg-slate-50 sm:w-[13rem]`}>
+      <section ref={panelRef} style={panelStyle} className="relative flex h-[86vh] w-full overflow-hidden bg-white font-sans shadow-2xl sm:h-[500px] sm:min-h-[380px] sm:w-[min(90vw,640px)] sm:min-w-[520px] sm:max-h-[calc(100vh-2.5rem)] sm:max-w-[calc(100vw-2.5rem)] sm:resize sm:rounded-2xl sm:border sm:border-slate-200" title="Arraste o canto inferior direito para ajustar o tamanho">
+        <aside className={`${selected ? "hidden sm:flex" : "flex"} w-full flex-col border-r border-slate-200 bg-slate-50 sm:w-[var(--contacts-width)] sm:shrink-0`}>
           <div className="border-b border-slate-200 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-[.16em] text-blue-700">Casa Timoni</p>
             <h2 className="mt-1 text-base font-semibold text-slate-950">Chat interno</h2>
@@ -134,12 +240,13 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
             {filteredContacts.length === 0 ? <p className="px-3 py-8 text-center text-sm text-slate-500">Nenhuma conversa encontrada.</p> : null}
             {filteredContacts.map((item) => {
               const hasUnread = item.unread > 0;
+              const isSelected = item.email === selected;
               return (
                 <button
                   key={item.email}
                   type="button"
                   onClick={() => setSelected(item.email)}
-                  className={`mb-1 flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition ${hasUnread ? "bg-blue-50 ring-1 ring-blue-100 hover:bg-blue-100" : "text-slate-800 hover:bg-white"}`}
+                  className={`mb-1 flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition ${isSelected ? "bg-[#E4F2FD] text-[#0F2D8F] ring-1 ring-[#2296E8]/40" : hasUnread ? "bg-blue-50 ring-1 ring-blue-100 hover:bg-blue-100" : "text-slate-800 hover:bg-white"}`}
                 >
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#2296E8] text-sm font-semibold text-white">{item.name.slice(0, 2).toUpperCase()}</span>
                   <span className="min-w-0 flex-1">
@@ -157,6 +264,16 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
             })}
           </div>
         </aside>
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Ajustar largura da lista de contatos"
+          onPointerDown={startContactsResize}
+          className="group hidden w-2 shrink-0 cursor-col-resize items-center justify-center bg-white sm:flex"
+          title="Arraste para ajustar a divisão entre contatos e conversa"
+        >
+          <span className="h-10 w-0.5 rounded-full bg-slate-300 transition group-hover:bg-[#2296E8]" />
+        </div>
         <div className={`${selected ? "flex" : "hidden sm:flex"} min-w-0 flex-1 flex-col`}>
           <div className="flex min-h-12 items-center gap-3 border-b border-slate-200 px-4">
             <button type="button" className="px-2 py-2 text-xl text-slate-500 sm:hidden" onClick={() => setSelected(null)}>‹</button>
@@ -164,12 +281,67 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
               <p className="truncate text-sm font-semibold text-slate-950">{contact?.name || "Selecione uma conversa"}</p>
               <p className="text-xs text-slate-500">{contact?.lastMessageAt ? `Última atividade ${formatActivity(contact.lastMessageAt)}` : "Chat interno · equipe autorizada"}</p>
             </div>
+            <button type="button" className="hidden h-8 w-8 items-center justify-center rounded-full text-lg font-semibold text-[#0F2D8F] hover:bg-blue-50 sm:flex" onClick={() => setMinimized(true)} title="Minimizar chat" aria-label="Minimizar chat">−</button>
             <button type="button" className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100" onClick={onClose}>Fechar</button>
           </div>
           <div ref={scrollRef} className="flex-1 overflow-y-auto bg-slate-50/50 px-3 py-3 sm:px-4">
-            {messages.length === 0 ? <div className="mt-16 text-center text-sm text-slate-500">Envie a primeira mensagem.</div> : <div className="space-y-1">{messages.map((message) => { const mine = message.sender_user_id === currentUserId; return <div key={message.id} className="flex"><div className={`w-fit max-w-[58%] rounded-2xl px-3 py-1.5 text-sm font-normal leading-[1.2rem] shadow-sm ${mine ? "ml-auto bg-[#2296E8] text-white" : "mr-auto border border-slate-200 bg-white text-slate-900"}`}><div className="flex items-end gap-2"><p className="min-w-0 flex-1 whitespace-pre-wrap break-words leading-[1.2rem]">{message.body}</p><span className={`shrink-0 text-[10px] font-normal leading-4 ${mine ? "text-white/90" : "text-slate-500"}`}>{new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(new Date(message.created_at))}</span></div></div></div>; })}</div>}
+            {messages.length === 0 ? (
+              <div className="mt-16 text-center text-sm text-slate-500">Envie a primeira mensagem.</div>
+            ) : (
+              <div className="space-y-1.5">
+                {messages.map((message) => {
+                  const mine = message.sender_user_id === currentUserId;
+                  return (
+                    <div key={message.id} className={`flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
+                      <div className={`w-fit max-w-[64%] rounded-2xl border px-3 py-1.5 text-sm font-normal leading-[1.2rem] shadow-sm sm:text-[#0F2D8F] ${mine ? "border-transparent bg-[#2296E8] text-white sm:border-[#2296E8] sm:bg-[#E7F3FC]" : "border-slate-300 bg-white text-slate-900"}`}>
+                        <p className="whitespace-pre-wrap break-words leading-[1.2rem]">{message.body}</p>
+                        <span className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] font-medium leading-4 ${mine ? "text-white/90 sm:text-[#0F2D8F]" : "text-[#0F2D8F]/70"}`}>
+                          {message.edited_at ? <span>Editada</span> : null}
+                          <span>{new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(new Date(message.created_at))}</span>
+                          {mine ? <span title={message.read_at ? "Lida" : "Enviada"} className={message.read_at ? "font-bold text-[#0F2D8F]" : ""}>{message.read_at ? "✓✓" : "✓"}</span> : null}
+                        </span>
+                      </div>
+                      {mine ? (
+                        <div className="relative hidden sm:block">
+                          <button
+                            type="button"
+                            onClick={() => setActiveMessageMenu((value) => value === message.id ? null : message.id)}
+                            className="flex h-7 w-7 items-center justify-center rounded-full text-lg leading-none text-[#0F2D8F]/65 hover:bg-blue-50 hover:text-[#0F2D8F]"
+                            aria-label="Opções da mensagem"
+                            disabled={messageAction === message.id}
+                          >
+                            ⋯
+                          </button>
+                          {activeMessageMenu === message.id ? (
+                            <div className="absolute right-0 top-8 z-10 w-28 overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                              <button type="button" onClick={() => startEditingMessage(message)} className="block w-full px-3 py-2 text-left text-xs font-medium text-[#0F2D8F] hover:bg-blue-50">Editar</button>
+                              <button type="button" onClick={() => void removeMessage(message)} className="block w-full px-3 py-2 text-left text-xs font-medium text-red-600 hover:bg-red-50">Excluir</button>
+                            </div>
+                          ) : null}
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
-          <div className="border-t border-slate-200 p-3">{error ? <p className="mb-2 text-xs font-medium text-red-600">{error}</p> : null}<div className="flex items-end gap-2 rounded-2xl border border-slate-300 p-2 shadow-sm focus-within:border-blue-400"><textarea value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} rows={1} maxLength={4000} placeholder={contact ? `Mensagem para ${contact.name}` : "Selecione uma conversa"} className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm text-slate-900 caret-blue-700 outline-none placeholder:text-slate-400" /><button type="button" disabled={!selected || !draft.trim() || sending} onClick={() => void sendMessage()} className="min-h-10 rounded-xl bg-[#2296E8] px-4 text-sm font-semibold text-white disabled:opacity-40">Enviar</button></div></div>
+          <div className="border-t border-slate-200 p-3">
+            {error ? <p className="mb-2 text-xs font-medium text-red-600">{error}</p> : null}
+            {editingMessage ? (
+              <div className="mb-2 flex items-center justify-between rounded-xl border-l-4 border-[#2296E8] bg-blue-50 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-[#0F2D8F]">Editando mensagem</p>
+                  <p className="truncate text-xs text-slate-600">{editingMessage.body}</p>
+                </div>
+                <button type="button" onClick={() => { setEditingMessage(null); setDraft(""); }} className="ml-2 rounded-lg px-2 py-1 text-xs font-medium text-[#0F2D8F] hover:bg-white">Cancelar</button>
+              </div>
+            ) : null}
+            <div className="flex items-end gap-2 rounded-2xl border border-slate-300 p-2 shadow-sm focus-within:border-blue-400">
+              <textarea value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} rows={1} maxLength={4000} placeholder={contact ? `Mensagem para ${contact.name}` : "Selecione uma conversa"} className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm text-[#0F2D8F] caret-blue-700 outline-none placeholder:text-slate-400" />
+              <button type="button" disabled={!selected || !draft.trim() || sending} onClick={() => void sendMessage()} className="min-h-10 rounded-xl bg-[#2296E8] px-4 text-sm font-semibold text-white disabled:opacity-40">{editingMessage ? "Salvar" : "Enviar"}</button>
+            </div>
+          </div>
         </div>
       </section>
     </div>

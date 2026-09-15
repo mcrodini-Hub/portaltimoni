@@ -196,6 +196,33 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
     window.addEventListener("pointerup", stopResize);
   }
 
+  function startPanelWidthResize(event: ReactPointerEvent<HTMLDivElement>) {
+    if (window.innerWidth < 640 || !panelRef.current) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const panel = panelRef.current;
+    const startX = event.clientX;
+    const startWidth = panel.getBoundingClientRect().width;
+    const maxWidth = Math.max(520, window.innerWidth - 40);
+
+    const handlePointerMove = (moveEvent: PointerEvent) => {
+      const nextWidth = Math.min(maxWidth, Math.max(520, startWidth + startX - moveEvent.clientX));
+      panel.style.width = `${nextWidth}px`;
+      setContactsWidth((width) => Math.min(width, Math.max(176, nextWidth - 300)));
+    };
+    const stopResize = () => {
+      window.removeEventListener("pointermove", handlePointerMove);
+      window.removeEventListener("pointerup", stopResize);
+      document.body.style.removeProperty("user-select");
+      document.body.style.removeProperty("cursor");
+    };
+
+    document.body.style.setProperty("user-select", "none");
+    document.body.style.setProperty("cursor", "ew-resize");
+    window.addEventListener("pointermove", handlePointerMove);
+    window.addEventListener("pointerup", stopResize);
+  }
+
   if (!open) return null;
   const contact = overview.contacts.find((item) => item.email === selected) ?? null;
   const panelStyle = { "--contacts-width": `${contactsWidth}px` } as CSSProperties;
@@ -221,7 +248,17 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
   return (
     <div className="fixed inset-0 z-[100] flex items-end bg-slate-950/20 sm:items-center sm:justify-end sm:p-5" role="dialog" aria-modal="true">
       <button type="button" className="absolute inset-0" onClick={onClose} aria-label="Fechar chat" />
-      <section ref={panelRef} style={panelStyle} className="relative flex h-[86vh] w-full overflow-hidden bg-white font-sans shadow-2xl sm:h-[500px] sm:min-h-[380px] sm:w-[min(90vw,640px)] sm:min-w-[520px] sm:max-h-[calc(100vh-2.5rem)] sm:max-w-[calc(100vw-2.5rem)] sm:resize sm:rounded-2xl sm:border sm:border-slate-200" title="Arraste o canto inferior direito para ajustar o tamanho">
+      <section ref={panelRef} style={panelStyle} className="relative flex h-[86vh] w-full overflow-hidden bg-white font-sans shadow-2xl sm:h-[500px] sm:min-h-[380px] sm:w-[min(90vw,640px)] sm:min-w-[520px] sm:max-h-[calc(100vh-2.5rem)] sm:max-w-[calc(100vw-2.5rem)] sm:resize sm:rounded-2xl sm:border sm:border-slate-200" title="Arraste a borda esquerda para ajustar a largura ou o canto inferior direito para ajustar o tamanho">
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          aria-label="Ajustar largura externa do chat"
+          onPointerDown={startPanelWidthResize}
+          className="group absolute inset-y-0 left-0 z-30 hidden w-3 cursor-ew-resize items-center justify-center sm:flex"
+          title="Arraste para ajustar a largura externa do chat"
+        >
+          <span className="h-16 w-1 rounded-full bg-[#2296E8]/35 transition group-hover:bg-[#2296E8]" />
+        </div>
         <aside className={`${selected ? "hidden sm:flex" : "flex"} w-full flex-col border-r border-slate-200 bg-slate-50 sm:w-[var(--contacts-width)] sm:shrink-0`}>
           <div className="border-b border-slate-200 px-4 py-3">
             <p className="text-xs font-semibold uppercase tracking-[.16em] text-blue-700">Casa Timoni</p>

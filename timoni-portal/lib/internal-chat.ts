@@ -69,6 +69,10 @@ async function ensureSchema() {
         )
       `;
       await sql`
+        ALTER TABLE portal_chat_messages
+        ADD COLUMN IF NOT EXISTS edited_at TIMESTAMPTZ
+      `;
+      await sql`
         CREATE INDEX IF NOT EXISTS portal_chat_messages_conversation_idx
         ON portal_chat_messages (conversation_id, created_at, id)
       `;
@@ -105,6 +109,7 @@ export type ChatMessage = {
   body: string;
   created_at: Date | string;
   read_at: Date | string | null;
+  edited_at: Date | string | null;
 };
 
 function normalizeMessage(row: ChatMessage) {
@@ -114,6 +119,7 @@ function normalizeMessage(row: ChatMessage) {
     conversation_id: String(row.conversation_id),
     created_at: new Date(row.created_at).toISOString(),
     read_at: row.read_at ? new Date(row.read_at).toISOString() : null,
+    edited_at: row.edited_at ? new Date(row.edited_at).toISOString() : null,
   };
 }
 
@@ -178,7 +184,8 @@ export async function listUnreadMessages(userEmail: string) {
       messages.recipient_user_id,
       messages.body,
       messages.created_at,
-      messages.read_at
+      messages.read_at,
+      messages.edited_at
     FROM portal_chat_messages messages
     INNER JOIN portal_chat_conversations conversations ON conversations.id = messages.conversation_id
     WHERE messages.recipient_user_id = ${email}
@@ -201,7 +208,8 @@ export async function listRecentMessages(userEmail: string) {
       messages.recipient_user_id,
       messages.body,
       messages.created_at,
-      messages.read_at
+      messages.read_at,
+      messages.edited_at
     FROM portal_chat_messages messages
     INNER JOIN portal_chat_conversations conversations ON conversations.id = messages.conversation_id
     WHERE conversations.user_a = ${email} OR conversations.user_b = ${email}
@@ -223,7 +231,8 @@ export async function listConversationMessages(conversationId: string) {
         recipient_user_id,
         body,
         created_at,
-        read_at
+        read_at,
+        edited_at
       FROM portal_chat_messages
       WHERE conversation_id = ${conversationId}::BIGINT
       ORDER BY created_at DESC, id DESC
@@ -252,7 +261,8 @@ export async function createChatMessage(conversationId: string, senderEmail: str
       recipient_user_id,
       body,
       created_at,
-      read_at
+      read_at,
+      edited_at
   ` as ChatMessage[];
   return rows[0] ? normalizeMessage(rows[0]) : null;
 }
@@ -268,4 +278,39 @@ export async function markConversationRead(conversationId: string, recipientEmai
       AND sender_user_id = ${normalizeEmail(senderEmail)}
       AND read_at IS NULL
   `;
+}
+
+export async function updateChatMessage(messageId: string, conversationId: string, senderEmail: string, body: string) {
+  await ensureSchema();
+  const sql = getDatabase();
+  const rows = await sql`
+    UPDATE portal_chat_messages
+    SET body = ${body}, edited_at = NOW()
+    WHERE id = ${messageId}::BIGINT
+      AND conversation_id = ${conversationId}::BIGINT
+      AND sender_user_id = ${normalizeEmail(senderEmail)}
+    RETURNING
+      id::TEXT AS id,
+      conversation_id::TEXT AS conversation_id,
+      sender_user_id,
+      recipient_user_id,
+      body,
+      created_at,
+      read_at,
+      edited_at
+  ` as ChatMessage[];
+  return rows[0] ? normalizeMessage(rows[0]) : null;
+}
+
+export async function deleteChatMessage(messageId: string, conversationId: string, senderEmail: string) {
+  await ensureSchema();
+  const sql = getDatabase();
+  const rows = await sql`
+    DELETE FROM portal_chat_messages
+    WHERE id = ${messageId}::BIGINT
+      AND conversation_id = ${conversationId}::BIGINT
+      AND sender_user_id = ${normalizeEmail(senderEmail)}
+    RETURNING id::TEXT AS id
+  ` as Array<{ id: string }>;
+  return rows[0] ?? null;
 }

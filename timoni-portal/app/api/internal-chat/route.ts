@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import {
   INTERNAL_CHAT_PARTICIPANTS,
   createChatMessage,
+  deleteChatMessage,
   ensureConversation,
   getConversationBetween,
   getDbUserByEmail,
@@ -12,6 +13,7 @@ import {
   markConversationRead,
   requireInternalChatSession,
   type ChatMessage,
+  updateChatMessage,
 } from "@/lib/internal-chat";
 import { normalizeEmail } from "@/lib/access-control";
 
@@ -123,14 +125,42 @@ export async function POST(request: NextRequest) {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const body = await request.json() as { peer?: string };
+    const body = await request.json() as { peer?: string; action?: "read" | "edit"; messageId?: string; message?: string };
     const ctx = await context(body.peer);
     if (!ctx?.peer) return NextResponse.json({ error: "Destinatário inválido" }, { status: 400 });
 
     const conversation = await getConversationBetween(ctx.me.id, ctx.peer.id);
+    if (body.action === "edit") {
+      const message = String(body.message ?? "").trim();
+      if (!conversation || !body.messageId || !message || message.length > 4000) {
+        return NextResponse.json({ error: "Mensagem inválida" }, { status: 400 });
+      }
+      const updated = await updateChatMessage(body.messageId, conversation.id, ctx.me.id, message);
+      if (!updated) return NextResponse.json({ error: "Mensagem não encontrada" }, { status: 404 });
+      return NextResponse.json({ message: updated });
+    }
+
     if (conversation) await markConversationRead(conversation.id, ctx.me.id, ctx.peer.id);
     return NextResponse.json({ ok: true });
   } catch (error) {
     return errorResponse("PATCH", error);
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const body = await request.json() as { peer?: string; messageId?: string };
+    const ctx = await context(body.peer);
+    if (!ctx?.peer || !body.messageId) {
+      return NextResponse.json({ error: "Mensagem inválida" }, { status: 400 });
+    }
+
+    const conversation = await getConversationBetween(ctx.me.id, ctx.peer.id);
+    if (!conversation) return NextResponse.json({ error: "Conversa não encontrada" }, { status: 404 });
+    const deleted = await deleteChatMessage(body.messageId, conversation.id, ctx.me.id);
+    if (!deleted) return NextResponse.json({ error: "Mensagem não encontrada" }, { status: 404 });
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return errorResponse("DELETE", error);
   }
 }

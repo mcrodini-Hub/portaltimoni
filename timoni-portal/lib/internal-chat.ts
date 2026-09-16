@@ -82,6 +82,30 @@ async function ensureSchema() {
         ON portal_chat_messages (recipient_user_id, created_at DESC)
         WHERE read_at IS NULL
       `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS portal_chat_user_clears (
+          conversation_id BIGINT NOT NULL REFERENCES portal_chat_conversations(id) ON DELETE CASCADE,
+          user_email TEXT NOT NULL,
+          cleared_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          PRIMARY KEY (conversation_id, user_email)
+        )
+      `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS portal_chat_maintenance (
+          key TEXT PRIMARY KEY,
+          applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+      const cleanupKey = "clear-test-chat-2026-09-16";
+      const cleanupRows = await sql`
+        SELECT key FROM portal_chat_maintenance WHERE key = ${cleanupKey} LIMIT 1
+      ` as Array<{ key: string }>;
+      if (!cleanupRows[0]) {
+        await sql`DELETE FROM portal_chat_messages`;
+        await sql`DELETE FROM portal_chat_user_clears`;
+        await sql`DELETE FROM portal_chat_conversations`;
+        await sql`INSERT INTO portal_chat_maintenance (key) VALUES (${cleanupKey}) ON CONFLICT DO NOTHING`;
+      }
     })().catch((error) => {
       schemaReady = null;
       throw error;
@@ -189,8 +213,11 @@ export async function listUnreadMessages(userEmail: string) {
       messages.edited_at
     FROM portal_chat_messages messages
     INNER JOIN portal_chat_conversations conversations ON conversations.id = messages.conversation_id
+    LEFT JOIN portal_chat_user_clears clears
+      ON clears.conversation_id = messages.conversation_id AND clears.user_email = ${email}
     WHERE messages.recipient_user_id = ${email}
       AND messages.read_at IS NULL
+      AND messages.created_at > COALESCE(clears.cleared_at, TIMESTAMPTZ '1970-01-01')
       AND (conversations.user_a = ${email} OR conversations.user_b = ${email})
     ORDER BY messages.created_at DESC, messages.id DESC
   ` as ChatMessage[];
@@ -213,30 +240,37 @@ export async function listRecentMessages(userEmail: string) {
       messages.edited_at
     FROM portal_chat_messages messages
     INNER JOIN portal_chat_conversations conversations ON conversations.id = messages.conversation_id
-    WHERE conversations.user_a = ${email} OR conversations.user_b = ${email}
+    LEFT JOIN portal_chat_user_clears clears
+      ON clears.conversation_id = messages.conversation_id AND clears.user_email = ${email}
+    WHERE (conversations.user_a = ${email} OR conversations.user_b = ${email})
+      AND messages.created_at > COALESCE(clears.cleared_at, TIMESTAMPTZ '1970-01-01')
     ORDER BY messages.conversation_id, messages.created_at DESC, messages.id DESC
   ` as ChatMessage[];
   return rows.map(normalizeMessage);
 }
 
-export async function listConversationMessages(conversationId: string) {
+export async function listConversationMessages(conversationId: string, userEmail: string) {
   await ensureSchema();
   const sql = getDatabase();
+  const email = normalizeEmail(userEmail);
   const rows = await sql`
     SELECT *
     FROM (
       SELECT
-        id::TEXT AS id,
-        conversation_id::TEXT AS conversation_id,
-        sender_user_id,
-        recipient_user_id,
-        body,
-        created_at,
-        read_at,
-        edited_at
-      FROM portal_chat_messages
-      WHERE conversation_id = ${conversationId}::BIGINT
-      ORDER BY created_at DESC, id DESC
+        messages.id::TEXT AS id,
+        messages.conversation_id::TEXT AS conversation_id,
+        messages.sender_user_id,
+        messages.recipient_user_id,
+        messages.body,
+        messages.created_at,
+        messages.read_at,
+        messages.edited_at
+      FROM portal_chat_messages messages
+      LEFT JOIN portal_chat_user_clears clears
+        ON clears.conversation_id = messages.conversation_id AND clears.user_email = ${email}
+      WHERE messages.conversation_id = ${conversationId}::BIGINT
+        AND messages.created_at > COALESCE(clears.cleared_at, TIMESTAMPTZ '1970-01-01')
+      ORDER BY messages.created_at DESC, messages.id DESC
       LIMIT 300
     ) recent
     ORDER BY created_at ASC, id ASC
@@ -278,6 +312,24 @@ export async function markConversationRead(conversationId: string, recipientEmai
       AND recipient_user_id = ${normalizeEmail(recipientEmail)}
       AND sender_user_id = ${normalizeEmail(senderEmail)}
       AND read_at IS NULL
+  `;
+}
+
+export async function clearConversationForUser(conversationId: string, userEmail: string) {
+  await ensureSchema();
+  const sql = getDatabase();
+  const email = normalizeEmail(userEmail);
+  await sql`
+    INSERT INTO portal_chat_user_clears (conversation_id, user_email, cleared_at)
+    VALUES (${conversationId}::BIGINT, ${email}, NOW())
+    ON CONFLICT (conversation_id, user_email)
+    DO UPDATE SET cleared_at = EXCLUDED.cleared_at
+  `;
+  await sql`
+    UPDATE portal_chat_messages
+    SET read_at = COALESCE(read_at, NOW())
+    WHERE conversation_id = ${conversationId}::BIGINT
+      AND recipient_user_id = ${email}
   `;
 }
 

@@ -123,7 +123,7 @@ export default function DashboardOverviewClient({ modules, motoristaControle, es
       ? "relative flex min-h-24 min-w-0 flex-col justify-between rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-3 shadow-sm transition active:bg-blue-100"
       : "relative flex min-h-36 min-w-0 flex-col justify-between rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"}>
       <div className="flex items-center justify-between">
-        {mobile ? <span /> : <span className="text-2xl text-blue-700">{icon}</span>}
+        <span className={mobile ? "text-xl leading-none" : "text-2xl text-blue-700"}>{icon}</span>
         <span className="flex items-center gap-2">{pending ? <span aria-label={`${pending.count} atualizações em ${name}`} className="min-w-6 rounded-full bg-red-500 px-1.5 text-center text-xs font-bold leading-6 text-white">{pending.count > 99 ? "99+" : pending.count}</span> : null}<span className={mobile ? "text-base font-normal text-blue-700" : "text-xl text-blue-700"}>›</span></span>
       </div>
       <div className={mobile ? "mt-2" : "mt-4"}>

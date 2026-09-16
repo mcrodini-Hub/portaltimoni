@@ -82,6 +82,10 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
       setSelected(null);
       setMessages([]);
     }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     void refresh();
     const interval = window.setInterval(() => void refresh(), 5_000);
     return () => window.clearInterval(interval);
@@ -214,7 +218,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
     const maxWidth = Math.max(240, Math.min(340, panelWidth - 300));
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
-      setContactsWidth(Math.min(maxWidth, Math.max(176, startWidth + moveEvent.clientX - startX)));
+      setContactsWidth(Math.min(maxWidth, Math.max(176, startWidth + moveEvent.clientX - startX));
     };
     const stopResize = () => {
       window.removeEventListener("pointermove", handlePointerMove);

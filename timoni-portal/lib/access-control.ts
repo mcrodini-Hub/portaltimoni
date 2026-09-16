@@ -11,11 +11,13 @@ export type PortalModule =
   | "marketing"
   | "financeiro";
 
+export type PortalBox = PortalModule | "espaco-equipe";
+
 export type PortalUser = {
   name: string;
   email: string;
   modules: PortalModule[];
-  boxes?: PortalModule[];
+  boxes?: PortalBox[];
   requiresPassword: boolean;
   readOnly?: boolean;
   active?: boolean;
@@ -129,9 +131,14 @@ export function canManageMotorista(email?: string | null, configured?: PortalUse
 }
 export function isReadOnlyUser(email?: string | null, configured?: PortalUser | null) { return !canManageMotorista(email, configured); }
 
-export function isBoxVisible(email: string | null | undefined, module: PortalModule, configured?: PortalUser | null) {
+export function isBoxVisible(email: string | null | undefined, box: PortalBox, configured?: PortalUser | null) {
   const user = getPortalUser(email, configured);
-  if (!user || !user.modules.includes(module)) return false;
+  if (!user) return false;
+  if (box === "espaco-equipe") {
+    if (!user.modules.includes("painel")) return false;
+    return user.boxes?.includes("espaco-equipe") ?? false;
+  }
+  if (!user.modules.includes(box)) return false;
   if (!user.boxes) return true;
-  return user.boxes.includes(module);
+  return user.boxes.includes(box);
 }

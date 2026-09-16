@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { normalizeEmail, type PortalModule, type PortalUser } from "@/lib/access-control";
+import { normalizeEmail, type PortalBox, type PortalModule, type PortalUser } from "@/lib/access-control";
 import {
   appendAudit,
   CICA_EMAIL,
@@ -12,6 +12,9 @@ import {
 
 const VALID_MODULES = new Set<PortalModule>([
   "painel", "agenda", "chat", "compras", "conferencia", "estoque", "motorista", "reunioes", "leads", "marketing", "financeiro",
+]);
+const VALID_BOXES = new Set<PortalBox>([
+  "painel", "agenda", "compras", "conferencia", "estoque", "motorista", "reunioes", "leads", "espaco-equipe",
 ]);
 const MANAGEMENT_EMAILS = new Set([CICA_EMAIL, "mrodini@gmail.com"]);
 
@@ -26,12 +29,16 @@ function cleanModules(value: unknown): PortalModule[] {
   return Array.isArray(value) ? value.filter((item): item is PortalModule => VALID_MODULES.has(item as PortalModule)) : [];
 }
 
+function cleanBoxes(value: unknown): PortalBox[] {
+  return Array.isArray(value) ? value.filter((item): item is PortalBox => VALID_BOXES.has(item as PortalBox)) : [];
+}
+
 function cleanUser(value: Record<string, unknown>): PortalUser {
   const email = normalizeEmail(String(value.email || ""));
   const name = String(value.name || "").trim();
   if (!email.includes("@") || name.length < 2) throw new Error("Informe nome e e-mail válidos.");
   const modules = cleanModules(value.modules);
-  const boxes = cleanModules(value.boxes).filter((module) => modules.includes(module));
+  const boxes = cleanBoxes(value.boxes).filter((box) => box === "espaco-equipe" ? modules.includes("painel") : modules.includes(box));
   return {
     email,
     name,

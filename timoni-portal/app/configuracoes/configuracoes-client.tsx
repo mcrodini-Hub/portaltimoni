@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useState } from "react";
-import type { PortalModule, PortalUser } from "@/lib/access-control";
+import type { PortalBox, PortalModule, PortalUser } from "@/lib/access-control";
 import type { ConfiguredCollaborator, PortalAuditEntry } from "@/lib/portal-config";
 
 type Tab = "acessos" | "colaboradores" | "backup" | "historico" | "guia";
@@ -20,7 +20,17 @@ const MODULES: Array<{ id: PortalModule; label: string }> = [
   { id: "marketing", label: "Marketing" },
   { id: "financeiro", label: "Financeiro" },
 ];
-const BOXES = MODULES.filter((item) => ["painel", "agenda", "compras", "conferencia", "estoque", "motorista", "reunioes", "leads"].includes(item.id));
+const BOXES: Array<{ id: PortalBox; label: string; requiresModule: PortalModule }> = [
+  { id: "painel", label: "Avisos/Painel", requiresModule: "painel" },
+  { id: "agenda", label: "Agenda Ciça", requiresModule: "agenda" },
+  { id: "compras", label: "Compras", requiresModule: "compras" },
+  { id: "conferencia", label: "Conferência", requiresModule: "conferencia" },
+  { id: "estoque", label: "Estoque", requiresModule: "estoque" },
+  { id: "motorista", label: "Motorista", requiresModule: "motorista" },
+  { id: "reunioes", label: "Reuniões", requiresModule: "reunioes" },
+  { id: "leads", label: "Leads", requiresModule: "leads" },
+  { id: "espaco-equipe", label: "Espaço Equipe", requiresModule: "painel" },
+];
 const EMPTY_USER: PortalUser = { name: "", email: "", unit: "Rio Claro", modules: ["painel"], boxes: [], requiresPassword: false, readOnly: true, active: true, directPainel: true };
 const EMPTY_COLLABORATOR: ConfiguredCollaborator = { id: "", name: "", unit: "Rio Claro", active: true, noticeRequired: true, updatedAt: "" };
 
@@ -89,7 +99,7 @@ export default function ConfiguracoesClient() {
     setUserForm((current) => current ? {
       ...current,
       modules: checked ? [...new Set([...current.modules, module])] : current.modules.filter((item) => item !== module),
-      boxes: checked ? current.boxes : (current.boxes || []).filter((item) => item !== module),
+      boxes: checked ? current.boxes : (current.boxes || []).filter((item) => item !== module && !(module === "painel" && item === "espaco-equipe")),
     } : current);
   }
 
@@ -156,7 +166,7 @@ export default function ConfiguracoesClient() {
           <label className="text-sm font-medium text-slate-700">Unidade<select value={userForm.unit} onChange={(e) => setUserForm({ ...userForm, unit: e.target.value as PortalUser["unit"] })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option>Rio Claro</option><option>Araras</option><option>Geral</option></select></label>
         </div>
         <div className="mt-5"><p className="text-sm font-semibold text-slate-900">Permissões dos módulos</p><div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{MODULES.map((module) => <Checkbox key={module.id} label={module.label} checked={userForm.modules.includes(module.id)} onChange={(checked) => toggleModule(module.id, checked)} />)}</div></div>
-        <div className="mt-5"><p className="text-sm font-semibold text-slate-900">Boxes visíveis no Painel</p><div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{BOXES.map((box) => <Checkbox key={box.id} label={box.label} checked={(userForm.boxes || []).includes(box.id)} disabled={!userForm.modules.includes(box.id)} onChange={(checked) => setUserForm({ ...userForm, boxes: checked ? [...new Set([...(userForm.boxes || []), box.id])] : (userForm.boxes || []).filter((item) => item !== box.id) })} />)}</div></div>
+        <div className="mt-5"><p className="text-sm font-semibold text-slate-900">Boxes visíveis no Painel</p><div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">{BOXES.map((box) => <Checkbox key={box.id} label={box.label} checked={(userForm.boxes || []).includes(box.id)} disabled={!userForm.modules.includes(box.requiresModule)} onChange={(checked) => setUserForm({ ...userForm, boxes: checked ? [...new Set([...(userForm.boxes || []), box.id])] : (userForm.boxes || []).filter((item) => item !== box.id) })} />)}</div></div>
         <div className="mt-5 grid gap-2 sm:grid-cols-3">
           <Checkbox label="Acesso ativo" checked={userForm.active !== false} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => setUserForm({ ...userForm, active: checked })} />
           <Checkbox label="Somente leitura" checked={Boolean(userForm.readOnly)} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => setUserForm({ ...userForm, readOnly: checked })} />

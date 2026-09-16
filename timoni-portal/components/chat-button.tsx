@@ -41,9 +41,9 @@ export default function ChatButton({ mobile = false, onOpen }: { mobile?: boolea
   return (
     <>
       {mobile ? (
-        <button type="button" onClick={openChat} className="mt-2 flex min-h-14 w-full items-center gap-4 border-b border-slate-200 px-3 text-left text-[1.05rem] font-medium text-slate-900">
-          <span className="relative flex h-10 w-10 items-center justify-center"><InternalChatMark className="h-10 w-10" />{badge}</span>
+        <button type="button" onClick={openChat} className="relative mt-1 flex min-h-9 w-full items-center border-t border-slate-200 px-2.5 pt-1 text-left text-sm font-normal text-slate-800">
           <span className="flex-1">Chat</span>
+          {unread > 0 ? <span className="ml-2 min-w-5 rounded-full bg-red-500 px-1.5 text-center text-[11px] font-bold leading-5 text-white">{unread > 99 ? "99+" : unread}</span> : null}
         </button>
       ) : (
         <button type="button" onClick={openChat} className="relative order-2 inline-flex h-10 shrink-0 items-center justify-center rounded-lg px-1.5 transition hover:bg-white/10 sm:order-none" aria-label={unread ? `Chat: ${unread} mensagens não lidas` : "Abrir chat interno"} title="Chat">

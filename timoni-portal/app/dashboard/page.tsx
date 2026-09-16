@@ -22,6 +22,8 @@ export default async function DashboardPage() {
     redirect("/colaboradores");
   }
   const visible = modules.filter((item) => hasModuleAccess(email, item.module, session?.portalUser) && isBoxVisible(email, item.module, session?.portalUser));
+  const isManagement = GESTAO_EMAILS.has(normalizedEmail);
+  const showEspacoEquipeBox = isManagement && isBoxVisible(email, "espaco-equipe", session?.portalUser);
   return <div className="portal-dashboard pb-3 sm:pb-4">
     <header className="mb-4">
       <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Painel de Controle</h1>
@@ -29,8 +31,8 @@ export default async function DashboardPage() {
     <DashboardOverviewClient
       modules={visible}
       motoristaControle={canManageMotorista(email, session?.portalUser)}
-      espacoEquipeControle={GESTAO_EMAILS.has(normalizedEmail)}
-      isManagement={GESTAO_EMAILS.has(normalizedEmail)}
+      espacoEquipeControle={showEspacoEquipeBox}
+      isManagement={isManagement}
       isCica={normalizedEmail === "mcrodini@gmail.com"}
     />
   </div>;

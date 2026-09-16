@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   INTERNAL_CHAT_PARTICIPANTS,
+  clearConversationForUser,
   createChatMessage,
   deleteChatMessage,
   ensureConversation,
@@ -54,7 +55,7 @@ export async function GET(request: NextRequest) {
       if (!conversation) {
         return NextResponse.json({ currentUserId: ctx.me.id, conversationId: null, messages: [] });
       }
-      const messages = await listConversationMessages(conversation.id);
+      const messages = await listConversationMessages(conversation.id, ctx.me.id);
       return NextResponse.json({ currentUserId: ctx.me.id, conversationId: conversation.id, messages });
     }
 
@@ -149,14 +150,21 @@ export async function PATCH(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
-    const body = await request.json() as { peer?: string; messageId?: string };
+    const body = await request.json() as { peer?: string; action?: "conversation" | "message"; messageId?: string };
     const ctx = await context(body.peer);
-    if (!ctx?.peer || !body.messageId) {
-      return NextResponse.json({ error: "Mensagem inválida" }, { status: 400 });
+    if (!ctx?.peer) {
+      return NextResponse.json({ error: "Conversa inválida" }, { status: 400 });
     }
 
     const conversation = await getConversationBetween(ctx.me.id, ctx.peer.id);
-    if (!conversation) return NextResponse.json({ error: "Conversa não encontrada" }, { status: 404 });
+    if (!conversation) return NextResponse.json({ ok: true });
+
+    if (body.action === "conversation") {
+      await clearConversationForUser(conversation.id, ctx.me.id);
+      return NextResponse.json({ ok: true });
+    }
+
+    if (!body.messageId) return NextResponse.json({ error: "Mensagem inválida" }, { status: 400 });
     const deleted = await deleteChatMessage(body.messageId, conversation.id, ctx.me.id);
     if (!deleted) return NextResponse.json({ error: "Mensagem não encontrada" }, { status: 404 });
     return NextResponse.json({ ok: true });

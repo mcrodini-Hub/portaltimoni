@@ -229,8 +229,8 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
 
   if (minimized) {
     return (
-      <div className="pointer-events-none fixed bottom-5 right-5 z-[100] hidden sm:block">
-        <section className="pointer-events-auto flex w-80 items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-2xl">
+      <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[100] sm:inset-x-auto sm:bottom-5 sm:right-5">
+        <section className="pointer-events-auto flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-2xl sm:w-80">
           <button type="button" onClick={() => setMinimized(false)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#2296E8] text-base text-white">☰</span>
             <span className="min-w-0 flex-1">
@@ -248,7 +248,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
   return (
     <div className="fixed inset-0 z-[100] flex items-end bg-slate-950/20 sm:items-center sm:justify-end sm:p-5" role="dialog" aria-modal="true">
       <button type="button" className="absolute inset-0" onClick={onClose} aria-label="Fechar chat" />
-      <section ref={panelRef} style={panelStyle} className="relative flex h-[86vh] w-full overflow-hidden bg-white font-sans shadow-2xl sm:h-[500px] sm:min-h-[380px] sm:w-[min(90vw,640px)] sm:min-w-[520px] sm:max-h-[calc(100vh-2.5rem)] sm:max-w-[calc(100vw-2.5rem)] sm:resize sm:rounded-2xl sm:border sm:border-slate-200" title="Arraste a borda esquerda para ajustar a largura ou o canto inferior direito para ajustar o tamanho">
+      <section ref={panelRef} style={panelStyle} className="relative flex h-[100dvh] max-h-[100dvh] w-full overflow-hidden bg-white font-sans shadow-2xl sm:h-[500px] sm:min-h-[380px] sm:w-[min(90vw,640px)] sm:min-w-[520px] sm:max-h-[calc(100vh-2.5rem)] sm:max-w-[calc(100vw-2.5rem)] sm:resize sm:rounded-2xl sm:border sm:border-slate-200" title="Arraste a borda esquerda para ajustar a largura ou o canto inferior direito para ajustar o tamanho">
         <div
           role="separator"
           aria-orientation="vertical"
@@ -318,7 +318,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
               <p className="truncate text-sm font-semibold text-slate-950">{contact?.name || "Selecione uma conversa"}</p>
               <p className="text-xs text-slate-500">{contact?.lastMessageAt ? `Última atividade ${formatActivity(contact.lastMessageAt)}` : "Chat interno · equipe autorizada"}</p>
             </div>
-            <button type="button" className="hidden h-8 w-8 items-center justify-center rounded-full text-lg font-semibold text-[#0F2D8F] hover:bg-blue-50 sm:flex" onClick={() => setMinimized(true)} title="Minimizar chat" aria-label="Minimizar chat">−</button>
+            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold text-[#0F2D8F] hover:bg-blue-50" onClick={() => setMinimized(true)} title="Minimizar chat" aria-label="Minimizar chat">−</button>
             <button type="button" className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100" onClick={onClose}>Fechar</button>
           </div>
           <div ref={scrollRef} className="flex-1 overflow-y-auto bg-slate-50/50 px-3 py-3 sm:px-4">
@@ -330,20 +330,20 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
                   const mine = message.sender_user_id === currentUserId;
                   return (
                     <div key={message.id} className={`flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
-                      <div className={`w-fit max-w-[64%] rounded-2xl border px-3 py-1.5 text-sm font-normal leading-[1.2rem] shadow-sm sm:text-[#0F2D8F] ${mine ? "border-transparent bg-[#2296E8] text-white sm:border-[#2296E8] sm:bg-[#E7F3FC]" : "border-slate-300 bg-white text-slate-900"}`}>
-                        <p className="whitespace-pre-wrap break-words leading-[1.2rem]">{message.body}</p>
-                        <span className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] font-medium leading-4 ${mine ? "text-white/90 sm:text-[#0F2D8F]" : "text-[#0F2D8F]/70"}`}>
+                      <div className={`w-fit max-w-[78%] rounded-2xl border px-2.5 py-1.5 text-[13px] font-medium leading-[1.05rem] shadow-sm sm:max-w-[64%] sm:px-3 sm:text-sm sm:font-normal sm:leading-[1.2rem] ${mine ? "border-[#2296E8]/25 bg-[#EFF8FE] text-[#0F2D8F] sm:border-[#2296E8] sm:bg-[#E7F3FC]" : "border-slate-300 bg-white text-slate-900"}`}>
+                        <p className="whitespace-pre-wrap break-words leading-[1.05rem] sm:leading-[1.2rem]">{message.body}</p>
+                        <span className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] font-medium leading-4 ${mine ? "text-[#0F2D8F]/75 sm:text-[#0F2D8F]" : "text-[#0F2D8F]/70"}`}>
                           {message.edited_at ? <span>Editada</span> : null}
                           <span>{new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(new Date(message.created_at))}</span>
                           {mine ? <span title={message.read_at ? "Lida" : "Enviada"} className={message.read_at ? "font-bold text-[#0F2D8F]" : ""}>{message.read_at ? "✓✓" : "✓"}</span> : null}
                         </span>
                       </div>
                       {mine ? (
-                        <div className="relative hidden sm:block">
+                        <div className="relative block">
                           <button
                             type="button"
                             onClick={() => setActiveMessageMenu((value) => value === message.id ? null : message.id)}
-                            className="flex h-7 w-7 items-center justify-center rounded-full text-lg leading-none text-[#0F2D8F]/65 hover:bg-blue-50 hover:text-[#0F2D8F]"
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-lg leading-none text-[#0F2D8F]/65 hover:bg-blue-50 hover:text-[#0F2D8F] sm:h-7 sm:w-7"
                             aria-label="Opções da mensagem"
                             disabled={messageAction === message.id}
                           >
@@ -374,9 +374,9 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
                 <button type="button" onClick={() => { setEditingMessage(null); setDraft(""); }} className="ml-2 rounded-lg px-2 py-1 text-xs font-medium text-[#0F2D8F] hover:bg-white">Cancelar</button>
               </div>
             ) : null}
-            <div className="flex items-end gap-2 rounded-2xl border border-slate-300 p-2 shadow-sm focus-within:border-blue-400">
-              <textarea value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} rows={1} maxLength={4000} placeholder={contact ? `Mensagem para ${contact.name}` : "Selecione uma conversa"} className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-sm text-[#0F2D8F] caret-blue-700 outline-none placeholder:text-slate-400" />
-              <button type="button" disabled={!selected || !draft.trim() || sending} onClick={() => void sendMessage()} className="min-h-10 rounded-xl bg-[#2296E8] px-4 text-sm font-semibold text-white disabled:opacity-40">{editingMessage ? "Salvar" : "Enviar"}</button>
+            <div className="flex items-end gap-2 rounded-2xl border border-[#2296E8]/25 bg-[#2296E8]/20 p-2 shadow-sm focus-within:border-blue-400 sm:border-slate-300 sm:bg-white">
+              <textarea value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} rows={1} maxLength={4000} placeholder={contact ? `Mensagem para ${contact.name}` : "Selecione uma conversa"} className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-[13px] font-medium leading-5 text-[#0F2D8F] caret-blue-700 outline-none placeholder:text-slate-400 sm:text-sm sm:font-normal" />
+              <button type="button" disabled={!selected || !draft.trim() || sending} onClick={() => void sendMessage()} className="min-h-10 rounded-xl bg-[#2296E8] px-3 text-[13px] font-semibold text-white disabled:opacity-40 sm:px-4 sm:text-sm">{editingMessage ? "Salvar" : "Enviar"}</button>
             </div>
           </div>
         </div>

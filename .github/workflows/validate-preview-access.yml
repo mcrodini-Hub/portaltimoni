@@ -1,0 +1,54 @@
+name: Validar acesso da prévia
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-preview-access:
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validar que a prévia abre sem bloqueio da Vercel
+        env:
+          PREVIEW_URL: ${{ github.event.deployment_status.environment_url || github.event.deployment_status.target_url }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${PREVIEW_URL:-}" ]; then
+            echo "Nenhuma URL de deployment foi informada."
+            exit 1
+          fi
+
+          echo "Validando: $PREVIEW_URL"
+
+          headers_file="$(mktemp)"
+          result="$(curl --silent --show-error --location --max-redirs 6 --connect-timeout 10 --max-time 30 \
+            --dump-header "$headers_file" --output /dev/null \
+            --write-out '%{http_code}|%{url_effective}' "$PREVIEW_URL" || true)"
+
+          http_code="${result%%|*}"
+          final_url="${result#*|}"
+
+          echo "HTTP: $http_code"
+          echo "URL final: $final_url"
+
+          if grep -Eqi '^location:[[:space:]]*https://vercel\.com/sso-api' "$headers_file"; then
+            echo "ERRO: a prévia está protegida pelo SSO/Vercel Authentication e não pode ser enviada para aprovação."
+            exit 1
+          fi
+
+          if [[ "$final_url" == https://vercel.com/sso-api* ]] || [[ "$final_url" == https://vercel.com/login* ]]; then
+            echo "ERRO: a prévia terminou em uma tela de autenticação da Vercel."
+            exit 1
+          fi
+
+          if ! [[ "$http_code" =~ ^[0-9]{3}$ ]] || [ "$http_code" -lt 200 ] || [ "$http_code" -ge 400 ]; then
+            echo "ERRO: a prévia não respondeu com status HTTP utilizável."
+            exit 1
+          fi
+
+          echo "OK: prévia acessível sem bloqueio adicional da Vercel."

@@ -37,6 +37,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [activeMessageMenu, setActiveMessageMenu] = useState<string | null>(null);
   const [messageAction, setMessageAction] = useState<string | null>(null);
+  const [conversationAction, setConversationAction] = useState(false);
   const panelRef = useRef<HTMLElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -47,7 +48,11 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
     const overviewData = data as Overview;
     setOverview(overviewData);
     onUnreadChange?.(overviewData.totalUnread || 0);
-    setSelected((value) => value || overviewData.contacts[0]?.email || null);
+    setSelected((value) => {
+      if (value) return value;
+      if (typeof window !== "undefined" && window.innerWidth >= 640) return overviewData.contacts[0]?.email || null;
+      return null;
+    });
   }, [onUnreadChange]);
 
   const loadMessages = useCallback(async (peer: string, markRead: boolean) => {
@@ -73,6 +78,10 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
 
   useEffect(() => {
     if (!open) return;
+    if (window.innerWidth < 640) {
+      setSelected(null);
+      setMessages([]);
+    }
     void refresh();
     const interval = window.setInterval(() => void refresh(), 5_000);
     return () => window.clearInterval(interval);
@@ -93,6 +102,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
       setMinimized(false);
       setEditingMessage(null);
       setActiveMessageMenu(null);
+      setConversationAction(false);
     }
   }, [open]);
 
@@ -156,7 +166,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
       const response = await fetch("/api/internal-chat", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ peer: selected, messageId: message.id }),
+        body: JSON.stringify({ peer: selected, action: "message", messageId: message.id }),
       });
       if (!response.ok) throw new Error();
       if (editingMessage?.id === message.id) {
@@ -169,6 +179,29 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
       setError("Não foi possível excluir a mensagem.");
     } finally {
       setMessageAction(null);
+    }
+  }
+
+  async function clearConversation() {
+    if (!selected || conversationAction || !window.confirm("Excluir esta conversa da sua visão? O histórico do outro usuário será preservado.")) return;
+    setConversationAction(true);
+    setError("");
+    try {
+      const response = await fetch("/api/internal-chat", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ peer: selected, action: "conversation" }),
+      });
+      if (!response.ok) throw new Error();
+      setMessages([]);
+      setEditingMessage(null);
+      setDraft("");
+      setSelected(null);
+      await loadOverview();
+    } catch {
+      setError("Não foi possível excluir esta conversa.");
+    } finally {
+      setConversationAction(false);
     }
   }
 
@@ -229,13 +262,13 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
 
   if (minimized) {
     return (
-      <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[100] sm:inset-x-auto sm:bottom-5 sm:right-5">
+      <div className="pointer-events-none fixed inset-x-3 bottom-3 z-[80] sm:inset-x-auto sm:bottom-5 sm:right-5 sm:z-[100]">
         <section className="pointer-events-auto flex w-full items-center gap-3 rounded-2xl border border-slate-200 bg-white px-3 py-2.5 shadow-2xl sm:w-80">
           <button type="button" onClick={() => setMinimized(false)} className="flex min-w-0 flex-1 items-center gap-3 text-left">
             <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#2296E8] text-base text-white">☰</span>
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold text-[#0F2D8F]">Chat interno</span>
-              <span className="block text-xs text-slate-500">Clique para restaurar</span>
+              <span className="block text-xs text-slate-500">Toque para restaurar</span>
             </span>
             {overview.totalUnread > 0 ? <span className="rounded-full bg-red-500 px-2 py-0.5 text-xs font-bold text-white">{overview.totalUnread}</span> : null}
           </button>
@@ -246,9 +279,9 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-end bg-slate-950/20 sm:items-center sm:justify-end sm:p-5" role="dialog" aria-modal="true">
+    <div className="fixed inset-x-0 bottom-0 top-16 z-[80] flex items-end bg-slate-950/20 sm:inset-0 sm:z-[100] sm:items-center sm:justify-end sm:p-5" role="dialog" aria-modal="true">
       <button type="button" className="absolute inset-0" onClick={onClose} aria-label="Fechar chat" />
-      <section ref={panelRef} style={panelStyle} className="relative flex h-[100dvh] max-h-[100dvh] w-full overflow-hidden bg-white font-sans shadow-2xl sm:h-[500px] sm:min-h-[380px] sm:w-[min(90vw,640px)] sm:min-w-[520px] sm:max-h-[calc(100vh-2.5rem)] sm:max-w-[calc(100vw-2.5rem)] sm:resize sm:rounded-2xl sm:border sm:border-slate-200" title="Arraste a borda esquerda para ajustar a largura ou o canto inferior direito para ajustar o tamanho">
+      <section ref={panelRef} style={panelStyle} className="relative mb-1.5 flex h-[78dvh] max-h-[calc(100dvh-4.75rem)] w-[calc(100%-0.75rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white font-sans shadow-2xl sm:mb-0 sm:h-[500px] sm:min-h-[380px] sm:w-[min(90vw,640px)] sm:min-w-[520px] sm:max-h-[calc(100vh-2.5rem)] sm:max-w-[calc(100vw-2.5rem)] sm:resize" title="Arraste a borda esquerda para ajustar a largura ou o canto inferior direito para ajustar o tamanho">
         <div
           role="separator"
           aria-orientation="vertical"
@@ -260,15 +293,15 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
           <span className="h-16 w-1 rounded-full bg-[#2296E8]/35 transition group-hover:bg-[#2296E8]" />
         </div>
         <aside className={`${selected ? "hidden sm:flex" : "flex"} w-full flex-col border-r border-slate-200 bg-slate-50 sm:w-[var(--contacts-width)] sm:shrink-0`}>
-          <div className="border-b border-slate-200 px-4 py-3">
-            <p className="text-xs font-semibold uppercase tracking-[.16em] text-blue-700">Casa Timoni</p>
-            <h2 className="mt-1 text-base font-semibold text-slate-950">Chat interno</h2>
-            <div className="mt-3 rounded-xl border border-slate-200 bg-white px-3 py-2">
+          <div className="border-b border-slate-200 px-3.5 py-3">
+            <p className="text-[11px] font-semibold uppercase tracking-[.14em] text-blue-700">Casa Timoni</p>
+            <h2 className="mt-1 text-[15px] font-semibold text-slate-950">Chat interno</h2>
+            <div className="mt-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2">
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
                 placeholder="Buscar conversa"
-                className="w-full bg-transparent text-sm text-slate-800 outline-none placeholder:text-slate-400"
+                className="w-full bg-transparent text-[13px] text-slate-800 outline-none placeholder:text-slate-400 sm:text-sm"
                 aria-label="Buscar conversa"
               />
             </div>
@@ -285,17 +318,17 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
                   onClick={() => setSelected(item.email)}
                   className={`mb-1 flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition ${isSelected ? "bg-[#E4F2FD] text-[#0F2D8F] ring-1 ring-[#2296E8]/40" : hasUnread ? "bg-blue-50 ring-1 ring-blue-100 hover:bg-blue-100" : "text-slate-800 hover:bg-white"}`}
                 >
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#2296E8] text-sm font-semibold text-white">{item.name.slice(0, 2).toUpperCase()}</span>
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2296E8] text-xs font-semibold text-white sm:h-9 sm:w-9 sm:text-sm">{item.name.slice(0, 2).toUpperCase()}</span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
-                      <span className={`block min-w-0 flex-1 truncate text-sm ${hasUnread ? "font-bold text-slate-950" : "font-semibold text-slate-800"}`}>{item.name}</span>
-                      <span className={`shrink-0 text-[11px] ${hasUnread ? "font-semibold text-blue-700" : "text-slate-400"}`}>{formatActivity(item.lastMessageAt)}</span>
+                      <span className={`block min-w-0 flex-1 truncate text-[13px] sm:text-sm ${hasUnread ? "font-bold text-slate-950" : "font-semibold text-slate-800"}`}>{item.name}</span>
+                      <span className={`shrink-0 text-[10px] sm:text-[11px] ${hasUnread ? "font-semibold text-blue-700" : "text-slate-400"}`}>{formatActivity(item.lastMessageAt)}</span>
                     </span>
-                    <span className={`mt-1 block truncate text-sm ${hasUnread ? "font-semibold text-slate-800" : "text-slate-600"}`}>
+                    <span className={`mt-0.5 block truncate text-[12px] sm:mt-1 sm:text-sm ${hasUnread ? "font-semibold text-slate-800" : "text-slate-600"}`}>
                       {item.lastMessagePreview || "Mensagem direta"}
                     </span>
                   </span>
-                  {hasUnread ? <span className="flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[11px] font-bold text-white">{item.unread > 99 ? "99+" : item.unread}</span> : null}
+                  {hasUnread ? <span className="flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white sm:text-[11px]">{item.unread > 99 ? "99+" : item.unread}</span> : null}
                 </button>
               );
             })}
@@ -312,18 +345,19 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
           <span className="h-10 w-0.5 rounded-full bg-slate-300 transition group-hover:bg-[#2296E8]" />
         </div>
         <div className={`${selected ? "flex" : "hidden sm:flex"} min-w-0 flex-1 flex-col`}>
-          <div className="flex min-h-12 items-center gap-3 border-b border-slate-200 px-4">
-            <button type="button" className="px-2 py-2 text-xl text-slate-500 sm:hidden" onClick={() => setSelected(null)}>‹</button>
+          <div className="flex min-h-12 items-center gap-1.5 border-b border-slate-200 px-2.5 sm:gap-3 sm:px-4">
+            <button type="button" className="shrink-0 rounded-lg px-2 py-2 text-[12px] font-semibold text-[#0F2D8F] sm:hidden" onClick={() => { setSelected(null); setMessages([]); }}>← Contatos</button>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold text-slate-950">{contact?.name || "Selecione uma conversa"}</p>
-              <p className="text-xs text-slate-500">{contact?.lastMessageAt ? `Última atividade ${formatActivity(contact.lastMessageAt)}` : "Chat interno · equipe autorizada"}</p>
+              <p className="truncate text-[13px] font-semibold text-slate-950 sm:text-sm">{contact?.name || "Selecione uma conversa"}</p>
+              <p className="truncate text-[10px] text-slate-500 sm:text-xs">{contact?.lastMessageAt ? `Última atividade ${formatActivity(contact.lastMessageAt)}` : "Chat interno · equipe autorizada"}</p>
             </div>
-            <button type="button" className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-semibold text-[#0F2D8F] hover:bg-blue-50" onClick={() => setMinimized(true)} title="Minimizar chat" aria-label="Minimizar chat">−</button>
-            <button type="button" className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100" onClick={onClose}>Fechar</button>
+            {contact ? <button type="button" disabled={conversationAction} className="shrink-0 rounded-lg px-2 py-2 text-[11px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 sm:text-xs" onClick={() => void clearConversation()}>{conversationAction ? "Excluindo" : "Excluir chat"}</button> : null}
+            <button type="button" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg font-semibold text-[#0F2D8F] hover:bg-blue-50" onClick={() => setMinimized(true)} title="Minimizar chat" aria-label="Minimizar chat">−</button>
+            <button type="button" className="shrink-0 rounded-lg px-2 py-2 text-[11px] text-slate-500 hover:bg-slate-100 sm:px-3 sm:text-sm" onClick={onClose}>Fechar</button>
           </div>
           <div ref={scrollRef} className="flex-1 overflow-y-auto bg-slate-50/50 px-3 py-3 sm:px-4">
             {messages.length === 0 ? (
-              <div className="mt-16 text-center text-sm text-slate-500">Envie a primeira mensagem.</div>
+              <div className="mt-12 text-center text-[13px] text-slate-500 sm:mt-16 sm:text-sm">Envie a primeira mensagem.</div>
             ) : (
               <div className="space-y-1.5">
                 {messages.map((message) => {
@@ -363,7 +397,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
               </div>
             )}
           </div>
-          <div className="border-t border-slate-200 p-3">
+          <div className="border-t border-slate-200 p-2.5 sm:p-3">
             {error ? <p className="mb-2 text-xs font-medium text-red-600">{error}</p> : null}
             {editingMessage ? (
               <div className="mb-2 flex items-center justify-between rounded-xl border-l-4 border-[#2296E8] bg-blue-50 px-3 py-2">
@@ -375,8 +409,8 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
               </div>
             ) : null}
             <div className="flex items-end gap-2 rounded-2xl border border-[#2296E8]/25 bg-[#2296E8]/20 p-2 shadow-sm focus-within:border-blue-400 sm:border-slate-300 sm:bg-white">
-              <textarea value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} rows={1} maxLength={4000} placeholder={contact ? `Mensagem para ${contact.name}` : "Selecione uma conversa"} className="max-h-28 min-h-10 flex-1 resize-none bg-transparent px-2 py-2 text-[13px] font-medium leading-5 text-[#0F2D8F] caret-blue-700 outline-none placeholder:text-slate-400 sm:text-sm sm:font-normal" />
-              <button type="button" disabled={!selected || !draft.trim() || sending} onClick={() => void sendMessage()} className="min-h-10 rounded-xl bg-[#2296E8] px-3 text-[13px] font-semibold text-white disabled:opacity-40 sm:px-4 sm:text-sm">{editingMessage ? "Salvar" : "Enviar"}</button>
+              <textarea value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} rows={1} maxLength={4000} placeholder={contact ? `Mensagem para ${contact.name}` : "Selecione uma conversa"} className="max-h-24 min-h-9 flex-1 resize-none bg-transparent px-2 py-2 text-[12px] font-normal leading-4 text-[#0F2D8F] caret-blue-700 outline-none placeholder:text-slate-400 sm:max-h-28 sm:min-h-10 sm:text-sm sm:leading-5" />
+              <button type="button" disabled={!selected || !draft.trim() || sending} onClick={() => void sendMessage()} className="min-h-9 rounded-xl bg-[#2296E8] px-3 text-[12px] font-semibold text-white disabled:opacity-40 sm:min-h-10 sm:px-4 sm:text-sm">{editingMessage ? "Salvar" : "Enviar"}</button>
             </div>
           </div>
         </div>

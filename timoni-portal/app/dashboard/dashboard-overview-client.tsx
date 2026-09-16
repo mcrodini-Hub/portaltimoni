@@ -111,11 +111,12 @@ export default function DashboardOverviewClient({ modules, motoristaControle, es
     ...(allowed.has("motorista") ? [["Motorista", motoristaControle ? "/dashboard/motorista" : "/dashboard/motorista-leitura", "🚚", snapshot.motorista] as const] : []),
   ];
 
-  // No mobile, Espaço Equipe não é injetado automaticamente no Painel.
-  // O acesso continua disponível pelo menu conforme as permissões já existentes.
-  const mobileCards = desktopCards;
+  const mobileCards = [
+    ...desktopCards,
+    ...(espacoEquipeControle ? [["Espaço Equipe", "/espaco-equipe", "👥", snapshot.equipe] as const] : []),
+  ];
 
-  const renderCards = (cards: typeof desktopCards, mobile = false) => cards.map(([name, href, icon, count]) => {
+  const renderCards = (cards: typeof mobileCards, mobile = false) => cards.map(([name, href, icon, count]) => {
     const updateModule = ({ Compras: "compras", Leads: "leads", Estoque: "estoque" } as const)[name as "Compras" | "Leads" | "Estoque"];
     const pending = updateModule ? updates[updateModule] : undefined;
     return <Link key={name} href={href} onClick={() => void markRead(updateModule)} className={mobile

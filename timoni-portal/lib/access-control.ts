@@ -109,9 +109,12 @@ export function getPortalUser(email?: string | null, configured?: PortalUser | n
   const normalized = normalizeEmail(email);
   if (configured && normalizeEmail(configured.email) === normalized) {
     if (configured.active === false) return null;
-    return normalized === MARCELO_EMAIL
-      ? { ...configured, modules: configured.modules.filter((module) => module !== "agenda") }
-      : configured;
+    if (normalized === MARCELO_EMAIL) {
+      const modules = configured.modules.filter((module) => module !== "agenda");
+      if (!modules.includes("chat")) modules.push("chat");
+      return { ...configured, modules };
+    }
+    return configured;
   }
   const fallback = portalUsers[normalized] ?? null;
   return fallback?.active === false ? null : fallback;

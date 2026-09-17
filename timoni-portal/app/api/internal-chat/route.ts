@@ -6,30 +6,62 @@ import {
   deleteChatMessage,
   ensureConversation,
   getConversationBetween,
-  getDbUserByEmail,
   listConversationMessages,
   listConversationsForUser,
   listRecentMessages,
   listUnreadMessages,
   markConversationRead,
-  requireInternalChatSession,
   type ChatMessage,
   updateChatMessage,
 } from "@/lib/internal-chat";
-import { normalizeEmail } from "@/lib/access-control";
+import { auth } from "@/lib/auth";
+import { hasModuleAccess, normalizeEmail } from "@/lib/access-control";
+import { loadPortalConfiguration } from "@/lib/portal-config";
 
 export const dynamic = "force-dynamic";
 
+type ChatParticipant = { name: string; email: string };
+type ChatUser = ChatParticipant & { id: string };
+
+const MARCELO_CHAT_PARTICIPANT: ChatParticipant = { name: "Marcelo Rodini", email: "mrodini@gmail.com" };
+
+function fallbackParticipants(): ChatParticipant[] {
+  const participants = [...INTERNAL_CHAT_PARTICIPANTS, MARCELO_CHAT_PARTICIPANT];
+  const unique = new Map<string, ChatParticipant>();
+  for (const participant of participants) unique.set(normalizeEmail(participant.email), { ...participant, email: normalizeEmail(participant.email) });
+  return [...unique.values()];
+}
+
+async function getChatParticipants(accessToken?: string): Promise<ChatParticipant[]> {
+  if (!accessToken) return fallbackParticipants();
+  try {
+    const configuration = await loadPortalConfiguration(accessToken);
+    return configuration.users
+      .filter((user) => user.active !== false && hasModuleAccess(user.email, "chat", user))
+      .map((user) => ({ name: user.name, email: normalizeEmail(user.email) }));
+  } catch (error) {
+    console.warn("[internal-chat] Não foi possível carregar participantes dinâmicos; usando base segura.", error);
+    return fallbackParticipants();
+  }
+}
+
 async function context(peerEmail?: string | null) {
-  const authorized = await requireInternalChatSession();
-  if (!authorized) return null;
-  const me = await getDbUserByEmail(authorized.email);
-  if (!me) return null;
-  if (!peerEmail) return { authorized, me, peer: null };
-  const email = normalizeEmail(peerEmail);
-  if (!INTERNAL_CHAT_PARTICIPANTS.some((participant) => participant.email === email) || email === authorized.email) return null;
-  const peer = await getDbUserByEmail(email);
-  return peer ? { authorized, me, peer } : null;
+  const session = await auth();
+  const email = normalizeEmail(session?.user?.email);
+  if (!email || !hasModuleAccess(email, "chat", session?.portalUser)) return null;
+
+  const participants = await getChatParticipants(session?.accessToken);
+  const meParticipant = participants.find((participant) => participant.email === email);
+  if (!meParticipant) return null;
+
+  const me: ChatUser = { ...meParticipant, id: meParticipant.email };
+  if (!peerEmail) return { authorized: { session, email }, me, peer: null, participants };
+
+  const peerNormalized = normalizeEmail(peerEmail);
+  const peerParticipant = participants.find((participant) => participant.email === peerNormalized && participant.email !== email);
+  if (!peerParticipant) return null;
+  const peer: ChatUser = { ...peerParticipant, id: peerParticipant.email };
+  return { authorized: { session, email }, me, peer, participants };
 }
 
 function errorResponse(action: string, error: unknown) {
@@ -76,7 +108,7 @@ export async function GET(request: NextRequest) {
       conversationByPeerEmail.set(peerEmail, { id: conversation.id });
     }
 
-    const contacts = INTERNAL_CHAT_PARTICIPANTS
+    const contacts = ctx.participants
       .filter((participant) => participant.email !== ctx.authorized.email)
       .map((participant) => {
         const conversation = conversationByPeerEmail.get(participant.email);

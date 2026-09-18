@@ -322,13 +322,12 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
                   onClick={() => setSelected(item.email)}
                   className={`mb-1 flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition ${isSelected ? "bg-[#E4F2FD] text-[#0F2D8F] ring-1 ring-[#2296E8]/40" : hasUnread ? "bg-blue-50 ring-1 ring-blue-100 hover:bg-blue-100" : "text-slate-800 hover:bg-white"}`}
                 >
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2296E8] text-xs font-semibold text-white sm:h-9 sm:w-9 sm:text-sm">{item.name.slice(0, 2).toUpperCase()}</span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
-                      <span className={`block min-w-0 flex-1 whitespace-normal break-words text-[13px] leading-4 sm:text-[11px] sm:text-black ${hasUnread ? "font-bold text-slate-950 sm:text-black" : "font-semibold text-slate-800 sm:text-black"}`}>{item.name}</span>
+                      <span className={`block min-w-0 flex-1 whitespace-normal break-words text-[13px] leading-4 sm:text-[11.5px] sm:text-black ${hasUnread ? "font-bold text-slate-950 sm:text-black" : "font-semibold text-slate-800 sm:text-black"}`}>{item.name}</span>
                       <span className={`shrink-0 text-[10px] sm:text-[8px] ${hasUnread ? "font-semibold text-blue-700" : "text-slate-400"}`}>{formatActivity(item.lastMessageAt)}</span>
                     </span>
-                    <span className={`mt-0.5 block truncate text-[12px] sm:mt-1 sm:text-[11px] sm:text-black ${hasUnread ? "font-semibold text-slate-800 sm:text-black" : "text-slate-600 sm:text-black"}`}>
+                    <span className={`mt-0.5 block truncate text-[12px] sm:mt-1 sm:text-[11.5px] sm:text-black ${hasUnread ? "font-semibold text-slate-800 sm:text-black" : "text-slate-600 sm:text-black"}`}>
                       {item.lastMessagePreview || "Mensagem direta"}
                     </span>
                   </span>
@@ -352,7 +351,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
           <div className="flex min-h-10 shrink-0 items-center gap-1.5 border-b border-slate-200 bg-white px-2.5 sm:min-h-12 sm:gap-3 sm:px-4">
             <button type="button" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xl font-semibold text-[#0F2D8F] sm:hidden" aria-label="Voltar para contatos" onClick={() => { setSelected(null); setMessages([]); }}>←</button>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-semibold text-slate-950 sm:text-[11px] sm:text-black">{contact?.name || "Selecione uma conversa"}</p>
+              <p className="truncate text-[13px] font-semibold text-slate-950 sm:text-[11.5px] sm:text-black">{contact?.name || "Selecione uma conversa"}</p>
               <p className="truncate text-[10px] text-slate-500 sm:text-[8px]">{contact?.lastMessageAt ? `Última atividade ${formatActivity(contact.lastMessageAt)}` : "Chat interno · equipe autorizada"}</p>
             </div>
             {contact ? <button type="button" disabled={conversationAction} className="shrink-0 rounded-lg px-1.5 py-2 text-[10px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 sm:px-2 sm:text-xs" onClick={() => void clearConversation()}>{conversationAction ? "Excluindo" : <><span className="sm:hidden">Excluir</span><span className="hidden sm:inline">Excluir chat</span></>}</button> : null}
@@ -368,7 +367,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
                   const mine = message.sender_user_id === currentUserId;
                   return (
                     <div key={message.id} className={`flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
-                      <div className={`w-fit max-w-[78%] rounded-2xl border px-2.5 py-1.5 text-[13px] font-medium leading-[1.05rem] shadow-sm sm:max-w-[64%] sm:px-3 sm:text-[11px] sm:font-normal sm:leading-[1.05rem] ${mine ? "border-[#2296E8]/20 bg-[#F1F8FE] text-[#0F2D8F]" : "border-slate-300 bg-white text-slate-900"}`}>
+                      <div className={`w-fit max-w-[78%] rounded-2xl border px-2.5 py-1.5 text-[13px] font-medium leading-[1.05rem] shadow-sm sm:max-w-[64%] sm:px-3 sm:text-[11.5px] sm:font-normal sm:leading-[1.05rem] ${mine ? "border-[#2296E8]/20 bg-[#F1F8FE] text-[#0F2D8F]" : "border-slate-300 bg-white text-slate-900"}`}>
                         <p className="whitespace-pre-wrap break-words leading-[1.05rem] sm:leading-[1.2rem] sm:text-black">{message.body}</p>
                         <span className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] font-medium leading-4 sm:text-[8px] ${mine ? "text-[#0F2D8F]/75 sm:text-[#0F2D8F]" : "text-[#0F2D8F]/70"}`}>
                           {message.edited_at ? <span>Editada</span> : null}
@@ -413,7 +412,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
               </div>
             ) : null}
             <div data-chat-composer className="flex min-w-0 items-end gap-1.5 overflow-hidden rounded-xl border border-[#2296E8]/30 bg-white p-1.5 shadow-sm focus-within:border-[#2296E8] sm:gap-2 sm:rounded-2xl sm:p-2">
-              <textarea value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} rows={1} maxLength={4000} placeholder={contact ? `Mensagem para ${contact.name}` : "Selecione uma conversa"} className="max-h-24 min-h-9 min-w-0 flex-1 resize-none bg-white px-2 py-2 text-[12px] font-normal leading-4 text-[#0F2D8F] caret-[#0F2D8F] outline-none placeholder:text-[#0F2D8F]/45 sm:max-h-28 sm:min-h-10 sm:text-[11px] sm:leading-4 sm:text-black sm:caret-black sm:placeholder:text-black/45" />
+              <textarea value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} rows={1} maxLength={4000} placeholder={contact ? `Mensagem para ${contact.name}` : "Selecione uma conversa"} className="max-h-24 min-h-9 min-w-0 flex-1 resize-none bg-white px-2 py-2 text-[12px] font-normal leading-4 text-[#0F2D8F] caret-[#0F2D8F] outline-none placeholder:text-[#0F2D8F]/45 sm:max-h-28 sm:min-h-10 sm:text-[11.5px] sm:leading-4 sm:text-black sm:caret-black sm:placeholder:text-black/45" />
               <button type="button" disabled={!selected || !draft.trim() || sending} onClick={() => void sendMessage()} className="min-h-9 shrink-0 rounded-xl bg-[#2296E8] px-3 text-[12px] font-semibold text-white disabled:opacity-40 sm:min-h-10 sm:px-4 sm:text-sm">{editingMessage ? "Salvar" : "Enviar"}</button>
             </div>
           </div>

@@ -325,10 +325,10 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2296E8] text-xs font-semibold text-white sm:h-9 sm:w-9 sm:text-sm">{item.name.slice(0, 2).toUpperCase()}</span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
-                      <span className={`block min-w-0 flex-1 whitespace-normal break-words text-[13px] leading-4 sm:text-sm ${hasUnread ? "font-bold text-slate-950" : "font-semibold text-slate-800"}`}>{item.name}</span>
-                      <span className={`shrink-0 text-[10px] sm:text-[11px] ${hasUnread ? "font-semibold text-blue-700" : "text-slate-400"}`}>{formatActivity(item.lastMessageAt)}</span>
+                      <span className={`block min-w-0 flex-1 whitespace-normal break-words text-[13px] leading-4 sm:text-[9px] ${hasUnread ? "font-bold text-slate-950" : "font-semibold text-slate-800"}`}>{item.name}</span>
+                      <span className={`shrink-0 text-[10px] sm:text-[8px] ${hasUnread ? "font-semibold text-blue-700" : "text-slate-400"}`}>{formatActivity(item.lastMessageAt)}</span>
                     </span>
-                    <span className={`mt-0.5 block truncate text-[12px] sm:mt-1 sm:text-sm ${hasUnread ? "font-semibold text-slate-800" : "text-slate-600"}`}>
+                    <span className={`mt-0.5 block truncate text-[12px] sm:mt-1 sm:text-[9px] ${hasUnread ? "font-semibold text-slate-800" : "text-slate-600"}`}>
                       {item.lastMessagePreview || "Mensagem direta"}
                     </span>
                   </span>
@@ -352,8 +352,8 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
           <div className="flex min-h-10 shrink-0 items-center gap-1.5 border-b border-slate-200 bg-white px-2.5 sm:min-h-12 sm:gap-3 sm:px-4">
             <button type="button" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xl font-semibold text-[#0F2D8F] sm:hidden" aria-label="Voltar para contatos" onClick={() => { setSelected(null); setMessages([]); }}>←</button>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-[13px] font-semibold text-slate-950 sm:text-sm">{contact?.name || "Selecione uma conversa"}</p>
-              <p className="truncate text-[10px] text-slate-500 sm:text-xs">{contact?.lastMessageAt ? `Última atividade ${formatActivity(contact.lastMessageAt)}` : "Chat interno · equipe autorizada"}</p>
+              <p className="truncate text-[13px] font-semibold text-slate-950 sm:text-[9px]">{contact?.name || "Selecione uma conversa"}</p>
+              <p className="truncate text-[10px] text-slate-500 sm:text-[8px]">{contact?.lastMessageAt ? `Última atividade ${formatActivity(contact.lastMessageAt)}` : "Chat interno · equipe autorizada"}</p>
             </div>
             {contact ? <button type="button" disabled={conversationAction} className="shrink-0 rounded-lg px-1.5 py-2 text-[10px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 sm:px-2 sm:text-xs" onClick={() => void clearConversation()}>{conversationAction ? "Excluindo" : <><span className="sm:hidden">Excluir</span><span className="hidden sm:inline">Excluir chat</span></>}</button> : null}
             <button type="button" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg font-semibold text-[#0F2D8F] hover:bg-blue-50" onClick={() => setMinimized(true)} title="Minimizar chat" aria-label="Minimizar chat">−</button>
@@ -368,9 +368,9 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
                   const mine = message.sender_user_id === currentUserId;
                   return (
                     <div key={message.id} className={`flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
-                      <div className={`w-fit max-w-[78%] rounded-2xl border px-2.5 py-1.5 text-[13px] font-medium leading-[1.05rem] shadow-sm sm:max-w-[64%] sm:px-3 sm:text-sm sm:font-normal sm:leading-[1.2rem] ${mine ? "border-[#2296E8]/20 bg-[#F1F8FE] text-[#0F2D8F]" : "border-slate-300 bg-white text-slate-900"}`}>
+                      <div className={`w-fit max-w-[78%] rounded-2xl border px-2.5 py-1.5 text-[13px] font-medium leading-[1.05rem] shadow-sm sm:max-w-[64%] sm:px-3 sm:text-[9px] sm:font-normal sm:leading-[1.05rem] ${mine ? "border-[#2296E8]/20 bg-[#F1F8FE] text-[#0F2D8F]" : "border-slate-300 bg-white text-slate-900"}`}>
                         <p className="whitespace-pre-wrap break-words leading-[1.05rem] sm:leading-[1.2rem]">{message.body}</p>
-                        <span className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] font-medium leading-4 ${mine ? "text-[#0F2D8F]/75 sm:text-[#0F2D8F]" : "text-[#0F2D8F]/70"}`}>
+                        <span className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] font-medium leading-4 sm:text-[8px] ${mine ? "text-[#0F2D8F]/75 sm:text-[#0F2D8F]" : "text-[#0F2D8F]/70"}`}>
                           {message.edited_at ? <span>Editada</span> : null}
                           <span>{new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(new Date(message.created_at))}</span>
                           {mine ? <span title={message.read_at ? "Lida" : "Enviada"} className={message.read_at ? "font-bold text-[#0F2D8F]" : ""}>{message.read_at ? "✓✓" : "✓"}</span> : null}

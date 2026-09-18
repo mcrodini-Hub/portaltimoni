@@ -50,7 +50,18 @@ section.border-blue-100.bg-blue-50 { display:none; }
   .portal-dashboard section > a { min-height: 140px; padding: 16px!important; }
   .portal-dashboard section > a p:first-child { font-size: 16px; }
   .portal-dashboard section > a p + p { font-size: 28px; }
-  .portal-mobile-header button, #portal-mobile-menu button { min-height: 44px; min-width: 44px; }
-  .portal-mobile-header a > span, #portal-mobile-menu a[aria-label] > span { font-size: 18px; }
-  #portal-mobile-menu nav a, #portal-mobile-menu nav button { min-height: 44px; font-size: 15px; }
+  .portal-mobile-header button { min-height: 44px; min-width: 44px; }
+  .portal-mobile-header a > span { font-size: 18px; }
+  #portal-mobile-menu button { min-height: 32px; min-width: 32px; }
+  #portal-mobile-menu a[aria-label] > span { font-size: 13px; }
+  #portal-mobile-menu nav a, #portal-mobile-menu nav button { min-height: 32px; font-size: 12px; }
+}
+
+
+/* Chat mobile compacto: abaixo do cabeçalho e sem campo de mensagem superdimensionado. */
+@media (max-width: 639px) {
+  #internal-chat-dialog textarea { min-height: 2.35rem!important; max-height: 5rem!important; padding: .42rem .5rem!important; font-size: 12px!important; line-height: 1.15rem!important; }
+  #internal-chat-dialog [data-chat-footer] { padding-top: .4rem!important; padding-left: .45rem!important; padding-right: .45rem!important; }
+  #internal-chat-dialog [data-chat-composer] { padding: .35rem!important; gap: .35rem!important; }
+  #internal-chat-dialog [data-chat-composer] button { min-height: 2.35rem!important; padding-left: .7rem!important; padding-right: .7rem!important; font-size: 11px!important; }
 }

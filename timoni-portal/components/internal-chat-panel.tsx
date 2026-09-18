@@ -33,7 +33,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const [minimized, setMinimized] = useState(false);
-  const [contactsWidth, setContactsWidth] = useState(208);
+  const [contactsWidth, setContactsWidth] = useState(170);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [activeMessageMenu, setActiveMessageMenu] = useState<string | null>(null);
   const [messageAction, setMessageAction] = useState<string | null>(null);
@@ -214,11 +214,11 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
     event.preventDefault();
     const startX = event.clientX;
     const startWidth = contactsWidth;
-    const panelWidth = panelRef.current?.clientWidth ?? 640;
-    const maxWidth = Math.max(240, Math.min(340, panelWidth - 300));
+    const panelWidth = panelRef.current?.clientWidth ?? 500;
+    const maxWidth = Math.max(190, Math.min(280, panelWidth - 250));
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
-      setContactsWidth(Math.min(maxWidth, Math.max(176, startWidth + moveEvent.clientX - startX)));
+      setContactsWidth(Math.min(maxWidth, Math.max(150, startWidth + moveEvent.clientX - startX)));
     };
     const stopResize = () => {
       window.removeEventListener("pointermove", handlePointerMove);
@@ -240,12 +240,12 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
     const panel = panelRef.current;
     const startX = event.clientX;
     const startWidth = panel.getBoundingClientRect().width;
-    const maxWidth = Math.max(520, window.innerWidth - 40);
+    const maxWidth = Math.max(500, window.innerWidth - 16);
 
     const handlePointerMove = (moveEvent: PointerEvent) => {
-      const nextWidth = Math.min(maxWidth, Math.max(520, startWidth + startX - moveEvent.clientX));
+      const nextWidth = Math.min(maxWidth, Math.max(420, startWidth + startX - moveEvent.clientX));
       panel.style.width = `${nextWidth}px`;
-      setContactsWidth((width) => Math.min(width, Math.max(176, nextWidth - 300)));
+      setContactsWidth((width) => Math.min(width, Math.max(150, nextWidth - 250)));
     };
     const stopResize = () => {
       window.removeEventListener("pointermove", handlePointerMove);
@@ -283,9 +283,9 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
   }
 
   return (
-    <div className="fixed inset-x-0 bottom-0 top-16 z-[80] flex items-end bg-slate-950/20 sm:inset-0 sm:z-[100] sm:items-center sm:justify-end sm:p-5" role="dialog" aria-modal="true">
+    <div className="fixed inset-x-0 bottom-0 top-16 z-[80] flex items-stretch justify-end overflow-hidden bg-slate-950/20 sm:z-[100]" role="dialog" aria-modal="true">
       <button type="button" className="absolute inset-0" onClick={onClose} aria-label="Fechar chat" />
-      <section ref={panelRef} style={panelStyle} className="relative mb-1.5 flex h-[78dvh] max-h-[calc(100dvh-4.75rem)] w-[calc(100%-0.75rem)] overflow-hidden rounded-2xl border border-slate-200 bg-white font-sans shadow-2xl sm:mb-0 sm:h-[500px] sm:min-h-[380px] sm:w-[min(90vw,640px)] sm:min-w-[520px] sm:max-h-[calc(100vh-2.5rem)] sm:max-w-[calc(100vw-2.5rem)] sm:resize" title="Arraste a borda esquerda para ajustar a largura ou o canto inferior direito para ajustar o tamanho">
+      <section ref={panelRef} style={panelStyle} className="relative flex h-full min-h-0 w-full max-w-full overflow-hidden border-l border-slate-200 bg-white font-sans shadow-2xl sm:w-[500px] sm:min-w-[420px] sm:max-w-[calc(100vw-1rem)]" title="Arraste a borda esquerda para ajustar a largura">
         <div
           role="separator"
           aria-orientation="vertical"
@@ -325,7 +325,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
                   <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#2296E8] text-xs font-semibold text-white sm:h-9 sm:w-9 sm:text-sm">{item.name.slice(0, 2).toUpperCase()}</span>
                   <span className="min-w-0 flex-1">
                     <span className="flex items-center gap-2">
-                      <span className={`block min-w-0 flex-1 truncate text-[13px] sm:text-sm ${hasUnread ? "font-bold text-slate-950" : "font-semibold text-slate-800"}`}>{item.name}</span>
+                      <span className={`block min-w-0 flex-1 whitespace-normal break-words text-[13px] leading-4 sm:text-sm ${hasUnread ? "font-bold text-slate-950" : "font-semibold text-slate-800"}`}>{item.name}</span>
                       <span className={`shrink-0 text-[10px] sm:text-[11px] ${hasUnread ? "font-semibold text-blue-700" : "text-slate-400"}`}>{formatActivity(item.lastMessageAt)}</span>
                     </span>
                     <span className={`mt-0.5 block truncate text-[12px] sm:mt-1 sm:text-sm ${hasUnread ? "font-semibold text-slate-800" : "text-slate-600"}`}>
@@ -350,16 +350,16 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
         </div>
         <div className={`${selected ? "flex" : "hidden sm:flex"} min-w-0 flex-1 flex-col`}>
           <div className="flex min-h-12 items-center gap-1.5 border-b border-slate-200 px-2.5 sm:gap-3 sm:px-4">
-            <button type="button" className="shrink-0 rounded-lg px-2 py-2 text-[12px] font-semibold text-[#0F2D8F] sm:hidden" onClick={() => { setSelected(null); setMessages([]); }}>← Contatos</button>
+            <button type="button" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xl font-semibold text-[#0F2D8F] sm:hidden" aria-label="Voltar para contatos" onClick={() => { setSelected(null); setMessages([]); }}>←</button>
             <div className="min-w-0 flex-1">
               <p className="truncate text-[13px] font-semibold text-slate-950 sm:text-sm">{contact?.name || "Selecione uma conversa"}</p>
               <p className="truncate text-[10px] text-slate-500 sm:text-xs">{contact?.lastMessageAt ? `Última atividade ${formatActivity(contact.lastMessageAt)}` : "Chat interno · equipe autorizada"}</p>
             </div>
-            {contact ? <button type="button" disabled={conversationAction} className="shrink-0 rounded-lg px-2 py-2 text-[11px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 sm:text-xs" onClick={() => void clearConversation()}>{conversationAction ? "Excluindo" : "Excluir chat"}</button> : null}
+            {contact ? <button type="button" disabled={conversationAction} className="shrink-0 rounded-lg px-1.5 py-2 text-[10px] font-semibold text-red-600 hover:bg-red-50 disabled:opacity-50 sm:px-2 sm:text-xs" onClick={() => void clearConversation()}>{conversationAction ? "Excluindo" : <><span className="sm:hidden">Excluir</span><span className="hidden sm:inline">Excluir chat</span></>}</button> : null}
             <button type="button" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg font-semibold text-[#0F2D8F] hover:bg-blue-50" onClick={() => setMinimized(true)} title="Minimizar chat" aria-label="Minimizar chat">−</button>
-            <button type="button" className="shrink-0 rounded-lg px-2 py-2 text-[11px] text-slate-500 hover:bg-slate-100 sm:px-3 sm:text-sm" onClick={onClose}>Fechar</button>
+            <button type="button" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-lg text-slate-500 hover:bg-slate-100 sm:h-auto sm:w-auto sm:rounded-lg sm:px-3 sm:py-2 sm:text-sm" onClick={onClose} aria-label="Fechar chat"><span className="sm:hidden">×</span><span className="hidden sm:inline">Fechar</span></button>
           </div>
-          <div ref={scrollRef} className="flex-1 overflow-y-auto bg-slate-50/50 px-3 py-3 sm:px-4">
+          <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto bg-slate-50/50 px-3 py-3 sm:px-4">
             {messages.length === 0 ? (
               <div className="mt-12 text-center text-[13px] text-slate-500 sm:mt-16 sm:text-sm">Envie a primeira mensagem.</div>
             ) : (
@@ -368,7 +368,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
                   const mine = message.sender_user_id === currentUserId;
                   return (
                     <div key={message.id} className={`flex items-center gap-1.5 ${mine ? "justify-end" : "justify-start"}`}>
-                      <div className={`w-fit max-w-[78%] rounded-2xl border px-2.5 py-1.5 text-[13px] font-medium leading-[1.05rem] shadow-sm sm:max-w-[64%] sm:px-3 sm:text-sm sm:font-normal sm:leading-[1.2rem] ${mine ? "border-[#2296E8]/25 bg-[#EFF8FE] text-[#0F2D8F] sm:border-[#2296E8] sm:bg-[#E7F3FC]" : "border-slate-300 bg-white text-slate-900"}`}>
+                      <div className={`w-fit max-w-[78%] rounded-2xl border px-2.5 py-1.5 text-[13px] font-medium leading-[1.05rem] shadow-sm sm:max-w-[64%] sm:px-3 sm:text-sm sm:font-normal sm:leading-[1.2rem] ${mine ? "border-[#2296E8]/20 bg-[#F1F8FE] text-[#0F2D8F]" : "border-slate-300 bg-white text-slate-900"}`}>
                         <p className="whitespace-pre-wrap break-words leading-[1.05rem] sm:leading-[1.2rem]">{message.body}</p>
                         <span className={`mt-0.5 flex items-center justify-end gap-1 text-[10px] font-medium leading-4 ${mine ? "text-[#0F2D8F]/75 sm:text-[#0F2D8F]" : "text-[#0F2D8F]/70"}`}>
                           {message.edited_at ? <span>Editada</span> : null}
@@ -401,7 +401,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
               </div>
             )}
           </div>
-          <div className="border-t border-slate-200 p-2.5 sm:p-3">
+          <div className="shrink-0 border-t border-slate-200 bg-white p-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))] sm:p-3">
             {error ? <p className="mb-2 text-xs font-medium text-red-600">{error}</p> : null}
             {editingMessage ? (
               <div className="mb-2 flex items-center justify-between rounded-xl border-l-4 border-[#2296E8] bg-blue-50 px-3 py-2">
@@ -412,9 +412,9 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
                 <button type="button" onClick={() => { setEditingMessage(null); setDraft(""); }} className="ml-2 rounded-lg px-2 py-1 text-xs font-medium text-[#0F2D8F] hover:bg-white">Cancelar</button>
               </div>
             ) : null}
-            <div className="flex items-end gap-2 rounded-2xl border border-[#2296E8]/25 bg-[#2296E8]/20 p-2 shadow-sm focus-within:border-blue-400 sm:border-slate-300 sm:bg-white">
-              <textarea value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} rows={1} maxLength={4000} placeholder={contact ? `Mensagem para ${contact.name}` : "Selecione uma conversa"} className="max-h-24 min-h-9 flex-1 resize-none bg-transparent px-2 py-2 text-[12px] font-normal leading-4 text-[#0F2D8F] caret-blue-700 outline-none placeholder:text-slate-400 sm:max-h-28 sm:min-h-10 sm:text-sm sm:leading-5" />
-              <button type="button" disabled={!selected || !draft.trim() || sending} onClick={() => void sendMessage()} className="min-h-9 rounded-xl bg-[#2296E8] px-3 text-[12px] font-semibold text-white disabled:opacity-40 sm:min-h-10 sm:px-4 sm:text-sm">{editingMessage ? "Salvar" : "Enviar"}</button>
+            <div className="flex min-w-0 items-end gap-2 overflow-hidden rounded-2xl border border-[#2296E8]/30 bg-white p-2 shadow-sm focus-within:border-[#2296E8]">
+              <textarea value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); void sendMessage(); } }} rows={1} maxLength={4000} placeholder={contact ? `Mensagem para ${contact.name}` : "Selecione uma conversa"} className="max-h-24 min-h-9 min-w-0 flex-1 resize-none bg-white px-2 py-2 text-[12px] font-normal leading-4 text-[#0F2D8F] caret-[#0F2D8F] outline-none placeholder:text-[#0F2D8F]/45 sm:max-h-28 sm:min-h-10 sm:text-sm sm:leading-5" />
+              <button type="button" disabled={!selected || !draft.trim() || sending} onClick={() => void sendMessage()} className="min-h-9 shrink-0 rounded-xl bg-[#2296E8] px-3 text-[12px] font-semibold text-white disabled:opacity-40 sm:min-h-10 sm:px-4 sm:text-sm">{editingMessage ? "Salvar" : "Enviar"}</button>
             </div>
           </div>
         </div>

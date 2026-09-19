@@ -5,16 +5,16 @@ import {
   appendAudit,
   CICA_EMAIL,
   loadPortalConfiguration,
-  writeCollaborators,
-  writeUsers,
+  upsertCollaborator,
+  upsertPortalUser,
   type ConfiguredCollaborator,
 } from "@/lib/portal-config";
 
 const VALID_MODULES = new Set<PortalModule>([
-  "painel", "agenda", "chat", "compras", "conferencia", "estoque", "motorista", "reunioes", "leads", "marketing", "financeiro",
+  "painel", "agenda", "chat", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads", "marketing", "financeiro",
 ]);
 const VALID_BOXES = new Set<PortalBox>([
-  "painel", "agenda", "compras", "conferencia", "estoque", "motorista", "reunioes", "leads", "espaco-equipe",
+  "painel", "agenda", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads", "espaco-equipe",
 ]);
 const MANAGEMENT_EMAILS = new Set([CICA_EMAIL, "mrodini@gmail.com"]);
 
@@ -84,25 +84,24 @@ export async function PUT(request: Request) {
   if (!current) return NextResponse.json({ error: "Acesso exclusivo da gestão." }, { status: 403 });
   try {
     const body = await request.json();
-    const configuration = await loadPortalConfiguration(current.accessToken);
-
     if (body.section === "user") {
       const item = cleanUser(body.item || {});
-      const users = configuration.users.filter((user) => user.email !== item.email);
-      users.push(item);
-      await writeUsers(current.accessToken, users);
-      await appendAudit(current.accessToken, "Acesso atualizado", `${item.name} · ${item.email}`, current.email);
+      await Promise.all([
+        upsertPortalUser(current.accessToken, item),
+        appendAudit(current.accessToken, "Acesso atualizado", `${item.name} · ${item.email}`, current.email),
+      ]);
+      return NextResponse.json({ ok: true, item });
     } else if (body.section === "collaborator") {
       const item = cleanCollaborator(body.item || {});
-      const collaborators = configuration.collaborators.filter((member) => member.id !== item.id);
-      collaborators.push(item);
-      await writeCollaborators(current.accessToken, collaborators);
-      await appendAudit(current.accessToken, "Colaborador atualizado", `${item.name} · ${item.unit}`, current.email);
+      await Promise.all([
+        upsertCollaborator(current.accessToken, item),
+        appendAudit(current.accessToken, "Colaborador atualizado", `${item.name} · ${item.unit}`, current.email),
+      ]);
+      return NextResponse.json({ ok: true, item });
     } else {
       return NextResponse.json({ error: "Alteração inválida." }, { status: 400 });
     }
 
-    return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[configuracoes][PUT]", error);
     return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível salvar." }, { status: 400 });

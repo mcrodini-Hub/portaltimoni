@@ -9,6 +9,7 @@ const modules: Array<{ module: PortalModule; name: string; href: string; icon: s
   { module: "compras", name: "Compras", href: "/dashboard/compras", icon: "🛒", accent: "" },
   { module: "conferencia", name: "Conferência", href: "/dashboard/conferencia-pedidos", icon: "📄", accent: "" },
   { module: "estoque", name: "Estoque", href: "/dashboard/estoque", icon: "📦", accent: "" },
+  { module: "estoque-rotativo", name: "Estoque Rotativo", href: "/dashboard/estoque-rotativo", icon: "🔄", accent: "" },
   { module: "motorista", name: "Motorista", href: "/dashboard/motorista-leitura", icon: "🚚", accent: "" },
   { module: "reunioes", name: "Reuniões", href: "/dashboard/reunioes", icon: "👥", accent: "" },
   { module: "leads", name: "Leads", href: "/dashboard/leads", icon: "🎯", accent: "" },

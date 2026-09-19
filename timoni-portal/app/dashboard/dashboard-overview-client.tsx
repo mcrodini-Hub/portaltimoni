@@ -10,10 +10,10 @@ type NotificationItem = { type?: string };
 type StockOrder = { situacao?: string };
 type MeetingItem = { status?: string; date?: string; secondDate?: string };
 type CalendarEvent = { id: string; summary: string; start: string; location?: string; completed?: boolean; allDay?: boolean };
-type Snapshot = { compras: number | null; estoque: number | null; solicitacoes: number | null; agenda: number | null; motorista: number | null; equipe: number | null; leads: number | null; reunioes: number | null; events: CalendarEvent[] };
+type Snapshot = { compras: number | null; estoque: number | null; estoqueRotativo: number | null; solicitacoes: number | null; agenda: number | null; motorista: number | null; equipe: number | null; leads: number | null; reunioes: number | null; events: CalendarEvent[] };
 type PendingUpdate = { module: UpdateModule; count: number; latestAt: string };
 
-const empty: Snapshot = { compras: null, estoque: null, solicitacoes: null, agenda: null, motorista: null, equipe: null, leads: null, reunioes: null, events: [] };
+const empty: Snapshot = { compras: null, estoque: null, estoqueRotativo: null, solicitacoes: null, agenda: null, motorista: null, equipe: null, leads: null, reunioes: null, events: [] };
 const localDate = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
 export default function DashboardOverviewClient({ modules, motoristaControle, espacoEquipeControle, isManagement }: Props) {
@@ -79,6 +79,7 @@ export default function DashboardOverviewClient({ modules, motoristaControle, es
         espacoEquipeControle ? fetch("/api/espaco-equipe", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
         allowed.has("leads") ? fetch("/api/leads", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
         allowed.has("reunioes") ? fetch("/api/reunioes", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
+        allowed.has("estoque-rotativo") ? fetch("/api/estoque-rotativo", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
       ];
       const results = await Promise.allSettled(requests);
       if (cancelled) return;
@@ -96,6 +97,7 @@ export default function DashboardOverviewClient({ modules, motoristaControle, es
       if (results[7].status === "fulfilled" && results[7].value) {
         next.reunioes = (results[7].value.items ?? []).filter((item: MeetingItem) => item.status !== "concluida").reduce((total: number, item: MeetingItem) => total + (item.date && item.date >= today ? 1 : 0) + (item.secondDate && item.secondDate >= today ? 1 : 0), 0);
       }
+      if (results[8].status === "fulfilled" && results[8].value) next.estoqueRotativo = (results[8].value.updates ?? []).filter((item: { status?: string }) => item.status === "aguardando_conferencia" || item.status === "aguardando_mapeamento").length;
       setSnapshot(next);
     }
     void load();
@@ -107,6 +109,7 @@ export default function DashboardOverviewClient({ modules, motoristaControle, es
     ...(allowed.has("agenda") ? [["Agenda", "/agenda", "📅", snapshot.agenda] as const] : []),
     ...(allowed.has("compras") ? [["Compras", "/dashboard/compras", "🛒", snapshot.compras] as const] : []),
     ...(allowed.has("estoque") ? [["Estoque", "/dashboard/estoque", "📦", snapshot.solicitacoes] as const] : []),
+    ...(allowed.has("estoque-rotativo") ? [["Estoque Rotativo", "/dashboard/estoque-rotativo", "🔄", snapshot.estoqueRotativo] as const] : []),
     ...(allowed.has("leads") ? [["Leads", "/dashboard/leads", "🎯", snapshot.leads] as const] : []),
     ...(allowed.has("motorista") ? [["Motorista", motoristaControle ? "/dashboard/motorista" : "/dashboard/motorista-leitura", "🚚", snapshot.motorista] as const] : []),
   ];
@@ -117,7 +120,7 @@ export default function DashboardOverviewClient({ modules, motoristaControle, es
   ];
 
   const renderCards = (cards: typeof mobileCards, mobile = false) => cards.map(([name, href, icon, count]) => {
-    const updateModule = ({ Compras: "compras", Leads: "leads", Estoque: "estoque" } as const)[name as "Compras" | "Leads" | "Estoque"];
+    const updateModule = ({ Compras: "compras", Leads: "leads", Estoque: "estoque", "Estoque Rotativo": "estoque-rotativo" } as const)[name as "Compras" | "Leads" | "Estoque" | "Estoque Rotativo"];
     const pending = updateModule ? updates[updateModule] : undefined;
     return <Link key={name} href={href} onClick={() => void markRead(updateModule)} className={mobile
       ? "relative flex min-h-24 min-w-0 flex-col justify-between rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-3 shadow-sm transition active:bg-blue-100"

@@ -5,6 +5,7 @@ export type PortalModule =
   | "compras"
   | "conferencia"
   | "estoque"
+  | "estoque-rotativo"
   | "motorista"
   | "reunioes"
   | "leads"
@@ -33,6 +34,7 @@ const allModules: PortalModule[] = [
   "compras",
   "conferencia",
   "estoque",
+  "estoque-rotativo",
   "motorista",
   "reunioes",
   "leads",
@@ -81,6 +83,10 @@ function operationalUser(name: string, email: string): PortalUser {
 
   if (CHAT_COLLABORATOR_EMAILS.has(email) && !modules.includes("chat")) {
     modules = [...modules, "chat"];
+  }
+
+  if ([ESTOQUE_TIMONI_EMAIL, "carolina@casatimoni.com.br"].includes(email) && !modules.includes("estoque-rotativo")) {
+    modules = [...modules, "estoque-rotativo"];
   }
 
   return { name, email, modules, requiresPassword: false, readOnly: !COLLABORATOR_MOTORISTA_CONTROL_EMAILS.has(email) };

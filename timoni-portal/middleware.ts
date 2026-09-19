@@ -7,6 +7,7 @@ const protectedRoutes: Array<{ prefix: string; module: PortalModule }> = [
   { prefix: "/colaboradores", module: "painel" },
   { prefix: "/dashboard/compras", module: "compras" },
   { prefix: "/dashboard/conferencia-pedidos", module: "conferencia" },
+  { prefix: "/dashboard/estoque-rotativo", module: "estoque-rotativo" },
   { prefix: "/dashboard/estoque", module: "estoque" },
   { prefix: "/dashboard/motorista-leitura", module: "motorista" },
   { prefix: "/dashboard/motorista", module: "motorista" },

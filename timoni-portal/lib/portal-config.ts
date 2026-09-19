@@ -11,9 +11,10 @@ import { AVISO_LEITURAS_SPREADSHEET_ID } from "@/lib/portal-data-constants";
 const USERS_SHEET = "PortalUsuarios";
 const COLLABORATORS_SHEET = "PortalColaboradores";
 const HISTORY_SHEET = "PortalHistorico";
+const ROTATING_STOCK_MIGRATION = "Permissões Estoque Rotativo v1";
 const REQUIRED_SHEETS = [USERS_SHEET, COLLABORATORS_SHEET, HISTORY_SHEET];
 export const CICA_EMAIL = "mcrodini@gmail.com";
-export const DASHBOARD_BOX_MODULES: PortalModule[] = ["painel", "agenda", "compras", "conferencia", "estoque", "motorista", "reunioes", "leads"];
+export const DASHBOARD_BOX_MODULES: PortalModule[] = ["painel", "agenda", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads"];
 
 export type ConfiguredCollaborator = TeamMember & {
   id: string;
@@ -199,6 +200,45 @@ export async function writeUsers(accessToken: string, users: PortalUser[]) {
   ]));
 }
 
+function userRow(user: PortalUser, now = new Date().toISOString()) {
+  return [
+    normalizeEmail(user.email),
+    user.name,
+    user.unit || defaultUnit(user.email) || "Rio Claro",
+    user.modules.join(","),
+    (user.boxes || []).join(","),
+    user.requiresPassword ? "Sim" : "Não",
+    user.readOnly ? "Sim" : "Não",
+    user.active === false ? "Não" : "Sim",
+    user.directPainel ? "Sim" : "Não",
+    user.lastAccess || "",
+    now,
+  ];
+}
+
+export async function upsertPortalUser(accessToken: string, input: PortalUser) {
+  await ensureSheets(accessToken);
+  const user = {
+    ...input,
+    email: normalizeEmail(input.email),
+    active: normalizeEmail(input.email) === CICA_EMAIL ? true : input.active !== false,
+  };
+  const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:A500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
+  const index = (response.values || []).findIndex((row) => normalizeEmail(row[0]) === user.email);
+  if (index >= 0) {
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A${index + 2}:K${index + 2}`)}`, { valueInputOption: "RAW" }), {
+      method: "PUT",
+      body: JSON.stringify({ values: [userRow(user)] }),
+    });
+  } else {
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A:K`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), {
+      method: "POST",
+      body: JSON.stringify({ values: [userRow(user)] }),
+    });
+  }
+  return user;
+}
+
 export async function writeCollaborators(accessToken: string, collaborators: ConfiguredCollaborator[]) {
   const now = new Date().toISOString();
   await replaceRange(accessToken, `${COLLABORATORS_SHEET}!A2:F500`, collaborators.map((member) => [
@@ -209,6 +249,19 @@ export async function writeCollaborators(accessToken: string, collaborators: Con
     member.noticeRequired ? "Sim" : "Não",
     member.updatedAt || now,
   ]));
+}
+
+export async function upsertCollaborator(accessToken: string, member: ConfiguredCollaborator) {
+  await ensureSheets(accessToken);
+  const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A2:A500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
+  const index = (response.values || []).findIndex((row) => row[0] === member.id);
+  const values = [[member.id, member.name, member.unit, member.active ? "Sim" : "Não", member.noticeRequired ? "Sim" : "Não", member.updatedAt || new Date().toISOString()]];
+  if (index >= 0) {
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A${index + 2}:F${index + 2}`)}`, { valueInputOption: "RAW" }), { method: "PUT", body: JSON.stringify({ values }) });
+  } else {
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A:F`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), { method: "POST", body: JSON.stringify({ values }) });
+  }
+  return member;
 }
 
 export async function appendAudit(accessToken: string, action: string, details: string, actor = CICA_EMAIL) {
@@ -228,6 +281,31 @@ export async function ensurePortalConfiguration(accessToken: string) {
   if (!collaborators.length) await writeCollaborators(accessToken, defaultCollaborators());
 }
 
+let rotatingStockMigration: Promise<void> | null = null;
+
+async function ensureRotatingStockPermissions(accessToken: string) {
+  if (!rotatingStockMigration) rotatingStockMigration = (async () => {
+    await ensurePortalConfiguration(accessToken);
+    const migrationRows = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${HISTORY_SHEET}!B2:B2000`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
+    if ((migrationRows.values || []).some((row) => row[0] === ROTATING_STOCK_MIGRATION)) return;
+    const allowed = new Set([CICA_EMAIL, "mrodini@gmail.com", "estoquetimoni@gmail.com", "carolina@casatimoni.com.br"]);
+    const users = await readUsers(accessToken);
+    const changed = users.filter((user) => allowed.has(user.email) && !user.modules.includes("estoque-rotativo"));
+    for (const user of changed) {
+      await upsertPortalUser(accessToken, {
+        ...user,
+        modules: [...user.modules, "estoque-rotativo"],
+        boxes: [...new Set([...(user.boxes || []), "estoque-rotativo" as const])],
+      });
+    }
+    await appendAudit(accessToken, ROTATING_STOCK_MIGRATION, "Acesso inicial liberado para Ciça, Marcelo, Lucas e Carolina.", CICA_EMAIL);
+  })().catch((error) => {
+    rotatingStockMigration = null;
+    throw error;
+  });
+  await rotatingStockMigration;
+}
+
 export async function loadPortalConfiguration(accessToken: string): Promise<PortalConfiguration> {
   await ensurePortalConfiguration(accessToken);
   const [users, collaborators, history] = await Promise.all([
@@ -243,7 +321,7 @@ export async function getEffectivePortalUser(accessToken: string | undefined, em
   if (!normalized) return null;
   if (!accessToken) return portalUsers[normalized] || null;
   try {
-    await ensureSheets(accessToken);
+    await ensureRotatingStockPermissions(accessToken);
     const users = await readUsers(accessToken);
     if (!users.length) return portalUsers[normalized] || null;
     return users.find((user) => user.email === normalized && user.active !== false) || null;

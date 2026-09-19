@@ -13,6 +13,7 @@ const navItems: Array<{ href: string; label: string; module: PortalModule; updat
   { href: "/dashboard/compras", label: "Compras", module: "compras", updateModule: "compras", icon: "cart", color: "text-orange-700" },
   { href: "/dashboard/conferencia-pedidos", label: "Conferência", module: "conferencia", updateModule: "conferencia", icon: "document", color: "text-rose-700" },
   { href: "/dashboard/estoque", label: "Estoque", module: "estoque", updateModule: "estoque", icon: "stock", color: "text-amber-700" },
+  { href: "/dashboard/estoque-rotativo", label: "Estoque Rotativo", module: "estoque-rotativo", updateModule: "estoque-rotativo", icon: "stock", color: "text-yellow-700" },
   { href: "/dashboard/motorista-leitura", label: "Motorista", module: "motorista", updateModule: "motorista", icon: "truck", color: "text-blue-600" },
   { href: "/dashboard/reunioes", label: "Reuniões", module: "reunioes", updateModule: "reunioes", icon: "meetings", color: "text-indigo-800" },
   { href: "/dashboard/leads", label: "Leads", module: "leads", updateModule: "leads", icon: "leads", color: "text-cyan-800" },

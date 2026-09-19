@@ -6,6 +6,7 @@ export const UPDATE_MODULES = [
   "compras",
   "conferencia",
   "estoque",
+  "estoque-rotativo",
   "motorista",
   "reunioes",
   "leads",

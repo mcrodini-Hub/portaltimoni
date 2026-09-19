@@ -14,6 +14,7 @@ const MODULES: Array<{ id: PortalModule; label: string }> = [
   { id: "compras", label: "Compras" },
   { id: "conferencia", label: "Conferência" },
   { id: "estoque", label: "Estoque" },
+  { id: "estoque-rotativo", label: "Estoque Rotativo" },
   { id: "motorista", label: "Motorista" },
   { id: "reunioes", label: "Reuniões" },
   { id: "leads", label: "Leads" },
@@ -26,6 +27,7 @@ const BOXES: Array<{ id: PortalBox; label: string; requiresModule: PortalModule 
   { id: "compras", label: "Compras", requiresModule: "compras" },
   { id: "conferencia", label: "Conferência", requiresModule: "conferencia" },
   { id: "estoque", label: "Estoque", requiresModule: "estoque" },
+  { id: "estoque-rotativo", label: "Estoque Rotativo", requiresModule: "estoque-rotativo" },
   { id: "motorista", label: "Motorista", requiresModule: "motorista" },
   { id: "reunioes", label: "Reuniões", requiresModule: "reunioes" },
   { id: "leads", label: "Leads", requiresModule: "leads" },
@@ -113,9 +115,15 @@ export default function ConfiguracoesClient() {
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Não foi possível salvar.");
+      if (section === "user") {
+        const updated = result.item as PortalUser;
+        setData((current) => ({ ...current, users: [...current.users.filter((user) => user.email !== updated.email), updated] }));
+      } else {
+        const updated = result.item as ConfiguredCollaborator;
+        setData((current) => ({ ...current, collaborators: [...current.collaborators.filter((member) => member.id !== updated.id), updated] }));
+      }
       setFeedback("Alteração salva com sucesso.");
       setUserForm(null); setCollaboratorForm(null);
-      await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível salvar.");
     } finally { setSaving(false); }

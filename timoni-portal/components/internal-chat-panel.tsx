@@ -45,6 +45,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
     if (!open || minimized) return;
 
     const handleOutsidePointerDown = (event: PointerEvent) => {
+      if (!window.matchMedia("(max-width: 639px)").matches) return;
       if (event.target instanceof Node && panelRef.current && !panelRef.current.contains(event.target)) {
         onClose();
       }

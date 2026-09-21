@@ -17,7 +17,7 @@ type Supplier = {
   id: string; name: string; spreadsheet_id: string; sheet_name: string; data_range: string;
   code_column: number; description_column: number; stock_column: number; validated_at: string | null;
 };
-type ResponseData = {
+type TrelloSupplier = { id: string; name: string; url: string; unit?: string; urgent?: boolean };\ntype ComprasData = { configured?: boolean; suppliers?: TrelloSupplier[] };\n\ntype ResponseData = {
   updates: Update[]; suppliers: Supplier[]; notFoundPending: number; items: Item[]; currentUpdate: Update | null;
   notFoundItems: Array<{ id: string; update_id: string; code: string; description: string; new_stock: number; supplier_name: string; reported_at: string }>;
   permissions: { canReport: boolean; canConference: boolean; canManage: boolean };
@@ -45,7 +45,7 @@ function StatusBadge({ status }: { status: Status }) {
 }
 
 export default function EstoqueRotativoClient() {
-  const [data, setData] = useState<ResponseData | null>(null);
+  const [data, setData] = useState<ResponseData | null>(null);\n  const [trelloSuppliers, setTrelloSuppliers] = useState<TrelloSupplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -57,7 +57,6 @@ export default function EstoqueRotativoClient() {
   const [filter, setFilter] = useState<"todos" | Situation>("todos");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [mapping, setMapping] = useState({ name: "", spreadsheetId: "", sheetName: "", dataRange: "", codeColumn: 0, descriptionColumn: 1, stockColumn: 2 });
 
   const load = useCallback(async (id?: string | null) => {
     setLoading(true); setError("");
@@ -75,7 +74,7 @@ export default function EstoqueRotativoClient() {
     } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => { void load(); }, [load]);\n  useEffect(() => {\n    fetch("/api/compras", { cache: "no-store" })\n      .then((response) => response.ok ? response.json() : null)\n      .then((result: ComprasData | null) => setTrelloSuppliers(result?.suppliers || []))\n      .catch(() => setTrelloSuppliers([]));\n  }, []);
 
   const pending = data?.updates.filter((item) => item.status === "aguardando_conferencia" || item.status === "aguardando_mapeamento").length || 0;
   const inConference = data?.updates.filter((item) => item.status === "em_conferencia").length || 0;
@@ -120,20 +119,6 @@ export default function EstoqueRotativoClient() {
     await load();
   }
 
-  async function saveMapping() {
-    const result = await post({ action: "salvar_mapeamento", ...mapping });
-    if (!result) return;
-    setFeedback("Mapeamento validado. As pendências correspondentes estão liberadas para conferência.");
-    setMapping({ name: "", spreadsheetId: "", sheetName: "", dataRange: "", codeColumn: 0, descriptionColumn: 1, stockColumn: 2 });
-    await load();
-  }
-
-  async function resolveNotFound(itemId: string) {
-    const result = await post({ action: "resolver_nao_encontrado", itemId });
-    if (!result) return;
-    setFeedback("Pendência marcada como resolvida.");
-    await load();
-  }
 
   const visibleItems = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("pt-BR");
@@ -147,7 +132,7 @@ export default function EstoqueRotativoClient() {
       <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Registre relações recebidas, confira os códigos e atualize somente os estoques selecionados.</p>
     </header>
 
-    <section className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
       {[
         ["Atualizações pendentes", pending, "border-amber-200 bg-amber-50"],
         ["Em conferência", inConference, "border-blue-200 bg-blue-50"],
@@ -171,18 +156,14 @@ export default function EstoqueRotativoClient() {
       <div className="mt-4 flex justify-end"><button type="button" disabled={busy} onClick={() => void report()} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{busy ? "Registrando..." : "Criar atualização pendente"}</button></div>
     </section> : null}
 
-    {data?.permissions.canManage && !activeId ? <details className="mt-5 rounded-2xl border border-violet-200 bg-violet-50 p-5">
-      <summary className="cursor-pointer font-semibold text-violet-950">Validar novo fornecedor e mapeamento</summary>
-      <p className="mt-2 text-sm text-violet-800">Os índices começam em zero dentro do intervalo informado. Exemplo B6:D31: código 0, descrição 1, estoque 2.</p>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <input aria-label="Fornecedor" placeholder="Fornecedor" value={mapping.name} onChange={(event) => setMapping({ ...mapping, name: event.target.value })} className="rounded-xl border border-violet-200 px-3 py-2.5" />
-        <input aria-label="ID ou link da planilha" placeholder="ID ou link da planilha" value={mapping.spreadsheetId} onChange={(event) => setMapping({ ...mapping, spreadsheetId: event.target.value })} className="rounded-xl border border-violet-200 px-3 py-2.5" />
-        <input aria-label="Aba" placeholder="Aba" value={mapping.sheetName} onChange={(event) => setMapping({ ...mapping, sheetName: event.target.value })} className="rounded-xl border border-violet-200 px-3 py-2.5" />
-        <input aria-label="Intervalo" placeholder="B6:D31" value={mapping.dataRange} onChange={(event) => setMapping({ ...mapping, dataRange: event.target.value })} className="rounded-xl border border-violet-200 px-3 py-2.5" />
-        {["codeColumn", "descriptionColumn", "stockColumn"].map((key) => <label key={key} className="text-xs font-medium text-violet-900">{key === "codeColumn" ? "Coluna do código" : key === "descriptionColumn" ? "Coluna da descrição" : "Coluna do estoque"}<input type="number" min={0} value={mapping[key as keyof typeof mapping]} onChange={(event) => setMapping({ ...mapping, [key]: Number(event.target.value) })} className="mt-1 w-full rounded-xl border border-violet-200 px-3 py-2.5" /></label>)}
+    {!activeId && trelloSuppliers.length ? <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div><h2 className="text-lg font-semibold text-slate-950">Fornecedores — Trello Compras</h2><p className="mt-1 text-sm text-slate-600">A mesma relação do módulo Compras, com a situação da última atualização no Estoque Rotativo.</p></div>
       </div>
-      <button type="button" disabled={busy} onClick={() => void saveMapping()} className="mt-4 rounded-xl bg-violet-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">Validar mapeamento</button>
-    </details> : null}
+      <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead><tr className="border-b border-slate-200 text-slate-600"><th className="px-3 py-2">Fornecedor</th><th className="px-3 py-2">Última atualização</th><th className="px-3 py-2">Situação</th><th className="px-3 py-2 text-right">Ação</th></tr></thead><tbody>
+        {trelloSuppliers.map((supplier) => { const latest = data?.updates.find((update) => update.supplier_name.trim().toLocaleLowerCase("pt-BR") === supplier.name.trim().toLocaleLowerCase("pt-BR")); return <tr key={supplier.id} className="border-b border-slate-100 last:border-0"><td className="px-3 py-3 font-medium text-slate-950">{supplier.name}</td><td className="px-3 py-3 text-slate-600">{latest ? formatDate(latest.reported_at) : "—"}</td><td className="px-3 py-3">{latest ? <StatusBadge status={latest.status} /> : <span className="text-slate-500">Pendente</span>}</td><td className="px-3 py-3 text-right"><button type="button" onClick={() => setSupplierName(supplier.name)} className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-800">Atualizar</button></td></tr>; })}
+      </tbody></table></div>
+    </section> : null}
 
     {!activeId && data ? <section className="mt-6">
       <h2 className="text-xl font-semibold text-slate-950">Atualizações pendentes / recentes</h2>
@@ -193,18 +174,6 @@ export default function EstoqueRotativoClient() {
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500"><span>{item.items_read} lidos</span><span>·</span><span>{item.found_count} encontrados</span><span>·</span><span>{item.not_found_count} não encontrados</span></div>
           {data.permissions.canConference && ["aguardando_conferencia", "em_conferencia"].includes(item.status) ? <button type="button" disabled={busy} onClick={() => void conference(item.id)} className="mt-3 rounded-lg border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800">{item.status === "em_conferencia" ? "Reabrir conferência" : "Conferir"}</button> : null}
         </article>) : <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">Nenhuma atualização registrada.</p>}
-      </div>
-    </section> : null}
-
-    {!activeId && data?.permissions.canConference && data.notFoundItems.length ? <section className="mt-6">
-      <h2 className="text-xl font-semibold text-slate-950">Pendências de produtos não encontrados</h2>
-      <p className="mt-1 text-sm text-slate-600">Estes produtos não são criados automaticamente e permanecem aqui até uma decisão manual.</p>
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
-        {data.notFoundItems.map((item) => <article key={item.id} className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
-          <p className="font-semibold text-rose-950">{item.code} · {item.description || "Sem descrição"}</p>
-          <p className="mt-1 text-sm text-rose-800">{item.supplier_name} · estoque informado: {item.new_stock}</p>
-          <button type="button" disabled={busy} onClick={() => void resolveNotFound(item.id)} className="mt-3 rounded-lg border border-rose-300 bg-white px-3 py-2 text-xs font-semibold text-rose-800">Marcar como resolvido</button>
-        </article>)}
       </div>
     </section> : null}
 

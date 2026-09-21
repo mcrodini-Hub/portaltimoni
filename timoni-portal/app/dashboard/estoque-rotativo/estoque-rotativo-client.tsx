@@ -147,7 +147,6 @@ export default function EstoqueRotativoClient() {
         ["Atualizações pendentes", pending, "border-amber-200 bg-amber-50"],
         ["Em conferência", inConference, "border-blue-200 bg-blue-50"],
         ["Atualizadas no mês", updatedMonth, "border-emerald-200 bg-emerald-50"],
-        ["Não encontrados", data?.notFoundPending || 0, "border-rose-200 bg-rose-50"],
       ].map(([label, value, color]) =>
         <div key={String(label)} className={`rounded-2xl border p-4 ${color}`}><p className="text-2xl font-bold text-slate-950">{value}</p><p className="mt-1 text-sm text-slate-700">{label}</p></div>)}
     </section>

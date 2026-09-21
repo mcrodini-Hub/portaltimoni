@@ -80,7 +80,7 @@ export default function EstoqueRotativoClient() {
 
   useEffect(() => { void load(); }, [load]);
   useEffect(() => {
-    fetch("/api/compras", { cache: "no-store" })
+    fetch("/api/estoque-rotativo/fornecedores", { cache: "no-store" })
       .then((response) => response.ok ? response.json() : null)
       .then((result: ComprasData | null) => setTrelloSuppliers(result?.suppliers || []))
       .catch(() => setTrelloSuppliers([]));
@@ -167,7 +167,7 @@ export default function EstoqueRotativoClient() {
 
     {!activeId && trelloSuppliers.length ? <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <div><h2 className="text-lg font-semibold text-slate-950">Fornecedores — Trello Compras</h2><p className="mt-1 text-sm text-slate-600">A mesma relação do módulo Compras, com a situação da última atualização no Estoque Rotativo.</p></div>
+        <div><h2 className="text-lg font-semibold text-slate-950">Fornecedores — Estoque Rotativo Lucas/Carol</h2><p className="mt-1 text-sm text-slate-600">Lista filtrada diretamente de ESTOQUE ROTATIVO LUCAS/CAROL no Trello, com a situação da última atualização.</p></div>
       </div>
       <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead><tr className="border-b border-slate-200 text-slate-600"><th className="px-3 py-2">Fornecedor</th><th className="px-3 py-2">Última atualização</th><th className="px-3 py-2">Situação</th><th className="px-3 py-2 text-right">Ação</th></tr></thead><tbody>
         {trelloSuppliers.map((supplier) => { const latest = data?.updates.find((update) => update.supplier_name.trim().toLocaleLowerCase("pt-BR") === supplier.name.trim().toLocaleLowerCase("pt-BR")); return <tr key={supplier.id} className="border-b border-slate-100 last:border-0"><td className="px-3 py-3 font-medium text-slate-950">{supplier.name}</td><td className="px-3 py-3 text-slate-600">{latest ? formatDate(latest.reported_at) : "—"}</td><td className="px-3 py-3">{latest ? <StatusBadge status={latest.status} /> : <span className="text-slate-500">Pendente</span>}</td><td className="px-3 py-3 text-right"><button type="button" onClick={() => setSupplierName(supplier.name)} className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-800">Atualizar</button></td></tr>; })}

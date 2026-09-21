@@ -17,7 +17,10 @@ type Supplier = {
   id: string; name: string; spreadsheet_id: string; sheet_name: string; data_range: string;
   code_column: number; description_column: number; stock_column: number; validated_at: string | null;
 };
-type TrelloSupplier = { id: string; name: string; url: string; unit?: string; urgent?: boolean };\ntype ComprasData = { configured?: boolean; suppliers?: TrelloSupplier[] };\n\ntype ResponseData = {
+type TrelloSupplier = { id: string; name: string; url: string; unit?: string; urgent?: boolean };
+type ComprasData = { configured?: boolean; suppliers?: TrelloSupplier[] };
+
+type ResponseData = {
   updates: Update[]; suppliers: Supplier[]; notFoundPending: number; items: Item[]; currentUpdate: Update | null;
   notFoundItems: Array<{ id: string; update_id: string; code: string; description: string; new_stock: number; supplier_name: string; reported_at: string }>;
   permissions: { canReport: boolean; canConference: boolean; canManage: boolean };
@@ -45,7 +48,8 @@ function StatusBadge({ status }: { status: Status }) {
 }
 
 export default function EstoqueRotativoClient() {
-  const [data, setData] = useState<ResponseData | null>(null);\n  const [trelloSuppliers, setTrelloSuppliers] = useState<TrelloSupplier[]>([]);
+  const [data, setData] = useState<ResponseData | null>(null);
+  const [trelloSuppliers, setTrelloSuppliers] = useState<TrelloSupplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
@@ -74,7 +78,13 @@ export default function EstoqueRotativoClient() {
     } finally { setLoading(false); }
   }, []);
 
-  useEffect(() => { void load(); }, [load]);\n  useEffect(() => {\n    fetch("/api/compras", { cache: "no-store" })\n      .then((response) => response.ok ? response.json() : null)\n      .then((result: ComprasData | null) => setTrelloSuppliers(result?.suppliers || []))\n      .catch(() => setTrelloSuppliers([]));\n  }, []);
+  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    fetch("/api/compras", { cache: "no-store" })
+      .then((response) => response.ok ? response.json() : null)
+      .then((result: ComprasData | null) => setTrelloSuppliers(result?.suppliers || []))
+      .catch(() => setTrelloSuppliers([]));
+  }, []);
 
   const pending = data?.updates.filter((item) => item.status === "aguardando_conferencia" || item.status === "aguardando_mapeamento").length || 0;
   const inConference = data?.updates.filter((item) => item.status === "em_conferencia").length || 0;

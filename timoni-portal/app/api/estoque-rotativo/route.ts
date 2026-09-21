@@ -44,10 +44,12 @@ function cleanCode(value: unknown) {
 function integerStock(value: unknown, label: string, allowBlank = false) {
   const text = String(value ?? "").trim();
   if (allowBlank && text === "") return 0;
-  if (!/^\d+$/.test(text)) throw new Error(`${label}: o estoque deve ser um número inteiro igual ou maior que zero.`);
-  const number = Number(text);
-  if (!Number.isSafeInteger(number)) throw new Error(`${label}: estoque fora do limite aceito.`);
-  return number;
+  const normalized = text.replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
+  const number = Number(normalized);
+  if (!Number.isFinite(number) || number < 0) throw new Error(`${label}: estoque inválido.`);
+  const integer = Math.trunc(number);
+  if (!Number.isSafeInteger(integer)) throw new Error(`${label}: estoque fora do limite aceito.`);
+  return integer;
 }
 
 function sourceRange(supplier: RotatingStockSupplier) {

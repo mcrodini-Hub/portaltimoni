@@ -110,7 +110,10 @@ export default function EstoqueRotativoClient() {
     setSpreadsheetReference(mapped?.spreadsheet_id ? `https://docs.google.com/spreadsheets/d/${mapped.spreadsheet_id}/edit` : "");
   }
 
-  const allowedNames = useMemo(() => new Set(trelloSuppliers.map((supplier) => supplier.name.trim().toLocaleLowerCase("pt-BR"))), [trelloSuppliers]);
+  const allowedNames = useMemo(
+    () => new Set(trelloSuppliers.map((supplier) => supplier.name.trim().toLocaleLowerCase("pt-BR"))),
+    [trelloSuppliers],
+  );
   const visibleUpdates = useMemo(() => (data?.updates || []).filter((item) => item.status !== "atualizado" && allowedNames.has(item.supplier_name.trim().toLocaleLowerCase("pt-BR"))), [data?.updates, allowedNames]);
 
   async function report() {

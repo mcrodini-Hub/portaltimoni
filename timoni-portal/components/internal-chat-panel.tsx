@@ -41,6 +41,20 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
   const panelRef = useRef<HTMLElement | null>(null);
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
+  useEffect(() => {
+    if (!open || minimized) return;
+
+    const handleOutsidePointerDown = (event: PointerEvent) => {
+      if (!window.matchMedia("(max-width: 639px)").matches) return;
+      if (event.target instanceof Node && panelRef.current && !panelRef.current.contains(event.target)) {
+        onClose();
+      }
+    };
+
+    document.addEventListener("pointerdown", handleOutsidePointerDown, true);
+    return () => document.removeEventListener("pointerdown", handleOutsidePointerDown, true);
+  }, [open, minimized, onClose]);
+
   const loadOverview = useCallback(async () => {
     const response = await fetch("/api/internal-chat", { cache: "no-store" });
     const data = await response.json();

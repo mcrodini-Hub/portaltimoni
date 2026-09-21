@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 
 type Contact = {
   name: string;
@@ -33,7 +33,6 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const [minimized, setMinimized] = useState(false);
-  const [contactsWidth, setContactsWidth] = useState(170);
   const [editingMessage, setEditingMessage] = useState<Message | null>(null);
   const [activeMessageMenu, setActiveMessageMenu] = useState<string | null>(null);
   const [messageAction, setMessageAction] = useState<string | null>(null);
@@ -135,8 +134,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
     if (!term) return overview.contacts;
     return overview.contacts.filter((item) =>
       item.name.toLocaleLowerCase("pt-BR").includes(term)
-      || item.email.toLocaleLowerCase("pt-BR").includes(term)
-      || item.lastMessagePreview.toLocaleLowerCase("pt-BR").includes(term),
+      || item.email.toLocaleLowerCase("pt-BR").includes(term),
     );
   }, [overview.contacts, search]);
 
@@ -223,30 +221,6 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
     }
   }
 
-  function startContactsResize(event: ReactPointerEvent<HTMLDivElement>) {
-    if (window.innerWidth < 640) return;
-    event.preventDefault();
-    const startX = event.clientX;
-    const startWidth = contactsWidth;
-    const panelWidth = panelRef.current?.clientWidth ?? 500;
-    const maxWidth = Math.max(190, Math.min(280, panelWidth - 250));
-
-    const handlePointerMove = (moveEvent: PointerEvent) => {
-      setContactsWidth(Math.min(maxWidth, Math.max(150, startWidth + moveEvent.clientX - startX)));
-    };
-    const stopResize = () => {
-      window.removeEventListener("pointermove", handlePointerMove);
-      window.removeEventListener("pointerup", stopResize);
-      document.body.style.removeProperty("user-select");
-      document.body.style.removeProperty("cursor");
-    };
-
-    document.body.style.setProperty("user-select", "none");
-    document.body.style.setProperty("cursor", "col-resize");
-    window.addEventListener("pointermove", handlePointerMove);
-    window.addEventListener("pointerup", stopResize);
-  }
-
   function startPanelWidthResize(event: ReactPointerEvent<HTMLDivElement>) {
     if (window.innerWidth < 640 || !panelRef.current) return;
     event.preventDefault();
@@ -259,7 +233,6 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
     const handlePointerMove = (moveEvent: PointerEvent) => {
       const nextWidth = Math.min(maxWidth, Math.max(420, startWidth + startX - moveEvent.clientX));
       panel.style.width = `${nextWidth}px`;
-      setContactsWidth((width) => Math.min(width, Math.max(150, nextWidth - 250)));
     };
     const stopResize = () => {
       window.removeEventListener("pointermove", handlePointerMove);
@@ -276,7 +249,6 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
 
   if (!open) return null;
   const contact = overview.contacts.find((item) => item.email === selected) ?? null;
-  const panelStyle = { "--contacts-width": `${contactsWidth}px` } as CSSProperties;
 
   if (minimized) {
     return (
@@ -299,7 +271,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
   return (
     <div id="internal-chat-dialog" className="fixed inset-x-0 bottom-0 top-16 z-[80] flex items-start justify-end overflow-hidden bg-slate-950/20 pt-2 sm:z-[100] sm:pt-0" role="dialog" aria-modal="true">
       <button type="button" className="absolute inset-0" onClick={onClose} aria-label="Fechar chat" />
-      <section ref={panelRef} style={panelStyle} className="relative flex h-[calc(100%-0.5rem)] min-h-0 w-[92%] max-w-[390px] overflow-hidden rounded-tl-xl border-l border-t border-slate-200 bg-white font-sans shadow-2xl sm:h-full sm:w-[500px] sm:min-w-[420px] sm:max-w-[calc(100vw-1rem)] sm:rounded-none sm:border-t-0" title="Arraste a borda esquerda para ajustar a largura">
+      <section ref={panelRef} className="relative flex h-[calc(100%-0.5rem)] min-h-0 w-[92%] max-w-[390px] overflow-hidden rounded-tl-xl border-l border-t border-slate-200 bg-white font-sans shadow-2xl sm:h-full sm:w-[500px] sm:min-w-[420px] sm:max-w-[calc(100vw-1rem)] sm:rounded-none sm:border-t-0" title="Arraste a borda esquerda para ajustar a largura">
         <div
           role="separator"
           aria-orientation="vertical"
@@ -310,7 +282,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
         >
           <span className="h-16 w-1 rounded-full bg-[#2296E8]/35 transition group-hover:bg-[#2296E8]" />
         </div>
-        <aside className={`${selected ? "hidden sm:flex" : "flex"} w-full flex-col border-r border-slate-200 bg-slate-50 sm:w-[var(--contacts-width)] sm:shrink-0`}>
+        <aside className={`${selected ? "hidden sm:flex" : "flex"} w-full flex-col border-r border-slate-200 bg-slate-50 sm:w-[210px] sm:shrink-0`}>
           <div className="border-b border-slate-200 px-3.5 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[.14em] text-blue-700">Casa Timoni</p>
             <h2 className="mt-1 text-[15px] font-semibold text-slate-950">Chat interno</h2>
@@ -341,9 +313,6 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
                       <span className={`block min-w-0 flex-1 whitespace-normal break-words text-[13px] leading-4 sm:text-[11.5px] sm:text-black ${hasUnread ? "font-bold text-slate-950 sm:text-black" : "font-semibold text-slate-800 sm:text-black"}`}>{item.name}</span>
                       <span className={`shrink-0 text-[10px] sm:text-[8px] ${hasUnread ? "font-semibold text-blue-700" : "text-slate-400"}`}>{formatActivity(item.lastMessageAt)}</span>
                     </span>
-                    <span className={`mt-0.5 block truncate text-[12px] sm:mt-1 sm:text-[11.5px] sm:text-black ${hasUnread ? "font-semibold text-slate-800 sm:text-black" : "text-slate-600 sm:text-black"}`}>
-                      {item.lastMessagePreview || "Mensagem direta"}
-                    </span>
                   </span>
                   {hasUnread ? <span className="flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-bold text-white sm:text-[11px]">{item.unread > 99 ? "99+" : item.unread}</span> : null}
                 </button>
@@ -351,16 +320,6 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
             })}
           </div>
         </aside>
-        <div
-          role="separator"
-          aria-orientation="vertical"
-          aria-label="Ajustar largura da lista de contatos"
-          onPointerDown={startContactsResize}
-          className="group hidden w-2 shrink-0 cursor-col-resize items-center justify-center bg-white sm:flex"
-          title="Arraste para ajustar a divisão entre contatos e conversa"
-        >
-          <span className="h-10 w-0.5 rounded-full bg-slate-300 transition group-hover:bg-[#2296E8]" />
-        </div>
         <div className={`${selected ? "flex" : "hidden sm:flex"} min-w-0 flex-1 flex-col`}>
           <div className="flex min-h-10 shrink-0 items-center gap-1.5 border-b border-slate-200 bg-white px-2.5 sm:min-h-12 sm:gap-3 sm:px-4">
             <button type="button" className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xl font-semibold text-[#0F2D8F] sm:hidden" aria-label="Voltar para contatos" onClick={() => { setSelected(null); setMessages([]); }}>←</button>

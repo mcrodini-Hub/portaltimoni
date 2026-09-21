@@ -41,8 +41,9 @@ function cleanCode(value: unknown) {
   return String(value ?? "").trim();
 }
 
-function integerStock(value: unknown, label: string) {
+function integerStock(value: unknown, label: string, allowBlank = false) {
   const text = String(value ?? "").trim();
+  if (allowBlank && text === "") return 0;
   if (!/^\d+$/.test(text)) throw new Error(`${label}: o estoque deve ser um número inteiro igual ou maior que zero.`);
   const number = Number(text);
   if (!Number.isSafeInteger(number)) throw new Error(`${label}: estoque fora do limite aceito.`);

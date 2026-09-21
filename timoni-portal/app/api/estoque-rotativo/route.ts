@@ -106,7 +106,7 @@ function buildComparison(supplier: RotatingStockSupplier, sourceRows: unknown[][
     const code = cleanCode(targetRows[index]?.[0]);
     if (!code) continue;
     if (targetByCode.has(code)) targetDuplicates.add(code);
-    targetByCode.set(code, { row: index + 2, stock: integerStock(targetRows[index]?.[2], `Base central, código ${code}`) });
+    targetByCode.set(code, { row: index + 2, stock: integerStock(targetRows[index]?.[2], `Base central, código ${code}`, true) });
   }
   if (targetDuplicates.size) throw new Error(`A base central possui códigos duplicados: ${[...targetDuplicates].slice(0, 10).join(", ")}.`);
 

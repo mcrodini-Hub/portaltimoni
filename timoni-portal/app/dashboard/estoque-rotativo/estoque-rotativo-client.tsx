@@ -57,7 +57,6 @@ export default function EstoqueRotativoClient() {
   const [filter, setFilter] = useState<"todos" | Situation>("todos");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [mapping, setMapping] = useState({ name: "", spreadsheetId: "", sheetName: "", dataRange: "", codeColumn: 0, descriptionColumn: 1, stockColumn: 2 });
 
   const load = useCallback(async (id?: string | null) => {
     setLoading(true); setError("");
@@ -120,20 +119,6 @@ export default function EstoqueRotativoClient() {
     await load();
   }
 
-  async function saveMapping() {
-    const result = await post({ action: "salvar_mapeamento", ...mapping });
-    if (!result) return;
-    setFeedback("Mapeamento validado. As pendências correspondentes estão liberadas para conferência.");
-    setMapping({ name: "", spreadsheetId: "", sheetName: "", dataRange: "", codeColumn: 0, descriptionColumn: 1, stockColumn: 2 });
-    await load();
-  }
-
-  async function resolveNotFound(itemId: string) {
-    const result = await post({ action: "resolver_nao_encontrado", itemId });
-    if (!result) return;
-    setFeedback("Pendência marcada como resolvida.");
-    await load();
-  }
 
   const visibleItems = useMemo(() => {
     const query = search.trim().toLocaleLowerCase("pt-BR");

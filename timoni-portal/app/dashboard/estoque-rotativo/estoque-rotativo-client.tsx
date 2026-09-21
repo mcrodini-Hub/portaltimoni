@@ -54,8 +54,8 @@ export default function EstoqueRotativoClient() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
-  const [supplierName, setSupplierName] = useState("KTELI");
-  const [spreadsheetReference, setSpreadsheetReference] = useState("https://docs.google.com/spreadsheets/d/1WhU4TlFxnK4UhjUOIwGCcVC5NvDZlqN6lXhAiIj1i20/edit");
+  const [supplierName, setSupplierName] = useState("");
+  const [spreadsheetReference, setSpreadsheetReference] = useState("");
   const [note, setNote] = useState("");
   const [activeId, setActiveId] = useState<string | null>(null);
   const [filter, setFilter] = useState<"todos" | Situation>("todos");
@@ -103,6 +103,15 @@ export default function EstoqueRotativoClient() {
       return null;
     } finally { setBusy(false); }
   }
+
+  function chooseSupplier(name: string) {
+    setSupplierName(name);
+    const mapped = data?.suppliers.find((supplier) => supplier.name.trim().toLocaleLowerCase("pt-BR") === name.trim().toLocaleLowerCase("pt-BR"));
+    setSpreadsheetReference(mapped?.spreadsheet_id ? `https://docs.google.com/spreadsheets/d/${mapped.spreadsheet_id}/edit` : "");
+  }
+
+  const allowedNames = useMemo(() => new Set(trelloSuppliers.map((supplier) => supplier.name.trim().toLocaleLowerCase("pt-BR"))), [trelloSuppliers]);
+  const visibleUpdates = useMemo(() => (data?.updates || []).filter((item) => item.status !== "atualizado" && allowedNames.has(item.supplier_name.trim().toLocaleLowerCase("pt-BR"))), [data?.updates, allowedNames]);
 
   async function report() {
     const result = await post({ action: "registrar", supplierName, spreadsheetReference, note });
@@ -158,7 +167,7 @@ export default function EstoqueRotativoClient() {
     {data?.permissions.canReport && !activeId ? <section className="mt-5 rounded-2xl border border-blue-200 bg-white p-5 shadow-sm">
       <h2 className="text-lg font-semibold text-slate-950">Informar planilha atualizada</h2>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <label className="text-sm font-medium text-slate-700">Fornecedor / grupo<input value={supplierName} onChange={(event) => setSupplierName(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
+        <label className="text-sm font-medium text-slate-700">Fornecedor / grupo<select value={supplierName} onChange={(event) => chooseSupplier(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="">Selecione da lista ESTOQUE ROTATIVO LUCAS/CAROL</option>{trelloSuppliers.map((supplier) => <option key={supplier.id} value={supplier.name}>{supplier.name}</option>)}</select></label>
         <label className="text-sm font-medium text-slate-700">Link ou nome da planilha<input value={spreadsheetReference} onChange={(event) => setSpreadsheetReference(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
         <label className="text-sm font-medium text-slate-700 md:col-span-2">Observação opcional<textarea value={note} onChange={(event) => setNote(event.target.value)} className="mt-1 min-h-20 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
       </div>
@@ -170,14 +179,14 @@ export default function EstoqueRotativoClient() {
         <div><h2 className="text-lg font-semibold text-slate-950">Fornecedores — Estoque Rotativo Lucas/Carol</h2><p className="mt-1 text-sm text-slate-600">Lista filtrada diretamente de ESTOQUE ROTATIVO LUCAS/CAROL no Trello, com a situação da última atualização.</p></div>
       </div>
       <div className="mt-4 overflow-x-auto"><table className="w-full min-w-[680px] text-left text-sm"><thead><tr className="border-b border-slate-200 text-slate-600"><th className="px-3 py-2">Fornecedor</th><th className="px-3 py-2">Última atualização</th><th className="px-3 py-2">Situação</th><th className="px-3 py-2 text-right">Ação</th></tr></thead><tbody>
-        {trelloSuppliers.map((supplier) => { const latest = data?.updates.find((update) => update.supplier_name.trim().toLocaleLowerCase("pt-BR") === supplier.name.trim().toLocaleLowerCase("pt-BR")); return <tr key={supplier.id} className="border-b border-slate-100 last:border-0"><td className="px-3 py-3 font-medium text-slate-950">{supplier.name}</td><td className="px-3 py-3 text-slate-600">{latest ? formatDate(latest.reported_at) : "—"}</td><td className="px-3 py-3">{latest ? <StatusBadge status={latest.status} /> : <span className="text-slate-500">Pendente</span>}</td><td className="px-3 py-3 text-right"><button type="button" onClick={() => setSupplierName(supplier.name)} className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-800">Atualizar</button></td></tr>; })}
+        {trelloSuppliers.map((supplier) => { const latest = data?.updates.find((update) => update.supplier_name.trim().toLocaleLowerCase("pt-BR") === supplier.name.trim().toLocaleLowerCase("pt-BR")); return <tr key={supplier.id} className="border-b border-slate-100 last:border-0"><td className="px-3 py-3 font-medium text-slate-950">{supplier.name}</td><td className="px-3 py-3 text-slate-600">{latest ? formatDate(latest.reported_at) : "—"}</td><td className="px-3 py-3">{latest ? <StatusBadge status={latest.status} /> : <span className="text-slate-500">Pendente</span>}</td><td className="px-3 py-3 text-right"><button type="button" onClick={() => chooseSupplier(supplier.name)} className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-800">Atualizar</button></td></tr>; })}
       </tbody></table></div>
     </section> : null}
 
     {!activeId && data ? <section className="mt-6">
       <h2 className="text-xl font-semibold text-slate-950">Atualizações pendentes / recentes</h2>
       <div className="mt-3 space-y-3">
-        {data.updates.length ? data.updates.map((item) => <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+        {visibleUpdates.length ? visibleUpdates.map((item) => <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
           <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold text-slate-950">{item.supplier_name}</p><p className="mt-1 text-sm text-slate-600">{item.spreadsheet_name || item.spreadsheet_link} · {formatDate(item.reported_at)}</p></div><StatusBadge status={item.status} /></div>
           {item.note ? <p className="mt-2 text-sm text-slate-600">{item.note}</p> : null}
           <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500"><span>{item.items_read} lidos</span><span>·</span><span>{item.found_count} encontrados</span><span>·</span><span>{item.not_found_count} não encontrados</span></div>

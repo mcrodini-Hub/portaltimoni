@@ -104,7 +104,16 @@ export default function EstoqueRotativoClient() {
     } finally { setBusy(false); }
   }
 
-  function chooseSupplier(name: string) {\n    setSupplierName(name);\n    const mapped = data?.suppliers.find((supplier) => supplier.name.trim().toLocaleLowerCase("pt-BR") === name.trim().toLocaleLowerCase("pt-BR"));\n    setSpreadsheetReference(mapped?.spreadsheet_id ? `https://docs.google.com/spreadsheets/d/${mapped.spreadsheet_id}/edit` : "");\n  }\n\n  const allowedNames = useMemo(() => new Set(trelloSuppliers.map((supplier) => supplier.name.trim().toLocaleLowerCase("pt-BR"))), [trelloSuppliers]);\n  const visibleUpdates = useMemo(() => (data?.updates || []).filter((item) => item.status !== "atualizado" && allowedNames.has(item.supplier_name.trim().toLocaleLowerCase("pt-BR"))), [data?.updates, allowedNames]);\n\n  async function report() {
+  function chooseSupplier(name: string) {
+    setSupplierName(name);
+    const mapped = data?.suppliers.find((supplier) => supplier.name.trim().toLocaleLowerCase("pt-BR") === name.trim().toLocaleLowerCase("pt-BR"));
+    setSpreadsheetReference(mapped?.spreadsheet_id ? `https://docs.google.com/spreadsheets/d/${mapped.spreadsheet_id}/edit` : "");
+  }
+
+  const allowedNames = useMemo(() => new Set(trelloSuppliers.map((supplier) => supplier.name.trim().toLocaleLowerCase("pt-BR"))), [trelloSuppliers]);
+  const visibleUpdates = useMemo(() => (data?.updates || []).filter((item) => item.status !== "atualizado" && allowedNames.has(item.supplier_name.trim().toLocaleLowerCase("pt-BR"))), [data?.updates, allowedNames]);
+
+  async function report() {
     const result = await post({ action: "registrar", supplierName, spreadsheetReference, note });
     if (!result) return;
     setFeedback(result.needsMapping ? "Pendência criada. A gestão precisa validar o mapeamento antes da conferência." : "Atualização pendente criada e Carolina avisada no chat.");

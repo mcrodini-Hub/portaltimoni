@@ -24,7 +24,7 @@ export function getInternalChatParticipant(email?: string | null) {
 export async function requireInternalChatSession() {
   const session = await auth();
   const email = normalizeEmail(session?.user?.email);
-  if (!email || !hasModuleAccess(email, "chat", session?.portalUser) || !isInternalChatParticipant(email)) {
+  if (!email || !hasModuleAccess(email, "chat", session?.portalUser)) {
     return null;
   }
   return { session, email };

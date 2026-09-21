@@ -16,7 +16,7 @@ import {
 } from "@/lib/internal-chat";
 import { auth } from "@/lib/auth";
 import { hasModuleAccess, normalizeEmail } from "@/lib/access-control";
-import { loadPortalConfiguration } from "@/lib/portal-config";
+import { getEffectivePortalUser, loadPortalConfiguration } from "@/lib/portal-config";
 
 export const dynamic = "force-dynamic";
 
@@ -48,7 +48,10 @@ async function getChatParticipants(accessToken?: string): Promise<ChatParticipan
 async function context(peerEmail?: string | null) {
   const session = await auth();
   const email = normalizeEmail(session?.user?.email);
-  if (!email || !hasModuleAccess(email, "chat", session?.portalUser)) return null;
+  if (!email) return null;
+
+  const effectiveUser = await getEffectivePortalUser(session?.accessToken, email);
+  if (!hasModuleAccess(email, "chat", effectiveUser)) return null;
 
   const participants = await getChatParticipants(session?.accessToken);
   const meParticipant = participants.find((participant) => participant.email === email);

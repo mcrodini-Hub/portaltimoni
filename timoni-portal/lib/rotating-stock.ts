@@ -360,10 +360,12 @@ export async function listConferenceItems(id: string) {
 
 export async function finishConference(id: string, actor: string, selectedIds: string[], targetRows: number[]) {
   const sql = getDatabase();
-  await sql`
-    UPDATE portal_rotating_stock_items SET applied = TRUE
-    WHERE update_id = ${id}::UUID AND id = ANY(${selectedIds}::BIGINT[])
-  `;
+  if (selectedIds.length) {
+    await sql`
+      UPDATE portal_rotating_stock_items SET applied = TRUE
+      WHERE update_id = ${id}::UUID AND id = ANY(${selectedIds}::BIGINT[])
+    `;
+  }
   await sql`
     UPDATE portal_rotating_stock_updates SET status = 'atualizado', reviewed_by = ${actor}, reviewed_at = NOW(),
       updated_count = ${selectedIds.length}, locked_by = NULL, locked_at = NULL

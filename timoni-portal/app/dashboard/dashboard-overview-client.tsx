@@ -79,7 +79,7 @@ export default function DashboardOverviewClient({ modules, motoristaControle, es
         espacoEquipeControle ? fetch("/api/espaco-equipe", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
         allowed.has("leads") ? fetch("/api/leads", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
         allowed.has("reunioes") ? fetch("/api/reunioes", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
-        allowed.has("estoque-rotativo") ? fetch("/api/estoque-rotativo", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
+        allowed.has("estoque-rotativo") ? Promise.all([fetch("/api/estoque-rotativo", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()), fetch("/api/estoque-rotativo/fornecedores?refresh=" + Date.now(), { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject())]) : null,
       ];
       const results = await Promise.allSettled(requests);
       if (cancelled) return;
@@ -97,7 +97,12 @@ export default function DashboardOverviewClient({ modules, motoristaControle, es
       if (results[7].status === "fulfilled" && results[7].value) {
         next.reunioes = (results[7].value.items ?? []).filter((item: MeetingItem) => item.status !== "concluida").reduce((total: number, item: MeetingItem) => total + (item.date && item.date >= today ? 1 : 0) + (item.secondDate && item.secondDate >= today ? 1 : 0), 0);
       }
-      if (results[8].status === "fulfilled" && results[8].value) next.estoqueRotativo = (results[8].value.updates ?? []).filter((item: { status?: string }) => item.status === "aguardando_conferencia" || item.status === "aguardando_mapeamento").length;
+      if (results[8].status === "fulfilled" && results[8].value) {
+        const [rotatingData, trelloData] = results[8].value;
+        const trelloCount = (trelloData.suppliers ?? []).length;
+        const registeredCount = (rotatingData.updates ?? []).filter((item: { status?: string }) => item.status === "aguardando_conferencia" || item.status === "aguardando_mapeamento").length;
+        next.estoqueRotativo = trelloCount || registeredCount;
+      }
       setSnapshot(next);
     }
     void load();

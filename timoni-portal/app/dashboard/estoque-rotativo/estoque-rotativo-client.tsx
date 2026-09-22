@@ -41,6 +41,7 @@ const SITUATION_LABEL: Record<Situation, string> = {
 };
 
 const CENTRAL_SHEET_URL = "https://docs.google.com/spreadsheets/d/1r2BJbEyUN6WL8AnEwRKCgJMaOlBzPTUxQQjXZXfPyj8/edit";
+const SUPPLIERS_DRIVE_URL = "https://drive.google.com/drive/u/0/folders/1P7Nb1FwfSQ6e7TA9Wkgizyy53tGGQajk";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(value));
@@ -359,6 +360,17 @@ export default function EstoqueRotativoClient() {
                   </button>
                 );
               }) : <p className="p-5 text-sm text-slate-500">Nenhum card pendente.</p>}
+            </div>
+
+            <div className="mt-4">
+              <a
+                href={SUPPLIERS_DRIVE_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-11 items-center rounded-xl bg-blue-800 px-4 text-sm font-semibold text-white"
+              >
+                Abrir pasta de fornecedores
+              </a>
             </div>
           </article>
 

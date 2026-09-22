@@ -71,6 +71,7 @@ export default function EstoqueRotativoClient() {
   const [filter, setFilter] = useState<"todos" | Situation>("todos");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [lastUpdated, setLastUpdated] = useState<{ supplier: string; count: number; rows: number[] } | null>(null);
 
   const load = useCallback(async (id?: string | null) => {
     setLoading(true); setError("");
@@ -205,6 +206,8 @@ export default function EstoqueRotativoClient() {
     if (!window.confirm(`Atualizar ${selected.size} produto(s) selecionado(s)?`)) return;
     const result = await post({ action: "atualizar", id: activeId, selectedIds: [...selected] });
     if (!result) return;
+    const appliedItems = (data?.items || []).filter((item) => selected.has(item.id) && item.target_row).map((item) => item.target_row as number);
+    setLastUpdated({ supplier: data?.currentUpdate?.supplier_name || "Estoque rotativo", count: result.updated, rows: appliedItems });
     setFeedback(`${result.updated} produto(s) atualizado(s). O amarelo permanecerá por 3 dias.`);
     setActiveId(null); setSelected(new Set());
     await load();
@@ -232,7 +235,7 @@ export default function EstoqueRotativoClient() {
         <div key={String(label)} className={`rounded-2xl border p-4 ${color}`}><p className="text-2xl font-bold text-slate-950">{value}</p><p className="mt-1 text-sm text-slate-700">{label}</p></div>)}
     </section>
 
-    {feedback ? <p className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">{feedback}</p> : null}
+    {feedback ? <div className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"><p>{feedback}</p>{lastUpdated ? <div className="mt-2 flex flex-wrap items-center gap-3"><a href="https://docs.google.com/spreadsheets/d/1r2BJbEyUN6WL8AnEwRKCgJMaOlBzPTUxQQjXZXfPyj8/edit#gid=0" target="_blank" rel="noreferrer" className="font-semibold underline">Abrir planilha ESTOQUE ROTATIVO</a><span>{lastUpdated.supplier} · {lastUpdated.count} item(ns) · coluna D{lastUpdated.rows.length ? ` · linhas ${lastUpdated.rows.join(", ")}` : ""}</span></div> : null}</div> : null}
     {error ? <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">{error}</p> : null}
     {loading ? <p className="mt-5 text-sm text-slate-500">Carregando...</p> : null}
 
@@ -301,12 +304,12 @@ export default function EstoqueRotativoClient() {
         <input type="search" placeholder="Buscar código ou descrição" value={search} onChange={(event) => setSearch(event.target.value)} className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2.5" />
         <select value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)} className="rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="todos">Todos</option><option value="encontrado">Encontrados</option><option value="nao_encontrado">Não encontrados</option><option value="sem_alteracao">Sem alteração</option></select>
       </div>
-      <div className="mt-3 space-y-2">{visibleItems.map((item) => <article key={`${item.id}-${item.code}`} className="grid gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:grid-cols-[auto_1fr_auto] sm:items-center">
+      <div className="mt-5 rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-200 px-4 py-4"><p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Itens filtrados</p><h3 className="mt-1 text-lg font-semibold text-slate-950">Total: {visibleItems.length} itens</h3><p className="mt-1 text-sm text-slate-500">Confira as divergências antes de atualizar o Estoque Rotativo.</p></div><div className="space-y-2 p-3">{visibleItems.map((item) => <article key={`${item.id}-${item.code}`} className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-[auto_1fr_auto] sm:items-center">
         <input aria-label={`Selecionar ${item.code}`} type="checkbox" checked={selected.has(item.id)} disabled={item.situation !== "encontrado"} onChange={(event) => setSelected((current) => { const next = new Set(current); if (event.target.checked) next.add(item.id); else next.delete(item.id); return next; })} className="h-5 w-5 accent-blue-700" />
         <div><p className="font-semibold text-slate-950">{item.code} · {item.description}</p><p className="mt-1 text-sm text-slate-600">Estoque atual: {item.old_stock ?? "—"} → Novo estoque: {item.new_stock}</p></div>
         <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${item.situation === "encontrado" ? "bg-blue-100 text-blue-800" : item.situation === "nao_encontrado" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-700"}`}>{SITUATION_LABEL[item.situation]}</span>
-      </article>)}</div>
-      <div className="sticky bottom-3 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-white p-4 shadow-lg"><p className="text-sm font-semibold text-slate-700">{selected.size} selecionado(s)</p><button type="button" disabled={busy || !selected.size} onClick={() => void apply()} className="rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Atualizando..." : "Atualizar"}</button></div>
+      </article>)}</div></div>
+      <div className="sticky bottom-3 mt-4 rounded-2xl border border-blue-200 bg-white p-4 shadow-lg"><p className="text-xs font-semibold uppercase tracking-wider text-blue-700">3. Finalizar</p><h3 className="mt-1 text-lg font-semibold text-slate-950">Atualizar Estoque Rotativo</h3><p className="mt-1 text-sm text-slate-500">Somente os {selected.size} item(ns) selecionado(s) serão gravados na planilha central.</p><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><a href="https://docs.google.com/spreadsheets/d/1r2BJbEyUN6WL8AnEwRKCgJMaOlBzPTUxQQjXZXfPyj8/edit#gid=0" target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-800 underline">Abrir planilha ESTOQUE ROTATIVO</a><button type="button" disabled={busy || !selected.size} onClick={() => void apply()} className="rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Atualizando..." : "Atualizar Estoque Rotativo"}</button></div></div>
     </section> : null}
   </div>;
 }

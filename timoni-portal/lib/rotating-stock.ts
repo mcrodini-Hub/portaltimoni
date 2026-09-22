@@ -54,6 +54,7 @@ export type RotatingStockUpdate = {
   source_description_column: string;
   source_stock_column: string;
   source_start_row: number;
+  trello_card_id: string;
   updated_rows?: number[];
 };
 
@@ -146,7 +147,8 @@ export async function ensureRotatingStockSchema() {
           ADD COLUMN IF NOT EXISTS source_code_column TEXT NOT NULL DEFAULT '',
           ADD COLUMN IF NOT EXISTS source_description_column TEXT NOT NULL DEFAULT '',
           ADD COLUMN IF NOT EXISTS source_stock_column TEXT NOT NULL DEFAULT '',
-          ADD COLUMN IF NOT EXISTS source_start_row INTEGER NOT NULL DEFAULT 1
+          ADD COLUMN IF NOT EXISTS source_start_row INTEGER NOT NULL DEFAULT 1,
+          ADD COLUMN IF NOT EXISTS trello_card_id TEXT NOT NULL DEFAULT ''
       `;
       await sql`
         CREATE TABLE IF NOT EXISTS portal_rotating_stock_highlights (
@@ -259,19 +261,19 @@ export async function createRotatingStockUpdate(input: {
   id: string; supplierId: string | null; supplierName: string; spreadsheetName: string;
   spreadsheetLink: string; note: string; reportedBy: string; status: RotatingStockStatus;
   sourceSheetName: string; sourceCodeColumn: string; sourceDescriptionColumn: string;
-  sourceStockColumn: string; sourceStartRow: number;
+  sourceStockColumn: string; sourceStartRow: number; trelloCardId?: string;
 }) {
   await ensureRotatingStockSchema();
   const sql = getDatabase();
   await sql`
     INSERT INTO portal_rotating_stock_updates
       (id, supplier_id, supplier_name, spreadsheet_name, spreadsheet_link, note, reported_by, status,
-       source_sheet_name, source_code_column, source_description_column, source_stock_column, source_start_row)
+       source_sheet_name, source_code_column, source_description_column, source_stock_column, source_start_row, trello_card_id)
     VALUES
       (${input.id}::UUID, ${input.supplierId}::BIGINT, ${input.supplierName}, ${input.spreadsheetName},
        ${input.spreadsheetLink}, ${input.note}, ${input.reportedBy}, ${input.status},
        ${input.sourceSheetName}, ${input.sourceCodeColumn}, ${input.sourceDescriptionColumn},
-       ${input.sourceStockColumn}, ${input.sourceStartRow})
+       ${input.sourceStockColumn}, ${input.sourceStartRow}, ${input.trelloCardId || ""})
   `;
 }
 
@@ -413,6 +415,7 @@ export async function reopenRotatingStockUpdate(input: {
   sourceDescriptionColumn: string;
   sourceStockColumn: string;
   sourceStartRow: number;
+  trelloCardId?: string;
 }) {
   await ensureRotatingStockSchema();
   const sql = getDatabase();
@@ -427,6 +430,7 @@ export async function reopenRotatingStockUpdate(input: {
         source_description_column = ${input.sourceDescriptionColumn},
         source_stock_column = ${input.sourceStockColumn},
         source_start_row = ${input.sourceStartRow},
+        trello_card_id = CASE WHEN ${input.trelloCardId || ""} <> '' THEN ${input.trelloCardId || ""} ELSE trello_card_id END,
         status = 'aguardando_conferencia',
         locked_by = NULL,
         locked_at = NULL,

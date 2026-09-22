@@ -94,7 +94,11 @@ export default function EstoqueRotativoClient() {
       .catch(() => setTrelloSuppliers([]));
   }, []);
 
-  const pending = data?.updates.filter((item) => item.status === "aguardando_conferencia" || item.status === "aguardando_mapeamento").length || 0;
+  const registeredPendingNames = useMemo(
+    () => new Set((data?.updates || []).filter((item) => item.status === "aguardando_conferencia" || item.status === "aguardando_mapeamento").map((item) => item.supplier_name.trim().toLocaleLowerCase("pt-BR"))),
+    [data?.updates],
+  );
+  const pending = trelloSuppliers.length || registeredPendingNames.size;
   const inConference = data?.updates.filter((item) => item.status === "em_conferencia").length || 0;
   const currentMonth = new Date().toISOString().slice(0, 7);
   const updatedMonth = data?.updates.filter((item) => item.status === "atualizado" && item.reported_at.slice(0, 7) === currentMonth).length || 0;
@@ -110,10 +114,6 @@ export default function EstoqueRotativoClient() {
       setError(cause instanceof Error ? cause.message : "Não foi possível concluir a operação.");
       return null;
     } finally { setBusy(false); }
-  }
-
-  function chooseSupplier(name: string) {
-    setSupplierName(name);
   }
 
   function reopenForEdit(item: Update) {
@@ -207,13 +207,36 @@ export default function EstoqueRotativoClient() {
     {error ? <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">{error}</p> : null}
     {loading ? <p className="mt-5 text-sm text-slate-500">Carregando...</p> : null}
 
-    {data?.permissions.canReport && !activeId ? <section className="mt-5 rounded-2xl border border-blue-200 bg-white p-5 shadow-sm">
+    {!activeId && data?.permissions.canReport ? <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div>
+        <h2 className="text-lg font-semibold text-slate-950">Atualizações pendentes — Trello</h2>
+        <p className="mt-1 text-sm text-slate-600">Cards carregados automaticamente da lista ESTOQUE ROTATIVO LUCAS/CAROL.</p>
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        {trelloSuppliers.length ? trelloSuppliers.map((supplier) => {
+          const existing = (data.updates || []).find((item) => item.supplier_name.trim().toLocaleLowerCase("pt-BR") === supplier.name.trim().toLocaleLowerCase("pt-BR") && item.status !== "atualizado");
+          return <article key={supplier.id} className={`rounded-xl border p-4 ${supplierName === supplier.name && !editingId ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white"}`}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div><p className="font-semibold text-slate-950">{supplier.name}</p><p className="mt-1 text-xs text-slate-500">ESTOQUE ROTATIVO LUCAS/CAROL</p></div>
+              {existing ? <StatusBadge status={existing.status} /> : <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">Pendente</span>}
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {existing
+                ? <button type="button" disabled={busy} onClick={() => reopenForEdit(existing)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">Reabrir para editar</button>
+                : <button type="button" disabled={busy} onClick={() => { setEditingId(null); setSupplierName(supplier.name); setSpreadsheetReference(""); setNote(""); setSourceSheetName(""); setSourceCodeColumn(""); setSourceDescriptionColumn(""); setSourceStockColumn(""); setSourceStartRow(""); }} className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white">Informar planilha</button>}
+            </div>
+          </article>;
+        }) : <p className="text-sm text-slate-500">Nenhum card encontrado na lista ESTOQUE ROTATIVO LUCAS/CAROL.</p>}
+      </div>
+    </section> : null}
+
+    {data?.permissions.canReport && !activeId && (supplierName || editingId) ? <section className="mt-5 rounded-2xl border border-blue-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-slate-950">{editingId ? "Reabrir para editar" : "Informar planilha atualizada"}</h2>
-        {editingId ? <button type="button" onClick={() => setEditingId(null)} className="text-sm font-semibold text-slate-600">Cancelar edição</button> : null}
+        <h2 className="text-lg font-semibold text-slate-950">{editingId ? "Reabrir para editar" : `Informar planilha — ${supplierName}`}</h2>
+        {editingId || supplierName ? <button type="button" onClick={() => { setEditingId(null); setSupplierName(""); }} className="text-sm font-semibold text-slate-600">Cancelar</button> : null}
       </div>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <label className="text-sm font-medium text-slate-700">Fornecedor / grupo<select value={supplierName} onChange={(event) => chooseSupplier(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="">Selecione um card da lista ESTOQUE ROTATIVO LUCAS/CAROL</option>{trelloSuppliers.map((supplier) => <option key={supplier.id} value={supplier.name}>{supplier.name}</option>)}</select></label>
+        <label className="text-sm font-medium text-slate-700">Fornecedor / grupo<div className="mt-1 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 font-semibold text-slate-900">{supplierName}</div></label>
         <label className="text-sm font-medium text-slate-700">Link da planilha<input value={spreadsheetReference} onChange={(event) => setSpreadsheetReference(event.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..." className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
         <label className="text-sm font-medium text-slate-700">Aba da planilha<input value={sourceSheetName} onChange={(event) => setSourceSheetName(event.target.value)} placeholder="Ex.: plan" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
         <label className="text-sm font-medium text-slate-700">Linha inicial<input type="number" min="1" value={sourceStartRow} onChange={(event) => setSourceStartRow(event.target.value)} placeholder="Ex.: 7" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>

@@ -61,6 +61,7 @@ export default function EstoqueRotativoClient() {
   const [spreadsheetReference, setSpreadsheetReference] = useState("");
   const [note, setNote] = useState("");
   const [sourceSheetName, setSourceSheetName] = useState("");
+  const [detectingSheet, setDetectingSheet] = useState(false);
   const [sourceCodeColumn, setSourceCodeColumn] = useState("");
   const [sourceDescriptionColumn, setSourceDescriptionColumn] = useState("");
   const [sourceStockColumn, setSourceStockColumn] = useState("");
@@ -105,6 +106,22 @@ export default function EstoqueRotativoClient() {
   }, []);
 
   useEffect(() => { void refreshTrello(); }, [refreshTrello]);
+
+  useEffect(() => {
+    const reference = spreadsheetReference.trim();
+    if (!reference || editingId) return;
+    const timer = window.setTimeout(async () => {
+      setDetectingSheet(true);
+      try {
+        const response = await fetch(`/api/estoque-rotativo?spreadsheetReference=${encodeURIComponent(reference)}`, { cache: "no-store" });
+        const result = await response.json() as { singleSheetName?: string | null };
+        if (response.ok && result.singleSheetName) setSourceSheetName(result.singleSheetName);
+      } finally {
+        setDetectingSheet(false);
+      }
+    }, 500);
+    return () => window.clearTimeout(timer);
+  }, [spreadsheetReference, editingId]);
 
   const registeredPendingNames = useMemo(
     () => new Set((data?.updates || []).filter((item) => item.status === "aguardando_conferencia" || item.status === "aguardando_mapeamento").map((item) => item.supplier_name.trim().toLocaleLowerCase("pt-BR"))),
@@ -251,7 +268,7 @@ export default function EstoqueRotativoClient() {
         <div className="mt-4 grid gap-3 md:grid-cols-2">
           <label className="text-sm font-semibold text-slate-800 md:col-span-2">Fornecedor / grupo<div className="mt-1 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5">{supplierName || "Selecione um card ao lado"}</div></label>
           <label className="text-sm font-semibold text-slate-800 md:col-span-2">Link do Google Sheets<input value={spreadsheetReference} onChange={(event) => setSpreadsheetReference(event.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..." className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-          <label className="text-sm font-semibold text-slate-800">Aba<input value={sourceSheetName} onChange={(event) => setSourceSheetName(event.target.value)} placeholder="Ex.: plan" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
+          <label className="text-sm font-semibold text-slate-800">Aba<input value={sourceSheetName} onChange={(event) => setSourceSheetName(event.target.value)} placeholder={detectingSheet ? "Identificando aba..." : "Ex.: plan"} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
           <label className="text-sm font-semibold text-slate-800">Linha inicial<input type="number" min="1" value={sourceStartRow} onChange={(event) => setSourceStartRow(event.target.value)} placeholder="Ex.: 7" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
           <label className="text-sm font-semibold text-slate-800">Código<input value={sourceCodeColumn} onChange={(event) => setSourceCodeColumn(event.target.value.toUpperCase())} placeholder="B" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
           <label className="text-sm font-semibold text-slate-800">Descrição<input value={sourceDescriptionColumn} onChange={(event) => setSourceDescriptionColumn(event.target.value.toUpperCase())} placeholder="C" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>

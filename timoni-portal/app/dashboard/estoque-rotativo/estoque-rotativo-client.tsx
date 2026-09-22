@@ -35,10 +35,12 @@ const STATUS_LABEL: Record<Status, string> = {
   atualizado: "Atualizado",
 };
 const SITUATION_LABEL: Record<Situation, string> = {
-  encontrado: "Encontrado",
+  encontrado: "Divergência",
   nao_encontrado: "Não encontrado",
-  sem_alteracao: "Sem alteração",
+  sem_alteracao: "OK",
 };
+
+const CENTRAL_SHEET_URL = "https://docs.google.com/spreadsheets/d/1r2BJbEyUN6WL8AnEwRKCgJMaOlBzPTUxQQjXZXfPyj8/edit";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(value));
@@ -62,9 +64,9 @@ export default function EstoqueRotativoClient() {
   const [note, setNote] = useState("");
   const [sourceSheetName, setSourceSheetName] = useState("");
   const [detectingSheet, setDetectingSheet] = useState(false);
-  const [sourceCodeColumn, setSourceCodeColumn] = useState("");
-  const [sourceDescriptionColumn, setSourceDescriptionColumn] = useState("");
-  const [sourceStockColumn, setSourceStockColumn] = useState("");
+  const [sourceCodeColumn, setSourceCodeColumn] = useState("B");
+  const [sourceDescriptionColumn, setSourceDescriptionColumn] = useState("C");
+  const [sourceStockColumn, setSourceStockColumn] = useState("F");
   const [sourceStartRow, setSourceStartRow] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -110,7 +112,7 @@ export default function EstoqueRotativoClient() {
 
   useEffect(() => {
     const reference = spreadsheetReference.trim();
-    if (!reference || editingId) return;
+    if (!reference || !/\/spreadsheets\/d\/[a-zA-Z0-9_-]+/.test(reference)) return;
     const timer = window.setTimeout(async () => {
       setDetectingSheet(true);
       try {
@@ -122,7 +124,7 @@ export default function EstoqueRotativoClient() {
       }
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [spreadsheetReference, editingId]);
+  }, [spreadsheetReference]);
 
   const registeredPendingNames = useMemo(
     () => new Set((data?.updates || []).filter((item) => item.status === "aguardando_conferencia" || item.status === "aguardando_mapeamento").map((item) => item.supplier_name.trim().toLocaleLowerCase("pt-BR"))),
@@ -147,6 +149,8 @@ export default function EstoqueRotativoClient() {
   }
 
   function reopenForEdit(item: Update) {
+    setActiveId(null);
+    setSelected(new Set());
     setEditingId(item.id);
     setSupplierName(item.supplier_name);
     setSpreadsheetReference(item.spreadsheet_link || item.spreadsheet_name);
@@ -168,7 +172,30 @@ export default function EstoqueRotativoClient() {
     [data?.updates, allowedNames],
   );
 
-  async function report() {
+  async function filterItems() {
+    setLastUpdated(null);
+    setError("");
+    setFeedback("");
+    if (!supplierName.trim()) {
+      setError("Selecione um card do fornecedor.");
+      return;
+    }
+    if (!spreadsheetReference.trim()) {
+      setError("Cole o link da planilha do fornecedor.");
+      return;
+    }
+    if (!sourceSheetName.trim()) {
+      setError("Informe a aba da planilha. Quando houver apenas uma aba, o Portal preenche automaticamente.");
+      return;
+    }
+    if (![sourceCodeColumn, sourceDescriptionColumn, sourceStockColumn].every((column) => /^[A-Z]+$/i.test(column.trim()))) {
+      setError("Revise as colunas de código, descrição e estoque.");
+      return;
+    }
+    if (!Number.isInteger(Number(sourceStartRow)) || Number(sourceStartRow) < 1) {
+      setError("Informe a linha inicial.");
+      return;
+    }
     const payload = {
       supplierName,
       spreadsheetReference,
@@ -179,19 +206,20 @@ export default function EstoqueRotativoClient() {
       sourceStockColumn,
       sourceStartRow: Number(sourceStartRow),
     };
-    const result = await post(editingId ? { action: "editar_registro", id: editingId, ...payload } : { action: "registrar", ...payload });
-    if (!result) return;
-    setFeedback(editingId ? "Registro reaberto para nova conferência." : "Atualização pendente criada e enviada para conferência.");
-    setEditingId(null);
-    setSupplierName("");
-    setSpreadsheetReference("");
-    setNote("");
-    setSourceSheetName("");
-    setSourceCodeColumn("");
-    setSourceDescriptionColumn("");
-    setSourceStockColumn("");
-    setSourceStartRow("");
-    await load();
+    const saved = await post(editingId
+      ? { action: "editar_registro", id: editingId, ...payload }
+      : { action: "registrar", ...payload });
+    if (!saved) return;
+    const id = editingId || String(saved.id || "");
+    if (!id) {
+      setError("Não foi possível identificar a atualização.");
+      return;
+    }
+    setEditingId(id);
+    const compared = await post({ action: "conferir", id });
+    if (!compared) return;
+    setFeedback("Itens filtrados. Confira as divergências antes de atualizar o Estoque Rotativo.");
+    await load(id);
   }
 
   async function conference(id: string) {
@@ -219,97 +247,381 @@ export default function EstoqueRotativoClient() {
     return (data?.items || []).filter((item) => (filter === "todos" || item.situation === filter) && (!query || item.code.toLocaleLowerCase("pt-BR").includes(query) || item.description.toLocaleLowerCase("pt-BR").includes(query)));
   }, [data?.items, filter, search]);
 
-  return <div className="pb-10">
-    <header className="mb-5">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Rio Claro</p>
-      <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Estoque Rotativo</h1>
-      <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Registre relações recebidas, confira os códigos e atualize somente os estoques selecionados.</p>
-    </header>
-
-    <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-      {[
-        ["Atualizações pendentes", pending, "border-amber-200 bg-amber-50"],
-        ["Em conferência", inConference, "border-blue-200 bg-blue-50"],
-        ["Atualizadas no mês", updatedMonth, "border-emerald-200 bg-emerald-50"],
-      ].map(([label, value, color]) =>
-        <div key={String(label)} className={`rounded-2xl border p-4 ${color}`}><p className="text-2xl font-bold text-slate-950">{value}</p><p className="mt-1 text-sm text-slate-700">{label}</p></div>)}
-    </section>
-
-    {feedback ? <div className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800"><p>{feedback}</p>{lastUpdated ? <div className="mt-2 flex flex-wrap items-center gap-3"><a href="https://docs.google.com/spreadsheets/d/1r2BJbEyUN6WL8AnEwRKCgJMaOlBzPTUxQQjXZXfPyj8/edit#gid=0" target="_blank" rel="noreferrer" className="font-semibold underline">Abrir planilha ESTOQUE ROTATIVO</a><span>{lastUpdated.supplier} · {lastUpdated.count} item(ns) · coluna D{lastUpdated.rows.length ? ` · linhas ${lastUpdated.rows.join(", ")}` : ""}</span></div> : null}</div> : null}
-    {error ? <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">{error}</p> : null}
-    {loading ? <p className="mt-5 text-sm text-slate-500">Carregando...</p> : null}
-
-    {!activeId && data?.permissions.canReport ? <section className="mt-5 grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-      <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <div className="flex flex-wrap items-start justify-between gap-3">
+  return (
+    <div className="space-y-5 pb-10">
+      <section className="rounded-3xl border border-blue-100 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">1. Fornecedor</p>
-            <h2 className="mt-2 text-xl font-semibold text-slate-950">Atualizações pendentes</h2>
-            <p className="mt-1 text-sm text-slate-500">Cards de ESTOQUE ROTATIVO LUCAS/CAROL.</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Módulo operacional</p>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Estoque Rotativo</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+              Selecione o card, filtre a planilha do fornecedor, confira as divergências e só então atualize a planilha central.
+            </p>
           </div>
-          <button type="button" onClick={() => void refreshTrello(true)} disabled={refreshingTrello} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50">{refreshingTrello ? "Atualizando..." : "Atualizar cards"}</button>
+          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
+            Fluxo rápido
+          </span>
         </div>
-        <div className="mt-4 max-h-96 overflow-y-auto rounded-2xl border border-slate-200">
-          {trelloSuppliers.length ? trelloSuppliers.map((supplier) => {
-            const existing = (data.updates || []).find((item) => item.supplier_name.trim().toLocaleLowerCase("pt-BR") === supplier.name.trim().toLocaleLowerCase("pt-BR") && item.status !== "atualizado");
-            const chosen = supplierName === supplier.name && !editingId;
-            return <button type="button" key={supplier.id} onClick={() => {
-              if (existing) { reopenForEdit(existing); return; }
-              setEditingId(null); setSupplierName(supplier.name); setSpreadsheetReference(""); setNote(""); setSourceSheetName(""); setSourceCodeColumn(""); setSourceDescriptionColumn(""); setSourceStockColumn(""); setSourceStartRow("");
-            }} className={`flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left text-sm last:border-b-0 ${chosen ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"}`}>
-              <span className="font-semibold">{supplier.name}</span>
-              <span className="flex shrink-0 items-center gap-1">{chosen ? <span className="rounded-full bg-blue-700 px-2 py-0.5 text-[11px] font-semibold text-white">Selecionado</span> : null}{existing ? <StatusBadge status={existing.status} /> : <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Pendente</span>}</span>
-            </button>;
-          }) : <p className="p-5 text-sm text-slate-500">Nenhum card pendente.</p>}
-        </div>
-      </article>
+      </section>
 
-      <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">2. Planilha do estoque</p>
-        <h2 className="mt-2 text-xl font-semibold text-slate-950">Planilha do fornecedor</h2>
-        <p className="mt-2 text-sm leading-6 text-slate-600">Informe o link e as colunas que serão usadas na conferência.</p>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
-          <label className="text-sm font-semibold text-slate-800 md:col-span-2">Fornecedor / grupo<div className="mt-1 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5">{supplierName || "Selecione um card ao lado"}</div></label>
-          <label className="text-sm font-semibold text-slate-800 md:col-span-2">Link do Google Sheets<input value={spreadsheetReference} onChange={(event) => setSpreadsheetReference(event.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..." className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-          <label className="text-sm font-semibold text-slate-800">Aba<input value={sourceSheetName} onChange={(event) => setSourceSheetName(event.target.value)} placeholder={detectingSheet ? "Identificando aba..." : "Ex.: plan"} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-          <label className="text-sm font-semibold text-slate-800">Linha inicial<input type="number" min="1" value={sourceStartRow} onChange={(event) => setSourceStartRow(event.target.value)} placeholder="Ex.: 7" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-          <label className="text-sm font-semibold text-slate-800">Código<input value={sourceCodeColumn} onChange={(event) => setSourceCodeColumn(event.target.value.toUpperCase())} placeholder="B" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-          <label className="text-sm font-semibold text-slate-800">Descrição<input value={sourceDescriptionColumn} onChange={(event) => setSourceDescriptionColumn(event.target.value.toUpperCase())} placeholder="C" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-          <label className="text-sm font-semibold text-slate-800">Estoque<input value={sourceStockColumn} onChange={(event) => setSourceStockColumn(event.target.value.toUpperCase())} placeholder="F" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-          <label className="text-sm font-semibold text-slate-800">Observação opcional<input value={note} onChange={(event) => setNote(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-        </div>
-        <div className="mt-4 flex justify-end"><button type="button" disabled={busy || !supplierName} onClick={() => void report()} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Carregando..." : editingId ? "Salvar e reabrir" : "Preparar conferência"}</button></div>
-      </article>
-    </section> : null}
+      <section className="grid gap-3 sm:grid-cols-3">
+        {[
+          ["Atualizações pendentes", pending],
+          ["Em conferência", inConference],
+          ["Atualizadas no mês", updatedMonth],
+        ].map(([label, value]) => (
+          <article key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+            <p className="text-3xl font-semibold text-slate-950">{loading ? "…" : value ?? "—"}</p>
+            <p className="mt-2 text-sm text-slate-600">{label}</p>
+          </article>
+        ))}
+      </section>
 
-    {!activeId && data ? <section className="mt-6">
-      <h2 className="text-xl font-semibold text-slate-950">Cards atualizados — ESTOQUE ROTATIVO LUCAS/CAROL</h2>
-      <div className="mt-3 space-y-3">
-        {visibleUpdates.length ? visibleUpdates.map((item) => <article key={item.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-semibold text-slate-950">{item.supplier_name}</p><p className="mt-1 text-sm text-slate-600">{item.spreadsheet_name || item.spreadsheet_link} · {formatDate(item.reported_at)}</p></div><StatusBadge status={item.status} /></div>
-          {item.note ? <p className="mt-2 text-sm text-slate-600">{item.note}</p> : null}
-          <div className="mt-3 flex flex-wrap items-center gap-2 text-xs text-slate-500"><span>{item.items_read} lidos</span><span>·</span><span>{item.found_count} encontrados</span><span>·</span><span>{item.not_found_count} não encontrados</span></div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {data.permissions.canReport ? <button type="button" disabled={busy} onClick={() => reopenForEdit(item)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">Reabrir para editar</button> : null}
-            {data.permissions.canConference && ["aguardando_conferencia", "em_conferencia"].includes(item.status) ? <button type="button" disabled={busy} onClick={() => void conference(item.id)} className="rounded-lg border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800">{item.status === "em_conferencia" ? "Reabrir conferência" : "Conferir"}</button> : null}
+      {feedback ? (
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800">
+          <p>{feedback}</p>
+          {lastUpdated ? (
+            <div className="mt-2 flex flex-wrap items-center gap-3">
+              <a href={CENTRAL_SHEET_URL} target="_blank" rel="noreferrer" className="underline">
+                Abrir planilha ESTOQUE ROTATIVO
+              </a>
+              <span>
+                {lastUpdated.supplier} · {lastUpdated.count} item(ns)
+                {lastUpdated.rows.length ? ` · atualizado em Produtos!D${lastUpdated.rows.join(", D")}` : ""}
+              </span>
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+
+      {error ? (
+        <p className="rounded-2xl border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-semibold text-rose-800">{error}</p>
+      ) : null}
+
+      {data?.permissions.canReport ? (
+        <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+          <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">1. Fornecedor</p>
+                <h2 className="mt-2 text-xl font-semibold text-slate-950">Atualizações pendentes</h2>
+                <p className="mt-1 text-sm text-slate-500">Cards de ESTOQUE ROTATIVO LUCAS/CAROL.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => void refreshTrello(true)}
+                disabled={refreshingTrello}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50"
+              >
+                {refreshingTrello ? "Atualizando..." : "Atualizar"}
+              </button>
+            </div>
+
+            <div className="mt-4 max-h-96 overflow-y-auto rounded-2xl border border-slate-200">
+              {trelloSuppliers.length ? trelloSuppliers.map((supplier) => {
+                const existing = (data.updates || []).find((item) =>
+                  item.supplier_name.trim().toLocaleLowerCase("pt-BR") === supplier.name.trim().toLocaleLowerCase("pt-BR")
+                  && item.status !== "atualizado"
+                );
+                const chosen = supplierName === supplier.name;
+                return (
+                  <button
+                    type="button"
+                    key={supplier.id}
+                    onClick={() => {
+                      if (existing) {
+                        reopenForEdit(existing);
+                        return;
+                      }
+                      setActiveId(null);
+                      setSelected(new Set());
+                      setEditingId(null);
+                      setSupplierName(supplier.name);
+                      setSpreadsheetReference("");
+                      setNote("");
+                      setSourceSheetName("");
+                      setSourceCodeColumn("B");
+                      setSourceDescriptionColumn("C");
+                      setSourceStockColumn("F");
+                      setSourceStartRow("");
+                      setLastUpdated(null);
+                      setError("");
+                      setFeedback("");
+                    }}
+                    className={`flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left text-sm last:border-b-0 ${chosen ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"}`}
+                  >
+                    <span className="font-semibold">{supplier.name}</span>
+                    <span className="flex shrink-0 items-center gap-1">
+                      {chosen ? <span className="rounded-full bg-blue-700 px-2 py-0.5 text-[11px] font-semibold text-white">Selecionado</span> : null}
+                      {!chosen && existing ? <StatusBadge status={existing.status} /> : null}
+                      {!chosen && !existing ? <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Pendente</span> : null}
+                    </span>
+                  </button>
+                );
+              }) : <p className="p-5 text-sm text-slate-500">Nenhum card pendente.</p>}
+            </div>
+          </article>
+
+          <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">2. Itens do estoque</p>
+            <h2 className="mt-2 text-xl font-semibold text-slate-950">Planilha do fornecedor</h2>
+            <p className="mt-2 text-sm leading-6 text-slate-600">
+              Mesmo fluxo de Compras: informe a planilha, filtre os itens e confira o resultado antes de atualizar.
+            </p>
+
+            <label className="mt-4 block text-sm font-semibold text-slate-800">
+              Fornecedor / grupo
+              <div className="mt-2 min-h-12 rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm">
+                {supplierName || "Selecione um card ao lado"}
+              </div>
+            </label>
+
+            <label className="mt-4 block text-sm font-semibold text-slate-800">
+              Link do Google Sheets
+              <input
+                type="url"
+                value={spreadsheetReference}
+                onChange={(event) => setSpreadsheetReference(event.target.value)}
+                placeholder="https://docs.google.com/spreadsheets/d/..."
+                className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-600"
+              />
+            </label>
+
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+              <label className="text-sm font-semibold text-slate-800">
+                Aba
+                <input
+                  value={sourceSheetName}
+                  onChange={(event) => setSourceSheetName(event.target.value)}
+                  placeholder={detectingSheet ? "Identificando..." : "Ex.: plan"}
+                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-800">
+                Código
+                <input
+                  value={sourceCodeColumn}
+                  onChange={(event) => setSourceCodeColumn(event.target.value.toUpperCase())}
+                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-800">
+                Descrição
+                <input
+                  value={sourceDescriptionColumn}
+                  onChange={(event) => setSourceDescriptionColumn(event.target.value.toUpperCase())}
+                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-800">
+                Estoque
+                <input
+                  value={sourceStockColumn}
+                  onChange={(event) => setSourceStockColumn(event.target.value.toUpperCase())}
+                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-800">
+                Linha inicial
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={sourceStartRow}
+                  onChange={(event) => setSourceStartRow(event.target.value)}
+                  placeholder="Ex.: 7"
+                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                />
+              </label>
+            </div>
+
+            <label className="mt-4 block text-sm font-semibold text-slate-800">
+              Observação <span className="font-normal text-slate-500">(opcional)</span>
+              <input
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+                className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+              />
+            </label>
+
+            <button
+              type="button"
+              onClick={() => void filterItems()}
+              disabled={busy || !supplierName}
+              className="mt-4 min-h-12 rounded-xl bg-blue-700 px-6 text-sm font-semibold text-white hover:bg-blue-800 disabled:bg-slate-300"
+            >
+              {busy ? "Filtrando..." : "Filtrar itens do estoque"}
+            </button>
+            {activeId && data?.items?.length ? (
+              <p className="mt-3 text-sm font-semibold text-emerald-700">{sourceSheetName || "Aba"} · {data.items.length} itens</p>
+            ) : null}
+          </article>
+        </section>
+      ) : null}
+
+      {activeId && data ? (
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Itens filtrados</p>
+            <h2 className="mt-2 text-xl font-semibold text-slate-950">Total: {visibleItems.length} itens</h2>
+            <p className="mt-1 text-sm text-slate-500">Confira as divergências antes de atualizar a planilha central.</p>
           </div>
-        </article>) : <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">Nenhuma atualização registrada.</p>}
-      </div>
-    </section> : null}
 
-    {activeId && data ? <section className="mt-6">
-      <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-sm text-blue-700">Conferência</p><h2 className="text-xl font-semibold text-slate-950">{data.currentUpdate?.supplier_name}</h2></div><button type="button" onClick={() => { setActiveId(null); void load(); }} className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Voltar</button></div>
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">{[["Itens", data.items.length], ["Encontrados", data.items.filter((item) => item.situation === "encontrado").length], ["Não encontrados", data.items.filter((item) => item.situation === "nao_encontrado").length], ["Sem alteração", data.items.filter((item) => item.situation === "sem_alteracao").length], ["Selecionados", selected.size]].map(([label, value]) => <div key={String(label)} className="rounded-xl border border-slate-200 bg-white p-3"><p className="text-xl font-bold text-slate-950">{value}</p><p className="text-xs text-slate-600">{label}</p></div>)}</div>
-      <div className="mt-4 flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row">
-        <input type="search" placeholder="Buscar código ou descrição" value={search} onChange={(event) => setSearch(event.target.value)} className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2.5" />
-        <select value={filter} onChange={(event) => setFilter(event.target.value as typeof filter)} className="rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="todos">Todos</option><option value="encontrado">Encontrados</option><option value="nao_encontrado">Não encontrados</option><option value="sem_alteracao">Sem alteração</option></select>
-      </div>
-      <div className="mt-5 rounded-2xl border border-slate-200 bg-white shadow-sm"><div className="border-b border-slate-200 px-4 py-4"><p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Itens filtrados</p><h3 className="mt-1 text-lg font-semibold text-slate-950">Total: {visibleItems.length} itens</h3><p className="mt-1 text-sm text-slate-500">Confira as divergências antes de atualizar o Estoque Rotativo.</p></div><div className="space-y-2 p-3">{visibleItems.map((item) => <article key={`${item.id}-${item.code}`} className="grid gap-3 rounded-xl border border-slate-200 bg-white p-4 sm:grid-cols-[auto_1fr_auto] sm:items-center">
-        <input aria-label={`Selecionar ${item.code}`} type="checkbox" checked={selected.has(item.id)} disabled={item.situation !== "encontrado"} onChange={(event) => setSelected((current) => { const next = new Set(current); if (event.target.checked) next.add(item.id); else next.delete(item.id); return next; })} className="h-5 w-5 accent-blue-700" />
-        <div><p className="font-semibold text-slate-950">{item.code} · {item.description}</p><p className="mt-1 text-sm text-slate-600">Estoque atual: {item.old_stock ?? "—"} → Novo estoque: {item.new_stock}</p></div>
-        <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${item.situation === "encontrado" ? "bg-blue-100 text-blue-800" : item.situation === "nao_encontrado" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-700"}`}>{SITUATION_LABEL[item.situation]}</span>
-      </article>)}</div></div>
-      <div className="sticky bottom-3 mt-4 rounded-2xl border border-blue-200 bg-white p-4 shadow-lg"><p className="text-xs font-semibold uppercase tracking-wider text-blue-700">3. Finalizar</p><h3 className="mt-1 text-lg font-semibold text-slate-950">Atualizar Estoque Rotativo</h3><p className="mt-1 text-sm text-slate-500">Somente os {selected.size} item(ns) selecionado(s) serão gravados na planilha central.</p><div className="mt-3 flex flex-wrap items-center justify-between gap-3"><a href="https://docs.google.com/spreadsheets/d/1r2BJbEyUN6WL8AnEwRKCgJMaOlBzPTUxQQjXZXfPyj8/edit#gid=0" target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-800 underline">Abrir planilha ESTOQUE ROTATIVO</a><button type="button" disabled={busy || !selected.size} onClick={() => void apply()} className="rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Atualizando..." : "Atualizar Estoque Rotativo"}</button></div></div>
-    </section> : null}
-  </div>;
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
+            <input
+              type="search"
+              placeholder="Buscar código ou descrição"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2.5"
+            />
+            <select
+              value={filter}
+              onChange={(event) => setFilter(event.target.value as typeof filter)}
+              className="rounded-xl border border-slate-300 bg-white px-3 py-2.5"
+            >
+              <option value="todos">Todos</option>
+              <option value="encontrado">Divergências</option>
+              <option value="nao_encontrado">Não encontrados</option>
+              <option value="sem_alteracao">OK</option>
+            </select>
+          </div>
+
+          <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200">
+            <table className="w-full min-w-[900px] border-collapse text-sm">
+              <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600">
+                <tr>
+                  <th className="px-3 py-3"></th>
+                  <th className="px-3 py-3">Código</th>
+                  <th className="px-3 py-3">Descrição</th>
+                  <th className="px-3 py-3 text-right">Estoque atual</th>
+                  <th className="px-3 py-3 text-right">Novo estoque</th>
+                  <th className="px-3 py-3">Conferência</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visibleItems.map((item) => (
+                  <tr key={item.id} className="border-t border-slate-100">
+                    <td className="p-3">
+                      <input
+                        aria-label={`Selecionar ${item.code}`}
+                        type="checkbox"
+                        checked={selected.has(item.id)}
+                        disabled={item.situation !== "encontrado"}
+                        onChange={(event) => setSelected((current) => {
+                          const next = new Set(current);
+                          if (event.target.checked) next.add(item.id);
+                          else next.delete(item.id);
+                          return next;
+                        })}
+                        className="h-5 w-5 accent-blue-700"
+                      />
+                    </td>
+                    <td className="px-3 py-3 font-semibold text-blue-800">{item.code || "—"}</td>
+                    <td className="px-3 py-3 text-slate-700">{item.description || "—"}</td>
+                    <td className="px-3 py-3 text-right font-semibold text-slate-700">{item.old_stock ?? "—"}</td>
+                    <td className="px-3 py-3 text-right font-semibold text-slate-950">{item.new_stock}</td>
+                    <td className="px-3 py-3">
+                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                        item.situation === "encontrado"
+                          ? "bg-amber-100 text-amber-900"
+                          : item.situation === "nao_encontrado"
+                            ? "bg-rose-100 text-rose-800"
+                            : "bg-emerald-100 text-emerald-800"
+                      }`}>
+                        {SITUATION_LABEL[item.situation]}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      ) : null}
+
+      {activeId && data ? (
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">3. Finalizar</p>
+          <h2 className="mt-2 text-xl font-semibold text-slate-950">Atualizar Estoque Rotativo</h2>
+          <p className="mt-2 text-sm text-slate-600">
+            Somente os itens com divergência que estiverem selecionados serão gravados na coluna D da planilha central.
+          </p>
+
+          {!selected.size ? (
+            <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+              Selecione ao menos um item com divergência para atualizar.
+            </p>
+          ) : null}
+
+          <div className="mt-4 flex flex-wrap items-center gap-3">
+            <button
+              type="button"
+              onClick={() => void apply()}
+              disabled={busy || !selected.size}
+              className="min-h-12 rounded-xl bg-emerald-700 px-6 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
+            >
+              {busy ? "Atualizando..." : "Atualizar Estoque Rotativo"}
+            </button>
+            <a
+              href={CENTRAL_SHEET_URL}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex min-h-12 items-center rounded-xl border border-blue-200 px-5 text-sm font-semibold text-blue-800"
+            >
+              Abrir planilha ESTOQUE ROTATIVO
+            </a>
+          </div>
+        </section>
+      ) : null}
+
+      {data ? (
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Acompanhamento</p>
+            <h2 className="mt-2 text-xl font-semibold text-slate-950">Atualizações registradas</h2>
+          </div>
+          <div className="mt-4 space-y-3">
+            {visibleUpdates.length ? visibleUpdates.map((item) => (
+              <article key={item.id} className="rounded-2xl border border-slate-200 p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-slate-950">{item.supplier_name}</p>
+                    <p className="mt-1 text-sm text-slate-600">{formatDate(item.reported_at)}</p>
+                    <p className="mt-2 text-xs text-slate-500">
+                      {item.items_read} lidos · {item.found_count} divergências · {item.not_found_count} não encontrados · {item.unchanged_count} OK
+                    </p>
+                  </div>
+                  <StatusBadge status={item.status} />
+                </div>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {data.permissions.canReport && item.status !== "atualizado" ? (
+                    <button
+                      type="button"
+                      disabled={busy}
+                      onClick={() => reopenForEdit(item)}
+                      className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
+                    >
+                      Reabrir para editar
+                    </button>
+                  ) : null}
+                  {item.status === "em_conferencia" && item.items_read > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => void load(item.id)}
+                      className="rounded-lg border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800"
+                    >
+                      Ver itens filtrados
+                    </button>
+                  ) : null}
+                </div>
+              </article>
+            )) : (
+              <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">Nenhuma atualização registrada.</p>
+            )}
+          </div>
+        </section>
+      ) : null}
+    </div>
+  );
 }

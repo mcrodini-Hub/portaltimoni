@@ -41,6 +41,12 @@ const SITUATION_LABEL: Record<Situation, string> = {
 };
 
 const CENTRAL_SHEET_URL = "https://docs.google.com/spreadsheets/d/1r2BJbEyUN6WL8AnEwRKCgJMaOlBzPTUxQQjXZXfPyj8/edit";
+const CENTRAL_SHEET_GID = "1634865129";
+
+function updatedSheetUrl(rows?: number[]) {
+  const firstRow = rows?.find((row) => Number.isInteger(row) && row > 0);
+  return `${CENTRAL_SHEET_URL}#gid=${CENTRAL_SHEET_GID}${firstRow ? `&range=D${firstRow}` : ""}`;
+}
 const SUPPLIERS_DRIVE_URL = "https://drive.google.com/drive/u/0/folders/1P7Nb1FwfSQ6e7TA9Wkgizyy53tGGQajk";
 const TRELLO_URL = "https://trello.com/b/UfPrTr1H/compras";
 
@@ -75,7 +81,6 @@ export default function EstoqueRotativoClient() {
   const [filter, setFilter] = useState<"todos" | Situation>("todos");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
-  const [lastUpdated, setLastUpdated] = useState<{ supplier: string; count: number; rows: number[] } | null>(null);
 
   const load = useCallback(async (id?: string | null) => {
     setLoading(true); setError("");
@@ -175,7 +180,6 @@ export default function EstoqueRotativoClient() {
   );
 
   async function filterItems() {
-    setLastUpdated(null);
     setError("");
     setFeedback("");
     if (!supplierName.trim()) {
@@ -236,8 +240,6 @@ export default function EstoqueRotativoClient() {
     if (!window.confirm(`Atualizar ${selected.size} produto(s) selecionado(s)?`)) return;
     const result = await post({ action: "atualizar", id: activeId, selectedIds: [...selected] });
     if (!result) return;
-    const appliedItems = (data?.items || []).filter((item) => selected.has(item.id) && item.target_row).map((item) => item.target_row as number);
-    setLastUpdated({ supplier: data?.currentUpdate?.supplier_name || "Estoque rotativo", count: result.updated, rows: appliedItems });
     setFeedback(`${result.updated} produto(s) atualizado(s). O amarelo permanecerá por 3 dias.`);
     setActiveId(null); setSelected(new Set());
     await load();
@@ -280,10 +282,9 @@ export default function EstoqueRotativoClient() {
       </section>
 
       {feedback ? (
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800">
-          <p>{feedback}</p>
-
-        </div>
+        <p className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800">
+          {feedback}
+        </p>
       ) : null}
 
       {error ? (
@@ -336,7 +337,6 @@ export default function EstoqueRotativoClient() {
                       setSourceDescriptionColumn("C");
                       setSourceStockColumn("F");
                       setSourceStartRow("");
-                      setLastUpdated(null);
                       setError("");
                       setFeedback("");
                     }}
@@ -502,7 +502,6 @@ export default function EstoqueRotativoClient() {
             <table className="w-full min-w-[900px] border-collapse text-sm">
               <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600">
                 <tr>
-                  <th className="px-3 py-3"></th>
                   <th className="px-3 py-3">Código</th>
                   <th className="px-3 py-3">Descrição</th>
                   <th className="px-3 py-3 text-right">Estoque atual</th>
@@ -513,21 +512,6 @@ export default function EstoqueRotativoClient() {
               <tbody>
                 {visibleItems.map((item) => (
                   <tr key={item.id} className="border-t border-slate-100">
-                    <td className="p-3">
-                      <input
-                        aria-label={`Selecionar ${item.code}`}
-                        type="checkbox"
-                        checked={selected.has(item.id)}
-                        disabled={item.situation !== "encontrado"}
-                        onChange={(event) => setSelected((current) => {
-                          const next = new Set(current);
-                          if (event.target.checked) next.add(item.id);
-                          else next.delete(item.id);
-                          return next;
-                        })}
-                        className="h-5 w-5 accent-blue-700"
-                      />
-                    </td>
                     <td className="px-3 py-3 font-semibold text-blue-800">{item.code || "—"}</td>
                     <td className="px-3 py-3 text-slate-700">{item.description || "—"}</td>
                     <td className="px-3 py-3 text-right font-semibold text-slate-700">{item.old_stock ?? "—"}</td>
@@ -556,14 +540,8 @@ export default function EstoqueRotativoClient() {
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">3. Finalizar</p>
           <h2 className="mt-2 text-xl font-semibold text-slate-950">Atualizar Estoque Rotativo</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Somente os itens com divergência que estiverem selecionados serão gravados na coluna D da planilha central.
+            Todos os itens com divergência serão gravados automaticamente na coluna D da planilha central.
           </p>
-
-          {!selected.size ? (
-            <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
-              Selecione ao menos um item com divergência para atualizar.
-            </p>
-          ) : null}
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
@@ -602,18 +580,18 @@ export default function EstoqueRotativoClient() {
                     <p className="text-sm font-semibold text-emerald-900">
                       Atualização concluída · {item.updated_count} item(ns)
                     </p>
-                    <p className="mt-1 text-xs text-emerald-800">
-                      {item.updated_rows?.length
-                        ? `Atualizado em Produtos!D${item.updated_rows.join(", D")}`
-                        : "Atualizado na coluna D da planilha ESTOQUE ROTATIVO."}
-                    </p>
+                    {item.updated_rows?.length ? (
+                      <p className="mt-1 text-xs text-emerald-800">
+                        Destaque amarelo em Produtos!D{item.updated_rows.join(", D")}
+                      </p>
+                    ) : null}
                     <a
-                      href={CENTRAL_SHEET_URL}
+                      href={updatedSheetUrl(item.updated_rows)}
                       target="_blank"
                       rel="noreferrer"
                       className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-blue-800 px-4 text-sm font-semibold text-white"
                     >
-                      Abrir planilha ESTOQUE ROTATIVO
+                      Rotativo atualizado
                     </a>
                   </div>
                 ) : null}
@@ -626,15 +604,6 @@ export default function EstoqueRotativoClient() {
                       className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
                     >
                       Reabrir para editar
-                    </button>
-                  ) : null}
-                  {item.status === "em_conferencia" && item.items_read > 0 ? (
-                    <button
-                      type="button"
-                      onClick={() => void load(item.id)}
-                      className="rounded-lg border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800"
-                    >
-                      Ver itens filtrados
                     </button>
                   ) : null}
                 </div>

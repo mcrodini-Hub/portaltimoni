@@ -211,13 +211,22 @@ function extractText(payload: unknown) {
   );
 }
 
+function finishReason(payload: unknown) {
+  const data = payload as { candidates?: Array<{ finishReason?: string }> };
+  return data.candidates?.[0]?.finishReason || "";
+}
+
 function parseJson(text: string) {
   const cleaned = text
     .trim()
     .replace(/^```json\s*/i, "")
     .replace(/^```\s*/i, "")
     .replace(/\s*```$/, "");
-  return JSON.parse(cleaned) as Record<string, unknown>;
+  const parsed: unknown = JSON.parse(cleaned);
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("A resposta da análise não contém um objeto JSON.");
+  }
+  return parsed as Record<string, unknown>;
 }
 
 function wait(milliseconds: number) {
@@ -419,20 +428,20 @@ export async function POST(request: Request) {
       parts.push(await fileToPart(file));
     }
 
-    const requestBody = JSON.stringify({
-      contents: [{ role: "user", parts }],
-      generationConfig: {
-        temperature: 0,
-        maxOutputTokens: 12000,
-        responseMimeType: "application/json",
-      },
-    });
-    let payload: unknown = null;
+    let parsed: Record<string, unknown> | null = null;
     let lastStatus = 502;
     let lastMessage = "";
 
     for (let attempt = 0; attempt < GEMINI_MODELS.length; attempt += 1) {
       const model = GEMINI_MODELS[attempt];
+      const requestBody = JSON.stringify({
+        contents: [{ role: "user", parts }],
+        generationConfig: {
+          temperature: 0,
+          maxOutputTokens: attempt === 0 ? 12000 : 24000,
+          responseMimeType: "application/json",
+        },
+      });
       const response = await fetch(
         `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
         {
@@ -448,8 +457,23 @@ export async function POST(request: Request) {
 
       const attemptPayload = await response.json().catch(() => ({}));
       if (response.ok) {
-        payload = attemptPayload;
-        break;
+        lastStatus = 422;
+        const text = extractText(attemptPayload);
+        const reason = finishReason(attemptPayload);
+        if (reason === "MAX_TOKENS") {
+          lastMessage = "A análise dos documentos excedeu o tamanho permitido para a resposta.";
+        } else if (!text) {
+          lastMessage = "A análise terminou sem um resultado utilizável.";
+        } else {
+          try {
+            parsed = parseJson(text);
+            break;
+          } catch {
+            lastMessage = "A análise devolveu um resultado incompleto.";
+          }
+        }
+        if (attempt < GEMINI_MODELS.length - 1) await wait(1200);
+        continue;
       }
 
       lastStatus = response.status;
@@ -461,23 +485,15 @@ export async function POST(request: Request) {
       }
     }
 
-    if (!payload) {
+    if (!parsed) {
       const temporary = RETRYABLE_GEMINI_STATUS.has(lastStatus);
-      const error = temporary
-        ? "O serviço de conferência está temporariamente ocupado. Tentamos novamente de forma automática, mas não foi possível concluir agora. Aguarde alguns minutos e tente novamente."
-        : lastMessage || "Não foi possível analisar os documentos. Verifique os arquivos e tente novamente.";
-      return NextResponse.json({ error, retryable: temporary }, { status: temporary ? 503 : 502 });
+      const error = lastStatus === 422
+        ? `${lastMessage} Tentamos novamente de forma automática. Confira se os arquivos estão legíveis e tente outra vez.`
+        : temporary
+          ? "O serviço de conferência está temporariamente ocupado. Tentamos novamente de forma automática, mas não foi possível concluir agora. Aguarde alguns minutos e tente novamente."
+          : lastMessage || "Não foi possível analisar os documentos. Verifique os arquivos e tente novamente.";
+      return NextResponse.json({ error, retryable: temporary || lastStatus === 422 }, { status: temporary ? 503 : 502 });
     }
-
-    const text = extractText(payload);
-    if (!text) {
-      return NextResponse.json(
-        { error: "A análise terminou sem um resultado utilizável." },
-        { status: 502 },
-      );
-    }
-
-    const parsed = parseJson(text);
     const supplierNames = new Set(
       (Array.isArray(parsed.documentos_fornecedor) ? parsed.documentos_fornecedor : [])
         .map(asObject)
@@ -500,3 +516,4 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+

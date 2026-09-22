@@ -170,7 +170,9 @@ export default function EstoqueRotativoClient() {
     [trelloSuppliers],
   );
   const visibleUpdates = useMemo(
-    () => (data?.updates || []).filter((item) => allowedNames.has(item.supplier_name.trim().toLocaleLowerCase("pt-BR"))),
+    () => (data?.updates || []).filter(
+      (item) => item.status === "atualizado" || allowedNames.has(item.supplier_name.trim().toLocaleLowerCase("pt-BR")),
+    ),
     [data?.updates, allowedNames],
   );
 
@@ -234,20 +236,22 @@ export default function EstoqueRotativoClient() {
   async function apply() {
     if (!activeId) return;
     const divergenceIds = (data?.items || []).filter((item) => item.situation === "encontrado").map((item) => item.id);
-    if (!divergenceIds.length) {
-      setError("Não há divergências para atualizar.");
-      return;
-    }
-    if (!window.confirm(`Atualizar ${divergenceIds.length} produto(s) com divergência?`)) return;
+    const confirmation = divergenceIds.length
+      ? `Atualizar ${divergenceIds.length} produto(s) com divergência?`
+      : "Concluir o Rotativo? Todos os itens estão OK e nenhum estoque precisa ser alterado.";
+    if (!window.confirm(confirmation)) return;
     const result = await post({ action: "atualizar", id: activeId, selectedIds: divergenceIds });
     if (!result) return;
-    setFeedback(`${result.updated} produto(s) atualizado(s). Card do Trello concluído. O amarelo permanecerá por 3 dias.`);
+    setFeedback(
+      result.updated
+        ? `${result.updated} produto(s) atualizado(s). Card do Trello concluído. O amarelo permanecerá por 3 dias.`
+        : "Rotativo concluído. Todos os itens estavam OK; nenhum estoque precisou ser alterado. Card do Trello concluído.",
+    );
     setActiveId(null);
-    await load();
+    await Promise.all([load(), refreshTrello()]);
   }
 
   const visibleItems = data?.items || [];
-  const divergenceCount = visibleItems.filter((item) => item.situation === "encontrado").length;
 
   return (
     <div className="space-y-5 pb-10">
@@ -525,7 +529,7 @@ export default function EstoqueRotativoClient() {
             <button
               type="button"
               onClick={() => void apply()}
-              disabled={busy || divergenceCount === 0}
+              disabled={busy}
               className="min-h-12 rounded-xl bg-emerald-700 px-6 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               {busy ? "Atualizando..." : "Atualizar Estoque Rotativo"}

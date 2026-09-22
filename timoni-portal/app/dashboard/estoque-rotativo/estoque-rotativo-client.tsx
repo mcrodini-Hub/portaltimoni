@@ -54,6 +54,7 @@ export default function EstoqueRotativoClient() {
   const [trelloSuppliers, setTrelloSuppliers] = useState<TrelloSupplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [refreshingTrello, setRefreshingTrello] = useState(false);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [supplierName, setSupplierName] = useState("");
@@ -87,12 +88,23 @@ export default function EstoqueRotativoClient() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    fetch("/api/estoque-rotativo/fornecedores", { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : null)
-      .then((result: ComprasData | null) => setTrelloSuppliers(result?.suppliers || []))
-      .catch(() => setTrelloSuppliers([]));
+  const refreshTrello = useCallback(async (showFeedback = false) => {
+    setRefreshingTrello(true);
+    setError("");
+    try {
+      const response = await fetch("/api/estoque-rotativo/fornecedores?refresh=" + Date.now(), { cache: "no-store" });
+      const result = await response.json() as ComprasData & { error?: string };
+      if (!response.ok) throw new Error(result.error || "Não foi possível atualizar os cards do Trello.");
+      setTrelloSuppliers(result.suppliers || []);
+      if (showFeedback) setFeedback("Cards atualizados: " + (result.suppliers?.length || 0) + " pendente(s).");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível atualizar os cards do Trello.");
+    } finally {
+      setRefreshingTrello(false);
+    }
   }, []);
+
+  useEffect(() => { void refreshTrello(); }, [refreshTrello]);
 
   const registeredPendingNames = useMemo(
     () => new Set((data?.updates || []).filter((item) => item.status === "aguardando_conferencia" || item.status === "aguardando_mapeamento").map((item) => item.supplier_name.trim().toLocaleLowerCase("pt-BR"))),

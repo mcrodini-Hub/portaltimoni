@@ -54,6 +54,7 @@ export type RotatingStockUpdate = {
   source_description_column: string;
   source_stock_column: string;
   source_start_row: number;
+  updated_rows?: number[];
 };
 
 export type RotatingStockItem = {
@@ -203,7 +204,12 @@ export async function listRotatingStockData() {
   await ensureRotatingStockSchema();
   const sql = getDatabase();
   const [updates, suppliers, pendingRows, notFoundItems] = await Promise.all([
-    sql`SELECT *, id::TEXT, supplier_id::TEXT FROM portal_rotating_stock_updates ORDER BY reported_at DESC LIMIT 100`,
+    sql`SELECT updates.*, updates.id::TEXT, updates.supplier_id::TEXT,
+      COALESCE((SELECT ARRAY_AGG(items.target_row ORDER BY items.target_row) FILTER (WHERE items.target_row IS NOT NULL)
+        FROM portal_rotating_stock_items items
+        WHERE items.update_id = updates.id AND items.applied = TRUE), ARRAY[]::INTEGER[]) AS updated_rows
+      FROM portal_rotating_stock_updates updates
+      ORDER BY updates.reported_at DESC LIMIT 100`,
     sql`SELECT *, id::TEXT FROM portal_rotating_stock_suppliers ORDER BY name`,
     sql`SELECT COUNT(*)::INTEGER AS count FROM portal_rotating_stock_items WHERE situation = 'nao_encontrado' AND resolved_at IS NULL`,
     sql`

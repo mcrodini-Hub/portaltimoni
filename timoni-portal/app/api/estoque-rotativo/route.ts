@@ -20,6 +20,7 @@ import {
   listRotatingStockData,
   markHighlightsCleared,
   resolveNotFoundItem,
+  reopenRotatingStockUpdate,
   saveConference,
   saveSupplierMapping,
   type RotatingStockItem,
@@ -78,11 +79,36 @@ function requireRole(email: string, role: "report" | "conference" | "manage") {
   throw new Error("Seu acesso não permite esta ação.");
 }
 
-async function readComparedRows(sheets: sheets_v4.Sheets, supplier: RotatingStockSupplier) {
+function columnIndex(letter: string) {
+  const normalized = letter.trim().toUpperCase();
+  if (!/^[A-Z]+$/.test(normalized)) throw new Error(`Coluna inválida: ${letter}.`);
+  let index = 0;
+  for (const char of normalized) index = index * 26 + char.charCodeAt(0) - 64;
+  return index - 1;
+}
+
+function columnLetter(index: number) {
+  let value = index + 1;
+  let result = "";
+  while (value > 0) {
+    const remainder = (value - 1) % 26;
+    result = String.fromCharCode(65 + remainder) + result;
+    value = Math.floor((value - 1) / 26);
+  }
+  return result;
+}
+
+async function readComparedRows(
+  sheets: sheets_v4.Sheets,
+  spreadsheetId: string,
+  sheetName: string,
+  startRow: number,
+  maxSourceColumn: number,
+) {
   const [source, target] = await Promise.all([
     sheets.spreadsheets.values.get({
-      spreadsheetId: supplier.spreadsheet_id,
-      range: sourceRange(supplier),
+      spreadsheetId,
+      range: `${sheetName}!A${startRow}:${columnLetter(maxSourceColumn)}`,
       valueRenderOption: "FORMATTED_VALUE",
     }),
     sheets.spreadsheets.values.get({
@@ -102,31 +128,48 @@ function firstDataRow(range: string) {
   return Number(match?.[1] || 1);
 }
 
-function buildComparison(supplier: RotatingStockSupplier, sourceRows: unknown[][], targetRows: unknown[][]) {
+function normalizeMatch(value: unknown) {
+  return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("pt-BR").replace(/\s+/g, " ");
+}
+
+function buildComparison(
+  sourceRows: unknown[][],
+  targetRows: unknown[][],
+  startRow: number,
+  codeColumn: number,
+  descriptionColumn: number,
+  stockColumn: number,
+) {
   const targetByCode = new Map<string, { row: number; stock: number }>();
-  const targetDuplicates = new Set<string>();
+  const targetByDescription = new Map<string, { row: number; stock: number }>();
+  const duplicateDescriptions = new Set<string>();
+
   for (let index = 0; index < targetRows.length; index += 1) {
     const code = cleanCode(targetRows[index]?.[0]);
-    if (!code) continue;
-    if (targetByCode.has(code)) targetDuplicates.add(code);
-    targetByCode.set(code, { row: index + 2, stock: integerStock(targetRows[index]?.[2], `Base central, código ${code}`, true) });
+    const description = normalizeMatch(targetRows[index]?.[1]);
+    if (!code && !description) continue;
+    const target = { row: index + 2, stock: integerStock(targetRows[index]?.[2], `Base central, linha ${index + 2}`, true) };
+    if (code) targetByCode.set(code, target);
+    if (description) {
+      if (targetByDescription.has(description)) duplicateDescriptions.add(description);
+      else targetByDescription.set(description, target);
+    }
   }
-  if (targetDuplicates.size) throw new Error(`A base central possui códigos duplicados: ${[...targetDuplicates].slice(0, 10).join(", ")}.`);
+  for (const description of duplicateDescriptions) targetByDescription.delete(description);
 
   const sourceCodes = new Set<string>();
   const items: Omit<RotatingStockItem, "id" | "update_id" | "applied">[] = [];
-  const startRow = firstDataRow(supplier.data_range);
   for (let index = 0; index < sourceRows.length; index += 1) {
     const row = sourceRows[index] || [];
-    const code = cleanCode(row[supplier.code_column]);
-    const description = String(row[supplier.description_column] ?? "").trim();
-    const stockValue = row[supplier.stock_column];
+    const code = cleanCode(row[codeColumn]);
+    const description = String(row[descriptionColumn] ?? "").trim();
+    const stockValue = row[stockColumn];
     if (!code && !description && String(stockValue ?? "").trim() === "") continue;
-    if (!code) throw new Error(`Linha ${startRow + index}: código vazio.`);
-    if (sourceCodes.has(code)) throw new Error(`Código duplicado na planilha do fornecedor: ${code}.`);
-    sourceCodes.add(code);
-    const newStock = integerStock(stockValue, `Linha ${startRow + index}, código ${code}`);
-    const target = targetByCode.get(code);
+    if (!code && !description) throw new Error(`Linha ${startRow + index}: código e descrição vazios.`);
+    if (code && sourceCodes.has(code)) throw new Error(`Código duplicado na planilha do fornecedor: ${code}.`);
+    if (code) sourceCodes.add(code);
+    const newStock = integerStock(stockValue, `Linha ${startRow + index}, código ${code || "sem código"}`);
+    const target = (code ? targetByCode.get(code) : undefined) || targetByDescription.get(normalizeMatch(description));
     const situation = !target ? "nao_encontrado" : target.stock === newStock ? "sem_alteracao" : "encontrado";
     items.push({
       source_row: startRow + index,
@@ -138,7 +181,7 @@ function buildComparison(supplier: RotatingStockSupplier, sourceRows: unknown[][
       situation,
     });
   }
-  if (!items.length) throw new Error("A planilha não possui itens válidos no intervalo configurado.");
+  if (!items.length) throw new Error("A planilha não possui itens válidos a partir da linha informada.");
   return items;
 }
 
@@ -209,28 +252,42 @@ export async function POST(request: Request) {
       const supplierName = String(body.supplierName || "").trim();
       const spreadsheetReference = String(body.spreadsheetReference || "").trim();
       const note = String(body.note || "").trim();
+      const sourceSheetName = String(body.sourceSheetName || "").trim();
+      const sourceCodeColumn = String(body.sourceCodeColumn || "").trim().toUpperCase();
+      const sourceDescriptionColumn = String(body.sourceDescriptionColumn || "").trim().toUpperCase();
+      const sourceStockColumn = String(body.sourceStockColumn || "").trim().toUpperCase();
+      const sourceStartRow = Number(body.sourceStartRow);
       if (supplierName.length < 2) throw new Error("Informe o fornecedor ou grupo.");
-      if (!spreadsheetReference) throw new Error("Informe o link ou nome da planilha.");
+      if (!spreadsheetReference) throw new Error("Informe o link da planilha.");
       const spreadsheetId = extractSpreadsheetId(spreadsheetReference);
-      const supplier = await findSupplier(spreadsheetId, supplierName);
-      const validated = Boolean(supplier?.validated_at);
+      if (!spreadsheetId) throw new Error("Link da planilha inválido.");
+      if (!sourceSheetName) throw new Error("Informe a aba da planilha.");
+      for (const column of [sourceCodeColumn, sourceDescriptionColumn, sourceStockColumn]) {
+        if (!/^[A-Z]+$/.test(column)) throw new Error("Informe colunas válidas para código, descrição e estoque.");
+      }
+      if (!Number.isInteger(sourceStartRow) || sourceStartRow < 1) throw new Error("Informe a linha inicial.");
       const id = randomUUID();
       await createRotatingStockUpdate({
         id,
-        supplierId: validated ? supplier!.id : null,
+        supplierId: null,
         supplierName,
         spreadsheetName: spreadsheetReference.startsWith("http") ? supplierName : spreadsheetReference,
         spreadsheetLink: spreadsheetReference.startsWith("http") ? spreadsheetReference : "",
         note,
         reportedBy: email,
-        status: validated ? "aguardando_conferencia" : "aguardando_mapeamento",
+        status: "aguardando_conferencia",
+        sourceSheetName,
+        sourceCodeColumn,
+        sourceDescriptionColumn,
+        sourceStockColumn,
+        sourceStartRow,
       });
       const date = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date());
       const conversation = await ensureConversation(ROTATING_STOCK_EMAILS.lucas, ROTATING_STOCK_EMAILS.carolina);
       await createChatMessage(conversation.id, ROTATING_STOCK_EMAILS.lucas, ROTATING_STOCK_EMAILS.carolina,
-        `[Mensagem automática] ESTOQUE ROTATIVO\n\nNova relação de produtos disponível para atualização.\n\nPlanilha: ${spreadsheetReference}\nFornecedor: ${supplierName}\nInformado por: Lucas\nData: ${date}\n\nStatus: ${validated ? "Aguardando conferência" : "Aguardando validação do mapeamento"}.\n\nPor favor, verificar no módulo Estoque Rotativo.`);
+        `[Mensagem automática] ESTOQUE ROTATIVO\n\nNova relação de produtos disponível para atualização.\n\nPlanilha: ${spreadsheetReference}\nFornecedor: ${supplierName}\nInformado por: Lucas\nData: ${date}\n\nStatus: Aguardando conferência.\n\nPor favor, verificar no módulo Estoque Rotativo.`);
       await recordModuleUpdateSafely("estoque-rotativo", email, `Nova relação: ${supplierName}.`, `estoque-rotativo:${id}`);
-      return NextResponse.json({ ok: true, id, needsMapping: !validated });
+      return NextResponse.json({ ok: true, id, needsMapping: false });
     }
 
     if (action === "salvar_mapeamento") {
@@ -252,6 +309,29 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true, id });
     }
 
+    if (action === "editar_registro") {
+      requireRole(email, "report");
+      const id = String(body.id || "");
+      const supplierName = String(body.supplierName || "").trim();
+      const spreadsheetReference = String(body.spreadsheetReference || "").trim();
+      const sourceSheetName = String(body.sourceSheetName || "").trim();
+      const sourceCodeColumn = String(body.sourceCodeColumn || "").trim().toUpperCase();
+      const sourceDescriptionColumn = String(body.sourceDescriptionColumn || "").trim().toUpperCase();
+      const sourceStockColumn = String(body.sourceStockColumn || "").trim().toUpperCase();
+      const sourceStartRow = Number(body.sourceStartRow);
+      const note = String(body.note || "").trim();
+      if (!id || !supplierName || !extractSpreadsheetId(spreadsheetReference) || !sourceSheetName) throw new Error("Complete todos os campos obrigatórios.");
+      if (![sourceCodeColumn, sourceDescriptionColumn, sourceStockColumn].every((column) => /^[A-Z]+$/.test(column))) throw new Error("Revise as colunas.");
+      if (!Number.isInteger(sourceStartRow) || sourceStartRow < 1) throw new Error("Revise a linha inicial.");
+      await reopenRotatingStockUpdate({
+        id, supplierName,
+        spreadsheetName: supplierName,
+        spreadsheetLink: spreadsheetReference,
+        note, sourceSheetName, sourceCodeColumn, sourceDescriptionColumn, sourceStockColumn, sourceStartRow,
+      });
+      return NextResponse.json({ ok: true, id });
+    }
+
     if (action === "resolver_nao_encontrado") {
       requireRole(email, "conference");
       const itemId = String(body.itemId || "");
@@ -263,16 +343,21 @@ export async function POST(request: Request) {
     if (!id) throw new Error("Atualização não identificada.");
     const update = await getRotatingStockUpdate(id);
     if (!update) throw new Error("Atualização não encontrada.");
-    if (!update.supplier_id) throw new Error("O mapeamento deste fornecedor ainda precisa ser validado pela gestão.");
-    const supplier = await getRotatingStockSupplier(update.supplier_id);
-    if (!supplier?.validated_at) throw new Error("O mapeamento deste fornecedor ainda não foi validado.");
+    const sourceSpreadsheetId = extractSpreadsheetId(update.spreadsheet_link);
+    if (!sourceSpreadsheetId || !update.source_sheet_name || !update.source_code_column || !update.source_description_column || !update.source_stock_column) {
+      throw new Error("Reabra para editar e complete aba, colunas e linha inicial.");
+    }
+    const codeColumn = columnIndex(update.source_code_column);
+    const descriptionColumn = columnIndex(update.source_description_column);
+    const stockColumn = columnIndex(update.source_stock_column);
+    const maxSourceColumn = Math.max(codeColumn, descriptionColumn, stockColumn);
 
     if (action === "conferir") {
       requireRole(email, "conference");
       if (update.status === "atualizado") throw new Error("Esta atualização já foi concluída.");
       if (!(await acquireRotatingStockLock(id, email))) throw new Error("Esta conferência está aberta por outro usuário. Tente novamente em alguns minutos.");
-      const { sourceRows, targetRows } = await readComparedRows(sheets, supplier);
-      const items = buildComparison(supplier, sourceRows, targetRows);
+      const { sourceRows, targetRows } = await readComparedRows(sheets, sourceSpreadsheetId, update.source_sheet_name, update.source_start_row, maxSourceColumn);
+      const items = buildComparison(sourceRows, targetRows, update.source_start_row, codeColumn, descriptionColumn, stockColumn);
       await saveConference(id, email, fingerprint(sourceRows, targetRows), items);
       return NextResponse.json({ ok: true, items, fingerprint: fingerprint(sourceRows, targetRows) });
     }
@@ -285,7 +370,7 @@ export async function POST(request: Request) {
       const selected = storedItems.filter((item) => selectedIds.includes(item.id));
       if (!selected.length) throw new Error("Selecione ao menos um produto encontrado com alteração.");
       if (selected.some((item) => item.situation !== "encontrado" || !item.target_row)) throw new Error("A seleção contém item não atualizável.");
-      const { sourceRows, targetRows } = await readComparedRows(sheets, supplier);
+      const { sourceRows, targetRows } = await readComparedRows(sheets, sourceSpreadsheetId, update.source_sheet_name, update.source_start_row, maxSourceColumn);
       if (fingerprint(sourceRows, targetRows) !== update.fingerprint) throw new Error("A planilha mudou durante a conferência. Recarregue a comparação e confirme novamente.");
       const sheetId = await centralSheetId(sheets);
       await sheets.spreadsheets.values.batchUpdate({

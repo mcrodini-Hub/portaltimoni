@@ -9,7 +9,7 @@ type Update = {
   reported_by: string; reported_at: string; status: Status; locked_by: string | null;
   items_read: number; found_count: number; not_found_count: number; unchanged_count: number; updated_count: number;
   source_sheet_name: string; source_code_column: string; source_description_column: string;
-  source_stock_column: string; source_start_row: number;
+  source_stock_column: string; source_start_row: number; updated_rows?: number[];
 };
 type Item = {
   id: string; code: string; description: string; old_stock: number | null; new_stock: number;
@@ -282,22 +282,7 @@ export default function EstoqueRotativoClient() {
       {feedback ? (
         <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-800">
           <p>{feedback}</p>
-          {lastUpdated ? (
-            <div className="mt-2 flex flex-wrap items-center gap-3">
-              <a
-                href={CENTRAL_SHEET_URL}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-h-11 items-center rounded-xl bg-blue-800 px-4 text-sm font-semibold text-white"
-              >
-                Abrir planilha ESTOQUE ROTATIVO
-              </a>
-              <span>
-                {lastUpdated.supplier} · {lastUpdated.count} item(ns)
-                {lastUpdated.rows.length ? ` · atualizado em Produtos!D${lastUpdated.rows.join(", D")}` : ""}
-              </span>
-            </div>
-          ) : null}
+
         </div>
       ) : null}
 
@@ -612,6 +597,26 @@ export default function EstoqueRotativoClient() {
                   </div>
                   <StatusBadge status={item.status} />
                 </div>
+                {item.status === "atualizado" ? (
+                  <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
+                    <p className="text-sm font-semibold text-emerald-900">
+                      Atualização concluída · {item.updated_count} item(ns)
+                    </p>
+                    <p className="mt-1 text-xs text-emerald-800">
+                      {item.updated_rows?.length
+                        ? `Atualizado em Produtos!D${item.updated_rows.join(", D")}`
+                        : "Atualizado na coluna D da planilha ESTOQUE ROTATIVO."}
+                    </p>
+                    <a
+                      href={CENTRAL_SHEET_URL}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-blue-800 px-4 text-sm font-semibold text-white"
+                    >
+                      Abrir planilha ESTOQUE ROTATIVO
+                    </a>
+                  </div>
+                ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">
                   {data.permissions.canReport && item.status !== "atualizado" ? (
                     <button

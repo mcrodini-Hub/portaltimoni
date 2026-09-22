@@ -251,6 +251,15 @@ export default function EstoqueRotativoClient() {
     await Promise.all([load(), refreshTrello()]);
   }
 
+  async function removeCompleted(item: Update) {
+    if (!data?.permissions.canManage || item.status !== "atualizado") return;
+    if (!window.confirm(`Excluir o rotativo concluído de ${item.supplier_name} do histórico?`)) return;
+    const result = await post({ action: "excluir_atualizacao", id: item.id });
+    if (!result) return;
+    setFeedback("Rotativo concluído excluído do histórico.");
+    await load();
+  }
+
   const visibleItems = data?.items || [];
 
   return (
@@ -572,14 +581,26 @@ export default function EstoqueRotativoClient() {
                     ) : (
                       <p className="mt-1 text-xs text-emerald-800">Nenhum estoque precisou ser alterado.</p>
                     )}
-                    <a
-                      href={updatedSheetUrl(item.updated_rows, item.conference_rows)}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-blue-800 px-4 text-sm font-semibold text-white"
-                    >
-                      Rotativo atualizado
-                    </a>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <a
+                        href={updatedSheetUrl(item.updated_rows, item.conference_rows)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-h-11 items-center rounded-xl bg-blue-800 px-4 text-sm font-semibold text-white"
+                      >
+                        Rotativo atualizado
+                      </a>
+                      {data.permissions.canManage ? (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => void removeCompleted(item)}
+                          className="min-h-11 rounded-xl border border-rose-200 px-4 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
+                        >
+                          Excluir
+                        </button>
+                      ) : null}
+                    </div>
                   </div>
                 ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">

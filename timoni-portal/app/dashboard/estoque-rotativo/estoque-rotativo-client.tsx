@@ -531,7 +531,7 @@ export default function EstoqueRotativoClient() {
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">3. Finalizar</p>
           <h2 className="mt-2 text-xl font-semibold text-slate-950">Atualizar Estoque Rotativo</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Itens encontrados passam de Pendente para Atualizado em [data]. Somente as divergências alteram a quantidade na coluna D.
+            Itens encontrados passam de Pendente para Atualizado dd/mm/aa. Somente as divergências alteram a quantidade na coluna D.
           </p>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">

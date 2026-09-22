@@ -450,7 +450,7 @@ export async function POST(request: Request) {
       const { sourceRows, targetRows } = await readComparedRows(sheets, sourceSpreadsheetId, update.source_sheet_name, update.source_start_row, maxSourceColumn);
       if (fingerprint(sourceRows, targetRows) !== update.fingerprint) throw new Error("A planilha mudou durante a conferência. Recarregue a comparação e confirme novamente.");
 
-      const statusText = `Atualizado em ${rotatingStockStatusDate()}`;
+      const statusText = `Atualizado ${rotatingStockStatusDate()}`;
       const valueUpdates = [
         ...matched.map((item) => ({
           range: `${ROTATING_STOCK_CENTRAL.sheetName}!A${item.target_row}`,

@@ -9,7 +9,7 @@ type Update = {
   reported_by: string; reported_at: string; status: Status; locked_by: string | null;
   items_read: number; found_count: number; not_found_count: number; unchanged_count: number; updated_count: number;
   source_sheet_name: string; source_code_column: string; source_description_column: string;
-  source_stock_column: string; source_start_row: number; trello_card_id: string; updated_rows?: number[];
+  source_stock_column: string; source_start_row: number; trello_card_id: string; updated_rows?: number[]; conference_rows?: number[];
 };
 type Item = {
   id: string; code: string; description: string; old_stock: number | null; new_stock: number;
@@ -43,9 +43,11 @@ const SITUATION_LABEL: Record<Situation, string> = {
 const CENTRAL_SHEET_URL = "https://docs.google.com/spreadsheets/d/1r2BJbEyUN6WL8AnEwRKCgJMaOlBzPTUxQQjXZXfPyj8/edit";
 const CENTRAL_SHEET_GID = "1634865129";
 
-function updatedSheetUrl(rows?: number[]) {
-  const firstRow = rows?.find((row) => Number.isInteger(row) && row > 0);
-  return `${CENTRAL_SHEET_URL}#gid=${CENTRAL_SHEET_GID}${firstRow ? `&range=D${firstRow}` : ""}`;
+function updatedSheetUrl(updatedRows?: number[], conferenceRows?: number[]) {
+  const changedRow = updatedRows?.find((row) => Number.isInteger(row) && row > 0);
+  const checkedRow = conferenceRows?.find((row) => Number.isInteger(row) && row > 0);
+  const range = changedRow ? `D${changedRow}` : checkedRow ? `A${checkedRow}` : "";
+  return `${CENTRAL_SHEET_URL}#gid=${CENTRAL_SHEET_GID}${range ? `&range=${range}` : ""}`;
 }
 const SUPPLIERS_DRIVE_URL = "https://drive.google.com/drive/u/0/folders/1P7Nb1FwfSQ6e7TA9Wkgizyy53tGGQajk";
 const TRELLO_URL = "https://trello.com/b/UfPrTr1H/compras";
@@ -243,9 +245,7 @@ export default function EstoqueRotativoClient() {
     const result = await post({ action: "atualizar", id: activeId, selectedIds: divergenceIds });
     if (!result) return;
     setFeedback(
-      result.updated
-        ? `${result.updated} produto(s) atualizado(s). Card do Trello concluído. O amarelo permanecerá por 3 dias.`
-        : "Rotativo concluído. Todos os itens estavam OK; nenhum estoque precisou ser alterado. Card do Trello concluído.",
+      `${result.reviewed || 0} item(ns) conferido(s). ${result.updated || 0} estoque(s) alterado(s). Status gravado na planilha como "${result.status || "Atualizado"}". Card do Trello concluído.`,
     );
     setActiveId(null);
     await Promise.all([load(), refreshTrello()]);
@@ -522,7 +522,7 @@ export default function EstoqueRotativoClient() {
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">3. Finalizar</p>
           <h2 className="mt-2 text-xl font-semibold text-slate-950">Atualizar Estoque Rotativo</h2>
           <p className="mt-2 text-sm text-slate-600">
-            Todos os itens com divergência serão gravados automaticamente na coluna D da planilha central.
+            Itens encontrados passam de Pendente para Atualizado em [data]. Somente as divergências alteram a quantidade na coluna D.
           </p>
 
           <div className="mt-4 flex flex-wrap items-center gap-3">
@@ -560,15 +560,20 @@ export default function EstoqueRotativoClient() {
                 {item.status === "atualizado" ? (
                   <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
                     <p className="text-sm font-semibold text-emerald-900">
-                      Atualização concluída · {item.updated_count} item(ns)
+                      Rotativo conferido · {(item.conference_rows || []).length} item(ns)
+                    </p>
+                    <p className="mt-1 text-xs text-emerald-800">
+                      Coluna Status atualizada para todos os itens encontrados.
                     </p>
                     {item.updated_rows?.length ? (
                       <p className="mt-1 text-xs text-emerald-800">
-                        Destaque amarelo em Produtos!D{item.updated_rows.join(", D")}
+                        {item.updated_count} estoque(s) alterado(s) · destaque amarelo em Produtos!D{item.updated_rows.join(", D")}
                       </p>
-                    ) : null}
+                    ) : (
+                      <p className="mt-1 text-xs text-emerald-800">Nenhum estoque precisou ser alterado.</p>
+                    )}
                     <a
-                      href={updatedSheetUrl(item.updated_rows)}
+                      href={updatedSheetUrl(item.updated_rows, item.conference_rows)}
                       target="_blank"
                       rel="noreferrer"
                       className="mt-3 inline-flex min-h-11 items-center rounded-xl bg-blue-800 px-4 text-sm font-semibold text-white"

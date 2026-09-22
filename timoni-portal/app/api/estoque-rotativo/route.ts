@@ -404,36 +404,44 @@ export async function POST(request: Request) {
     if (action === "atualizar") {
       requireRole(email, "conference");
       if (update.status !== "em_conferencia" || update.locked_by !== email) throw new Error("Reabra a conferência antes de atualizar.");
-      const selectedIds = Array.isArray(body.selectedIds) ? body.selectedIds.map(String) : [];
       const storedItems = await listConferenceItems(id);
-      const selected = storedItems.filter((item) => selectedIds.includes(item.id));
-      if (!selected.length) throw new Error("Selecione ao menos um produto encontrado com alteração.");
-      if (selected.some((item) => item.situation !== "encontrado" || !item.target_row)) throw new Error("A seleção contém item não atualizável.");
+      const selected = storedItems.filter((item) => item.situation === "encontrado" && item.target_row);
       const { sourceRows, targetRows } = await readComparedRows(sheets, sourceSpreadsheetId, update.source_sheet_name, update.source_start_row, maxSourceColumn);
       if (fingerprint(sourceRows, targetRows) !== update.fingerprint) throw new Error("A planilha mudou durante a conferência. Recarregue a comparação e confirme novamente.");
-      const sheetId = await centralSheetId(sheets);
-      await sheets.spreadsheets.values.batchUpdate({
-        spreadsheetId: ROTATING_STOCK_CENTRAL.spreadsheetId,
-        requestBody: {
-          valueInputOption: "RAW",
-          data: selected.map((item) => ({ range: `${ROTATING_STOCK_CENTRAL.sheetName}!D${item.target_row}`, values: [[item.new_stock]] })),
-        },
-      });
-      await sheets.spreadsheets.batchUpdate({
-        spreadsheetId: ROTATING_STOCK_CENTRAL.spreadsheetId,
-        requestBody: {
-          requests: selected.map((item) => ({
-            repeatCell: {
-              range: { sheetId, startRowIndex: item.target_row! - 1, endRowIndex: item.target_row!, startColumnIndex: 3, endColumnIndex: 4 },
-              cell: { userEnteredFormat: { backgroundColor: { red: 1, green: 0.949, blue: 0.8 } } },
-              fields: "userEnteredFormat.backgroundColor",
-            },
-          })),
-        },
-      });
+
+      if (selected.length) {
+        const sheetId = await centralSheetId(sheets);
+        await sheets.spreadsheets.values.batchUpdate({
+          spreadsheetId: ROTATING_STOCK_CENTRAL.spreadsheetId,
+          requestBody: {
+            valueInputOption: "RAW",
+            data: selected.map((item) => ({ range: `${ROTATING_STOCK_CENTRAL.sheetName}!D${item.target_row}`, values: [[item.new_stock]] })),
+          },
+        });
+        await sheets.spreadsheets.batchUpdate({
+          spreadsheetId: ROTATING_STOCK_CENTRAL.spreadsheetId,
+          requestBody: {
+            requests: selected.map((item) => ({
+              repeatCell: {
+                range: { sheetId, startRowIndex: item.target_row! - 1, endRowIndex: item.target_row!, startColumnIndex: 3, endColumnIndex: 4 },
+                cell: { userEnteredFormat: { backgroundColor: { red: 1, green: 0.949, blue: 0.8 } } },
+                fields: "userEnteredFormat.backgroundColor",
+              },
+            })),
+          },
+        });
+      }
+
       await concludeRotatingStockCard(update.trello_card_id || "", update.supplier_name);
       await finishConference(id, email, selected.map((item) => item.id), selected.map((item) => item.target_row!));
-      await recordModuleUpdateSafely("estoque-rotativo", email, `${selected.length} estoques atualizados e card concluído: ${update.supplier_name}.`, `estoque-rotativo:done:${id}`);
+      await recordModuleUpdateSafely(
+        "estoque-rotativo",
+        email,
+        selected.length
+          ? `${selected.length} estoques atualizados e card concluído: ${update.supplier_name}.`
+          : `Rotativo conferido sem divergências e card concluído: ${update.supplier_name}.`,
+        `estoque-rotativo:done:${id}`,
+      );
       return NextResponse.json({ ok: true, updated: selected.length });
     }
 

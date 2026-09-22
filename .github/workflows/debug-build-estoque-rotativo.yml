@@ -1,0 +1,23 @@
+name: debug-build-estoque-rotativo
+
+on:
+  push:
+    branches:
+      - debug-build-estoque-rotativo
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: timoni-portal
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: timoni-portal/package-lock.json
+      - run: npm ci
+      - run: npm run build

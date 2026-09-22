@@ -284,7 +284,12 @@ export default function EstoqueRotativoClient() {
           <p>{feedback}</p>
           {lastUpdated ? (
             <div className="mt-2 flex flex-wrap items-center gap-3">
-              <a href={CENTRAL_SHEET_URL} target="_blank" rel="noreferrer" className="underline">
+              <a
+                href={CENTRAL_SHEET_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex min-h-11 items-center rounded-xl bg-blue-800 px-4 text-sm font-semibold text-white"
+              >
                 Abrir planilha ESTOQUE ROTATIVO
               </a>
               <span>
@@ -584,14 +589,6 @@ export default function EstoqueRotativoClient() {
             >
               {busy ? "Atualizando..." : "Atualizar Estoque Rotativo"}
             </button>
-            <a
-              href={CENTRAL_SHEET_URL}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex min-h-12 items-center rounded-xl border border-blue-200 px-5 text-sm font-semibold text-blue-800"
-            >
-              Abrir planilha ESTOQUE ROTATIVO
-            </a>
           </div>
         </section>
       ) : null}

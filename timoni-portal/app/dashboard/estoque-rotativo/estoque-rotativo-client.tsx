@@ -54,6 +54,7 @@ export default function EstoqueRotativoClient() {
   const [trelloSuppliers, setTrelloSuppliers] = useState<TrelloSupplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [refreshingTrello, setRefreshingTrello] = useState(false);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [supplierName, setSupplierName] = useState("");
@@ -87,12 +88,23 @@ export default function EstoqueRotativoClient() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    fetch("/api/estoque-rotativo/fornecedores", { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : null)
-      .then((result: ComprasData | null) => setTrelloSuppliers(result?.suppliers || []))
-      .catch(() => setTrelloSuppliers([]));
+  const refreshTrello = useCallback(async (showFeedback = false) => {
+    setRefreshingTrello(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/estoque-rotativo/fornecedores?refresh=${Date.now()}`, { cache: "no-store" });
+      const result = await response.json() as ComprasData & { error?: string };
+      if (!response.ok) throw new Error(result.error || "Não foi possível atualizar os cards do Trello.");
+      setTrelloSuppliers(result.suppliers || []);
+      if (showFeedback) setFeedback(`Trello atualizado: ${result.suppliers?.length || 0} card(s) pendente(s).`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível atualizar os cards do Trello.");
+    } finally {
+      setRefreshingTrello(false);
+    }
   }, []);
+
+  useEffect(() => { void refreshTrello(); }, [refreshTrello]);
 
   const registeredPendingNames = useMemo(
     () => new Set((data?.updates || []).filter((item) => item.status === "aguardando_conferencia" || item.status === "aguardando_mapeamento").map((item) => item.supplier_name.trim().toLocaleLowerCase("pt-BR"))),
@@ -208,9 +220,14 @@ export default function EstoqueRotativoClient() {
     {loading ? <p className="mt-5 text-sm text-slate-500">Carregando...</p> : null}
 
     {!activeId && data?.permissions.canReport ? <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-950">Atualizações pendentes — Trello</h2>
-        <p className="mt-1 text-sm text-slate-600">Cards carregados automaticamente da lista ESTOQUE ROTATIVO LUCAS/CAROL.</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="text-lg font-semibold text-slate-950">Atualizações pendentes — Trello</h2>
+          <p className="mt-1 text-sm text-slate-600">Cards carregados automaticamente da lista ESTOQUE ROTATIVO LUCAS/CAROL.</p>
+        </div>
+        <button type="button" disabled={refreshingTrello} onClick={() => void refreshTrello(true)} className="rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-60">
+          {refreshingTrello ? "Atualizando..." : "Atualizar"}
+        </button>
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2">
         {trelloSuppliers.length ? trelloSuppliers.map((supplier) => {

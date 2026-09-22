@@ -149,7 +149,8 @@ export async function ensureRotatingStockSchema() {
           ADD COLUMN IF NOT EXISTS source_description_column TEXT NOT NULL DEFAULT '',
           ADD COLUMN IF NOT EXISTS source_stock_column TEXT NOT NULL DEFAULT '',
           ADD COLUMN IF NOT EXISTS source_start_row INTEGER NOT NULL DEFAULT 1,
-          ADD COLUMN IF NOT EXISTS trello_card_id TEXT NOT NULL DEFAULT ''
+          ADD COLUMN IF NOT EXISTS trello_card_id TEXT NOT NULL DEFAULT '',
+          ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ
       `;
       await sql`
         CREATE TABLE IF NOT EXISTS portal_rotating_stock_highlights (
@@ -215,6 +216,7 @@ export async function listRotatingStockData() {
         FROM portal_rotating_stock_items items
         WHERE items.update_id = updates.id AND items.situation <> 'nao_encontrado'), ARRAY[]::INTEGER[]) AS conference_rows
       FROM portal_rotating_stock_updates updates
+      WHERE updates.deleted_at IS NULL
       ORDER BY updates.reported_at DESC LIMIT 100`,
     sql`SELECT *, id::TEXT FROM portal_rotating_stock_suppliers ORDER BY name`,
     sql`SELECT COUNT(*)::INTEGER AS count FROM portal_rotating_stock_items WHERE situation = 'nao_encontrado' AND resolved_at IS NULL`,
@@ -239,7 +241,7 @@ export async function listRotatingStockData() {
 export async function getRotatingStockUpdate(id: string) {
   await ensureRotatingStockSchema();
   const sql = getDatabase();
-  const rows = await sql`SELECT *, id::TEXT, supplier_id::TEXT FROM portal_rotating_stock_updates WHERE id = ${id}::UUID LIMIT 1` as unknown as RotatingStockUpdate[];
+  const rows = await sql`SELECT *, id::TEXT, supplier_id::TEXT FROM portal_rotating_stock_updates WHERE id = ${id}::UUID AND deleted_at IS NULL LIMIT 1` as unknown as RotatingStockUpdate[];
   return rows[0] ? normalizeDate(rows[0] as unknown as RotatingStockUpdate) : null;
 }
 
@@ -444,4 +446,19 @@ export async function reopenRotatingStockUpdate(input: {
     WHERE id = ${input.id}::UUID
   `;
   await sql`DELETE FROM portal_rotating_stock_items WHERE update_id = ${input.id}::UUID`;
+}
+
+
+export async function deleteCompletedRotatingStockUpdate(id: string) {
+  await ensureRotatingStockSchema();
+  const sql = getDatabase();
+  const rows = await sql`
+    UPDATE portal_rotating_stock_updates
+    SET deleted_at = NOW()
+    WHERE id = ${id}::UUID
+      AND status = 'atualizado'
+      AND deleted_at IS NULL
+    RETURNING id::TEXT
+  ` as unknown as Array<{ id: string }>;
+  return Boolean(rows[0]);
 }

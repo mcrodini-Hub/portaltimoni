@@ -12,6 +12,7 @@ import {
   acquireRotatingStockLock,
   attachSupplierToWaitingUpdates,
   createRotatingStockUpdate,
+  deleteCompletedRotatingStockUpdate,
   finishConference,
   getRotatingStockUpdate,
   listConferenceItems,
@@ -496,6 +497,21 @@ export async function POST(request: Request) {
         `estoque-rotativo:done:${id}`,
       );
       return NextResponse.json({ ok: true, updated: selected.length, reviewed: matched.length, status: statusText });
+    }
+
+    if (action === "excluir_atualizacao") {
+      requireRole(email, "manage");
+      const id = String(body.id || "").trim();
+      if (!id) throw new Error("Atualização não identificada.");
+      const removed = await deleteCompletedRotatingStockUpdate(id);
+      if (!removed) throw new Error("Somente rotativos concluídos podem ser excluídos.");
+      await recordModuleUpdateSafely(
+        "estoque-rotativo",
+        email,
+        "Rotativo concluído removido do histórico.",
+        `estoque-rotativo:delete:${id}`,
+      );
+      return NextResponse.json({ ok: true });
     }
 
     throw new Error("Ação inválida.");

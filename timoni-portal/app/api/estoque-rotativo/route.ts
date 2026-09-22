@@ -5,6 +5,7 @@ import { auth } from "@/lib/auth";
 import { hasModuleAccess, normalizeEmail } from "@/lib/access-control";
 import { createChatMessage, ensureConversation } from "@/lib/internal-chat";
 import { recordModuleUpdateSafely } from "@/lib/module-updates";
+import { getStoredTrelloCredentials, normalizeTrelloText, trelloFetch, TRELLO_BOARD_SHORT_LINK } from "@/lib/trello";
 import {
   ROTATING_STOCK_CENTRAL,
   ROTATING_STOCK_EMAILS,
@@ -28,6 +29,45 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MANAGEMENT_EMAILS = new Set<string>([ROTATING_STOCK_EMAILS.cica, ROTATING_STOCK_EMAILS.marcelo]);
+
+type TrelloList = { id: string; name: string; closed?: boolean };
+type TrelloBoard = { lists?: TrelloList[] };
+type TrelloCard = { id: string; name: string; closed?: boolean };
+
+function hasAllTokens(value: string, tokens: string[]) {
+  const normalized = normalizeTrelloText(value);
+  return tokens.every((token) => normalized.includes(token));
+}
+
+async function concludeRotatingStockCard(cardId: string, supplierName: string) {
+  const credentials = await getStoredTrelloCredentials();
+  if (!credentials) throw new Error("Trello ainda não configurado no Portal.");
+
+  let resolvedCardId = cardId.trim();
+  if (!resolvedCardId) {
+    const board = await trelloFetch<TrelloBoard>(`/boards/${TRELLO_BOARD_SHORT_LINK}`, {
+      credentials,
+      params: { fields: "name", lists: "open", list_fields: "name,closed" },
+    });
+    const target = (board.lists || []).find(
+      (list) => !list.closed && hasAllTokens(list.name, ["estoque", "rotativo", "lucas", "carol"]),
+    );
+    if (!target) throw new Error("Lista ESTOQUE ROTATIVO LUCAS/CAROL não encontrada no Trello.");
+    const cards = await trelloFetch<TrelloCard[]>(`/lists/${target.id}/cards`, {
+      credentials,
+      params: { fields: "name,closed", filter: "open" },
+    });
+    const normalizedName = normalizeTrelloText(supplierName);
+    resolvedCardId = cards.find((card) => normalizeTrelloText(card.name) === normalizedName)?.id || "";
+  }
+  if (!resolvedCardId) throw new Error(`Card do Trello não encontrado para ${supplierName}.`);
+
+  await trelloFetch<TrelloCard>(`/cards/${encodeURIComponent(resolvedCardId)}`, {
+    method: "PUT",
+    credentials,
+    params: { closed: true },
+  });
+}
 
 function extractSpreadsheetId(value: string) {
   const match = value.match(/\/spreadsheets\/d\/([a-zA-Z0-9_-]+)/);
@@ -254,6 +294,7 @@ export async function POST(request: Request) {
       const sourceDescriptionColumn = String(body.sourceDescriptionColumn || "").trim().toUpperCase();
       const sourceStockColumn = String(body.sourceStockColumn || "").trim().toUpperCase();
       const sourceStartRow = Number(body.sourceStartRow);
+      const trelloCardId = String(body.trelloCardId || "").trim();
       if (supplierName.length < 2) throw new Error("Informe o fornecedor ou grupo.");
       if (!spreadsheetReference) throw new Error("Informe o link da planilha.");
       if (!extractSpreadsheetId(spreadsheetReference)) throw new Error("Link da planilha inválido.");
@@ -277,6 +318,7 @@ export async function POST(request: Request) {
         sourceDescriptionColumn,
         sourceStockColumn,
         sourceStartRow,
+        trelloCardId,
       });
       const date = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date());
       const conversation = await ensureConversation(ROTATING_STOCK_EMAILS.lucas, ROTATING_STOCK_EMAILS.carolina);
@@ -316,6 +358,7 @@ export async function POST(request: Request) {
       const sourceStockColumn = String(body.sourceStockColumn || "").trim().toUpperCase();
       const sourceStartRow = Number(body.sourceStartRow);
       const note = String(body.note || "").trim();
+      const trelloCardId = String(body.trelloCardId || "").trim();
       if (!id || !supplierName || !extractSpreadsheetId(spreadsheetReference) || !sourceSheetName) throw new Error("Complete todos os campos obrigatórios.");
       if (![sourceCodeColumn, sourceDescriptionColumn, sourceStockColumn].every((column) => /^[A-Z]+$/.test(column))) throw new Error("Revise as colunas.");
       if (!Number.isInteger(sourceStartRow) || sourceStartRow < 1) throw new Error("Revise a linha inicial.");
@@ -323,7 +366,7 @@ export async function POST(request: Request) {
         id, supplierName,
         spreadsheetName: supplierName,
         spreadsheetLink: spreadsheetReference,
-        note, sourceSheetName, sourceCodeColumn, sourceDescriptionColumn, sourceStockColumn, sourceStartRow,
+        note, sourceSheetName, sourceCodeColumn, sourceDescriptionColumn, sourceStockColumn, sourceStartRow, trelloCardId,
       });
       return NextResponse.json({ ok: true, id });
     }
@@ -388,8 +431,9 @@ export async function POST(request: Request) {
           })),
         },
       });
+      await concludeRotatingStockCard(update.trello_card_id || "", update.supplier_name);
       await finishConference(id, email, selected.map((item) => item.id), selected.map((item) => item.target_row!));
-      await recordModuleUpdateSafely("estoque-rotativo", email, `${selected.length} estoques atualizados: ${update.supplier_name}.`, `estoque-rotativo:done:${id}`);
+      await recordModuleUpdateSafely("estoque-rotativo", email, `${selected.length} estoques atualizados e card concluído: ${update.supplier_name}.`, `estoque-rotativo:done:${id}`);
       return NextResponse.json({ ok: true, updated: selected.length });
     }
 

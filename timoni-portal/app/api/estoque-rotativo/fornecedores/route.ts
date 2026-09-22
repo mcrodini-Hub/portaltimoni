@@ -7,7 +7,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 type TrelloList = { id: string; name: string; closed?: boolean };
-type TrelloCard = { id: string; name: string; idList?: string; url?: string; closed?: boolean; isTemplate?: boolean };
+type TrelloCard = { id: string; name: string; idList?: string; url?: string; closed?: boolean; dueComplete?: boolean; isTemplate?: boolean };
 type TrelloBoard = { lists?: TrelloList[] };
 
 function hasAllTokens(value: string, tokens: string[]) {
@@ -32,11 +32,11 @@ export async function GET() {
     const cards = target
       ? await trelloFetch<TrelloCard[]>(`/lists/${target.id}/cards`, {
           credentials,
-          params: { fields: "name,url,closed,isTemplate", filter: "all" },
+          params: { fields: "name,url,closed,dueComplete,isTemplate", filter: "all" },
         })
       : [];
     const suppliers = cards
-      .filter((card) => !card.closed)
+      .filter((card) => !card.closed && !card.dueComplete)
       .map((card) => ({ id: card.id, name: card.name, url: card.url || "", isTemplate: Boolean(card.isTemplate) }));
     return NextResponse.json({ configured: true, listName: target?.name || null, suppliers }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

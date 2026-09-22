@@ -78,9 +78,6 @@ export default function EstoqueRotativoClient() {
   const [sourceStartRow, setSourceStartRow] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [filter, setFilter] = useState<"todos" | Situation>("todos");
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const load = useCallback(async (id?: string | null) => {
     setLoading(true); setError("");
@@ -89,10 +86,7 @@ export default function EstoqueRotativoClient() {
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Não foi possível carregar o módulo.");
       setData(result);
-      if (id) {
-        setActiveId(id);
-        setSelected(new Set((result.items || []).filter((item: Item) => item.situation === "encontrado").map((item: Item) => item.id)));
-      }
+      if (id) setActiveId(id);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível carregar o módulo.");
     } finally { setLoading(false); }
@@ -157,7 +151,6 @@ export default function EstoqueRotativoClient() {
 
   function reopenForEdit(item: Update) {
     setActiveId(null);
-    setSelected(new Set());
     setEditingId(item.id);
     setSupplierName(item.supplier_name);
     setSpreadsheetReference(item.spreadsheet_link || item.spreadsheet_name);
@@ -237,19 +230,21 @@ export default function EstoqueRotativoClient() {
 
   async function apply() {
     if (!activeId) return;
-    if (!window.confirm(`Atualizar ${selected.size} produto(s) selecionado(s)?`)) return;
-    const result = await post({ action: "atualizar", id: activeId, selectedIds: [...selected] });
+    const divergenceIds = (data?.items || []).filter((item) => item.situation === "encontrado").map((item) => item.id);
+    if (!divergenceIds.length) {
+      setError("Não há divergências para atualizar.");
+      return;
+    }
+    if (!window.confirm(`Atualizar ${divergenceIds.length} produto(s) com divergência?`)) return;
+    const result = await post({ action: "atualizar", id: activeId, selectedIds: divergenceIds });
     if (!result) return;
     setFeedback(`${result.updated} produto(s) atualizado(s). O amarelo permanecerá por 3 dias.`);
-    setActiveId(null); setSelected(new Set());
+    setActiveId(null);
     await load();
   }
 
-
-  const visibleItems = useMemo(() => {
-    const query = search.trim().toLocaleLowerCase("pt-BR");
-    return (data?.items || []).filter((item) => (filter === "todos" || item.situation === filter) && (!query || item.code.toLocaleLowerCase("pt-BR").includes(query) || item.description.toLocaleLowerCase("pt-BR").includes(query)));
-  }, [data?.items, filter, search]);
+  const visibleItems = data?.items || [];
+  const divergenceCount = visibleItems.filter((item) => item.situation === "encontrado").length;
 
   return (
     <div className="space-y-5 pb-10">
@@ -327,7 +322,6 @@ export default function EstoqueRotativoClient() {
                         return;
                       }
                       setActiveId(null);
-                      setSelected(new Set());
                       setEditingId(null);
                       setSupplierName(supplier.name);
                       setSpreadsheetReference("");
@@ -475,27 +469,7 @@ export default function EstoqueRotativoClient() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Itens filtrados</p>
             <h2 className="mt-2 text-xl font-semibold text-slate-950">Total: {visibleItems.length} itens</h2>
-            <p className="mt-1 text-sm text-slate-500">Confira as divergências antes de atualizar a planilha central.</p>
-          </div>
-
-          <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-            <input
-              type="search"
-              placeholder="Buscar código ou descrição"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              className="min-w-0 flex-1 rounded-xl border border-slate-300 px-3 py-2.5"
-            />
-            <select
-              value={filter}
-              onChange={(event) => setFilter(event.target.value as typeof filter)}
-              className="rounded-xl border border-slate-300 bg-white px-3 py-2.5"
-            >
-              <option value="todos">Todos</option>
-              <option value="encontrado">Divergências</option>
-              <option value="nao_encontrado">Não encontrados</option>
-              <option value="sem_alteracao">OK</option>
-            </select>
+            <p className="mt-1 text-sm text-slate-500">Lista simples da conferência: OK, Divergência ou Não encontrado.</p>
           </div>
 
           <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200">
@@ -547,7 +521,7 @@ export default function EstoqueRotativoClient() {
             <button
               type="button"
               onClick={() => void apply()}
-              disabled={busy || !selected.size}
+              disabled={busy || divergenceCount === 0}
               className="min-h-12 rounded-xl bg-emerald-700 px-6 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               {busy ? "Atualizando..." : "Atualizar Estoque Rotativo"}

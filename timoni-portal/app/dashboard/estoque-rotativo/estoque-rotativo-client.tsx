@@ -9,7 +9,7 @@ type Update = {
   reported_by: string; reported_at: string; status: Status; locked_by: string | null;
   items_read: number; found_count: number; not_found_count: number; unchanged_count: number; updated_count: number;
   source_sheet_name: string; source_code_column: string; source_description_column: string;
-  source_stock_column: string; source_start_row: number; updated_rows?: number[];
+  source_stock_column: string; source_start_row: number; trello_card_id: string; updated_rows?: number[];
 };
 type Item = {
   id: string; code: string; description: string; old_stock: number | null; new_stock: number;
@@ -68,6 +68,7 @@ export default function EstoqueRotativoClient() {
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [supplierName, setSupplierName] = useState("");
+  const [trelloCardId, setTrelloCardId] = useState("");
   const [spreadsheetReference, setSpreadsheetReference] = useState("");
   const [note, setNote] = useState("");
   const [sourceSheetName, setSourceSheetName] = useState("");
@@ -153,6 +154,7 @@ export default function EstoqueRotativoClient() {
     setActiveId(null);
     setEditingId(item.id);
     setSupplierName(item.supplier_name);
+    setTrelloCardId(item.trello_card_id || "");
     setSpreadsheetReference(item.spreadsheet_link || item.spreadsheet_name);
     setNote(item.note || "");
     setSourceSheetName(item.source_sheet_name || "");
@@ -204,6 +206,7 @@ export default function EstoqueRotativoClient() {
       sourceDescriptionColumn,
       sourceStockColumn,
       sourceStartRow: Number(sourceStartRow),
+      trelloCardId,
     };
     const saved = await post(editingId
       ? { action: "editar_registro", id: editingId, ...payload }
@@ -238,7 +241,7 @@ export default function EstoqueRotativoClient() {
     if (!window.confirm(`Atualizar ${divergenceIds.length} produto(s) com divergência?`)) return;
     const result = await post({ action: "atualizar", id: activeId, selectedIds: divergenceIds });
     if (!result) return;
-    setFeedback(`${result.updated} produto(s) atualizado(s). O amarelo permanecerá por 3 dias.`);
+    setFeedback(`${result.updated} produto(s) atualizado(s). Card do Trello concluído. O amarelo permanecerá por 3 dias.`);
     setActiveId(null);
     await load();
   }
@@ -324,6 +327,7 @@ export default function EstoqueRotativoClient() {
                       setActiveId(null);
                       setEditingId(null);
                       setSupplierName(supplier.name);
+                      setTrelloCardId(supplier.id);
                       setSpreadsheetReference("");
                       setNote("");
                       setSourceSheetName("");

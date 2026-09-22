@@ -54,6 +54,7 @@ export default function EstoqueRotativoClient() {
   const [trelloSuppliers, setTrelloSuppliers] = useState<TrelloSupplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [refreshingTrello, setRefreshingTrello] = useState(false);
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [supplierName, setSupplierName] = useState("");
@@ -87,12 +88,23 @@ export default function EstoqueRotativoClient() {
   }, []);
 
   useEffect(() => { void load(); }, [load]);
-  useEffect(() => {
-    fetch("/api/estoque-rotativo/fornecedores", { cache: "no-store" })
-      .then((response) => response.ok ? response.json() : null)
-      .then((result: ComprasData | null) => setTrelloSuppliers(result?.suppliers || []))
-      .catch(() => setTrelloSuppliers([]));
+  const refreshTrello = useCallback(async (showFeedback = false) => {
+    setRefreshingTrello(true);
+    setError("");
+    try {
+      const response = await fetch("/api/estoque-rotativo/fornecedores?refresh=" + Date.now(), { cache: "no-store" });
+      const result = await response.json() as ComprasData & { error?: string };
+      if (!response.ok) throw new Error(result.error || "Não foi possível atualizar os cards do Trello.");
+      setTrelloSuppliers(result.suppliers || []);
+      if (showFeedback) setFeedback("Cards atualizados: " + (result.suppliers?.length || 0) + " pendente(s).");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível atualizar os cards do Trello.");
+    } finally {
+      setRefreshingTrello(false);
+    }
   }, []);
+
+  useEffect(() => { void refreshTrello(); }, [refreshTrello]);
 
   const registeredPendingNames = useMemo(
     () => new Set((data?.updates || []).filter((item) => item.status === "aguardando_conferencia" || item.status === "aguardando_mapeamento").map((item) => item.supplier_name.trim().toLocaleLowerCase("pt-BR"))),
@@ -207,46 +219,47 @@ export default function EstoqueRotativoClient() {
     {error ? <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">{error}</p> : null}
     {loading ? <p className="mt-5 text-sm text-slate-500">Carregando...</p> : null}
 
-    {!activeId && data?.permissions.canReport ? <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div>
-        <h2 className="text-lg font-semibold text-slate-950">Atualizações pendentes — Trello</h2>
-        <p className="mt-1 text-sm text-slate-600">Cards carregados automaticamente da lista ESTOQUE ROTATIVO LUCAS/CAROL.</p>
-      </div>
-      <div className="mt-4 grid gap-3 sm:grid-cols-2">
-        {trelloSuppliers.length ? trelloSuppliers.map((supplier) => {
-          const existing = (data.updates || []).find((item) => item.supplier_name.trim().toLocaleLowerCase("pt-BR") === supplier.name.trim().toLocaleLowerCase("pt-BR") && item.status !== "atualizado");
-          return <article key={supplier.id} className={`rounded-xl border p-4 ${supplierName === supplier.name && !editingId ? "border-blue-400 bg-blue-50" : "border-slate-200 bg-white"}`}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><p className="font-semibold text-slate-950">{supplier.name}</p><p className="mt-1 text-xs text-slate-500">ESTOQUE ROTATIVO LUCAS/CAROL</p></div>
-              {existing ? <StatusBadge status={existing.status} /> : <span className="rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold text-amber-800">Pendente</span>}
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {existing
-                ? <button type="button" disabled={busy} onClick={() => reopenForEdit(existing)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700">Reabrir para editar</button>
-                : <button type="button" disabled={busy} onClick={() => { setEditingId(null); setSupplierName(supplier.name); setSpreadsheetReference(""); setNote(""); setSourceSheetName(""); setSourceCodeColumn(""); setSourceDescriptionColumn(""); setSourceStockColumn(""); setSourceStartRow(""); }} className="rounded-lg bg-blue-700 px-3 py-2 text-sm font-semibold text-white">Informar planilha</button>}
-            </div>
-          </article>;
-        }) : <p className="text-sm text-slate-500">Nenhum card encontrado na lista ESTOQUE ROTATIVO LUCAS/CAROL.</p>}
-      </div>
-    </section> : null}
+    {!activeId && data?.permissions.canReport ? <section className="mt-5 grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+      <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">1. Fornecedor</p>
+            <h2 className="mt-2 text-xl font-semibold text-slate-950">Atualizações pendentes</h2>
+            <p className="mt-1 text-sm text-slate-500">Cards de ESTOQUE ROTATIVO LUCAS/CAROL.</p>
+          </div>
+          <button type="button" onClick={() => void refreshTrello(true)} disabled={refreshingTrello} className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50">{refreshingTrello ? "Atualizando..." : "Atualizar cards"}</button>
+        </div>
+        <div className="mt-4 max-h-96 overflow-y-auto rounded-2xl border border-slate-200">
+          {trelloSuppliers.length ? trelloSuppliers.map((supplier) => {
+            const existing = (data.updates || []).find((item) => item.supplier_name.trim().toLocaleLowerCase("pt-BR") === supplier.name.trim().toLocaleLowerCase("pt-BR") && item.status !== "atualizado");
+            const chosen = supplierName === supplier.name && !editingId;
+            return <button type="button" key={supplier.id} onClick={() => {
+              if (existing) { reopenForEdit(existing); return; }
+              setEditingId(null); setSupplierName(supplier.name); setSpreadsheetReference(""); setNote(""); setSourceSheetName(""); setSourceCodeColumn(""); setSourceDescriptionColumn(""); setSourceStockColumn(""); setSourceStartRow("");
+            }} className={`flex w-full items-center justify-between gap-3 border-b border-slate-100 px-4 py-3 text-left text-sm last:border-b-0 ${chosen ? "bg-blue-50 text-blue-900" : "bg-white text-slate-800 hover:bg-slate-50"}`}>
+              <span className="font-semibold">{supplier.name}</span>
+              <span className="flex shrink-0 items-center gap-1">{chosen ? <span className="rounded-full bg-blue-700 px-2 py-0.5 text-[11px] font-semibold text-white">Selecionado</span> : null}{existing ? <StatusBadge status={existing.status} /> : <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[11px] font-semibold text-amber-800">Pendente</span>}</span>
+            </button>;
+          }) : <p className="p-5 text-sm text-slate-500">Nenhum card pendente.</p>}
+        </div>
+      </article>
 
-    {data?.permissions.canReport && !activeId && (supplierName || editingId) ? <section className="mt-5 rounded-2xl border border-blue-200 bg-white p-5 shadow-sm">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="text-lg font-semibold text-slate-950">{editingId ? "Reabrir para editar" : `Informar planilha — ${supplierName}`}</h2>
-        {editingId || supplierName ? <button type="button" onClick={() => { setEditingId(null); setSupplierName(""); }} className="text-sm font-semibold text-slate-600">Cancelar</button> : null}
-      </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <label className="text-sm font-medium text-slate-700">Fornecedor / grupo<div className="mt-1 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 font-semibold text-slate-900">{supplierName}</div></label>
-        <label className="text-sm font-medium text-slate-700">Link da planilha<input value={spreadsheetReference} onChange={(event) => setSpreadsheetReference(event.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..." className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-        <label className="text-sm font-medium text-slate-700">Aba da planilha<input value={sourceSheetName} onChange={(event) => setSourceSheetName(event.target.value)} placeholder="Ex.: plan" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-        <label className="text-sm font-medium text-slate-700">Linha inicial<input type="number" min="1" value={sourceStartRow} onChange={(event) => setSourceStartRow(event.target.value)} placeholder="Ex.: 7" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-        <label className="text-sm font-medium text-slate-700">Coluna do código<input value={sourceCodeColumn} onChange={(event) => setSourceCodeColumn(event.target.value.toUpperCase())} placeholder="Ex.: B" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-        <label className="text-sm font-medium text-slate-700">Coluna da descrição<input value={sourceDescriptionColumn} onChange={(event) => setSourceDescriptionColumn(event.target.value.toUpperCase())} placeholder="Ex.: C" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-        <label className="text-sm font-medium text-slate-700">Coluna do estoque<input value={sourceStockColumn} onChange={(event) => setSourceStockColumn(event.target.value.toUpperCase())} placeholder="Ex.: F" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-        <label className="text-sm font-medium text-slate-700 md:col-span-2">Observação opcional<textarea value={note} onChange={(event) => setNote(event.target.value)} className="mt-1 min-h-20 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-      </div>
-      <p className="mt-3 text-xs text-slate-500">Todos os campos de planilha, aba, colunas e linha inicial são obrigatórios. Exemplo do teste: aba plan, código B, descrição C, estoque F, a partir da linha 7.</p>
-      <div className="mt-4 flex justify-end"><button type="button" disabled={busy} onClick={() => void report()} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{busy ? "Salvando..." : editingId ? "Salvar e reabrir conferência" : "Criar atualização pendente"}</button></div>
+      <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">2. Planilha do estoque</p>
+        <h2 className="mt-2 text-xl font-semibold text-slate-950">Planilha do fornecedor</h2>
+        <p className="mt-2 text-sm leading-6 text-slate-600">Informe o link e as colunas que serão usadas na conferência.</p>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <label className="text-sm font-semibold text-slate-800 md:col-span-2">Fornecedor / grupo<div className="mt-1 rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5">{supplierName || "Selecione um card ao lado"}</div></label>
+          <label className="text-sm font-semibold text-slate-800 md:col-span-2">Link do Google Sheets<input value={spreadsheetReference} onChange={(event) => setSpreadsheetReference(event.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..." className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
+          <label className="text-sm font-semibold text-slate-800">Aba<input value={sourceSheetName} onChange={(event) => setSourceSheetName(event.target.value)} placeholder="Ex.: plan" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
+          <label className="text-sm font-semibold text-slate-800">Linha inicial<input type="number" min="1" value={sourceStartRow} onChange={(event) => setSourceStartRow(event.target.value)} placeholder="Ex.: 7" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
+          <label className="text-sm font-semibold text-slate-800">Código<input value={sourceCodeColumn} onChange={(event) => setSourceCodeColumn(event.target.value.toUpperCase())} placeholder="B" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
+          <label className="text-sm font-semibold text-slate-800">Descrição<input value={sourceDescriptionColumn} onChange={(event) => setSourceDescriptionColumn(event.target.value.toUpperCase())} placeholder="C" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
+          <label className="text-sm font-semibold text-slate-800">Estoque<input value={sourceStockColumn} onChange={(event) => setSourceStockColumn(event.target.value.toUpperCase())} placeholder="F" className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
+          <label className="text-sm font-semibold text-slate-800">Observação opcional<input value={note} onChange={(event) => setNote(event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
+        </div>
+        <div className="mt-4 flex justify-end"><button type="button" disabled={busy || !supplierName} onClick={() => void report()} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Carregando..." : editingId ? "Salvar e reabrir" : "Preparar conferência"}</button></div>
+      </article>
     </section> : null}
 
     {!activeId && data ? <section className="mt-6">
@@ -276,7 +289,7 @@ export default function EstoqueRotativoClient() {
         <div><p className="font-semibold text-slate-950">{item.code} · {item.description}</p><p className="mt-1 text-sm text-slate-600">Estoque atual: {item.old_stock ?? "—"} → Novo estoque: {item.new_stock}</p></div>
         <span className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ${item.situation === "encontrado" ? "bg-blue-100 text-blue-800" : item.situation === "nao_encontrado" ? "bg-rose-100 text-rose-800" : "bg-slate-100 text-slate-700"}`}>{SITUATION_LABEL[item.situation]}</span>
       </article>)}</div>
-      <div className="sticky bottom-3 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-white p-4 shadow-lg"><p className="text-sm font-semibold text-slate-700">{selected.size} selecionado(s)</p><button type="button" disabled={busy || !selected.size} onClick={() => void apply()} className="rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Atualizando..." : "Atualizar estoque"}</button></div>
+      <div className="sticky bottom-3 mt-4 flex items-center justify-between gap-3 rounded-2xl border border-blue-200 bg-white p-4 shadow-lg"><p className="text-sm font-semibold text-slate-700">{selected.size} selecionado(s)</p><button type="button" disabled={busy || !selected.size} onClick={() => void apply()} className="rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white disabled:opacity-50">{busy ? "Atualizando..." : "Atualizar"}</button></div>
     </section> : null}
   </div>;
 }

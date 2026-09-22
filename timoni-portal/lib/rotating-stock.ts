@@ -162,12 +162,12 @@ export async function ensureRotatingStockSchema() {
           applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
         )
       `;
-      const cleanup = await sql`
+      const cleanup = (await sql`
         INSERT INTO portal_rotating_stock_migrations (key)
         VALUES ('2026-09-22-limpa-testes-iniciais')
         ON CONFLICT (key) DO NOTHING
         RETURNING key
-      `;
+      `) as unknown as Array<{ key: string }>;
       if (cleanup.length) {
         await sql`DELETE FROM portal_rotating_stock_highlights`;
         await sql`DELETE FROM portal_rotating_stock_items`;

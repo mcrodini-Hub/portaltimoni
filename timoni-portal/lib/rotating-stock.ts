@@ -148,6 +148,15 @@ export async function ensureRotatingStockSchema() {
           ADD COLUMN IF NOT EXISTS source_start_row INTEGER NOT NULL DEFAULT 1
       `;
       await sql`
+        CREATE TABLE IF NOT EXISTS portal_rotating_stock_highlights (
+          id BIGSERIAL PRIMARY KEY,
+          target_row INTEGER NOT NULL,
+          expires_at TIMESTAMPTZ NOT NULL,
+          cleared_at TIMESTAMPTZ,
+          update_id UUID NOT NULL REFERENCES portal_rotating_stock_updates(id) ON DELETE CASCADE
+        )
+      `;
+      await sql`
         CREATE TABLE IF NOT EXISTS portal_rotating_stock_migrations (
           key TEXT PRIMARY KEY,
           applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -172,15 +181,6 @@ export async function ensureRotatingStockSchema() {
       await sql`
         CREATE INDEX IF NOT EXISTS portal_rotating_stock_items_pending_idx
         ON portal_rotating_stock_items (situation, resolved_at)
-      `;
-      await sql`
-        CREATE TABLE IF NOT EXISTS portal_rotating_stock_highlights (
-          id BIGSERIAL PRIMARY KEY,
-          target_row INTEGER NOT NULL,
-          expires_at TIMESTAMPTZ NOT NULL,
-          cleared_at TIMESTAMPTZ,
-          update_id UUID NOT NULL REFERENCES portal_rotating_stock_updates(id) ON DELETE CASCADE
-        )
       `;
 
     })().catch((error) => {

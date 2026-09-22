@@ -33,7 +33,7 @@ const MANAGEMENT_EMAILS = new Set<string>([ROTATING_STOCK_EMAILS.cica, ROTATING_
 
 type TrelloList = { id: string; name: string; closed?: boolean };
 type TrelloBoard = { lists?: TrelloList[] };
-type TrelloCard = { id: string; name: string; closed?: boolean };
+type TrelloCard = { id: string; name: string; closed?: boolean; dueComplete?: boolean };
 
 function hasAllTokens(value: string, tokens: string[]) {
   const normalized = normalizeTrelloText(value);
@@ -56,7 +56,7 @@ async function concludeRotatingStockCard(cardId: string, supplierName: string) {
     if (!target) throw new Error("Lista ESTOQUE ROTATIVO LUCAS/CAROL não encontrada no Trello.");
     const cards = await trelloFetch<TrelloCard[]>(`/lists/${target.id}/cards`, {
       credentials,
-      params: { fields: "name,closed", filter: "open" },
+      params: { fields: "name,closed,dueComplete", filter: "all" },
     });
     const normalizedName = normalizeTrelloText(supplierName);
     resolvedCardId = cards.find((card) => normalizeTrelloText(card.name) === normalizedName)?.id || "";
@@ -66,7 +66,7 @@ async function concludeRotatingStockCard(cardId: string, supplierName: string) {
   await trelloFetch<TrelloCard>(`/cards/${encodeURIComponent(resolvedCardId)}`, {
     method: "PUT",
     credentials,
-    params: { closed: true },
+    params: { dueComplete: true, closed: false },
   });
 }
 

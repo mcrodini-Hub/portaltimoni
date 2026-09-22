@@ -211,7 +211,16 @@ export async function GET(request: Request) {
   try {
     const { email, sheets } = await context();
     await clearExpiredHighlights(sheets);
-    const id = new URL(request.url).searchParams.get("id");
+    const searchParams = new URL(request.url).searchParams;
+    const spreadsheetReference = searchParams.get("spreadsheetReference")?.trim() || "";
+    if (spreadsheetReference) {
+      const spreadsheetId = extractSpreadsheetId(spreadsheetReference);
+      if (!spreadsheetId) throw new Error("Link da planilha inválido.");
+      const metadata = await sheets.spreadsheets.get({ spreadsheetId, fields: "sheets.properties.title" });
+      const sheetNames = (metadata.data.sheets || []).map((item) => item.properties?.title).filter((title): title is string => Boolean(title));
+      return NextResponse.json({ ok: true, sheetNames, singleSheetName: sheetNames.length === 1 ? sheetNames[0] : null }, { headers: { "Cache-Control": "no-store" } });
+    }
+    const id = searchParams.get("id");
     const data = await listRotatingStockData();
     return NextResponse.json({
       ok: true,

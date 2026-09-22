@@ -11,9 +11,7 @@ import {
   acquireRotatingStockLock,
   attachSupplierToWaitingUpdates,
   createRotatingStockUpdate,
-  findSupplier,
   finishConference,
-  getRotatingStockSupplier,
   getRotatingStockUpdate,
   listConferenceItems,
   listExpiredHighlights,
@@ -24,7 +22,6 @@ import {
   saveConference,
   saveSupplierMapping,
   type RotatingStockItem,
-  type RotatingStockSupplier,
 } from "@/lib/rotating-stock";
 
 export const runtime = "nodejs";
@@ -51,10 +48,6 @@ function integerStock(value: unknown, label: string, allowBlank = false) {
   const integer = Math.trunc(number);
   if (!Number.isSafeInteger(integer)) throw new Error(`${label}: estoque fora do limite aceito.`);
   return integer;
-}
-
-function sourceRange(supplier: RotatingStockSupplier) {
-  return `${supplier.sheet_name}!${supplier.data_range}`;
 }
 
 function fingerprint(sourceRows: unknown[][], targetRows: unknown[][]) {
@@ -121,11 +114,6 @@ async function readComparedRows(
     sourceRows: (source.data.values || []) as unknown[][],
     targetRows: (target.data.values || []) as unknown[][],
   };
-}
-
-function firstDataRow(range: string) {
-  const match = range.match(/[A-Z]+(\d+)/i);
-  return Number(match?.[1] || 1);
 }
 
 function normalizeMatch(value: unknown) {
@@ -259,8 +247,7 @@ export async function POST(request: Request) {
       const sourceStartRow = Number(body.sourceStartRow);
       if (supplierName.length < 2) throw new Error("Informe o fornecedor ou grupo.");
       if (!spreadsheetReference) throw new Error("Informe o link da planilha.");
-      const spreadsheetId = extractSpreadsheetId(spreadsheetReference);
-      if (!spreadsheetId) throw new Error("Link da planilha inválido.");
+      if (!extractSpreadsheetId(spreadsheetReference)) throw new Error("Link da planilha inválido.");
       if (!sourceSheetName) throw new Error("Informe a aba da planilha.");
       for (const column of [sourceCodeColumn, sourceDescriptionColumn, sourceStockColumn]) {
         if (!/^[A-Z]+$/.test(column)) throw new Error("Informe colunas válidas para código, descrição e estoque.");

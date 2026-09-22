@@ -10,6 +10,11 @@ type TrelloList = { id: string; name: string; closed?: boolean };
 type TrelloCard = { id: string; name: string; idList: string; url?: string; closed?: boolean };
 type TrelloBoard = { lists?: TrelloList[]; cards?: TrelloCard[] };
 
+function hasAllTokens(value: string, tokens: string[]) {
+  const normalized = normalizeTrelloText(value);
+  return tokens.every((token) => normalized.includes(token));
+}
+
 export async function GET() {
   const session = await auth();
   if (!session?.user?.email) return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
@@ -18,7 +23,9 @@ export async function GET() {
   if (!credentials) return NextResponse.json({ configured: false, suppliers: [] }, { headers: { "Cache-Control": "no-store" } });
   try {
     const board = await trelloFetch<TrelloBoard>(`/boards/${TRELLO_BOARD_SHORT_LINK}`, { credentials, params: { fields: "name", lists: "open", list_fields: "name,closed", cards: "open", card_fields: "name,idList,url,closed" } });
-    const target = (board.lists || []).find((list) => !list.closed && normalizeTrelloText(list.name) === "estoque rotativo lucas/carol");
+    const target = (board.lists || []).find(
+      (list) => !list.closed && hasAllTokens(list.name, ["estoque", "rotativo", "lucas", "carol"]),
+    );
     const suppliers = target ? (board.cards || []).filter((card) => !card.closed && card.idList === target.id).map((card) => ({ id: card.id, name: card.name, url: card.url || "" })) : [];
     return NextResponse.json({ configured: true, listName: target?.name || null, suppliers }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {

@@ -56,6 +56,7 @@ export type RotatingStockUpdate = {
   source_start_row: number;
   trello_card_id: string;
   updated_rows?: number[];
+  conference_rows?: number[];
 };
 
 export type RotatingStockItem = {
@@ -209,7 +210,10 @@ export async function listRotatingStockData() {
     sql`SELECT updates.*, updates.id::TEXT, updates.supplier_id::TEXT,
       COALESCE((SELECT ARRAY_AGG(items.target_row ORDER BY items.target_row) FILTER (WHERE items.target_row IS NOT NULL)
         FROM portal_rotating_stock_items items
-        WHERE items.update_id = updates.id AND items.applied = TRUE), ARRAY[]::INTEGER[]) AS updated_rows
+        WHERE items.update_id = updates.id AND items.applied = TRUE), ARRAY[]::INTEGER[]) AS updated_rows,
+      COALESCE((SELECT ARRAY_AGG(items.target_row ORDER BY items.target_row) FILTER (WHERE items.target_row IS NOT NULL)
+        FROM portal_rotating_stock_items items
+        WHERE items.update_id = updates.id AND items.situation <> 'nao_encontrado'), ARRAY[]::INTEGER[]) AS conference_rows
       FROM portal_rotating_stock_updates updates
       ORDER BY updates.reported_at DESC LIMIT 100`,
     sql`SELECT *, id::TEXT FROM portal_rotating_stock_suppliers ORDER BY name`,

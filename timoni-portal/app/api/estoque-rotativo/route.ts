@@ -220,6 +220,44 @@ async function centralSheetId(sheets: sheets_v4.Sheets) {
   return sheet.properties.sheetId;
 }
 
+async function ensurePendingStatuses(sheets: sheets_v4.Sheets) {
+  const response = await sheets.spreadsheets.values.get({
+    spreadsheetId: ROTATING_STOCK_CENTRAL.spreadsheetId,
+    range: `${ROTATING_STOCK_CENTRAL.sheetName}!A2:B`,
+    valueRenderOption: "FORMATTED_VALUE",
+  });
+  const rows = (response.data.values || []) as unknown[][];
+  const data: Array<{ range: string; values: string[][] }> = [];
+  const validUpdated = /^atualizado em \d{2}\/\d{2}\/(?:\d{2}|\d{4})$/i;
+
+  for (let index = 0; index < rows.length; index += 1) {
+    const status = String(rows[index]?.[0] ?? "").trim();
+    const code = String(rows[index]?.[1] ?? "").trim();
+    if (!code) continue;
+    if (status.toLocaleLowerCase("pt-BR") === "pendente" || validUpdated.test(status)) continue;
+    data.push({
+      range: `${ROTATING_STOCK_CENTRAL.sheetName}!A${index + 2}`,
+      values: [["Pendente"]],
+    });
+  }
+
+  if (data.length) {
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId: ROTATING_STOCK_CENTRAL.spreadsheetId,
+      requestBody: { valueInputOption: "RAW", data },
+    });
+  }
+}
+
+function rotatingStockStatusDate() {
+  return new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    year: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date());
+}
+
 async function clearExpiredHighlights(sheets: sheets_v4.Sheets) {
   const expired = await listExpiredHighlights();
   if (!expired.length) return;
@@ -394,6 +432,7 @@ export async function POST(request: Request) {
     if (action === "conferir") {
       requireRole(email, "conference");
       if (update.status === "atualizado") throw new Error("Esta atualização já foi concluída.");
+      await ensurePendingStatuses(sheets);
       if (!(await acquireRotatingStockLock(id, email))) throw new Error("Esta conferência está aberta por outro usuário. Tente novamente em alguns minutos.");
       const { sourceRows, targetRows } = await readComparedRows(sheets, sourceSpreadsheetId, update.source_sheet_name, update.source_start_row, maxSourceColumn);
       const items = buildComparison(sourceRows, targetRows, update.source_start_row, codeColumn, descriptionColumn, stockColumn);
@@ -405,19 +444,35 @@ export async function POST(request: Request) {
       requireRole(email, "conference");
       if (update.status !== "em_conferencia" || update.locked_by !== email) throw new Error("Reabra a conferência antes de atualizar.");
       const storedItems = await listConferenceItems(id);
+      const matched = storedItems.filter((item) => item.situation !== "nao_encontrado" && item.target_row);
       const selected = storedItems.filter((item) => item.situation === "encontrado" && item.target_row);
       const { sourceRows, targetRows } = await readComparedRows(sheets, sourceSpreadsheetId, update.source_sheet_name, update.source_start_row, maxSourceColumn);
       if (fingerprint(sourceRows, targetRows) !== update.fingerprint) throw new Error("A planilha mudou durante a conferência. Recarregue a comparação e confirme novamente.");
 
-      if (selected.length) {
-        const sheetId = await centralSheetId(sheets);
+      const statusText = `Atualizado em ${rotatingStockStatusDate()}`;
+      const valueUpdates = [
+        ...matched.map((item) => ({
+          range: `${ROTATING_STOCK_CENTRAL.sheetName}!A${item.target_row}`,
+          values: [[statusText]],
+        })),
+        ...selected.map((item) => ({
+          range: `${ROTATING_STOCK_CENTRAL.sheetName}!D${item.target_row}`,
+          values: [[item.new_stock]],
+        })),
+      ];
+
+      if (valueUpdates.length) {
         await sheets.spreadsheets.values.batchUpdate({
           spreadsheetId: ROTATING_STOCK_CENTRAL.spreadsheetId,
           requestBody: {
             valueInputOption: "RAW",
-            data: selected.map((item) => ({ range: `${ROTATING_STOCK_CENTRAL.sheetName}!D${item.target_row}`, values: [[item.new_stock]] })),
+            data: valueUpdates,
           },
         });
+      }
+
+      if (selected.length) {
+        const sheetId = await centralSheetId(sheets);
         await sheets.spreadsheets.batchUpdate({
           spreadsheetId: ROTATING_STOCK_CENTRAL.spreadsheetId,
           requestBody: {
@@ -437,12 +492,10 @@ export async function POST(request: Request) {
       await recordModuleUpdateSafely(
         "estoque-rotativo",
         email,
-        selected.length
-          ? `${selected.length} estoques atualizados e card concluído: ${update.supplier_name}.`
-          : `Rotativo conferido sem divergências e card concluído: ${update.supplier_name}.`,
+        `${matched.length} itens conferidos; ${selected.length} estoques alterados; card concluído: ${update.supplier_name}.`,
         `estoque-rotativo:done:${id}`,
       );
-      return NextResponse.json({ ok: true, updated: selected.length });
+      return NextResponse.json({ ok: true, updated: selected.length, reviewed: matched.length, status: statusText });
     }
 
     throw new Error("Ação inválida.");

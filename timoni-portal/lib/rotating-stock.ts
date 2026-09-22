@@ -49,6 +49,11 @@ export type RotatingStockUpdate = {
   not_found_count: number;
   unchanged_count: number;
   updated_count: number;
+  source_sheet_name: string;
+  source_code_column: string;
+  source_description_column: string;
+  source_stock_column: string;
+  source_start_row: number;
 };
 
 export type RotatingStockItem = {
@@ -135,6 +140,32 @@ export async function ensureRotatingStockSchema() {
         )
       `;
       await sql`
+        ALTER TABLE portal_rotating_stock_updates
+          ADD COLUMN IF NOT EXISTS source_sheet_name TEXT NOT NULL DEFAULT '',
+          ADD COLUMN IF NOT EXISTS source_code_column TEXT NOT NULL DEFAULT '',
+          ADD COLUMN IF NOT EXISTS source_description_column TEXT NOT NULL DEFAULT '',
+          ADD COLUMN IF NOT EXISTS source_stock_column TEXT NOT NULL DEFAULT '',
+          ADD COLUMN IF NOT EXISTS source_start_row INTEGER NOT NULL DEFAULT 1
+      `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS portal_rotating_stock_migrations (
+          key TEXT PRIMARY KEY,
+          applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        )
+      `;
+      const cleanup = await sql`
+        INSERT INTO portal_rotating_stock_migrations (key)
+        VALUES ('2026-09-22-limpa-testes-iniciais')
+        ON CONFLICT (key) DO NOTHING
+        RETURNING key
+      `;
+      if (cleanup.length) {
+        await sql`DELETE FROM portal_rotating_stock_highlights`;
+        await sql`DELETE FROM portal_rotating_stock_items`;
+        await sql`DELETE FROM portal_rotating_stock_updates`;
+        await sql`DELETE FROM portal_rotating_stock_suppliers`;
+      }
+      await sql`
         CREATE INDEX IF NOT EXISTS portal_rotating_stock_updates_status_idx
         ON portal_rotating_stock_updates (status, reported_at DESC)
       `;
@@ -151,13 +182,7 @@ export async function ensureRotatingStockSchema() {
           update_id UUID NOT NULL REFERENCES portal_rotating_stock_updates(id) ON DELETE CASCADE
         )
       `;
-      await sql`
-        INSERT INTO portal_rotating_stock_suppliers
-          (name, spreadsheet_id, sheet_name, data_range, code_column, description_column, stock_column, validated_at, validated_by)
-        VALUES
-          ('KTELI', '1WhU4TlFxnK4UhjUOIwGCcVC5NvDZlqN6lXhAiIj1i20', 'kteli', 'B6:D31', 0, 1, 2, NOW(), 'regra-inicial')
-        ON CONFLICT (spreadsheet_id, sheet_name) DO NOTHING
-      `;
+
     })().catch((error) => {
       schemaReady = null;
       throw error;
@@ -227,15 +252,20 @@ export async function findSupplier(spreadsheetId: string, name: string) {
 export async function createRotatingStockUpdate(input: {
   id: string; supplierId: string | null; supplierName: string; spreadsheetName: string;
   spreadsheetLink: string; note: string; reportedBy: string; status: RotatingStockStatus;
+  sourceSheetName: string; sourceCodeColumn: string; sourceDescriptionColumn: string;
+  sourceStockColumn: string; sourceStartRow: number;
 }) {
   await ensureRotatingStockSchema();
   const sql = getDatabase();
   await sql`
     INSERT INTO portal_rotating_stock_updates
-      (id, supplier_id, supplier_name, spreadsheet_name, spreadsheet_link, note, reported_by, status)
+      (id, supplier_id, supplier_name, spreadsheet_name, spreadsheet_link, note, reported_by, status,
+       source_sheet_name, source_code_column, source_description_column, source_stock_column, source_start_row)
     VALUES
       (${input.id}::UUID, ${input.supplierId}::BIGINT, ${input.supplierName}, ${input.spreadsheetName},
-       ${input.spreadsheetLink}, ${input.note}, ${input.reportedBy}, ${input.status})
+       ${input.spreadsheetLink}, ${input.note}, ${input.reportedBy}, ${input.status},
+       ${input.sourceSheetName}, ${input.sourceCodeColumn}, ${input.sourceDescriptionColumn},
+       ${input.sourceStockColumn}, ${input.sourceStartRow})
   `;
 }
 
@@ -363,4 +393,39 @@ export async function resolveNotFoundItem(id: string, actor: string) {
     RETURNING id::TEXT
   ` as unknown as Array<{ id: string }>;
   return Boolean(rows[0]);
+}
+
+
+export async function reopenRotatingStockUpdate(input: {
+  id: string;
+  supplierName: string;
+  spreadsheetName: string;
+  spreadsheetLink: string;
+  note: string;
+  sourceSheetName: string;
+  sourceCodeColumn: string;
+  sourceDescriptionColumn: string;
+  sourceStockColumn: string;
+  sourceStartRow: number;
+}) {
+  await ensureRotatingStockSchema();
+  const sql = getDatabase();
+  await sql`
+    UPDATE portal_rotating_stock_updates
+    SET supplier_name = ${input.supplierName},
+        spreadsheet_name = ${input.spreadsheetName},
+        spreadsheet_link = ${input.spreadsheetLink},
+        note = ${input.note},
+        source_sheet_name = ${input.sourceSheetName},
+        source_code_column = ${input.sourceCodeColumn},
+        source_description_column = ${input.sourceDescriptionColumn},
+        source_stock_column = ${input.sourceStockColumn},
+        source_start_row = ${input.sourceStartRow},
+        status = 'aguardando_conferencia',
+        locked_by = NULL,
+        locked_at = NULL,
+        fingerprint = NULL
+    WHERE id = ${input.id}::UUID
+  `;
+  await sql`DELETE FROM portal_rotating_stock_items WHERE update_id = ${input.id}::UUID`;
 }

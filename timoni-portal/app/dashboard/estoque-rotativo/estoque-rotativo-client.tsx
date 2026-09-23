@@ -417,26 +417,20 @@ export default function EstoqueRotativoClient() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Módulo operacional</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Estoque Rotativo</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
-              Selecione o card, filtre a planilha do fornecedor, confira as divergências e só então atualize a planilha central.
-            </p>
           </div>
-          <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
-            Fluxo rápido
-          </span>
         </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
         {[
           ["Padronizar fornecedor", supplierPending],
           ["Fornecedor padronizado", supplierUpdated],
           ["Estoque atual pendente", pending],
           ["Estoque atual atualizado", stockUpdated],
         ].map(([label, value]) => (
-          <article key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-3xl font-semibold text-slate-950">{loading ? "…" : value ?? "—"}</p>
-            <p className="mt-2 text-sm text-slate-600">{label}</p>
+          <article key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
+            <p className="text-2xl font-semibold text-slate-950 sm:text-3xl">{loading ? "…" : value ?? "—"}</p>
+            <p className="mt-1 text-xs text-slate-600 sm:mt-2 sm:text-sm">{label}</p>
           </article>
         ))}
       </section>
@@ -473,13 +467,40 @@ export default function EstoqueRotativoClient() {
                   setShowStandardizationSupplierSelector((value) => !value);
                   setSelectedStandardizationSupplierId("");
                 }}
-                disabled={busy || standardizingSupplier || Boolean(preparedSupplier)}
+                disabled={busy || standardizingSupplier}
                 className="rounded-xl border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50"
               >
                 Selecionar empresa
               </button>
             </div>
           </div>
+
+          {showStandardizationSupplierSelector && pendingSupplierFiles.length ? (
+            <div className="mt-4 rounded-2xl border border-slate-200 p-4 sm:p-5">
+              <label className="block text-sm font-semibold text-slate-800">
+                Empresa
+                <select
+                  value={selectedStandardizationSupplierId}
+                  onChange={(event) => setSelectedStandardizationSupplierId(event.target.value)}
+                  disabled={busy || standardizingSupplier}
+                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm disabled:bg-slate-100"
+                >
+                  <option value="">Selecione...</option>
+                  {pendingSupplierFiles.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={() => selectedStandardizationSupplier && void standardizeNextSupplier(selectedStandardizationSupplier.id)}
+                disabled={busy || standardizingSupplier || !selectedStandardizationSupplier || Boolean(preparedSupplier)}
+                className="mt-3 min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:bg-slate-300"
+              >
+                {preparedSupplier ? "Aprove a planilha atual primeiro" : standardizingSupplier ? "Padronizando..." : "Padronizar e abrir planilha"}
+              </button>
+            </div>
+          ) : null}
 
           {preparedSupplier ? (
             <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5">
@@ -504,38 +525,11 @@ export default function EstoqueRotativoClient() {
                 </button>
               </div>
             </div>
-          ) : pendingSupplierFiles.length ? (
-            showStandardizationSupplierSelector ? (
-              <div className="mt-4 rounded-2xl border border-slate-200 p-5">
-                <label className="block text-sm font-semibold text-slate-800">
-                  Empresa
-                  <select
-                    value={selectedStandardizationSupplierId}
-                    onChange={(event) => setSelectedStandardizationSupplierId(event.target.value)}
-                    disabled={busy || standardizingSupplier}
-                    className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm disabled:bg-slate-100"
-                  >
-                    <option value="">Selecione...</option>
-                    {pendingSupplierFiles.map((supplier) => (
-                      <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-                    ))}
-                  </select>
-                </label>
-                <button
-                  type="button"
-                  onClick={() => selectedStandardizationSupplier && void standardizeNextSupplier(selectedStandardizationSupplier.id)}
-                  disabled={busy || standardizingSupplier || !selectedStandardizationSupplier}
-                  className="mt-3 min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:bg-slate-300"
-                >
-                  {standardizingSupplier ? "Padronizando..." : "Padronizar e abrir planilha"}
-                </button>
-              </div>
-            ) : null
-          ) : (
-            <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-semibold text-emerald-800">
+          ) : !pendingSupplierFiles.length ? (
+            <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 sm:p-5">
               Todas as planilhas de fornecedores estão atualizadas.
             </p>
-          )}
+          ) : null}
         </section>
       ) : null}
 
@@ -546,7 +540,6 @@ export default function EstoqueRotativoClient() {
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">2. Fornecedor</p>
                 <h2 className="mt-2 text-xl font-semibold text-slate-950">Atualizações pendentes</h2>
-                <p className="mt-1 text-sm text-slate-500">Cards de ESTOQUE ROTATIVO LUCAS/CAROL.</p>
               </div>
               <button
                 type="button"
@@ -721,7 +714,6 @@ export default function EstoqueRotativoClient() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Itens filtrados</p>
             <h2 className="mt-2 text-xl font-semibold text-slate-950">Total: {visibleItems.length} itens</h2>
-            <p className="mt-1 text-sm text-slate-500">Comparação entre o último estoque aprovado e o estoque filtrado agora.</p>
           </div>
 
           <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200">

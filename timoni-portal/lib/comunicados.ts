@@ -17,7 +17,16 @@ export type Comunicado = {
   updatedAt: string;
   startsAt: string;
   expiresAt: string;
+  /** null keeps the existing unit-based audience; a list targets specific Portal logins. */
+  recipientEmails?: string[] | null;
 };
+
+export function canViewComunicado(item: Comunicado, email: string, unit: ComunicadoUnidade) {
+  if (item.recipientEmails !== null && item.recipientEmails !== undefined) {
+    return item.recipientEmails.includes(email.trim().toLowerCase());
+  }
+  return unit === "geral" || item.unit === "geral" || item.unit === unit;
+}
 
 type ComunicadoRow = {
   id: string;
@@ -29,6 +38,7 @@ type ComunicadoRow = {
   updated_at: Date | string;
   starts_at: Date | string;
   expires_at: Date | string | null;
+  recipient_emails: string | null;
 };
 
 const MIGRATION_KEY = "comunicados_google_v1";
@@ -85,6 +95,7 @@ async function ensureSchema() {
         )
       `;
       await sql`CREATE INDEX IF NOT EXISTS portal_notices_created_at_idx ON portal_notices (created_at DESC)`;
+      await sql`ALTER TABLE portal_notices ADD COLUMN IF NOT EXISTS recipient_emails TEXT`;
       await sql`
         CREATE TABLE IF NOT EXISTS portal_data_migrations (
           key TEXT PRIMARY KEY,
@@ -126,16 +137,17 @@ async function fetchLegacyRows(accessToken: string) {
 
 async function upsertComunicado(item: Comunicado) {
   const sql = getDatabase();
+  const recipientEmails = item.recipientEmails === null || item.recipientEmails === undefined ? null : JSON.stringify(item.recipientEmails);
   await sql`
-    INSERT INTO portal_notices (id, created_at, unit, title, message, status, updated_at, starts_at, expires_at)
+    INSERT INTO portal_notices (id, created_at, unit, title, message, status, updated_at, starts_at, expires_at, recipient_emails)
     VALUES (
       ${item.id}, ${item.createdAt}, ${item.unit}, ${item.title}, ${item.message}, ${item.status},
-      ${item.updatedAt || item.createdAt}, ${item.startsAt || item.createdAt}, ${item.expiresAt || null}
+      ${item.updatedAt || item.createdAt}, ${item.startsAt || item.createdAt}, ${item.expiresAt || null}, ${recipientEmails}
     )
     ON CONFLICT (id) DO UPDATE SET
       created_at = EXCLUDED.created_at, unit = EXCLUDED.unit, title = EXCLUDED.title,
       message = EXCLUDED.message, status = EXCLUDED.status, updated_at = EXCLUDED.updated_at,
-      starts_at = EXCLUDED.starts_at, expires_at = EXCLUDED.expires_at
+      starts_at = EXCLUDED.starts_at, expires_at = EXCLUDED.expires_at, recipient_emails = EXCLUDED.recipient_emails
   `;
 }
 
@@ -164,6 +176,7 @@ function fromRow(row: ComunicadoRow): Comunicado {
     updatedAt: new Date(row.updated_at).toISOString(),
     startsAt: new Date(row.starts_at).toISOString(),
     expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : "",
+    recipientEmails: row.recipient_emails ? JSON.parse(row.recipient_emails) as string[] : null,
   };
 }
 
@@ -172,7 +185,7 @@ export async function listComunicados(accessToken = "") {
   await importFromGoogleIfNeeded(accessToken);
   const sql = getDatabase();
   const rows = await sql`
-    SELECT id, created_at, unit, title, message, status, updated_at, starts_at, expires_at
+    SELECT id, created_at, unit, title, message, status, updated_at, starts_at, expires_at, recipient_emails
     FROM portal_notices ORDER BY created_at DESC
   ` as ComunicadoRow[];
   const stored = rows.map(fromRow);
@@ -184,20 +197,20 @@ export async function listComunicados(accessToken = "") {
 
 export async function createComunicado(
   accessToken: string,
-  input: { unit: ComunicadoUnidade; title: string; message: string; startsAt?: string; expiresAt?: string },
+  input: { unit: ComunicadoUnidade; title: string; message: string; startsAt?: string; expiresAt?: string; recipientEmails?: string[] | null },
 ) {
   await ensureSchema();
   await importFromGoogleIfNeeded(accessToken);
   const now = new Date().toISOString();
   const id = `com-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  await upsertComunicado({ id, createdAt: now, unit: input.unit, title: input.title, message: input.message, status: "ativo", updatedAt: now, startsAt: input.startsAt || now, expiresAt: input.expiresAt || "" });
+  await upsertComunicado({ id, createdAt: now, unit: input.unit, title: input.title, message: input.message, status: "ativo", updatedAt: now, startsAt: input.startsAt || now, expiresAt: input.expiresAt || "", recipientEmails: input.recipientEmails ?? null });
   return id;
 }
 
 export async function updateComunicado(
   accessToken: string,
   id: string,
-  input: Partial<Pick<Comunicado, "unit" | "title" | "message" | "status" | "startsAt" | "expiresAt">>,
+  input: Partial<Pick<Comunicado, "unit" | "title" | "message" | "status" | "startsAt" | "expiresAt" | "recipientEmails">>,
 ) {
   const current = (await listComunicados(accessToken)).find((item) => item.id === id);
   if (!current) throw new Error("Comunicado não encontrado.");

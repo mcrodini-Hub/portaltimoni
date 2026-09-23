@@ -221,6 +221,106 @@ async function centralSheetId(sheets: sheets_v4.Sheets) {
   return sheet.properties.sheetId;
 }
 
+function rotatingStockFilterTitle(updateId: string, supplierName: string) {
+  const shortId = updateId.replace(/-/g, "").slice(0, 8);
+  const cleanSupplier = supplierName.replace(/[\r\n]+/g, " ").trim().slice(0, 45);
+  return `Rotativo · ${cleanSupplier || "Atualização"} · ${shortId}`;
+}
+
+async function ensureRotatingStockFilterView(
+  sheets: sheets_v4.Sheets,
+  updateId: string,
+  supplierName: string,
+  targetRows: number[],
+) {
+  const metadata = await sheets.spreadsheets.get({
+    spreadsheetId: ROTATING_STOCK_CENTRAL.spreadsheetId,
+    fields: "sheets(properties(sheetId,title,gridProperties(rowCount,columnCount)),filterViews(filterViewId,title))",
+  });
+  const sheet = metadata.data.sheets?.find((item) => item.properties?.title === ROTATING_STOCK_CENTRAL.sheetName);
+  const sheetId = sheet?.properties?.sheetId;
+  const rowCount = sheet?.properties?.gridProperties?.rowCount || 6401;
+  const columnCount = Math.min(sheet?.properties?.gridProperties?.columnCount || 5, 5);
+  if (sheetId === undefined || sheetId === null) throw new Error("Aba Produtos não encontrada na planilha central.");
+
+  const title = rotatingStockFilterTitle(updateId, supplierName);
+  const existing = sheet?.filterViews?.find((filterView) => filterView.title === title);
+  if (existing?.filterViewId) return existing.filterViewId;
+
+  const selectedRows = new Set(targetRows.filter((row) => Number.isInteger(row) && row >= 2 && row <= rowCount));
+  if (!selectedRows.size) throw new Error("Esta atualização não possui itens encontrados na planilha central.");
+
+  const valuesResponse = await sheets.spreadsheets.values.get({
+    spreadsheetId: ROTATING_STOCK_CENTRAL.spreadsheetId,
+    range: `${ROTATING_STOCK_CENTRAL.sheetName}!B2:C${rowCount}`,
+    valueRenderOption: "FORMATTED_VALUE",
+  });
+  const values = (valuesResponse.data.values || []) as unknown[][];
+
+  function filterSpec(valueOffset: number, sheetColumnIndex: number) {
+    const selectedValues = new Set<string>();
+    const occurrences = new Map<string, number[]>();
+
+    for (let index = 0; index < values.length; index += 1) {
+      const rowNumber = index + 2;
+      const value = String(values[index]?.[valueOffset] ?? "").trim();
+      const list = occurrences.get(value) || [];
+      list.push(rowNumber);
+      occurrences.set(value, list);
+      if (selectedRows.has(rowNumber)) {
+        if (!value) return null;
+        selectedValues.add(value);
+      }
+    }
+
+    for (const value of selectedValues) {
+      const rows = occurrences.get(value) || [];
+      if (rows.some((row) => !selectedRows.has(row))) return null;
+    }
+
+    const hiddenValues = new Set<string>();
+    for (let index = 0; index < values.length; index += 1) {
+      const rowNumber = index + 2;
+      if (selectedRows.has(rowNumber)) continue;
+      const value = String(values[index]?.[valueOffset] ?? "").trim();
+      if (!selectedValues.has(value)) hiddenValues.add(value);
+    }
+
+    return {
+      columnIndex: sheetColumnIndex,
+      filterCriteria: { hiddenValues: Array.from(hiddenValues) },
+    };
+  }
+
+  const spec = filterSpec(0, 1) || filterSpec(1, 2);
+  if (!spec) throw new Error("Não foi possível criar um filtro exato para esta atualização.");
+
+  const created = await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: ROTATING_STOCK_CENTRAL.spreadsheetId,
+    requestBody: {
+      requests: [{
+        addFilterView: {
+          filter: {
+            title,
+            range: {
+              sheetId,
+              startRowIndex: 0,
+              endRowIndex: rowCount,
+              startColumnIndex: 0,
+              endColumnIndex: columnCount,
+            },
+            filterSpecs: [spec],
+          },
+        },
+      }],
+    },
+  });
+
+  const filterViewId = created.data.replies?.[0]?.addFilterView?.filter?.filterViewId;
+  if (!filterViewId) throw new Error("O filtro da atualização não foi criado.");
+  return filterViewId;
+}
+
 async function ensurePendingStatuses(sheets: sheets_v4.Sheets) {
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: ROTATING_STOCK_CENTRAL.spreadsheetId,
@@ -291,6 +391,20 @@ export async function GET(request: Request) {
     const { email, sheets } = await context();
     await clearExpiredHighlights(sheets);
     const searchParams = new URL(request.url).searchParams;
+    const openUpdateId = searchParams.get("openUpdateId")?.trim() || "";
+    if (openUpdateId) {
+      const update = await getRotatingStockUpdate(openUpdateId);
+      if (!update || update.status !== "atualizado") throw new Error("Atualização concluída não encontrada.");
+      const items = await listConferenceItems(openUpdateId);
+      const targetRows = items
+        .filter((item) => item.situation !== "nao_encontrado" && item.target_row)
+        .map((item) => item.target_row!)
+        .filter((row, index, rows) => rows.indexOf(row) === index)
+        .sort((a, b) => a - b);
+      const filterViewId = await ensureRotatingStockFilterView(sheets, openUpdateId, update.supplier_name, targetRows);
+      const url = `https://docs.google.com/spreadsheets/d/${ROTATING_STOCK_CENTRAL.spreadsheetId}/edit#gid=${await centralSheetId(sheets)}&fvid=${filterViewId}`;
+      return NextResponse.redirect(url);
+    }
     const spreadsheetReference = searchParams.get("spreadsheetReference")?.trim() || "";
     if (spreadsheetReference) {
       const spreadsheetId = extractSpreadsheetId(spreadsheetReference);

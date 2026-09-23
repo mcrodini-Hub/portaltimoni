@@ -179,6 +179,31 @@ export async function ensureRotatingStockSchema() {
         await sql`DELETE FROM portal_rotating_stock_updates`;
         await sql`DELETE FROM portal_rotating_stock_suppliers`;
       }
+      const highlightBackfill = (await sql`
+        INSERT INTO portal_rotating_stock_migrations (key)
+        VALUES ('2026-09-22-destaques-conferidos')
+        ON CONFLICT (key) DO NOTHING
+        RETURNING key
+      `) as unknown as Array<{ key: string }>;
+      if (highlightBackfill.length) {
+        await sql`
+          INSERT INTO portal_rotating_stock_highlights (target_row, expires_at, update_id)
+          SELECT DISTINCT items.target_row, updates.reviewed_at + INTERVAL '3 days', updates.id
+          FROM portal_rotating_stock_items items
+          INNER JOIN portal_rotating_stock_updates updates ON updates.id = items.update_id
+          WHERE updates.status = 'atualizado'
+            AND updates.reviewed_at IS NOT NULL
+            AND updates.reviewed_at + INTERVAL '3 days' > NOW()
+            AND items.target_row IS NOT NULL
+            AND items.situation <> 'nao_encontrado'
+            AND NOT EXISTS (
+              SELECT 1
+              FROM portal_rotating_stock_highlights existing
+              WHERE existing.update_id = updates.id
+                AND existing.target_row = items.target_row
+            )
+        `;
+      }
       await sql`
         CREATE INDEX IF NOT EXISTS portal_rotating_stock_updates_status_idx
         ON portal_rotating_stock_updates (status, reported_at DESC)
@@ -389,8 +414,18 @@ export async function listExpiredHighlights() {
   await ensureRotatingStockSchema();
   const sql = getDatabase();
   return await sql`
-    SELECT id::TEXT, target_row FROM portal_rotating_stock_highlights
-    WHERE cleared_at IS NULL AND expires_at <= NOW() ORDER BY target_row
+    SELECT highlights.id::TEXT, highlights.target_row
+    FROM portal_rotating_stock_highlights highlights
+    WHERE highlights.cleared_at IS NULL
+      AND highlights.expires_at <= NOW()
+      AND NOT EXISTS (
+        SELECT 1
+        FROM portal_rotating_stock_highlights active
+        WHERE active.target_row = highlights.target_row
+          AND active.cleared_at IS NULL
+          AND active.expires_at > NOW()
+      )
+    ORDER BY highlights.target_row
   ` as unknown as Array<{ id: string; target_row: number }>;
 }
 

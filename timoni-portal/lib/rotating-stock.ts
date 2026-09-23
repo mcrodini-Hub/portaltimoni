@@ -173,6 +173,7 @@ export async function ensureRotatingStockSchema() {
         ALTER TABLE portal_rotating_stock_updates
           ADD COLUMN IF NOT EXISTS source_sheet_name TEXT NOT NULL DEFAULT '',
           ADD COLUMN IF NOT EXISTS source_code_column TEXT NOT NULL DEFAULT '',
+          ADD COLUMN IF NOT EXISTS source_purchase_code_column TEXT NOT NULL DEFAULT '',
           ADD COLUMN IF NOT EXISTS source_description_column TEXT NOT NULL DEFAULT '',
           ADD COLUMN IF NOT EXISTS source_stock_column TEXT NOT NULL DEFAULT '',
           ADD COLUMN IF NOT EXISTS source_start_row INTEGER NOT NULL DEFAULT 1,

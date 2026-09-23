@@ -369,7 +369,7 @@ async function clearExpiredHighlights(sheets: sheets_v4.Sheets) {
       requests: expired.map((item) => ({
         repeatCell: {
           range: { sheetId, startRowIndex: item.target_row - 1, endRowIndex: item.target_row, startColumnIndex: 3, endColumnIndex: 4 },
-          cell: { userEnteredFormat: { backgroundColor: { red: 1, green: 1, blue: 1 } } },
+          cell: { userEnteredFormat: { backgroundColor: { red: 0.812, green: 0.886, blue: 0.953 } } },
           fields: "userEnteredFormat.backgroundColor",
         },
       })),
@@ -586,12 +586,12 @@ export async function POST(request: Request) {
         });
       }
 
-      if (selected.length) {
+      if (matched.length) {
         const sheetId = await centralSheetId(sheets);
         await sheets.spreadsheets.batchUpdate({
           spreadsheetId: ROTATING_STOCK_CENTRAL.spreadsheetId,
           requestBody: {
-            requests: selected.map((item) => ({
+            requests: matched.map((item) => ({
               repeatCell: {
                 range: { sheetId, startRowIndex: item.target_row! - 1, endRowIndex: item.target_row!, startColumnIndex: 3, endColumnIndex: 4 },
                 cell: { userEnteredFormat: { backgroundColor: { red: 1, green: 0.949, blue: 0.8 } } },
@@ -603,7 +603,7 @@ export async function POST(request: Request) {
       }
 
       await concludeRotatingStockCard(update.trello_card_id || "", update.supplier_name);
-      await finishConference(id, email, selected.map((item) => item.id), selected.map((item) => item.target_row!));
+      await finishConference(id, email, selected.map((item) => item.id), matched.map((item) => item.target_row!));
       await recordModuleUpdateSafely(
         "estoque-rotativo",
         email,

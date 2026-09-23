@@ -15,6 +15,17 @@ const commonHiddenTextFragments = [
   "gerencie quem utiliza o portal",
   "uso direto no portal timoni",
   "espelho automático da lista de compras",
+  "selecione o card, filtre a planilha do fornecedor",
+  "selecione um fornecedor quando houver cartão pendente",
+  "opcional. sem seleção, o portal cria um novo cartão no trello",
+  "envie os documentos que serão conferidos",
+  "acompanhe o realizado e o que ainda precisa de ação",
+  "cards de estoque rotativo lucas/carol",
+  "comparação entre o último estoque aprovado e o estoque filtrado agora",
+  "central de acesso para campanhas, conteúdo, materiais e comunicação",
+  "repositório de documentos e checklist de pendências financeiras",
+  "campos com * são obrigatórios",
+  "a conexão será mantida pelo portal e usada para ler, atualizar e mover os cartões",
 ];
 function normalizeText(value:string){return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\s+/g," ").trim()}
 function hideExplanatoryText(root:ParentNode){const fragments=[...commonHiddenTextFragments];if(window.location.pathname.includes("/dashboard/motorista"))fragments.push("casa timoni");root.querySelectorAll<HTMLElement>("p,h2,h3,span").forEach(el=>{const text=normalizeText(el.textContent||"");if(text&&fragments.some(f=>text.includes(normalizeText(f))))el.dataset.ctHiddenCopy="true"})}
@@ -22,6 +33,38 @@ function forceGeneralView(root:ParentNode){root.querySelectorAll<HTMLElement>("d
 function makeClickable(card:HTMLElement,details:HTMLElement[]){if(card.dataset.ctCollapsible==="true")return;card.dataset.ctCollapsible="true";card.dataset.ctExpanded="false";details.forEach(el=>el.dataset.ctCardDetail="true");card.addEventListener("click",event=>{const target=event.target as HTMLElement|null;if(target?.closest("button,a,input,textarea,select,label"))return;card.dataset.ctExpanded=card.dataset.ctExpanded==="true"?"false":"true"})}
 function configureStockCards(root:ParentNode){if(!window.location.pathname.includes("/dashboard/estoque"))return;root.querySelectorAll<HTMLElement>("article").forEach(card=>{const text=normalizeText(card.textContent||"");if(!["relacao de compra","pedido feito","salvar observacao","produto chegou","consulta"].some(x=>text.includes(x)))return;const details:HTMLElement[]=[];Array.from(card.children).forEach((child,index)=>{if(!(child instanceof HTMLElement)||index===0)return;if(child.matches("p"))details.push(child);child.querySelectorAll<HTMLElement>("label,textarea").forEach(el=>details.push(el.closest("label")||el))});makeClickable(card,Array.from(new Set(details)))})}
 function configureMeetingCards(root:ParentNode){if(!window.location.pathname.includes("/dashboard/reunioes"))return;root.querySelectorAll<HTMLElement>("article").forEach(card=>{const text=normalizeText(card.textContent||"");if(!text.includes("editar")&&!text.includes("concluir")&&!text.includes("excluir"))return;if(!text.includes("rio claro")&&!text.includes("araras"))return;const details:HTMLElement[]=[];Array.from(card.children).filter((x):x is HTMLElement=>x instanceof HTMLElement).forEach((child,index)=>{if(index===0){child.querySelectorAll<HTMLElement>("span").forEach(el=>details.push(el));return}if(index===1&&child.className.includes("grid-cols-2")){Array.from(child.children).filter((x):x is HTMLElement=>x instanceof HTMLElement).slice(1).forEach(el=>details.push(el));return}const links=Array.from(child.querySelectorAll<HTMLAnchorElement>("a"));const fileLinks=links.filter(a=>["pauta","ata","apresentacao","apresentação"].some(label=>normalizeText(a.textContent||"").includes(normalizeText(label))));if(fileLinks.length){fileLinks.forEach(a=>{a.dataset.ctAlwaysVisible="true"});return}if(!child.querySelector("button"))details.push(child)});makeClickable(card,details)})}
+function compactMobileSummaryGrids(root:ParentNode){
+  const mobile=window.innerWidth<640;
+  root.querySelectorAll<HTMLElement>(".grid").forEach(grid=>{
+    const direct=Array.from(grid.children).filter((el):el is HTMLElement=>el instanceof HTMLElement);
+    const cards=direct.filter(el=>el.tagName==="ARTICLE");
+    const simple=cards.length>=2&&cards.length===direct.length&&cards.every(card=>!card.querySelector("input,select,textarea,form,button"));
+    if(!simple)return;
+    if(mobile){
+      grid.style.gridTemplateColumns="repeat(2,minmax(0,1fr))";
+      grid.style.gap=".5rem";
+      cards.forEach(card=>{
+        card.style.padding=".75rem";
+        const first=card.querySelector<HTMLElement>("p");
+        if(first&&/^\d+|…|—$/.test(normalizeText(first.textContent||"")))first.style.fontSize="1.5rem";
+      });
+    }else{
+      grid.style.removeProperty("grid-template-columns");
+      grid.style.removeProperty("gap");
+      cards.forEach(card=>{
+        card.style.removeProperty("padding");
+        card.querySelector<HTMLElement>("p")?.style.removeProperty("font-size");
+      });
+    }
+  });
+}
+function compactMobileContainers(root:ParentNode){
+  const mobile=window.innerWidth<640;
+  root.querySelectorAll<HTMLElement>("section.rounded-3xl,article.rounded-3xl").forEach(box=>{
+    if(mobile)box.style.padding="1rem";
+    else box.style.removeProperty("padding");
+  });
+}
 function configureMobileChat(root:ParentNode){root.querySelectorAll<HTMLElement>('div[role="dialog"][aria-modal="true"]').forEach(dialog=>{const section=dialog.querySelector<HTMLElement>('section[title^="Arraste a borda esquerda"]');if(!section)return;if(window.innerWidth<640){dialog.style.top="4rem";dialog.style.bottom="0";dialog.style.height="auto";section.style.height="calc(100% - 0.5rem)";section.style.maxHeight="calc(100% - 0.5rem)";section.style.borderTopLeftRadius=".75rem";section.style.borderTopRightRadius="0"}else{dialog.style.removeProperty("top");dialog.style.removeProperty("bottom");dialog.style.removeProperty("height");section.style.removeProperty("height");section.style.removeProperty("max-height");section.style.removeProperty("border-top-left-radius");section.style.removeProperty("border-top-right-radius")}})}
-function applyRules(){const root=document.querySelector("main");if(root){hideExplanatoryText(root);forceGeneralView(root);configureStockCards(root);configureMeetingCards(root)}configureMobileChat(document)}
+function applyRules(){const root=document.querySelector("main");if(root){hideExplanatoryText(root);forceGeneralView(root);configureStockCards(root);configureMeetingCards(root);compactMobileSummaryGrids(root);compactMobileContainers(root)}configureMobileChat(document)}
 export default function MobileUiRules(){useEffect(()=>{applyRules();const observer=new MutationObserver(()=>applyRules());const onResize=()=>applyRules();observer.observe(document.body,{childList:true,subtree:true});window.addEventListener("resize",onResize);return()=>{observer.disconnect();window.removeEventListener("resize",onResize)}},[]);return null}

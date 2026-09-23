@@ -888,9 +888,7 @@ async function standardizeSupplierSpreadsheet(
     }
   }
 
-  const oldA2 = topRows[1]?.[0];
-  if (oldA2 !== undefined && oldA2 !== "") appendPreservedValue(topRows[1], oldA2, 5);
-  topRows[1][0] = "";
+  topRows[1] = [];
 
   const oldE3 = topRows[2]?.[4];
   if (oldE3 !== undefined && oldE3 !== "" && normalizeHeader(oldE3) !== "lucas") {
@@ -902,6 +900,7 @@ async function standardizeSupplierSpreadsheet(
   }).format(new Date());
 
   const standardizedHeaders = [
+    "ITEM",
     "COD-VENDA",
     "COD-COMPRA",
     "DESCRIÇÃO",
@@ -923,6 +922,7 @@ async function standardizeSupplierSpreadsheet(
     const stockValue = formulaRow[detection.stockColumn!] ?? "";
     if ([saleValue, purchaseValue, description, stockValue].every((value) => value === "" || value === undefined || value === null)) continue;
     productRows.push([
+      String(productRows.length + 1),
       String(saleValue ?? "").trim(),
       String(purchaseValue ?? "").trim(),
       description,
@@ -933,14 +933,15 @@ async function standardizeSupplierSpreadsheet(
   }
 
   productRows.sort((left, right) =>
-    String(left[2] ?? "").localeCompare(String(right[2] ?? ""), "pt-BR", { sensitivity: "base", numeric: true }),
+    String(left[3] ?? "").localeCompare(String(right[3] ?? ""), "pt-BR", { sensitivity: "base", numeric: true }),
   );
+  productRows.forEach((row, index) => { row[0] = String(index + 1); });
 
   const output = [...topRows, standardizedHeaders, ...productRows];
   const outputWidth = Math.max(...output.map((row) => row.length), 5);
   for (const row of output) while (row.length < outputWidth) row.push("");
   const lastProductRow = 5 + productRows.length;
-  for (let column = 6; column < outputWidth; column += 1) {
+  for (let column = 5; column < outputWidth; column += 1) {
     output[3][column] = `=COUNTA(${columnLetter(column)}6:${columnLetter(column)}${lastProductRow})`;
   }
 
@@ -1002,21 +1003,21 @@ async function standardizeSupplierSpreadsheet(
     },
     {
       repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 2, endColumnIndex: 3 },
+        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 3, endColumnIndex: 4 },
         cell: { userEnteredFormat: { horizontalAlignment: "LEFT" } },
         fields: "userEnteredFormat.horizontalAlignment",
       },
     },
     {
       repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: 2 },
+        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: 3 },
         cell: { userEnteredFormat: { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } },
         fields: "userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment",
       },
     },
     {
       repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 3, endColumnIndex: outputWidth },
+        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 4, endColumnIndex: outputWidth },
         cell: { userEnteredFormat: { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } },
         fields: "userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment",
       },
@@ -1037,7 +1038,7 @@ async function standardizeSupplierSpreadsheet(
     },
     {
       repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 5, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: 2 },
+        range: { sheetId: selected.sheetId, startRowIndex: 5, endRowIndex: output.length, startColumnIndex: 1, endColumnIndex: 3 },
         cell: { userEnteredFormat: { numberFormat: { type: "TEXT", pattern: "@" } } },
         fields: "userEnteredFormat.numberFormat",
       },
@@ -1046,6 +1047,25 @@ async function standardizeSupplierSpreadsheet(
       updateSheetProperties: {
         properties: { sheetId: selected.sheetId, gridProperties: { frozenRowCount: 5 } },
         fields: "gridProperties.frozenRowCount",
+      },
+    },
+    {
+      updateDimensionProperties: {
+        range: { sheetId: selected.sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 2 },
+        properties: { pixelSize: 100 },
+        fields: "pixelSize",
+      },
+    },
+    {
+      autoResizeDimensions: {
+        dimensions: { sheetId: selected.sheetId, dimension: "COLUMNS", startIndex: 3, endIndex: 4 },
+      },
+    },
+    {
+      updateDimensionProperties: {
+        range: { sheetId: selected.sheetId, dimension: "COLUMNS", startIndex: 4, endIndex: outputWidth },
+        properties: { pixelSize: 65 },
+        fields: "pixelSize",
       },
     },
   );
@@ -1096,7 +1116,7 @@ async function standardizeSupplierSpreadsheet(
   return {
     spreadsheetId: file.id,
     supplierName: file.name,
-    spreadsheetUrl: file.url,
+    spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${file.id}/edit#gid=${selected.sheetId}&range=A1:S21`,
     sheetName: selected.title,
     products: productRows.length,
   };

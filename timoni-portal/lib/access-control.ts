@@ -1,6 +1,7 @@
 export type PortalModule =
   | "painel"
   | "agenda"
+  | "agenda-ct"
   | "chat"
   | "compras"
   | "conferencia"

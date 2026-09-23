@@ -695,6 +695,31 @@ export async function confirmSupplierStandardization(spreadsheetId: string, acto
   return Boolean(rows[0]);
 }
 
+
+export async function deleteSupplierStandardization(spreadsheetId: string) {
+  await ensureRotatingStockSchema();
+  const sql = getDatabase();
+  const existing = await sql`
+    SELECT spreadsheet_id
+    FROM portal_rotating_stock_supplier_standardizations
+    WHERE spreadsheet_id = ${spreadsheetId}
+      AND status = 'atualizada'
+    LIMIT 1
+  ` as unknown as Array<{ spreadsheet_id: string }>;
+  if (!existing[0]) return false;
+
+  await sql`
+    UPDATE portal_rotating_stock_updates
+    SET supplier_id = NULL
+    WHERE supplier_id IN (
+      SELECT id FROM portal_rotating_stock_suppliers WHERE spreadsheet_id = ${spreadsheetId}
+    )
+  `;
+  await sql`DELETE FROM portal_rotating_stock_suppliers WHERE spreadsheet_id = ${spreadsheetId}`;
+  await sql`DELETE FROM portal_rotating_stock_supplier_standardizations WHERE spreadsheet_id = ${spreadsheetId} AND status = 'atualizada'`;
+  return true;
+}
+
 export async function deleteCompletedRotatingStockUpdate(id: string) {
   await ensureRotatingStockSchema();
   const sql = getDatabase();

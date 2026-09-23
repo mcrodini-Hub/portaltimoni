@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import { hasModuleAccess, type PortalModule } from "@/lib/access-control";
 
 const protectedRoutes: Array<{ prefix: string; module: PortalModule }> = [
+  { prefix: "/agenda-ct", module: "agenda-ct" },
   { prefix: "/agenda", module: "agenda" },
   { prefix: "/colaboradores", module: "painel" },
   { prefix: "/dashboard/compras", module: "compras" },
@@ -64,6 +65,7 @@ export const config = {
   matcher: [
     "/dashboard/:path*",
     "/agenda/:path*",
+    "/agenda-ct/:path*",
     "/colaboradores/:path*",
     "/espaco-equipe/:path*",
     "/motorista/:path*",

@@ -1002,88 +1002,6 @@ async function standardizeSupplierSpreadsheet(
   };
 }
 
-async function scanSupplierFolder(sheets: sheets_v4.Sheets) {
-  const results: Array<Record<string, unknown>> = [];
-
-  for (const file of SUPPLIER_SPREADSHEETS) {
-    const fileId = file.id;
-    const name = file.name;
-
-    try {
-      const metadata = await sheets.spreadsheets.get({
-        spreadsheetId: fileId,
-        fields: "sheets.properties(title,index)",
-      });
-      const sheetNames = (metadata.data.sheets || [])
-        .sort((a, b) => (a.properties?.index || 0) - (b.properties?.index || 0))
-        .map((sheet) => sheet.properties?.title)
-        .filter((title): title is string => Boolean(title));
-
-      let bestResult: {
-        sheetName: string;
-        headerRow: number;
-        saleCodeColumn: number | null;
-        descriptionColumn: number | null;
-        stockColumn: number | null;
-        score: number;
-      } | null = null;
-
-      for (const sheetName of sheetNames.slice(0, 8)) {
-        const valueResponse = await sheets.spreadsheets.values.get({
-          spreadsheetId: fileId,
-          range: `'${sheetName.replace(/'/g, "''")}'!A1:Z25`,
-          valueRenderOption: "FORMATTED_VALUE",
-        });
-        const detected = analyzeSheetGrid((valueResponse.data.values || []) as unknown[][]);
-        if (detected && (!bestResult || detected.score > bestResult.score)) {
-          bestResult = { sheetName, ...detected };
-        }
-        if (bestResult?.score === 3) break;
-      }
-
-      const recognized = Boolean(
-        bestResult
-        && bestResult.score === 3
-        && bestResult.saleCodeColumn !== null
-        && bestResult.descriptionColumn !== null
-        && bestResult.stockColumn !== null
-        && new Set([bestResult.saleCodeColumn, bestResult.descriptionColumn, bestResult.stockColumn]).size === 3
-      );
-
-      results.push({
-        spreadsheetId: fileId,
-        name,
-        url: file.url,
-        mimeType: "application/vnd.google-apps.spreadsheet",
-        status: recognized ? "reconhecida" : "revisar",
-        reason: recognized ? "" : "Cabeçalhos não identificados com segurança. Revise somente esta planilha.",
-        sheetName: bestResult?.sheetName || sheetNames[0] || "",
-        codeColumn: bestResult?.saleCodeColumn === null || bestResult?.codeColumn === undefined ? "" : columnLetter(bestResult.saleCodeColumn),
-        descriptionColumn: bestResult?.descriptionColumn === null || bestResult?.descriptionColumn === undefined ? "" : columnLetter(bestResult.descriptionColumn),
-        stockColumn: bestResult?.stockColumn === null || bestResult?.stockColumn === undefined ? "" : columnLetter(bestResult.stockColumn),
-        startRow: bestResult ? bestResult.headerRow + 1 : 1,
-        sheetNames,
-      });
-    } catch (error) {
-      results.push({
-        spreadsheetId: fileId,
-        name,
-        url: file.url,
-        mimeType: "application/vnd.google-apps.spreadsheet",
-        status: "revisar",
-        reason: error instanceof Error ? error.message : "Não foi possível analisar esta planilha.",
-        sheetName: "",
-        codeColumn: "",
-        descriptionColumn: "",
-        stockColumn: "",
-        startRow: 1,
-      });
-    }
-  }
-
-  return results;
-}
-
 function buildComparison(
   sourceRows: unknown[][],
   targetRows: unknown[][],
@@ -1314,17 +1232,6 @@ export async function GET(request: Request) {
     const { email, sheets } = await context();
     await clearExpiredHighlights(sheets);
     const searchParams = new URL(request.url).searchParams;
-    const scanSuppliers = searchParams.get("scanSuppliers") === "1";
-    if (scanSuppliers) {
-      requireRole(email, "manage");
-      const analyses = await scanSupplierFolder(sheets);
-      const data = await listRotatingStockData();
-      return NextResponse.json({
-        ok: true,
-        analyses,
-        savedMappings: data.suppliers,
-      }, { headers: { "Cache-Control": "no-store" } });
-    }
     const openUpdateId = searchParams.get("openUpdateId")?.trim() || "";
     if (openUpdateId) {
       const update = await getRotatingStockUpdate(openUpdateId);

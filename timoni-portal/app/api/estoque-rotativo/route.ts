@@ -1517,7 +1517,7 @@ export async function POST(request: Request) {
       await ensurePendingStatuses(sheets);
       if (!(await acquireRotatingStockLock(id, email))) throw new Error("Esta conferência está aberta por outro usuário. Tente novamente em alguns minutos.");
       const { sourceRows, targetRows } = await readComparedRows(sheets, sourceSpreadsheetId, update.source_sheet_name, update.source_start_row, maxSourceColumn);
-      const items = buildComparison(sourceRows, targetRows, update.source_start_row, saleCodeColumn, descriptionColumn, stockColumn);
+      const items = buildComparison(sourceRows, targetRows, update.source_start_row, codeColumn, descriptionColumn, stockColumn);
       await saveConference(id, email, fingerprint(sourceRows, targetRows), items);
       return NextResponse.json({ ok: true, items, fingerprint: fingerprint(sourceRows, targetRows) });
     }

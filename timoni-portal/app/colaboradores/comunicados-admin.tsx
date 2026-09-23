@@ -13,6 +13,7 @@ type Comunicado = {
   updatedAt: string;
   startsAt: string;
   expiresAt: string;
+  recipientEmails?: string[] | null;
 };
 
 type FormState = {
@@ -22,9 +23,10 @@ type FormState = {
   message: string;
   startsAt: string;
   expiresAt: string;
+  recipientEmails: string[] | null;
 };
 
-const EMPTY_FORM: FormState = { id: "", unit: "geral", title: "", message: "", startsAt: "", expiresAt: "" };
+const EMPTY_FORM: FormState = { id: "", unit: "geral", title: "", message: "", startsAt: "", expiresAt: "", recipientEmails: null };
 
 function toLocalInput(value: string) {
   if (!value) return "";
@@ -56,6 +58,8 @@ export default function ComunicadosAdmin() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [recipientOptions, setRecipientOptions] = useState<Array<{ email: string; name: string; unit?: string }>>([]);
+  const [recipientOptionsError, setRecipientOptionsError] = useState(false);
 
   async function load() {
     setError("");
@@ -64,6 +68,8 @@ export default function ComunicadosAdmin() {
       const data = await noticesResponse.json();
       if (!noticesResponse.ok) throw new Error(data?.error || "Erro ao carregar avisos.");
       setItems(data.items || []);
+      setRecipientOptions(data.recipientOptions || []);
+      setRecipientOptionsError(Boolean(data.recipientOptionsError));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Erro ao carregar avisos.");
     }
@@ -99,6 +105,7 @@ export default function ComunicadosAdmin() {
         body: JSON.stringify({
           id: form.id || undefined,
           unit: form.unit,
+          recipientEmails: form.recipientEmails,
           title: form.title,
           message: form.message,
           startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : "",
@@ -136,7 +143,7 @@ export default function ComunicadosAdmin() {
   }
 
   function edit(item: Comunicado) {
-    setForm({ id: item.id, unit: item.unit, title: item.title, message: item.message, startsAt: toLocalInput(item.startsAt), expiresAt: toLocalInput(item.expiresAt) });
+    setForm({ id: item.id, unit: item.unit, title: item.title, message: item.message, startsAt: toLocalInput(item.startsAt), expiresAt: toLocalInput(item.expiresAt), recipientEmails: item.recipientEmails ?? null });
     window.setTimeout(() => document.getElementById("novo-comunicado")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   }
 
@@ -146,7 +153,7 @@ export default function ComunicadosAdmin() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Gerenciar avisos</p>
           <h2 className="mt-2 text-2xl font-semibold text-slate-950">Avisos do Painel</h2>
-          <p className="mt-2 text-sm text-slate-600">Somente no seu acesso. Escolha Geral, Araras ou Rio Claro.</p>
+          <p className="mt-2 text-sm text-slate-600">Somente no seu acesso. Escolha quais acessos recebem cada aviso.</p>
         </div>
         <div className="hidden items-center gap-3 lg:flex">
           <div className="min-w-28 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-center">
@@ -167,17 +174,27 @@ export default function ComunicadosAdmin() {
         </div>
 
         <label className="text-sm font-medium text-slate-700 lg:col-span-3">
-          Público
+          Destinatários
           <select
-            value={form.unit}
-            onChange={(event) => setForm((current) => ({ ...current, unit: event.target.value as Comunicado["unit"] }))}
+            value={form.recipientEmails === null ? "todos" : "selecionados"}
+            onChange={(event) => setForm((current) => ({ ...current, unit: event.target.value === "selecionados" ? "geral" : current.unit, recipientEmails: event.target.value === "selecionados" ? [] : null }))}
             className="mt-1 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 outline-none focus:border-blue-500"
           >
-            <option value="geral">Geral</option>
-            <option value="araras">Araras</option>
-            <option value="rio claro">Rio Claro</option>
+            <option value="todos">{form.id && form.unit !== "geral" ? `${unitLabel(form.unit)} (regra anterior)` : "Todos os acessos"}</option>
+            <option value="selecionados">Acessos selecionados</option>
           </select>
         </label>
+
+        {form.recipientEmails !== null && (
+          <fieldset className="rounded-xl border border-blue-200 bg-white p-3 lg:col-span-12">
+            <legend className="px-1 text-sm font-semibold text-slate-800">Selecione quem pode ver este aviso</legend>
+            {recipientOptionsError && <p className="text-sm text-red-700">Não foi possível carregar os acessos. Atualize a página antes de salvar.</p>}
+            {!recipientOptionsError && <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{[...recipientOptions].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")).map((option) => <label key={option.email} className="flex items-center gap-2 rounded-lg border border-slate-200 p-2 text-sm"><input type="checkbox" checked={form.recipientEmails?.includes(option.email) ?? false} onChange={(event) => setForm((current) => ({ ...current, recipientEmails: event.target.checked ? [...(current.recipientEmails || []), option.email] : (current.recipientEmails || []).filter((email) => email !== option.email) }))} className="h-4 w-4 accent-blue-700" /><span>{option.name} <span className="text-xs text-slate-500">· {option.unit}</span></span></label>)}</div>}
+            <p className="mt-2 text-xs text-slate-600">{form.recipientEmails.length} acesso(s) selecionado(s). A confirmação individual de leitura continua como hoje.</p>
+          </fieldset>
+        )}
+
+        {form.id && form.recipientEmails === null && form.unit !== "geral" && <label className="text-sm text-slate-700 lg:col-span-12">Abrangência original deste aviso<select value={form.unit} onChange={(event) => setForm((current) => ({ ...current, unit: event.target.value as Comunicado["unit"] }))} className="mt-1 block rounded-lg border border-blue-200 bg-white p-2"><option value="rio claro">Rio Claro</option><option value="araras">Araras</option><option value="geral">Geral</option></select></label>}
 
         <label className="text-sm font-medium text-slate-700 lg:col-span-9">
           Título
@@ -222,7 +239,7 @@ export default function ComunicadosAdmin() {
         </label>
 
         <div className="flex flex-wrap gap-2 lg:col-span-12 lg:justify-end">
-          <button type="submit" disabled={saving} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
+          <button type="submit" disabled={saving || (form.recipientEmails !== null && (recipientOptionsError || form.recipientEmails.length === 0))} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
             {saving ? "Salvando..." : form.id ? "Salvar edição" : "Registrar"}
           </button>
           {form.id && (

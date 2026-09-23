@@ -1302,9 +1302,14 @@ export async function POST(request: Request) {
           .filter((item) => item.status === "atualizada")
           .map((item) => item.spreadsheet_id),
       );
-      const next = [...SUPPLIER_SPREADSHEETS]
+      const requestedSpreadsheetId = String(body.spreadsheetId || "").trim();
+      const pendingFiles = [...SUPPLIER_SPREADSHEETS]
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base", numeric: true }))
-        .find((item) => !updatedIds.has(item.id));
+        .filter((item) => !updatedIds.has(item.id));
+      const next = requestedSpreadsheetId
+        ? pendingFiles.find((item) => item.id === requestedSpreadsheetId)
+        : pendingFiles[0];
+      if (requestedSpreadsheetId && !next) throw new Error("Fornecedor selecionado não está pendente de padronização.");
       if (!next) return NextResponse.json({ ok: true, complete: true });
 
       const standardized = await standardizeSupplierSpreadsheet(sheets, next);

@@ -72,6 +72,16 @@ export type RotatingStockItem = {
   applied: boolean;
 };
 
+export type RotatingStockHistory = {
+  id: string;
+  update_id: string;
+  recorded_at: string;
+  code: string;
+  old_stock: number | null;
+  current_stock: number;
+  difference: number | null;
+};
+
 let database: ReturnType<typeof neon> | null = null;
 let schemaReady: Promise<void> | null = null;
 
@@ -162,6 +172,19 @@ export async function ensureRotatingStockSchema() {
         )
       `;
       await sql`
+        CREATE TABLE IF NOT EXISTS portal_rotating_stock_history (
+          id BIGSERIAL PRIMARY KEY,
+          update_id UUID NOT NULL REFERENCES portal_rotating_stock_updates(id) ON DELETE CASCADE,
+          source_row INTEGER NOT NULL,
+          recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          code TEXT NOT NULL,
+          old_stock INTEGER,
+          current_stock INTEGER NOT NULL,
+          difference INTEGER,
+          UNIQUE (update_id, source_row)
+        )
+      `;
+      await sql`
         CREATE TABLE IF NOT EXISTS portal_rotating_stock_migrations (
           key TEXT PRIMARY KEY,
           applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -232,7 +255,7 @@ function normalizeDate<T>(row: T): T {
 export async function listRotatingStockData() {
   await ensureRotatingStockSchema();
   const sql = getDatabase();
-  const [updates, suppliers, pendingRows, notFoundItems] = await Promise.all([
+  const [updates, suppliers, pendingRows, notFoundItems, history] = await Promise.all([
     sql`SELECT updates.*, updates.id::TEXT, updates.supplier_id::TEXT,
       COALESCE((SELECT ARRAY_AGG(items.target_row ORDER BY items.target_row) FILTER (WHERE items.target_row IS NOT NULL)
         FROM portal_rotating_stock_items items
@@ -254,12 +277,22 @@ export async function listRotatingStockData() {
       ORDER BY updates.reported_at DESC, items.source_row
       LIMIT 300
     `,
+    sql`
+      SELECT history.id::TEXT, history.update_id::TEXT, history.recorded_at, history.code,
+        history.old_stock, history.current_stock, history.difference
+      FROM portal_rotating_stock_history history
+      INNER JOIN portal_rotating_stock_updates updates ON updates.id = history.update_id
+      WHERE updates.deleted_at IS NULL
+      ORDER BY history.recorded_at DESC, history.id DESC
+      LIMIT 200
+    `,
   ]);
   return {
     updates: (updates as unknown as RotatingStockUpdate[]).map(normalizeDate),
     suppliers: (suppliers as unknown as RotatingStockSupplier[]).map(normalizeDate),
     notFoundPending: Number(((pendingRows as unknown as Array<{ count?: number }>)[0])?.count || 0),
     notFoundItems: (notFoundItems as unknown as Array<Record<string, unknown>>).map(normalizeDate),
+    history: (history as unknown as RotatingStockHistory[]).map(normalizeDate),
   };
 }
 
@@ -397,6 +430,21 @@ export async function finishConference(id: string, actor: string, selectedIds: s
       WHERE update_id = ${id}::UUID AND id = ANY(${selectedIds}::BIGINT[])
     `;
   }
+  await sql`
+    INSERT INTO portal_rotating_stock_history
+      (update_id, source_row, recorded_at, code, old_stock, current_stock, difference)
+    SELECT items.update_id, items.source_row, NOW(), items.code, items.old_stock, items.new_stock,
+      CASE WHEN items.old_stock IS NULL THEN NULL ELSE items.new_stock - items.old_stock END
+    FROM portal_rotating_stock_items items
+    WHERE items.update_id = ${id}::UUID
+      AND items.situation <> 'nao_encontrado'
+    ON CONFLICT (update_id, source_row) DO UPDATE SET
+      recorded_at = EXCLUDED.recorded_at,
+      code = EXCLUDED.code,
+      old_stock = EXCLUDED.old_stock,
+      current_stock = EXCLUDED.current_stock,
+      difference = EXCLUDED.difference
+  `;
   await sql`
     UPDATE portal_rotating_stock_updates SET status = 'atualizado', reviewed_by = ${actor}, reviewed_at = NOW(),
       updated_count = ${selectedIds.length}, locked_by = NULL, locked_at = NULL

@@ -22,9 +22,15 @@ type Supplier = {
 type TrelloSupplier = { id: string; name: string; url: string; unit?: string; urgent?: boolean };
 type ComprasData = { configured?: boolean; suppliers?: TrelloSupplier[] };
 
+type HistoryItem = {
+  id: string; update_id: string; recorded_at: string; code: string;
+  old_stock: number | null; current_stock: number; difference: number | null;
+};
+
 type ResponseData = {
   updates: Update[]; suppliers: Supplier[]; notFoundPending: number; items: Item[]; currentUpdate: Update | null;
   notFoundItems: Array<{ id: string; update_id: string; code: string; description: string; new_stock: number; supplier_name: string; reported_at: string }>;
+  history: HistoryItem[];
   permissions: { canReport: boolean; canConference: boolean; canManage: boolean };
 };
 
@@ -33,11 +39,6 @@ const STATUS_LABEL: Record<Status, string> = {
   aguardando_conferencia: "Aguardando conferência",
   em_conferencia: "Em conferência",
   atualizado: "Atualizado",
-};
-const SITUATION_LABEL: Record<Situation, string> = {
-  encontrado: "Divergência",
-  nao_encontrado: "Não encontrado",
-  sem_alteracao: "OK",
 };
 
 function updatedSheetUrl(updateId: string) {
@@ -48,6 +49,25 @@ const TRELLO_URL = "https://trello.com/b/UfPrTr1H/compras";
 
 function formatDate(value: string) {
   return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(value));
+}
+
+function signedDifference(value: number | null) {
+  if (value === null) return "—";
+  if (value > 0) return `+${value}`;
+  return String(value);
+}
+
+function comparisonResult(item: Item) {
+  if (item.situation === "nao_encontrado") return "NÃO ENCONTRADO";
+  if (item.old_stock === null) return "SEM ESTOQUE ANTERIOR";
+  const difference = item.new_stock - item.old_stock;
+  if (difference > 0) return `ESTOQUE FILTRADO ACIMA: +${difference}`;
+  if (difference < 0) return `ESTOQUE FILTRADO ABAIXO: ${difference}`;
+  return "OK";
+}
+
+function formatHistoryDate(value: string) {
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date(value));
 }
 
 function StatusBadge({ status }: { status: Status }) {
@@ -465,40 +485,49 @@ export default function EstoqueRotativoClient() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Itens filtrados</p>
             <h2 className="mt-2 text-xl font-semibold text-slate-950">Total: {visibleItems.length} itens</h2>
-            <p className="mt-1 text-sm text-slate-500">Lista simples da conferência: OK, Divergência ou Não encontrado.</p>
+            <p className="mt-1 text-sm text-slate-500">Comparação entre o último estoque aprovado e o estoque filtrado agora.</p>
           </div>
 
           <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200">
-            <table className="w-full min-w-[900px] border-collapse text-sm">
+            <table className="w-full min-w-[1050px] border-collapse text-sm">
               <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600">
                 <tr>
                   <th className="px-3 py-3">Código</th>
                   <th className="px-3 py-3">Descrição</th>
+                  <th className="px-3 py-3 text-right">Estoque anterior</th>
                   <th className="px-3 py-3 text-right">Estoque atual</th>
-                  <th className="px-3 py-3 text-right">Novo estoque</th>
-                  <th className="px-3 py-3">Conferência</th>
+                  <th className="px-3 py-3 text-right">Diferença</th>
+                  <th className="px-3 py-3">Resultado</th>
                 </tr>
               </thead>
               <tbody>
-                {visibleItems.map((item) => (
-                  <tr key={item.id} className="border-t border-slate-100">
-                    <td className="px-3 py-3 font-semibold text-blue-800">{item.code || "—"}</td>
-                    <td className="px-3 py-3 text-slate-700">{item.description || "—"}</td>
-                    <td className="px-3 py-3 text-right font-semibold text-slate-700">{item.old_stock ?? "—"}</td>
-                    <td className="px-3 py-3 text-right font-semibold text-slate-950">{item.new_stock}</td>
-                    <td className="px-3 py-3">
-                      <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                        item.situation === "encontrado"
-                          ? "bg-amber-100 text-amber-900"
-                          : item.situation === "nao_encontrado"
+                {visibleItems.map((item) => {
+                  const difference = item.old_stock === null || item.situation === "nao_encontrado"
+                    ? null
+                    : item.new_stock - item.old_stock;
+                  return (
+                    <tr key={item.id} className="border-t border-slate-100">
+                      <td className="px-3 py-3 font-semibold text-blue-800">{item.code || "—"}</td>
+                      <td className="px-3 py-3 text-slate-700">{item.description || "—"}</td>
+                      <td className="px-3 py-3 text-right font-semibold text-slate-700">{item.old_stock ?? "—"}</td>
+                      <td className="px-3 py-3 text-right font-semibold text-slate-950">{item.new_stock}</td>
+                      <td className="px-3 py-3 text-right font-semibold text-slate-950">{signedDifference(difference)}</td>
+                      <td className="px-3 py-3">
+                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                          item.situation === "nao_encontrado"
                             ? "bg-rose-100 text-rose-800"
-                            : "bg-emerald-100 text-emerald-800"
-                      }`}>
-                        {SITUATION_LABEL[item.situation]}
-                      </span>
-                    </td>
-                  </tr>
-                ))}
+                            : item.old_stock === null
+                              ? "bg-slate-100 text-slate-700"
+                              : difference === 0
+                                ? "bg-emerald-100 text-emerald-800"
+                                : "bg-amber-100 text-amber-900"
+                        }`}>
+                          {comparisonResult(item)}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -522,6 +551,39 @@ export default function EstoqueRotativoClient() {
             >
               {busy ? "Atualizando..." : "Atualizar Estoque Rotativo"}
             </button>
+          </div>
+        </section>
+      ) : null}
+
+      {data?.history?.length ? (
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Histórico</p>
+            <h2 className="mt-2 text-xl font-semibold text-slate-950">Comparação entre períodos</h2>
+          </div>
+          <div className="mt-4 max-h-96 overflow-auto rounded-2xl border border-slate-200">
+            <table className="w-full min-w-[700px] border-collapse text-sm">
+              <thead className="sticky top-0 bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600">
+                <tr>
+                  <th className="px-3 py-3">Data</th>
+                  <th className="px-3 py-3">Código</th>
+                  <th className="px-3 py-3 text-right">Estoque anterior</th>
+                  <th className="px-3 py-3 text-right">Estoque atual</th>
+                  <th className="px-3 py-3 text-right">Diferença</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.history.map((item) => (
+                  <tr key={item.id} className="border-t border-slate-100">
+                    <td className="px-3 py-3 text-slate-700">{formatHistoryDate(item.recorded_at)}</td>
+                    <td className="px-3 py-3 font-semibold text-blue-800">{item.code || "—"}</td>
+                    <td className="px-3 py-3 text-right text-slate-700">{item.old_stock ?? "—"}</td>
+                    <td className="px-3 py-3 text-right font-semibold text-slate-950">{item.current_stock}</td>
+                    <td className="px-3 py-3 text-right font-semibold text-slate-950">{signedDifference(item.difference)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         </section>
       ) : null}

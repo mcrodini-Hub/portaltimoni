@@ -80,15 +80,19 @@ function cleanCode(value: unknown) {
   return String(value ?? "").trim();
 }
 
-function integerStock(value: unknown, label: string, allowBlank = false) {
+function integerStock(value: unknown, label: string) {
   const text = String(value ?? "").trim();
-  if (allowBlank && text === "") return 0;
   const normalized = text.replace(/\s/g, "").replace(/\./g, "").replace(",", ".");
   const number = Number(normalized);
   if (!Number.isFinite(number) || number < 0) throw new Error(`${label}: estoque inválido.`);
   const integer = Math.trunc(number);
   if (!Number.isSafeInteger(integer)) throw new Error(`${label}: estoque fora do limite aceito.`);
   return integer;
+}
+
+function nullableStock(value: unknown, label: string) {
+  const text = String(value ?? "").trim();
+  return text === "" ? null : integerStock(value, label);
 }
 
 function fingerprint(sourceRows: unknown[][], targetRows: unknown[][]) {
@@ -169,15 +173,15 @@ function buildComparison(
   descriptionColumn: number,
   stockColumn: number,
 ) {
-  const targetByCode = new Map<string, { row: number; stock: number }>();
-  const targetByDescription = new Map<string, { row: number; stock: number }>();
+  const targetByCode = new Map<string, { row: number; stock: number | null }>();
+  const targetByDescription = new Map<string, { row: number; stock: number | null }>();
   const duplicateDescriptions = new Set<string>();
 
   for (let index = 0; index < targetRows.length; index += 1) {
     const code = cleanCode(targetRows[index]?.[0]);
     const description = normalizeMatch(targetRows[index]?.[1]);
     if (!code && !description) continue;
-    const target = { row: index + 2, stock: integerStock(targetRows[index]?.[2], `Base central, linha ${index + 2}`, true) };
+    const target = { row: index + 2, stock: nullableStock(targetRows[index]?.[2], `Base central, linha ${index + 2}`) };
     if (code) targetByCode.set(code, target);
     if (description) {
       if (targetByDescription.has(description)) duplicateDescriptions.add(description);
@@ -199,7 +203,7 @@ function buildComparison(
     if (code) sourceCodes.add(code);
     const newStock = integerStock(stockValue, `Linha ${startRow + index}, código ${code || "sem código"}`);
     const target = (code ? targetByCode.get(code) : undefined) || targetByDescription.get(normalizeMatch(description));
-    const situation = !target ? "nao_encontrado" : target.stock === newStock ? "sem_alteracao" : "encontrado";
+    const situation = !target ? "nao_encontrado" : target.stock !== null && target.stock === newStock ? "sem_alteracao" : "encontrado";
     items.push({
       source_row: startRow + index,
       target_row: target?.row ?? null,

@@ -132,6 +132,8 @@ export default function EstoqueRotativoClient() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [standardizingSupplier, setStandardizingSupplier] = useState(false);
+  const [choosingStandardizationSupplier, setChoosingStandardizationSupplier] = useState(false);
+  const [selectedStandardizationSupplierId, setSelectedStandardizationSupplierId] = useState("");
 
   const load = useCallback(async (id?: string | null) => {
     setLoading(true); setError("");
@@ -194,9 +196,12 @@ export default function EstoqueRotativoClient() {
   const supplierUpdated = supplierUpdatedIds.size;
   const supplierPending = Math.max(0, (data?.supplierFiles?.length || 0) - supplierUpdated);
   const preparedSupplier = (data?.supplierStandardizations || []).find((item) => item.status === "preparada") || null;
-  const nextSupplier = preparedSupplier
-    ? null
-    : (data?.supplierFiles || []).find((item) => !supplierUpdatedIds.has(item.id)) || null;
+  const pendingSupplierFiles = useMemo(
+    () => (data?.supplierFiles || []).filter((item) => !supplierUpdatedIds.has(item.id)),
+    [data?.supplierFiles, supplierUpdatedIds],
+  );
+  const nextSupplier = preparedSupplier ? null : pendingSupplierFiles[0] || null;
+  const selectedStandardizationSupplier = pendingSupplierFiles.find((item) => item.id === selectedStandardizationSupplierId) || null;
 
   async function post(body: Record<string, unknown>) {
     setBusy(true); setError(""); setFeedback("");
@@ -211,10 +216,13 @@ export default function EstoqueRotativoClient() {
     } finally { setBusy(false); }
   }
 
-  async function standardizeNextSupplier() {
+  async function standardizeNextSupplier(spreadsheetId?: string) {
     setStandardizingSupplier(true);
     const verificationWindow = window.open("about:blank", "_blank");
-    const result = await post({ action: "padronizar_proxima_planilha" });
+    const result = await post({
+      action: "padronizar_proxima_planilha",
+      spreadsheetId: spreadsheetId || undefined,
+    });
     setStandardizingSupplier(false);
     if (!result) {
       verificationWindow?.close();
@@ -233,6 +241,8 @@ export default function EstoqueRotativoClient() {
       verificationWindow?.close();
     }
     setFeedback(`Planilha ${result.supplierName} pronta para conferência. Confira a planilha aberta e depois marque como atualizada.`);
+    setChoosingStandardizationSupplier(false);
+    setSelectedStandardizationSupplierId("");
     await load();
   }
 
@@ -403,9 +413,9 @@ export default function EstoqueRotativoClient() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">1. Padronizar fornecedores</p>
-              <h2 className="mt-2 text-xl font-semibold text-slate-950">Uma planilha por vez, em ordem alfabética</h2>
+              <h2 className="mt-2 text-xl font-semibold text-slate-950">Uma planilha por vez</h2>
               <p className="mt-1 text-sm text-slate-500">
-                O Portal padroniza uma planilha, abre para sua conferência e só libera a próxima depois que você marcar a atual como atualizada.
+                O Portal sugere a próxima em ordem alfabética, mas você pode selecionar outro fornecedor pendente. A próxima planilha só é liberada depois da sua conferência.
               </p>
             </div>
             <button
@@ -449,17 +459,55 @@ export default function EstoqueRotativoClient() {
             </div>
           ) : nextSupplier ? (
             <div className="mt-4 rounded-2xl border border-slate-200 p-5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Próxima planilha</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Próxima planilha sugerida</p>
               <p className="mt-2 text-lg font-semibold text-slate-950">{nextSupplier.name}</p>
-              <p className="mt-1 text-sm text-slate-500">A próxima só será liberada depois da sua conferência.</p>
-              <button
-                type="button"
-                onClick={() => void standardizeNextSupplier()}
-                disabled={busy || standardizingSupplier}
-                className="mt-4 min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                {standardizingSupplier ? "Padronizando..." : "Padronizar e abrir planilha"}
-              </button>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  onClick={() => void standardizeNextSupplier()}
+                  disabled={busy || standardizingSupplier}
+                  className="min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  {standardizingSupplier ? "Padronizando..." : "Padronizar e abrir planilha"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setChoosingStandardizationSupplier((value) => !value);
+                    setSelectedStandardizationSupplierId("");
+                  }}
+                  disabled={busy || standardizingSupplier}
+                  className="min-h-11 rounded-xl border border-blue-200 px-5 text-sm font-semibold text-blue-800 disabled:opacity-50"
+                >
+                  Selecionar fornecedor
+                </button>
+              </div>
+
+              {choosingStandardizationSupplier ? (
+                <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
+                  <label className="block text-sm font-semibold text-slate-800">
+                    Fornecedor pendente
+                    <select
+                      value={selectedStandardizationSupplierId}
+                      onChange={(event) => setSelectedStandardizationSupplierId(event.target.value)}
+                      className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm"
+                    >
+                      <option value="">Selecione...</option>
+                      {pendingSupplierFiles.map((supplier) => (
+                        <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                      ))}
+                    </select>
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => selectedStandardizationSupplier && void standardizeNextSupplier(selectedStandardizationSupplier.id)}
+                    disabled={busy || standardizingSupplier || !selectedStandardizationSupplier}
+                    className="mt-3 min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:bg-slate-300"
+                  >
+                    {standardizingSupplier ? "Padronizando..." : "Padronizar fornecedor selecionado"}
+                  </button>
+                </div>
+              ) : null}
             </div>
           ) : (
             <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-semibold text-emerald-800">

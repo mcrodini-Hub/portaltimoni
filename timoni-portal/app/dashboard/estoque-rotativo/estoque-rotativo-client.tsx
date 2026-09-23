@@ -429,8 +429,8 @@ export default function EstoqueRotativoClient() {
 
       <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          ["Planilha fornecedor pendente", supplierPending],
-          ["Planilha fornecedor atualizada", supplierUpdated],
+          ["Padronizar fornecedor", supplierPending],
+          ["Fornecedor padronizado", supplierUpdated],
           ["Estoque atual pendente", pending],
           ["Estoque atual atualizado", stockUpdated],
         ].map(([label, value]) => (

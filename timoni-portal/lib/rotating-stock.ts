@@ -82,6 +82,18 @@ export type RotatingStockHistory = {
   difference: number | null;
 };
 
+export type RotatingStockSupplierStandardization = {
+  spreadsheet_id: string;
+  supplier_name: string;
+  spreadsheet_url: string;
+  sheet_name: string;
+  status: "preparada" | "atualizada";
+  prepared_at: string;
+  prepared_by: string;
+  confirmed_at: string | null;
+  confirmed_by: string | null;
+};
+
 let database: ReturnType<typeof neon> | null = null;
 let schemaReady: Promise<void> | null = null;
 
@@ -185,6 +197,19 @@ export async function ensureRotatingStockSchema() {
         )
       `;
       await sql`
+        CREATE TABLE IF NOT EXISTS portal_rotating_stock_supplier_standardizations (
+          spreadsheet_id TEXT PRIMARY KEY,
+          supplier_name TEXT NOT NULL,
+          spreadsheet_url TEXT NOT NULL,
+          sheet_name TEXT NOT NULL,
+          status TEXT NOT NULL,
+          prepared_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          prepared_by TEXT NOT NULL,
+          confirmed_at TIMESTAMPTZ,
+          confirmed_by TEXT
+        )
+      `;
+      await sql`
         CREATE TABLE IF NOT EXISTS portal_rotating_stock_migrations (
           key TEXT PRIMARY KEY,
           applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -255,7 +280,7 @@ function normalizeDate<T>(row: T): T {
 export async function listRotatingStockData() {
   await ensureRotatingStockSchema();
   const sql = getDatabase();
-  const [updates, suppliers, pendingRows, notFoundItems, history] = await Promise.all([
+  const [updates, suppliers, pendingRows, notFoundItems, history, supplierStandardizations] = await Promise.all([
     sql`SELECT updates.*, updates.id::TEXT, updates.supplier_id::TEXT,
       COALESCE((SELECT ARRAY_AGG(items.target_row ORDER BY items.target_row) FILTER (WHERE items.target_row IS NOT NULL)
         FROM portal_rotating_stock_items items
@@ -286,6 +311,12 @@ export async function listRotatingStockData() {
       ORDER BY history.recorded_at DESC, history.id DESC
       LIMIT 200
     `,
+    sql`
+      SELECT spreadsheet_id, supplier_name, spreadsheet_url, sheet_name, status,
+        prepared_at, prepared_by, confirmed_at, confirmed_by
+      FROM portal_rotating_stock_supplier_standardizations
+      ORDER BY LOWER(supplier_name), supplier_name
+    `,
   ]);
   return {
     updates: (updates as unknown as RotatingStockUpdate[]).map(normalizeDate),
@@ -293,6 +324,7 @@ export async function listRotatingStockData() {
     notFoundPending: Number(((pendingRows as unknown as Array<{ count?: number }>)[0])?.count || 0),
     notFoundItems: (notFoundItems as unknown as Array<Record<string, unknown>>).map(normalizeDate),
     history: (history as unknown as RotatingStockHistory[]).map(normalizeDate),
+    supplierStandardizations: (supplierStandardizations as unknown as RotatingStockSupplierStandardization[]).map(normalizeDate),
   };
 }
 
@@ -531,6 +563,46 @@ export async function reopenRotatingStockUpdate(input: {
   await sql`DELETE FROM portal_rotating_stock_items WHERE update_id = ${input.id}::UUID`;
 }
 
+
+export async function prepareSupplierStandardization(input: {
+  spreadsheetId: string;
+  supplierName: string;
+  spreadsheetUrl: string;
+  sheetName: string;
+  actor: string;
+}) {
+  await ensureRotatingStockSchema();
+  const sql = getDatabase();
+  await sql`
+    INSERT INTO portal_rotating_stock_supplier_standardizations
+      (spreadsheet_id, supplier_name, spreadsheet_url, sheet_name, status, prepared_at, prepared_by, confirmed_at, confirmed_by)
+    VALUES
+      (${input.spreadsheetId}, ${input.supplierName}, ${input.spreadsheetUrl}, ${input.sheetName},
+       'preparada', NOW(), ${input.actor}, NULL, NULL)
+    ON CONFLICT (spreadsheet_id) DO UPDATE SET
+      supplier_name = EXCLUDED.supplier_name,
+      spreadsheet_url = EXCLUDED.spreadsheet_url,
+      sheet_name = EXCLUDED.sheet_name,
+      status = 'preparada',
+      prepared_at = NOW(),
+      prepared_by = EXCLUDED.prepared_by,
+      confirmed_at = NULL,
+      confirmed_by = NULL
+  `;
+}
+
+export async function confirmSupplierStandardization(spreadsheetId: string, actor: string) {
+  await ensureRotatingStockSchema();
+  const sql = getDatabase();
+  const rows = await sql`
+    UPDATE portal_rotating_stock_supplier_standardizations
+    SET status = 'atualizada', confirmed_at = NOW(), confirmed_by = ${actor}
+    WHERE spreadsheet_id = ${spreadsheetId}
+      AND status = 'preparada'
+    RETURNING spreadsheet_id
+  ` as unknown as Array<{ spreadsheet_id: string }>;
+  return Boolean(rows[0]);
+}
 
 export async function deleteCompletedRotatingStockUpdate(id: string) {
   await ensureRotatingStockSchema();

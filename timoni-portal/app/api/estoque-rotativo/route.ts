@@ -14,6 +14,7 @@ import {
   createRotatingStockUpdate,
   confirmSupplierStandardization,
   deleteCompletedRotatingStockUpdate,
+  deleteSupplierStandardization,
   finishConference,
   getRotatingStockUpdate,
   listConferenceItems,
@@ -1581,6 +1582,16 @@ export async function POST(request: Request) {
       });
       await attachSupplierToWaitingUpdates(mappingId, spreadsheetId, prepared.supplier_name);
       return NextResponse.json({ ok: true, supplierName: prepared.supplier_name });
+    }
+
+    if (action === "excluir_fornecedor_padronizado") {
+      requireRole(email, "manage");
+      const spreadsheetId = String(body.spreadsheetId || "").trim();
+      if (!spreadsheetId) throw new Error("Planilha não identificada.");
+      if (!(await deleteSupplierStandardization(spreadsheetId))) {
+        throw new Error("Fornecedor padronizado não encontrado.");
+      }
+      return NextResponse.json({ ok: true });
     }
 
     if (action === "registrar") {

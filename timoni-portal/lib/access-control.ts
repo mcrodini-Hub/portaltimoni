@@ -19,6 +19,7 @@ export type PortalUser = {
   email: string;
   modules: PortalModule[];
   boxes?: PortalBox[];
+  mobileModules?: PortalModule[];
   requiresPassword: boolean;
   readOnly?: boolean;
   active?: boolean;

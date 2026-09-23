@@ -126,10 +126,10 @@ export default function EstoqueRotativoClient() {
   const [note, setNote] = useState("");
   const [sourceSheetName, setSourceSheetName] = useState("");
   const [detectingSheet, setDetectingSheet] = useState(false);
-  const [sourceCodeColumn, setSourceCodeColumn] = useState("A");
-  const [sourcePurchaseCodeColumn, setSourcePurchaseCodeColumn] = useState("B");
-  const [sourceDescriptionColumn, setSourceDescriptionColumn] = useState("C");
-  const [sourceStockColumn, setSourceStockColumn] = useState("E");
+  const [sourceCodeColumn, setSourceCodeColumn] = useState("B");
+  const [sourcePurchaseCodeColumn, setSourcePurchaseCodeColumn] = useState("C");
+  const [sourceDescriptionColumn, setSourceDescriptionColumn] = useState("D");
+  const [sourceStockColumn, setSourceStockColumn] = useState("F");
   const [sourceStartRow, setSourceStartRow] = useState("6");
   const [editingConferenceItemId, setEditingConferenceItemId] = useState<string | null>(null);
   const [editingSaleCode, setEditingSaleCode] = useState("");
@@ -473,8 +473,8 @@ export default function EstoqueRotativoClient() {
 
           <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-sm text-slate-700">
             <p className="font-semibold text-blue-900">Padrão aplicado</p>
-            <p className="mt-1">A · COD-VENDA &nbsp; B · COD-COMPRA &nbsp; C · DESCRIÇÃO &nbsp; E · ESTOQUE</p>
-            <p className="mt-1 text-xs text-slate-500">E3 responsável (LUCAS editável) · E4 data do estoque físico · G3 em diante CT/MCR/ROD · G4 em diante CONT.VALORES · linha 5 congelada.</p>
+            <p className="mt-1">A · ITEM &nbsp; B · COD-VENDA &nbsp; C · COD-COMPRA &nbsp; D · DESCRIÇÃO &nbsp; E · MÍNIMO &nbsp; F · ESTOQUE</p>
+            <p className="mt-1 text-xs text-slate-500">Linha 2 vazia · E3 responsável (LUCAS editável) · E4 data do estoque físico · G3 em diante CT/MCR/ROD · F4 em diante CONT.VALORES · linha 5 congelada.</p>
           </div>
 
           {preparedSupplier ? (

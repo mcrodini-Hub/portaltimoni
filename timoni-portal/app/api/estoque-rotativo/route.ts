@@ -30,6 +30,12 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MANAGEMENT_EMAILS = new Set<string>([ROTATING_STOCK_EMAILS.cica, ROTATING_STOCK_EMAILS.marcelo]);
+const SUPPLIERS_FOLDER_ID = "1P7Nb1FwfSQ6e7TA9Wkgizyy53tGGQajk";
+const GOOGLE_SHEET_MIME = "application/vnd.google-apps.spreadsheet";
+const EXCEL_MIMES = new Set([
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+]);
 
 type TrelloList = { id: string; name: string; closed?: boolean };
 type TrelloBoard = { lists?: TrelloList[] };
@@ -106,7 +112,11 @@ async function context() {
   if (!session?.accessToken || session.error === "RefreshAccessTokenError") throw new Error("Sessão expirada. Saia e entre novamente no Portal.");
   const oauth = new google.auth.OAuth2();
   oauth.setCredentials({ access_token: session.accessToken });
-  return { email, sheets: google.sheets({ version: "v4", auth: oauth }) };
+  return {
+    email,
+    sheets: google.sheets({ version: "v4", auth: oauth }),
+    drive: google.drive({ version: "v3", auth: oauth }),
+  };
 }
 
 function requireRole(email: string, role: "report" | "conference" | "manage") {
@@ -163,6 +173,159 @@ async function readComparedRows(
 
 function normalizeMatch(value: unknown) {
   return String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLocaleLowerCase("pt-BR").replace(/\s+/g, " ");
+}
+
+function normalizeHeader(value: unknown) {
+  return normalizeMatch(value)
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+const HEADER_ALIASES = {
+  code: ["codigo", "cod", "cod produto", "codigo produto", "referencia", "ref", "sku", "codigo venda"],
+  description: ["descricao", "produto", "nome produto", "item", "mercadoria"],
+  stock: ["estoque", "quantidade", "qtd", "saldo", "disponivel", "estoque atual", "saldo estoque"],
+};
+
+function detectHeaderColumn(row: unknown[], aliases: string[]) {
+  const normalizedAliases = new Set(aliases.map(normalizeHeader));
+  const matches: number[] = [];
+  row.forEach((cell, index) => {
+    if (normalizedAliases.has(normalizeHeader(cell))) matches.push(index);
+  });
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function analyzeSheetGrid(values: unknown[][]) {
+  let best: {
+    headerRow: number;
+    codeColumn: number | null;
+    descriptionColumn: number | null;
+    stockColumn: number | null;
+    score: number;
+  } | null = null;
+
+  for (let index = 0; index < Math.min(values.length, 25); index += 1) {
+    const row = values[index] || [];
+    const codeColumn = detectHeaderColumn(row, HEADER_ALIASES.code);
+    const descriptionColumn = detectHeaderColumn(row, HEADER_ALIASES.description);
+    const stockColumn = detectHeaderColumn(row, HEADER_ALIASES.stock);
+    const score = [codeColumn, descriptionColumn, stockColumn].filter((value) => value !== null).length;
+    if (!best || score > best.score) {
+      best = { headerRow: index + 1, codeColumn, descriptionColumn, stockColumn, score };
+    }
+  }
+  return best;
+}
+
+async function scanSupplierFolder(sheets: sheets_v4.Sheets, drive: ReturnType<typeof google.drive>) {
+  const filesResponse = await drive.files.list({
+    q: `'${SUPPLIERS_FOLDER_ID}' in parents and trashed = false`,
+    pageSize: 100,
+    fields: "files(id,name,mimeType,webViewLink,modifiedTime)",
+    orderBy: "name",
+  });
+  const files = filesResponse.data.files || [];
+  const results: Array<Record<string, unknown>> = [];
+
+  for (const file of files) {
+    const fileId = file.id || "";
+    const name = file.name || "Sem nome";
+    const mimeType = file.mimeType || "";
+    if (!fileId) continue;
+
+    if (EXCEL_MIMES.has(mimeType)) {
+      results.push({
+        spreadsheetId: fileId,
+        name,
+        url: file.webViewLink || "",
+        mimeType,
+        status: "revisar",
+        reason: "Arquivo Excel. Converter para Google Sheets antes de salvar o padrão.",
+        sheetName: "",
+        codeColumn: "",
+        descriptionColumn: "",
+        stockColumn: "",
+        startRow: 1,
+      });
+      continue;
+    }
+
+    if (mimeType !== GOOGLE_SHEET_MIME) continue;
+
+    try {
+      const metadata = await sheets.spreadsheets.get({
+        spreadsheetId: fileId,
+        fields: "sheets.properties(title,index)",
+      });
+      const sheetNames = (metadata.data.sheets || [])
+        .sort((a, b) => (a.properties?.index || 0) - (b.properties?.index || 0))
+        .map((sheet) => sheet.properties?.title)
+        .filter((title): title is string => Boolean(title));
+
+      let bestResult: {
+        sheetName: string;
+        headerRow: number;
+        codeColumn: number | null;
+        descriptionColumn: number | null;
+        stockColumn: number | null;
+        score: number;
+      } | null = null;
+
+      for (const sheetName of sheetNames.slice(0, 8)) {
+        const valueResponse = await sheets.spreadsheets.values.get({
+          spreadsheetId: fileId,
+          range: `'${sheetName.replace(/'/g, "''")}'!A1:Z25`,
+          valueRenderOption: "FORMATTED_VALUE",
+        });
+        const detected = analyzeSheetGrid((valueResponse.data.values || []) as unknown[][]);
+        if (detected && (!bestResult || detected.score > bestResult.score)) {
+          bestResult = { sheetName, ...detected };
+        }
+        if (bestResult?.score === 3) break;
+      }
+
+      const recognized = Boolean(
+        bestResult
+        && bestResult.score === 3
+        && bestResult.codeColumn !== null
+        && bestResult.descriptionColumn !== null
+        && bestResult.stockColumn !== null
+        && new Set([bestResult.codeColumn, bestResult.descriptionColumn, bestResult.stockColumn]).size === 3
+      );
+
+      results.push({
+        spreadsheetId: fileId,
+        name,
+        url: file.webViewLink || `https://docs.google.com/spreadsheets/d/${fileId}/edit`,
+        mimeType,
+        status: recognized ? "reconhecida" : "revisar",
+        reason: recognized ? "" : "Cabeçalhos não identificados com segurança. Revise somente esta planilha.",
+        sheetName: bestResult?.sheetName || sheetNames[0] || "",
+        codeColumn: bestResult?.codeColumn === null || bestResult?.codeColumn === undefined ? "" : columnLetter(bestResult.codeColumn),
+        descriptionColumn: bestResult?.descriptionColumn === null || bestResult?.descriptionColumn === undefined ? "" : columnLetter(bestResult.descriptionColumn),
+        stockColumn: bestResult?.stockColumn === null || bestResult?.stockColumn === undefined ? "" : columnLetter(bestResult.stockColumn),
+        startRow: bestResult ? bestResult.headerRow + 1 : 1,
+        sheetNames,
+      });
+    } catch (error) {
+      results.push({
+        spreadsheetId: fileId,
+        name,
+        url: file.webViewLink || `https://docs.google.com/spreadsheets/d/${fileId}/edit`,
+        mimeType,
+        status: "revisar",
+        reason: error instanceof Error ? error.message : "Não foi possível analisar esta planilha.",
+        sheetName: "",
+        codeColumn: "",
+        descriptionColumn: "",
+        stockColumn: "",
+        startRow: 1,
+      });
+    }
+  }
+
+  return results;
 }
 
 function buildComparison(
@@ -392,9 +555,20 @@ function apiError(error: unknown) {
 
 export async function GET(request: Request) {
   try {
-    const { email, sheets } = await context();
+    const { email, sheets, drive } = await context();
     await clearExpiredHighlights(sheets);
     const searchParams = new URL(request.url).searchParams;
+    const scanSuppliers = searchParams.get("scanSuppliers") === "1";
+    if (scanSuppliers) {
+      requireRole(email, "manage");
+      const analyses = await scanSupplierFolder(sheets, drive);
+      const data = await listRotatingStockData();
+      return NextResponse.json({
+        ok: true,
+        analyses,
+        savedMappings: data.suppliers,
+      }, { headers: { "Cache-Control": "no-store" } });
+    }
     const openUpdateId = searchParams.get("openUpdateId")?.trim() || "";
     if (openUpdateId) {
       const update = await getRotatingStockUpdate(openUpdateId);
@@ -483,6 +657,67 @@ export async function POST(request: Request) {
         `[Mensagem automática] ESTOQUE ROTATIVO\n\nNova relação de produtos disponível para atualização.\n\nPlanilha: ${spreadsheetReference}\nFornecedor: ${supplierName}\nInformado por: Lucas\nData: ${date}\n\nStatus: Aguardando conferência.\n\nPor favor, verificar no módulo Estoque Rotativo.`);
       await recordModuleUpdateSafely("estoque-rotativo", email, `Nova relação: ${supplierName}.`, `estoque-rotativo:${id}`);
       return NextResponse.json({ ok: true, id, needsMapping: false });
+    }
+
+    if (action === "salvar_padrao_fornecedor") {
+      requireRole(email, "manage");
+      const name = String(body.name || "").trim();
+      const spreadsheetId = extractSpreadsheetId(String(body.spreadsheetId || ""));
+      const sheetName = String(body.sheetName || "").trim();
+      const codeLetter = String(body.codeColumn || "").trim().toUpperCase();
+      const descriptionLetter = String(body.descriptionColumn || "").trim().toUpperCase();
+      const stockLetter = String(body.stockColumn || "").trim().toUpperCase();
+      const startRow = Number(body.startRow);
+      if (!name || !spreadsheetId || !sheetName) throw new Error("Revise fornecedor, planilha e aba.");
+      if (![codeLetter, descriptionLetter, stockLetter].every((column) => /^[A-Z]+$/.test(column))) throw new Error("Revise as colunas.");
+      if (!Number.isInteger(startRow) || startRow < 1) throw new Error("Revise a linha inicial.");
+      const indexes = [codeLetter, descriptionLetter, stockLetter].map(columnIndex);
+      if (new Set(indexes).size !== 3) throw new Error("Código, descrição e estoque devem usar colunas diferentes.");
+      const maxIndex = Math.max(...indexes);
+      const id = await saveSupplierMapping({
+        name,
+        spreadsheetId,
+        sheetName,
+        dataRange: `A${startRow}:${columnLetter(maxIndex)}100000`,
+        codeColumn: indexes[0],
+        descriptionColumn: indexes[1],
+        stockColumn: indexes[2],
+        actor: email,
+      });
+      await attachSupplierToWaitingUpdates(id, spreadsheetId, name);
+      return NextResponse.json({ ok: true, id });
+    }
+
+    if (action === "salvar_padroes_fornecedores") {
+      requireRole(email, "manage");
+      const patterns = Array.isArray(body.patterns) ? body.patterns as Array<Record<string, unknown>> : [];
+      let saved = 0;
+      for (const pattern of patterns) {
+        const name = String(pattern.name || "").trim();
+        const spreadsheetId = extractSpreadsheetId(String(pattern.spreadsheetId || ""));
+        const sheetName = String(pattern.sheetName || "").trim();
+        const codeLetter = String(pattern.codeColumn || "").trim().toUpperCase();
+        const descriptionLetter = String(pattern.descriptionColumn || "").trim().toUpperCase();
+        const stockLetter = String(pattern.stockColumn || "").trim().toUpperCase();
+        const startRow = Number(pattern.startRow);
+        if (!name || !spreadsheetId || !sheetName || !Number.isInteger(startRow) || startRow < 1) continue;
+        if (![codeLetter, descriptionLetter, stockLetter].every((column) => /^[A-Z]+$/.test(column))) continue;
+        const indexes = [codeLetter, descriptionLetter, stockLetter].map(columnIndex);
+        if (new Set(indexes).size !== 3) continue;
+        const id = await saveSupplierMapping({
+          name,
+          spreadsheetId,
+          sheetName,
+          dataRange: `A${startRow}:${columnLetter(Math.max(...indexes))}100000`,
+          codeColumn: indexes[0],
+          descriptionColumn: indexes[1],
+          stockColumn: indexes[2],
+          actor: email,
+        });
+        await attachSupplierToWaitingUpdates(id, spreadsheetId, name);
+        saved += 1;
+      }
+      return NextResponse.json({ ok: true, saved });
     }
 
     if (action === "salvar_mapeamento") {

@@ -22,19 +22,22 @@ type Supplier = {
 type TrelloSupplier = { id: string; name: string; url: string; unit?: string; urgent?: boolean };
 type ComprasData = { configured?: boolean; suppliers?: TrelloSupplier[] };
 
-type SupplierAnalysis = {
-  spreadsheetId: string;
+type SupplierFile = {
+  id: string;
   name: string;
   url: string;
-  mimeType: string;
-  status: "reconhecida" | "revisar";
-  reason: string;
-  sheetName: string;
-  codeColumn: string;
-  descriptionColumn: string;
-  stockColumn: string;
-  startRow: number;
-  sheetNames?: string[];
+};
+
+type SupplierStandardization = {
+  spreadsheet_id: string;
+  supplier_name: string;
+  spreadsheet_url: string;
+  sheet_name: string;
+  status: "preparada" | "atualizada";
+  prepared_at: string;
+  prepared_by: string;
+  confirmed_at: string | null;
+  confirmed_by: string | null;
 };
 
 type HistoryItem = {
@@ -46,6 +49,8 @@ type ResponseData = {
   updates: Update[]; suppliers: Supplier[]; notFoundPending: number; items: Item[]; currentUpdate: Update | null;
   notFoundItems: Array<{ id: string; update_id: string; code: string; description: string; new_stock: number; supplier_name: string; reported_at: string }>;
   history: HistoryItem[];
+  supplierFiles: SupplierFile[];
+  supplierStandardizations: SupplierStandardization[];
   permissions: { canReport: boolean; canConference: boolean; canManage: boolean };
 };
 
@@ -126,9 +131,7 @@ export default function EstoqueRotativoClient() {
   const [sourceStartRow, setSourceStartRow] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [supplierAnalyses, setSupplierAnalyses] = useState<SupplierAnalysis[]>([]);
-  const [scanningSuppliers, setScanningSuppliers] = useState(false);
-  const [savingPatterns, setSavingPatterns] = useState(false);
+  const [standardizingSupplier, setStandardizingSupplier] = useState(false);
 
   const load = useCallback(async (id?: string | null) => {
     setLoading(true); setError("");
@@ -183,8 +186,17 @@ export default function EstoqueRotativoClient() {
     [data?.updates],
   );
   const pending = trelloSuppliers.length || registeredPendingNames.size;
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  const updatedMonth = data?.updates.filter((item) => item.status === "atualizado" && item.reported_at.slice(0, 7) === currentMonth).length || 0;
+  const stockUpdated = data?.updates.filter((item) => item.status === "atualizado").length || 0;
+  const supplierUpdatedIds = useMemo(
+    () => new Set((data?.supplierStandardizations || []).filter((item) => item.status === "atualizada").map((item) => item.spreadsheet_id)),
+    [data?.supplierStandardizations],
+  );
+  const supplierUpdated = supplierUpdatedIds.size;
+  const supplierPending = Math.max(0, (data?.supplierFiles?.length || 0) - supplierUpdated);
+  const preparedSupplier = (data?.supplierStandardizations || []).find((item) => item.status === "preparada") || null;
+  const nextSupplier = preparedSupplier
+    ? null
+    : (data?.supplierFiles || []).find((item) => !supplierUpdatedIds.has(item.id)) || null;
 
   async function post(body: Record<string, unknown>) {
     setBusy(true); setError(""); setFeedback("");
@@ -199,63 +211,39 @@ export default function EstoqueRotativoClient() {
     } finally { setBusy(false); }
   }
 
-  async function analyzeSuppliers() {
-    setScanningSuppliers(true);
-    setError("");
-    setFeedback("");
-    try {
-      const response = await fetch("/api/estoque-rotativo?scanSuppliers=1", { cache: "no-store" });
-      const result = await response.json() as { analyses?: SupplierAnalysis[]; error?: string };
-      if (!response.ok) throw new Error(result.error || "Não foi possível analisar as planilhas.");
-      setSupplierAnalyses(result.analyses || []);
-      const automatic = (result.analyses || []).filter((item) => item.status === "reconhecida").length;
-      const review = (result.analyses || []).filter((item) => item.status === "revisar").length;
-      setFeedback(`Análise concluída: ${automatic} reconhecida(s) automaticamente e ${review} para revisar.`);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Não foi possível analisar as planilhas.");
-    } finally {
-      setScanningSuppliers(false);
-    }
-  }
-
-  function updateSupplierAnalysis(index: number, patch: Partial<SupplierAnalysis>) {
-    setSupplierAnalyses((current) => current.map((item, itemIndex) => itemIndex === index ? { ...item, ...patch } : item));
-  }
-
-  async function saveRecognizedPatterns() {
-    const patterns = supplierAnalyses.filter((item) =>
-      item.status === "reconhecida"
-      && item.sheetName
-      && item.codeColumn
-      && item.descriptionColumn
-      && item.stockColumn
-      && item.startRow > 0
-    );
-    if (!patterns.length) {
-      setError("Nenhuma planilha reconhecida automaticamente para salvar.");
+  async function standardizeNextSupplier() {
+    setStandardizingSupplier(true);
+    const verificationWindow = window.open("about:blank", "_blank");
+    const result = await post({ action: "padronizar_proxima_planilha" });
+    setStandardizingSupplier(false);
+    if (!result) {
+      verificationWindow?.close();
       return;
     }
-    setSavingPatterns(true);
-    const result = await post({ action: "salvar_padroes_fornecedores", patterns });
-    setSavingPatterns(false);
-    if (!result) return;
-    setFeedback(`${result.saved || 0} padrão(ões) salvo(s). O Portal reutilizará esses dados nas próximas conferências.`);
+    if (result.complete) {
+      verificationWindow?.close();
+      setFeedback("Todas as planilhas de fornecedores já foram padronizadas.");
+      await load();
+      return;
+    }
+    if (result.spreadsheetUrl) {
+      if (verificationWindow) verificationWindow.location.href = result.spreadsheetUrl;
+      else window.open(result.spreadsheetUrl, "_blank", "noopener,noreferrer");
+    } else {
+      verificationWindow?.close();
+    }
+    setFeedback(`Planilha ${result.supplierName} pronta para conferência. Confira a planilha aberta e depois marque como atualizada.`);
     await load();
   }
 
-  async function saveOnePattern(item: SupplierAnalysis) {
+  async function confirmSupplierSheet() {
+    if (!preparedSupplier) return;
     const result = await post({
-      action: "salvar_padrao_fornecedor",
-      name: item.name,
-      spreadsheetId: item.spreadsheetId,
-      sheetName: item.sheetName,
-      codeColumn: item.codeColumn,
-      descriptionColumn: item.descriptionColumn,
-      stockColumn: item.stockColumn,
-      startRow: item.startRow,
+      action: "confirmar_planilha_fornecedor",
+      spreadsheetId: preparedSupplier.spreadsheet_id,
     });
     if (!result) return;
-    setFeedback(`Padrão salvo: ${item.name}.`);
+    setFeedback(`${result.supplierName} marcada como atualizada. A próxima planilha seguirá a ordem alfabética.`);
     await load();
   }
 
@@ -386,10 +374,12 @@ export default function EstoqueRotativoClient() {
         </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2">
+      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {[
-          ["Atualizações pendentes", pending],
-          ["Atualizadas no mês", updatedMonth],
+          ["Planilha fornecedor pendente", supplierPending],
+          ["Planilha fornecedor atualizada", supplierUpdated],
+          ["Estoque atual pendente", pending],
+          ["Estoque atual atualizado", stockUpdated],
         ].map(([label, value]) => (
           <article key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-3xl font-semibold text-slate-950">{loading ? "…" : value ?? "—"}</p>
@@ -410,145 +400,62 @@ export default function EstoqueRotativoClient() {
 
       {data?.permissions.canManage ? (
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">1. Padronizar fornecedores</p>
-              <h2 className="mt-2 text-xl font-semibold text-slate-950">Analisar planilhas automaticamente</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Faça uma vez por planilha. O Portal identifica aba, código, descrição, estoque e linha inicial; você revisa apenas as exceções.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void analyzeSuppliers()}
-                disabled={scanningSuppliers || busy}
-                className="min-h-11 rounded-xl bg-blue-800 px-4 text-sm font-semibold text-white disabled:opacity-50"
-              >
-                {scanningSuppliers ? "Analisando..." : "Analisar pasta de fornecedores"}
-              </button>
-              {supplierAnalyses.some((item) => item.status === "reconhecida") ? (
-                <button
-                  type="button"
-                  onClick={() => void saveRecognizedPatterns()}
-                  disabled={savingPatterns || busy}
-                  className="min-h-11 rounded-xl border border-blue-200 px-4 text-sm font-semibold text-blue-800 disabled:opacity-50"
-                >
-                  {savingPatterns ? "Salvando..." : "Salvar reconhecidas"}
-                </button>
-              ) : null}
-            </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">1. Padronizar fornecedores</p>
+            <h2 className="mt-2 text-xl font-semibold text-slate-950">Uma planilha por vez, em ordem alfabética</h2>
+            <p className="mt-1 text-sm text-slate-500">
+              O Portal padroniza uma planilha, abre para sua conferência e só libera a próxima depois que você marcar a atual como atualizada.
+            </p>
           </div>
 
-          {supplierAnalyses.length ? (
-            <div className="mt-5 space-y-3">
-              {supplierAnalyses.map((item, index) => (
-                <article key={item.spreadsheetId} className="rounded-2xl border border-slate-200 p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
-                      <p className="font-semibold text-slate-950">{item.name}</p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {item.status === "reconhecida" ? "Reconhecida automaticamente" : item.reason || "Revisar"}
-                      </p>
-                    </div>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      item.status === "reconhecida"
-                        ? "bg-emerald-100 text-emerald-800"
-                        : "bg-amber-100 text-amber-900"
-                    }`}>
-                      {item.status === "reconhecida" ? "Reconhecida" : "Revisar"}
-                    </span>
-                  </div>
+          <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-sm text-slate-700">
+            <p className="font-semibold text-blue-900">Padrão aplicado</p>
+            <p className="mt-1">A · COD-VENDA &nbsp; B · COD-COMPRA &nbsp; C · PRODUTO &nbsp; D · EST-MIN &nbsp; E · ESTOQUE ATUAL</p>
+            <p className="mt-1 text-xs text-slate-500">Cabeçalho na linha 5 · produtos em ordem alfabética · Calibri 11 · datas MM/AA · demais informações preservadas.</p>
+          </div>
 
-                  {item.mimeType === "application/vnd.google-apps.spreadsheet" ? (
-                    <>
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-                        <label className="text-xs font-semibold text-slate-700 lg:col-span-2">
-                          Fornecedor
-                          <input
-                            value={item.name}
-                            onChange={(event) => updateSupplierAnalysis(index, { name: event.target.value })}
-                            className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
-                          />
-                        </label>
-                        <label className="text-xs font-semibold text-slate-700">
-                          Aba
-                          <input
-                            value={item.sheetName}
-                            onChange={(event) => updateSupplierAnalysis(index, { sheetName: event.target.value })}
-                            className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
-                          />
-                        </label>
-                        <label className="text-xs font-semibold text-slate-700">
-                          Código
-                          <input
-                            value={item.codeColumn}
-                            onChange={(event) => updateSupplierAnalysis(index, { codeColumn: event.target.value.toUpperCase() })}
-                            className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
-                          />
-                        </label>
-                        <label className="text-xs font-semibold text-slate-700">
-                          Descrição
-                          <input
-                            value={item.descriptionColumn}
-                            onChange={(event) => updateSupplierAnalysis(index, { descriptionColumn: event.target.value.toUpperCase() })}
-                            className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
-                          />
-                        </label>
-                        <label className="text-xs font-semibold text-slate-700">
-                          Estoque
-                          <input
-                            value={item.stockColumn}
-                            onChange={(event) => updateSupplierAnalysis(index, { stockColumn: event.target.value.toUpperCase() })}
-                            className="mt-1 min-h-10 w-full rounded-lg border border-slate-300 px-3 text-sm"
-                          />
-                        </label>
-                      </div>
-                      <div className="mt-3 flex flex-wrap items-end gap-3">
-                        <label className="text-xs font-semibold text-slate-700">
-                          Linha inicial
-                          <input
-                            type="text"
-                            inputMode="numeric"
-                            value={String(item.startRow || "")}
-                            onChange={(event) => updateSupplierAnalysis(index, { startRow: Number(event.target.value.replace(/\D/g, "")) || 0 })}
-                            className="mt-1 min-h-10 w-28 rounded-lg border border-slate-300 px-3 text-sm"
-                          />
-                        </label>
-                        <button
-                          type="button"
-                          onClick={() => void saveOnePattern(item)}
-                          disabled={busy || !item.sheetName || !item.codeColumn || !item.descriptionColumn || !item.stockColumn || !item.startRow}
-                          className="min-h-10 rounded-lg border border-slate-300 px-4 text-sm font-semibold text-blue-800 disabled:opacity-40"
-                        >
-                          Salvar padrão
-                        </button>
-                        <a
-                          href={item.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-semibold text-slate-600 underline"
-                        >
-                          Abrir planilha
-                        </a>
-                      </div>
-                    </>
-                  ) : (
-                    <div className="mt-3">
-                      <a
-                        href={item.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-sm font-semibold text-blue-800 underline"
-                      >
-                        Abrir arquivo para converter
-                      </a>
-                    </div>
-                  )}
-                </article>
-              ))}
+          {preparedSupplier ? (
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Aguardando sua conferência</p>
+              <p className="mt-2 text-lg font-semibold text-slate-950">{preparedSupplier.supplier_name}</p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <a
+                  href={preparedSupplier.spreadsheet_url}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex min-h-11 items-center rounded-xl bg-blue-800 px-4 text-sm font-semibold text-white"
+                >
+                  Abrir planilha para verificar
+                </a>
+                <button
+                  type="button"
+                  onClick={() => void confirmSupplierSheet()}
+                  disabled={busy}
+                  className="min-h-11 rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white disabled:opacity-50"
+                >
+                  Marcar planilha como atualizada
+                </button>
+              </div>
             </div>
-          ) : null}
+          ) : nextSupplier ? (
+            <div className="mt-4 rounded-2xl border border-slate-200 p-5">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Próxima planilha</p>
+              <p className="mt-2 text-lg font-semibold text-slate-950">{nextSupplier.name}</p>
+              <p className="mt-1 text-sm text-slate-500">A próxima só será liberada depois da sua conferência.</p>
+              <button
+                type="button"
+                onClick={() => void standardizeNextSupplier()}
+                disabled={busy || standardizingSupplier}
+                className="mt-4 min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:opacity-50"
+              >
+                {standardizingSupplier ? "Padronizando..." : "Padronizar e abrir planilha"}
+              </button>
+            </div>
+          ) : (
+            <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-semibold text-emerald-800">
+              Todas as planilhas de fornecedores estão atualizadas.
+            </p>
+          )}
         </section>
       ) : null}
 
@@ -904,6 +811,39 @@ export default function EstoqueRotativoClient() {
           </div>
         </section>
       ) : null}
+      {data?.permissions.canManage ? (
+        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Planilhas de fornecedores</p>
+            <h2 className="mt-2 text-xl font-semibold text-slate-950">Planilhas atualizadas</h2>
+          </div>
+          <div className="mt-4 space-y-2">
+            {(data.supplierStandardizations || []).filter((item) => item.status === "atualizada").length ? (
+              (data.supplierStandardizations || [])
+                .filter((item) => item.status === "atualizada")
+                .map((item) => (
+                  <div key={item.spreadsheet_id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">{item.supplier_name}</p>
+                      <p className="mt-1 text-xs text-slate-500">{item.confirmed_at ? formatDate(item.confirmed_at) : ""}</p>
+                    </div>
+                    <a
+                      href={item.spreadsheet_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-sm font-semibold text-blue-800 underline"
+                    >
+                      Abrir planilha
+                    </a>
+                  </div>
+                ))
+            ) : (
+              <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">Nenhuma planilha padronizada e confirmada ainda.</p>
+            )}
+          </div>
+        </section>
+      ) : null}
+
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { getPortalUser, hasModuleAccess, type PortalUser } from "@/lib/access-control";
 import { listTeamMessages } from "@/lib/espaco-equipe";
 import { listStockAlerts, type StockAlert } from "@/lib/estoque-alerts";
-import { listComunicados } from "@/lib/comunicados";
+import { canViewComunicado, listComunicados, type ComunicadoUnidade } from "@/lib/comunicados";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -85,7 +85,7 @@ export async function GET() {
         .filter((item) => item.status === "ativo")
         .filter((item) => !item.startsAt || Date.parse(item.startsAt) <= now)
         .filter((item) => isWithinDisplayEndDate(item.expiresAt, now))
-        .filter((item) => unit === "geral" || item.unit === "geral" || item.unit.replace("_", " ") === unit.replace("_", " "))
+        .filter((item) => GESTAO_EMAILS.has(email) || canViewComunicado(item, email, (unit === "rio_claro" ? "rio claro" : unit) as ComunicadoUnidade))
         .slice(0, 10)) {
         items.push({
           id: `comunicado:${notice.id}:${notice.updatedAt}`,

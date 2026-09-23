@@ -5,7 +5,7 @@ import {
   type PortalModule,
   type PortalUser,
 } from "@/lib/access-control";
-import { AVISO_TEAM_MEMBERS, requiresAvisoConfirmation, TEAM_MEMBERS, type TeamMember } from "@/lib/team-members";
+import { AVISO_TEAM_MEMBERS, TEAM_MEMBERS, type TeamMember } from "@/lib/team-members";
 import { AVISO_LEITURAS_SPREADSHEET_ID } from "@/lib/portal-data-constants";
 
 const USERS_SHEET = "PortalUsuarios";
@@ -120,7 +120,7 @@ async function ensureSheets(accessToken: string) {
 }
 
 async function readUsers(accessToken: string): Promise<PortalUser[]> {
-  const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:K500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
+  const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:L500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
   return (response.values || []).map((row) => ({
     email: normalizeEmail(row[0]),
     name: row[1] || "",
@@ -132,7 +132,12 @@ async function readUsers(accessToken: string): Promise<PortalUser[]> {
     active: yes(row[7], true),
     directPainel: yes(row[8]),
     lastAccess: row[9] || "",
+    mobileModules: row[11] ? row[11] === "nenhum" ? [] : csvModules(row[11]) : undefined,
   })).filter((user) => user.email && user.name);
+}
+
+export async function listConfiguredPortalUsers(accessToken: string) {
+  return readUsers(accessToken);
 }
 
 async function readCollaborators(accessToken: string): Promise<ConfiguredCollaborator[]> {
@@ -185,7 +190,7 @@ export async function writeUsers(accessToken: string, users: PortalUser[]) {
     active: true,
     readOnly: false,
   };
-  await replaceRange(accessToken, `${USERS_SHEET}!A2:K500`, normalized.map((user) => [
+  await replaceRange(accessToken, `${USERS_SHEET}!A2:L500`, normalized.map((user) => [
     user.email,
     user.name,
     user.unit || defaultUnit(user.email) || "Rio Claro",
@@ -197,6 +202,7 @@ export async function writeUsers(accessToken: string, users: PortalUser[]) {
     user.directPainel ? "Sim" : "Não",
     user.lastAccess || "",
     now,
+    user.mobileModules === undefined ? "" : user.mobileModules.join(",") || "nenhum",
   ]));
 }
 
@@ -213,6 +219,7 @@ function userRow(user: PortalUser, now = new Date().toISOString()) {
     user.directPainel ? "Sim" : "Não",
     user.lastAccess || "",
     now,
+    user.mobileModules === undefined ? "" : user.mobileModules.join(",") || "nenhum",
   ];
 }
 
@@ -226,12 +233,12 @@ export async function upsertPortalUser(accessToken: string, input: PortalUser) {
   const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:A500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
   const index = (response.values || []).findIndex((row) => normalizeEmail(row[0]) === user.email);
   if (index >= 0) {
-    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A${index + 2}:K${index + 2}`)}`, { valueInputOption: "RAW" }), {
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A${index + 2}:L${index + 2}`)}`, { valueInputOption: "RAW" }), {
       method: "PUT",
       body: JSON.stringify({ values: [userRow(user)] }),
     });
   } else {
-    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A:K`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), {
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A:L`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), {
       method: "POST",
       body: JSON.stringify({ values: [userRow(user)] }),
     });
@@ -262,6 +269,15 @@ export async function upsertCollaborator(accessToken: string, member: Configured
     await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A:F`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), { method: "POST", body: JSON.stringify({ values }) });
   }
   return member;
+}
+
+export async function deleteCollaborator(accessToken: string, id: string) {
+  const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A2:A500`)}`));
+  const index = (response.values || []).findIndex((row) => row[0] === id);
+  if (index < 0) return false;
+  const row = index + 2;
+  await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A${row}:F${row}`)}:clear`), { method: "POST", body: "{}" });
+  return true;
 }
 
 export async function appendAudit(accessToken: string, action: string, details: string, actor = CICA_EMAIL) {
@@ -335,9 +351,7 @@ export async function getEffectiveCollaborators(accessToken?: string) {
   if (!accessToken) return defaultCollaborators();
   try {
     await ensurePortalConfiguration(accessToken);
-    return (await readCollaborators(accessToken))
-      .filter((member) => member.active)
-      .map((member) => ({ ...member, noticeRequired: requiresAvisoConfirmation(member) }));
+    return (await readCollaborators(accessToken)).filter((member) => member.active);
   } catch (error) {
     console.warn("[portal-config] Não foi possível carregar colaboradores; usando base segura.", error);
     return defaultCollaborators().filter((member) => member.active);

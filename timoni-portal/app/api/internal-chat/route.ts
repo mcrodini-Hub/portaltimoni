@@ -16,7 +16,7 @@ import {
 } from "@/lib/internal-chat";
 import { auth } from "@/lib/auth";
 import { hasModuleAccess, normalizeEmail } from "@/lib/access-control";
-import { getEffectivePortalUser, loadPortalConfiguration } from "@/lib/portal-config";
+import { getEffectivePortalUser, listConfiguredPortalUsers } from "@/lib/portal-config";
 
 export const dynamic = "force-dynamic";
 
@@ -34,15 +34,10 @@ function fallbackParticipants(): ChatParticipant[] {
 
 async function getChatParticipants(accessToken?: string): Promise<ChatParticipant[]> {
   if (!accessToken) return fallbackParticipants();
-  try {
-    const configuration = await loadPortalConfiguration(accessToken);
-    return configuration.users
+    const users = await listConfiguredPortalUsers(accessToken);
+    return users
       .filter((user) => user.active !== false && hasModuleAccess(user.email, "chat", user))
       .map((user) => ({ name: user.name, email: normalizeEmail(user.email) }));
-  } catch (error) {
-    console.warn("[internal-chat] Não foi possível carregar participantes dinâmicos; usando base segura.", error);
-    return fallbackParticipants();
-  }
 }
 
 async function context(peerEmail?: string | null) {

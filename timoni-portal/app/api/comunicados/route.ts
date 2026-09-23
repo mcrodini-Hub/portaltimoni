@@ -2,12 +2,14 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import {
   createComunicado,
+  canViewComunicado,
   deleteComunicado,
   listComunicados,
   updateComunicado,
   type ComunicadoUnidade,
 } from "@/lib/comunicados";
 import { getPortalUser, type PortalUser } from "@/lib/access-control";
+import { listConfiguredPortalUsers } from "@/lib/portal-config";
 
 const ADMIN_EMAIL = "mcrodini@gmail.com";
 const VALID_UNITS = new Set<ComunicadoUnidade>(["geral", "araras", "rio claro"]);
@@ -55,6 +57,18 @@ async function getSessionContext() {
   return { session, email, accessToken: session?.accessToken ?? "", portalUser: session?.portalUser };
 }
 
+async function recipientSelection(value: unknown, accessToken: string): Promise<string[] | null> {
+  if (value === null || value === undefined) return null;
+  if (!Array.isArray(value) || !value.length || value.some((item) => typeof item !== "string")) {
+    throw new Error("Selecione ao menos um acesso para este aviso.");
+  }
+  const selected = [...new Set(value.map((item: string) => normalizeEmail(item)))];
+  const users = await listConfiguredPortalUsers(accessToken);
+  const allowed = new Set(users.filter((user) => user.active !== false && user.modules.includes("painel")).map((user) => user.email));
+  if (selected.some((email) => !allowed.has(email))) throw new Error("Há um acesso inválido ou inativo na seleção.");
+  return selected;
+}
+
 export async function GET() {
   const context = await getSessionContext();
   if (!context) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
@@ -67,9 +81,19 @@ export async function GET() {
       item.status === "ativo" &&
       (!item.startsAt || Date.parse(item.startsAt) <= now) &&
       isWithinDisplayEndDate(item.expiresAt, now) &&
-      (unit === "geral" || item.unit === "geral" || item.unit === unit)
+      (context.email === ADMIN_EMAIL || canViewComunicado(item, context.email, unit))
     ).length;
-    return NextResponse.json({ ok: true, items, activeCount, isAdmin: context.email === ADMIN_EMAIL });
+    const isAdmin = context.email === ADMIN_EMAIL;
+    let recipientOptions: Array<{ email: string; name: string; unit?: string }> = [];
+    let recipientOptionsError = false;
+    if (isAdmin) {
+      try {
+        recipientOptions = (await listConfiguredPortalUsers(context.accessToken))
+          .filter((user) => user.active !== false && user.modules.includes("painel"))
+          .map((user) => ({ email: user.email, name: user.name, unit: user.unit }));
+      } catch { recipientOptionsError = true; }
+    }
+    return NextResponse.json({ ok: true, items: isAdmin ? items : items.filter((item) => canViewComunicado(item, context.email, unit)), activeCount, isAdmin, recipientOptions, recipientOptionsError });
   } catch (error) {
     console.error("[comunicados][GET]", error);
     return NextResponse.json({ error: "Não foi possível carregar os comunicados." }, { status: 500 });
@@ -94,11 +118,12 @@ export async function POST(request: Request) {
     if (!VALID_UNITS.has(unit) || title.length < 3 || message.length < 3) {
       return NextResponse.json({ error: "Preencha unidade, título e mensagem." }, { status: 400 });
     }
-    const id = await createComunicado(context.accessToken, { unit, title, message, startsAt, expiresAt });
+    const recipientEmails = await recipientSelection(body?.recipientEmails, context.accessToken);
+    const id = await createComunicado(context.accessToken, { unit, title, message, startsAt, expiresAt, recipientEmails });
     return NextResponse.json({ ok: true, id });
   } catch (error) {
     console.error("[comunicados][POST]", error);
-    return NextResponse.json({ error: "Não foi possível registrar o comunicado." }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível registrar o comunicado." }, { status: 400 });
   }
 }
 
@@ -129,11 +154,12 @@ export async function PATCH(request: Request) {
     if (!VALID_UNITS.has(unit) || title.length < 3 || message.length < 3) {
       return NextResponse.json({ error: "Preencha unidade, título e mensagem." }, { status: 400 });
     }
-    await updateComunicado(context.accessToken, id, { unit, title, message, startsAt, expiresAt });
+    const recipientEmails = await recipientSelection(body?.recipientEmails, context.accessToken);
+    await updateComunicado(context.accessToken, id, { unit, title, message, startsAt, expiresAt, recipientEmails });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[comunicados][PATCH]", error);
-    return NextResponse.json({ error: "Não foi possível atualizar o comunicado." }, { status: 500 });
+    return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível atualizar o comunicado." }, { status: 400 });
   }
 }
 

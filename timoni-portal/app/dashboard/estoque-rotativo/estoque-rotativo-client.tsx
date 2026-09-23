@@ -8,12 +8,12 @@ type Update = {
   id: string; supplier_name: string; spreadsheet_name: string; spreadsheet_link: string; note: string;
   reported_by: string; reported_at: string; status: Status; locked_by: string | null;
   items_read: number; found_count: number; not_found_count: number; unchanged_count: number; updated_count: number;
-  source_sheet_name: string; source_code_column: string; source_description_column: string;
+  source_sheet_name: string; source_code_column: string; source_purchase_code_column: string; source_description_column: string;
   source_stock_column: string; source_start_row: number; trello_card_id: string; updated_rows?: number[]; conference_rows?: number[];
 };
 type Item = {
-  id: string; code: string; description: string; old_stock: number | null; new_stock: number;
-  situation: Situation; target_row: number | null; applied: boolean;
+  id: string; code: string; source_sale_code: string; purchase_code: string; suggested_code: string; suggestion_reason: string;
+  description: string; old_stock: number | null; new_stock: number; situation: Situation; target_row: number | null; applied: boolean;
 };
 type Supplier = {
   id: string; name: string; spreadsheet_id: string; sheet_name: string; data_range: string;
@@ -94,6 +94,7 @@ function signedDifference(value: number | null) {
 }
 
 function comparisonResult(item: Item) {
+  if (item.situation === "nao_encontrado" && item.suggested_code) return `SUGESTÃO: ${item.suggested_code}`;
   if (item.situation === "nao_encontrado") return "NÃO ENCONTRADO";
   if (item.old_stock === null) return "SEM ESTOQUE ANTERIOR";
   const difference = item.new_stock - item.old_stock;
@@ -125,10 +126,14 @@ export default function EstoqueRotativoClient() {
   const [note, setNote] = useState("");
   const [sourceSheetName, setSourceSheetName] = useState("");
   const [detectingSheet, setDetectingSheet] = useState(false);
-  const [sourceCodeColumn, setSourceCodeColumn] = useState("B");
+  const [sourceCodeColumn, setSourceCodeColumn] = useState("A");
+  const [sourcePurchaseCodeColumn, setSourcePurchaseCodeColumn] = useState("B");
   const [sourceDescriptionColumn, setSourceDescriptionColumn] = useState("C");
-  const [sourceStockColumn, setSourceStockColumn] = useState("F");
-  const [sourceStartRow, setSourceStartRow] = useState("");
+  const [sourceStockColumn, setSourceStockColumn] = useState("E");
+  const [sourceStartRow, setSourceStartRow] = useState("6");
+  const [editingConferenceItemId, setEditingConferenceItemId] = useState<string | null>(null);
+  const [editingSaleCode, setEditingSaleCode] = useState("");
+  const [editingStock, setEditingStock] = useState("");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [standardizingSupplier, setStandardizingSupplier] = useState(false);
@@ -266,6 +271,7 @@ export default function EstoqueRotativoClient() {
     setNote(item.note || "");
     setSourceSheetName(item.source_sheet_name || "");
     setSourceCodeColumn(item.source_code_column || "");
+    setSourcePurchaseCodeColumn(item.source_purchase_code_column || "");
     setSourceDescriptionColumn(item.source_description_column || "");
     setSourceStockColumn(item.source_stock_column || "");
     setSourceStartRow(String(item.source_start_row || ""));
@@ -299,7 +305,11 @@ export default function EstoqueRotativoClient() {
       return;
     }
     if (![sourceCodeColumn, sourceDescriptionColumn, sourceStockColumn].every((column) => /^[A-Z]+$/i.test(column.trim()))) {
-      setError("Revise as colunas de código, descrição e estoque.");
+      setError("Revise as colunas COD-VENDA, descrição e estoque.");
+      return;
+    }
+    if (sourcePurchaseCodeColumn.trim() && !/^[A-Z]+$/i.test(sourcePurchaseCodeColumn.trim())) {
+      setError("Revise a coluna COD-COMPRA.");
       return;
     }
     if (!Number.isInteger(Number(sourceStartRow)) || Number(sourceStartRow) < 1) {
@@ -312,6 +322,7 @@ export default function EstoqueRotativoClient() {
       note,
       sourceSheetName,
       sourceCodeColumn,
+      sourcePurchaseCodeColumn,
       sourceDescriptionColumn,
       sourceStockColumn,
       sourceStartRow: Number(sourceStartRow),
@@ -340,8 +351,40 @@ export default function EstoqueRotativoClient() {
     await load(id);
   }
 
+  async function saveConferenceItemCorrection(item: Item) {
+    if (!activeId) return;
+    const saleCode = editingSaleCode.trim();
+    const stock = editingStock.trim();
+    if (!saleCode) {
+      setError("Informe o COD-VENDA correto.");
+      return;
+    }
+    if (!/^\d+$/.test(stock)) {
+      setError("Informe o estoque com número inteiro igual ou maior que zero.");
+      return;
+    }
+    const result = await post({
+      action: "corrigir_item_conferencia",
+      id: activeId,
+      itemId: item.id,
+      saleCode,
+      newStock: Number(stock),
+    });
+    if (!result) return;
+    setEditingConferenceItemId(null);
+    setEditingSaleCode("");
+    setEditingStock("");
+    setFeedback("Item corrigido. Confira o resultado antes de atualizar a planilha.");
+    await load(activeId);
+  }
+
   async function apply() {
     if (!activeId) return;
+    const unresolved = (data?.items || []).filter((item) => item.situation === "nao_encontrado");
+    if (unresolved.length) {
+      setError(`Corrija os ${unresolved.length} item(ns) sem COD-VENDA confirmado antes de atualizar.`);
+      return;
+    }
     const divergenceIds = (data?.items || []).filter((item) => item.situation === "encontrado").map((item) => item.id);
     const confirmation = divergenceIds.length
       ? `Atualizar ${divergenceIds.length} produto(s) com divergência?`
@@ -430,8 +473,8 @@ export default function EstoqueRotativoClient() {
 
           <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-sm text-slate-700">
             <p className="font-semibold text-blue-900">Padrão aplicado</p>
-            <p className="mt-1">A · COD-VENDA &nbsp; B · COD-COMPRA &nbsp; C · PRODUTO &nbsp; D · EST-MIN &nbsp; E · ESTOQUE ATUAL</p>
-            <p className="mt-1 text-xs text-slate-500">Cabeçalho na linha 5 · produtos em ordem alfabética · Calibri 11 · datas MM/AA · demais informações preservadas.</p>
+            <p className="mt-1">A · COD-VENDA &nbsp; B · COD-COMPRA &nbsp; C · DESCRIÇÃO &nbsp; E · ESTOQUE</p>
+            <p className="mt-1 text-xs text-slate-500">E3 responsável (LUCAS editável) · E4 data do estoque físico · G3 em diante CT/MCR/ROD · G4 em diante CONT.VALORES · linha 5 congelada.</p>
           </div>
 
           {preparedSupplier ? (
@@ -623,21 +666,29 @@ export default function EstoqueRotativoClient() {
               />
             </label>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
               <label className="text-sm font-semibold text-slate-800">
                 Aba
                 <input
                   value={sourceSheetName}
                   onChange={(event) => setSourceSheetName(event.target.value)}
-                  placeholder={detectingSheet ? "Identificando..." : "Ex.: plan"}
+                  placeholder={detectingSheet ? "Identificando..." : "Preencha somente se houver mais de uma aba"}
                   className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
                 />
               </label>
               <label className="text-sm font-semibold text-slate-800">
-                Código
+                Cod-venda
                 <input
                   value={sourceCodeColumn}
                   onChange={(event) => setSourceCodeColumn(event.target.value.toUpperCase())}
+                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
+                />
+              </label>
+              <label className="text-sm font-semibold text-slate-800">
+                Cod-compra <span className="font-normal text-slate-500">(opcional)</span>
+                <input
+                  value={sourcePurchaseCodeColumn}
+                  onChange={(event) => setSourcePurchaseCodeColumn(event.target.value.toUpperCase())}
                   className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
                 />
               </label>
@@ -665,7 +716,7 @@ export default function EstoqueRotativoClient() {
                   pattern="[0-9]*"
                   value={sourceStartRow}
                   onChange={(event) => setSourceStartRow(event.target.value.replace(/\D/g, ""))}
-                  placeholder="Ex.: 7"
+                  placeholder="Ex.: 6"
                   className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
                 />
               </label>
@@ -695,15 +746,17 @@ export default function EstoqueRotativoClient() {
           </div>
 
           <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200">
-            <table className="w-full min-w-[1050px] border-collapse text-sm">
+            <table className="w-full min-w-[1280px] border-collapse text-sm">
               <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600">
                 <tr>
-                  <th className="px-3 py-3">Código</th>
+                  <th className="px-3 py-3">Cod-venda</th>
+                  <th className="px-3 py-3">Cod-compra</th>
                   <th className="px-3 py-3">Descrição</th>
                   <th className="px-3 py-3 text-right">Estoque anterior</th>
                   <th className="px-3 py-3 text-right">Estoque atual</th>
                   <th className="px-3 py-3 text-right">Diferença</th>
                   <th className="px-3 py-3">Resultado</th>
+                  <th className="px-3 py-3">Ação</th>
                 </tr>
               </thead>
               <tbody>
@@ -711,9 +764,12 @@ export default function EstoqueRotativoClient() {
                   const difference = item.old_stock === null || item.situation === "nao_encontrado"
                     ? null
                     : item.new_stock - item.old_stock;
+                  const needsReview = item.situation === "nao_encontrado" || difference !== 0;
+                  const editing = editingConferenceItemId === item.id;
                   return (
-                    <tr key={item.id} className="border-t border-slate-100">
-                      <td className="px-3 py-3 font-semibold text-blue-800">{item.code || "—"}</td>
+                    <tr key={item.id} className="border-t border-slate-100 align-top">
+                      <td className="px-3 py-3 font-semibold text-blue-800">{item.code || item.source_sale_code || "—"}</td>
+                      <td className="px-3 py-3 text-slate-700">{item.purchase_code || "—"}</td>
                       <td className="px-3 py-3 text-slate-700">{item.description || "—"}</td>
                       <td className="px-3 py-3 text-right font-semibold text-slate-700">{item.old_stock ?? "—"}</td>
                       <td className="px-3 py-3 text-right font-semibold text-slate-950">{item.new_stock}</td>
@@ -730,6 +786,69 @@ export default function EstoqueRotativoClient() {
                         }`}>
                           {comparisonResult(item)}
                         </span>
+                        {item.suggestion_reason ? (
+                          <p className="mt-2 max-w-xs text-xs leading-5 text-slate-500">{item.suggestion_reason}</p>
+                        ) : null}
+                      </td>
+                      <td className="px-3 py-3">
+                        {needsReview && data.permissions.canConference ? (
+                          <div className="min-w-[220px]">
+                            {!editing ? (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setEditingConferenceItemId(item.id);
+                                  setEditingSaleCode(item.suggested_code || item.code || item.source_sale_code || "");
+                                  setEditingStock(String(item.new_stock));
+                                }}
+                                className="rounded-lg border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800"
+                              >
+                                Editar
+                              </button>
+                            ) : (
+                              <div className="space-y-2">
+                                <label className="block text-xs font-semibold text-slate-700">
+                                  COD-VENDA correto
+                                  <input
+                                    value={editingSaleCode}
+                                    onChange={(event) => setEditingSaleCode(event.target.value)}
+                                    className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                                  />
+                                </label>
+                                <label className="block text-xs font-semibold text-slate-700">
+                                  Estoque físico
+                                  <input
+                                    inputMode="numeric"
+                                    value={editingStock}
+                                    onChange={(event) => setEditingStock(event.target.value.replace(/\D/g, ""))}
+                                    className="mt-1 w-full rounded-lg border border-slate-300 px-2 py-2 text-sm"
+                                  />
+                                </label>
+                                <div className="flex gap-2">
+                                  <button
+                                    type="button"
+                                    disabled={busy}
+                                    onClick={() => void saveConferenceItemCorrection(item)}
+                                    className="rounded-lg bg-blue-800 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                                  >
+                                    Salvar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setEditingConferenceItemId(null);
+                                      setEditingSaleCode("");
+                                      setEditingStock("");
+                                    }}
+                                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-600"
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ) : <span className="text-xs text-slate-400">—</span>}
                       </td>
                     </tr>
                   );
@@ -748,11 +867,17 @@ export default function EstoqueRotativoClient() {
             Itens encontrados passam de Pendente para Atualizado dd/mm/aa. Somente as divergências alteram a quantidade na coluna D.
           </p>
 
+          {(data.items || []).some((item) => item.situation === "nao_encontrado") ? (
+            <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
+              Corrija os itens sem COD-VENDA confirmado antes de atualizar a planilha central.
+            </p>
+          ) : null}
+
           <div className="mt-4 flex flex-wrap items-center gap-3">
             <button
               type="button"
               onClick={() => void apply()}
-              disabled={busy}
+              disabled={busy || (data.items || []).some((item) => item.situation === "nao_encontrado")}
               className="min-h-12 rounded-xl bg-emerald-700 px-6 text-sm font-semibold text-white hover:bg-emerald-800 disabled:cursor-not-allowed disabled:bg-slate-300"
             >
               {busy ? "Atualizando..." : "Atualizar Estoque Rotativo"}

@@ -10,7 +10,7 @@ export const dynamic = "force-dynamic";
 
 const SPREADSHEET_ID = "1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo";
 const NEED_COLUMNS = 15;
-const RECEIVED_VISIBLE_DAYS = 15;
+const RECEIVED_VISIBLE_DAYS = 30;
 const SENT_ORDERS_CACHE_RANGE = "Necessidades!Q:W";
 const SENT_ORDERS_CACHE_HEADER = ["id", "nome", "enviadoEm", "previsaoEntrega", "recebidoEm", "unidade", "situacao"];
 

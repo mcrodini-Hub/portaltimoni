@@ -138,6 +138,7 @@ export default function EstoqueRotativoClient() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [standardizingSupplier, setStandardizingSupplier] = useState(false);
   const [selectedStandardizationSupplierId, setSelectedStandardizationSupplierId] = useState("");
+  const [showStandardizationSupplierSelector, setShowStandardizationSupplierSelector] = useState(false);
 
   const load = useCallback(async (id?: string | null) => {
     setLoading(true); setError("");
@@ -246,6 +247,7 @@ export default function EstoqueRotativoClient() {
     }
     setFeedback(`Planilha ${result.supplierName} pronta para conferência. Confira a planilha aberta e depois marque como atualizada.`);
     setSelectedStandardizationSupplierId("");
+    setShowStandardizationSupplierSelector(false);
     await load();
   }
 
@@ -455,25 +457,28 @@ export default function EstoqueRotativoClient() {
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">1. Padronizar fornecedores</p>
               <h2 className="mt-2 text-xl font-semibold text-slate-950">Uma planilha por vez</h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Selecione a empresa que deseja padronizar. Este fluxo é independente do bloco 2. Fornecedor.
-              </p>
             </div>
-            <button
-              type="button"
-              onClick={() => void load()}
-              disabled={loading || busy || standardizingSupplier}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50"
-            >
-              {loading ? "Atualizando..." : "Atualizar"}
-            </button>
-          </div>
-
-          <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-sm text-slate-700">
-            <p className="font-semibold text-blue-900">Padrão aplicado</p>
-            <p className="mt-1">A · ITEM &nbsp; B · COD-VENDA &nbsp; C · COD-COMPRA &nbsp; D · DESCRIÇÃO &nbsp; E · MÍNIMO &nbsp; F · ESTOQUE</p>
-            <p className="mt-1 text-xs text-slate-500">Somente aba BKP · linha 2 vazia · E3 responsável (LUCAS editável) · E4 data do estoque físico · empresas dos meses anteriores preservadas para manutenção manual · F4 em diante CONT.VALORES · linha 5 congelada.</p>
-            <p className="mt-1 text-xs font-semibold text-amber-700">As células alteradas pelo Portal ficam em amarelo até você aprovar a atualização.</p>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={() => void load()}
+                disabled={loading || busy || standardizingSupplier}
+                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50"
+              >
+                {loading ? "Atualizando..." : "Atualizar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setShowStandardizationSupplierSelector((value) => !value);
+                  setSelectedStandardizationSupplierId("");
+                }}
+                disabled={busy || standardizingSupplier || Boolean(preparedSupplier)}
+                className="rounded-xl border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50"
+              >
+                Selecionar empresa
+              </button>
+            </div>
           </div>
 
           {preparedSupplier ? (
@@ -500,30 +505,32 @@ export default function EstoqueRotativoClient() {
               </div>
             </div>
           ) : pendingSupplierFiles.length ? (
-            <div className="mt-4 rounded-2xl border border-slate-200 p-5">
-              <label className="block text-sm font-semibold text-slate-800">
-                Selecionar empresa
-                <select
-                  value={selectedStandardizationSupplierId}
-                  onChange={(event) => setSelectedStandardizationSupplierId(event.target.value)}
-                  disabled={busy || standardizingSupplier}
-                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm disabled:bg-slate-100"
+            showStandardizationSupplierSelector ? (
+              <div className="mt-4 rounded-2xl border border-slate-200 p-5">
+                <label className="block text-sm font-semibold text-slate-800">
+                  Empresa
+                  <select
+                    value={selectedStandardizationSupplierId}
+                    onChange={(event) => setSelectedStandardizationSupplierId(event.target.value)}
+                    disabled={busy || standardizingSupplier}
+                    className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm disabled:bg-slate-100"
+                  >
+                    <option value="">Selecione...</option>
+                    {pendingSupplierFiles.map((supplier) => (
+                      <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                    ))}
+                  </select>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => selectedStandardizationSupplier && void standardizeNextSupplier(selectedStandardizationSupplier.id)}
+                  disabled={busy || standardizingSupplier || !selectedStandardizationSupplier}
+                  className="mt-3 min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:bg-slate-300"
                 >
-                  <option value="">Selecione...</option>
-                  {pendingSupplierFiles.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-                  ))}
-                </select>
-              </label>
-              <button
-                type="button"
-                onClick={() => selectedStandardizationSupplier && void standardizeNextSupplier(selectedStandardizationSupplier.id)}
-                disabled={busy || standardizingSupplier || !selectedStandardizationSupplier}
-                className="mt-3 min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:bg-slate-300"
-              >
-                {standardizingSupplier ? "Padronizando..." : "Padronizar e abrir planilha"}
-              </button>
-            </div>
+                  {standardizingSupplier ? "Padronizando..." : "Padronizar e abrir planilha"}
+                </button>
+              </div>
+            ) : null
           ) : (
             <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-semibold text-emerald-800">
               Todas as planilhas de fornecedores estão atualizadas.

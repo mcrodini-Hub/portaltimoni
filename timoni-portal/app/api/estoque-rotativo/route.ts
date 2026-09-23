@@ -30,12 +30,503 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const MANAGEMENT_EMAILS = new Set<string>([ROTATING_STOCK_EMAILS.cica, ROTATING_STOCK_EMAILS.marcelo]);
-const SUPPLIERS_FOLDER_ID = "1P7Nb1FwfSQ6e7TA9Wkgizyy53tGGQajk";
-const GOOGLE_SHEET_MIME = "application/vnd.google-apps.spreadsheet";
-const EXCEL_MIMES = new Set([
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.ms-excel",
-]);
+const SUPPLIER_SPREADSHEETS = [
+  {
+    "id": "1UPHFWbuwksxNYUXMFZpLqlpSj_Ebm6Auz4eR-Ni8M6k",
+    "name": "ROMPLAS",
+    "url": "https://docs.google.com/spreadsheets/d/1UPHFWbuwksxNYUXMFZpLqlpSj_Ebm6Auz4eR-Ni8M6k/edit?usp=drivesdk"
+  },
+  {
+    "id": "1RUVgsbodqUiEM6-vPHIW3i9vWQM2sVBJHs0O1FJKdTI",
+    "name": "MINGMORI HAITI EVA",
+    "url": "https://docs.google.com/spreadsheets/d/1RUVgsbodqUiEM6-vPHIW3i9vWQM2sVBJHs0O1FJKdTI/edit?usp=drivesdk"
+  },
+  {
+    "id": "1I9IDEOOGxG1C2U7x44e9x7b4a_1eecicEaGQs-z4Ejw",
+    "name": "SANKONFORT",
+    "url": "https://docs.google.com/spreadsheets/d/1I9IDEOOGxG1C2U7x44e9x7b4a_1eecicEaGQs-z4Ejw/edit?usp=drivesdk"
+  },
+  {
+    "id": "1WhU4TlFxnK4UhjUOIwGCcVC5NvDZlqN6lXhAiIj1i20",
+    "name": "PIC CORRENTES-KTELI",
+    "url": "https://docs.google.com/spreadsheets/d/1WhU4TlFxnK4UhjUOIwGCcVC5NvDZlqN6lXhAiIj1i20/edit?usp=drivesdk"
+  },
+  {
+    "id": "1dsoQGenSTbg9lKh_RS7emQ3cALydU7S5GYiT6pS_wZ0",
+    "name": "MAX EBERHARDT",
+    "url": "https://docs.google.com/spreadsheets/d/1dsoQGenSTbg9lKh_RS7emQ3cALydU7S5GYiT6pS_wZ0/edit?usp=drivesdk"
+  },
+  {
+    "id": "1KT5C2hN-K9SEca4Zuf2sIUOtPKVhmfvhQnDrRZrVHXE",
+    "name": "KOMLOG",
+    "url": "https://docs.google.com/spreadsheets/d/1KT5C2hN-K9SEca4Zuf2sIUOtPKVhmfvhQnDrRZrVHXE/edit?usp=drivesdk"
+  },
+  {
+    "id": "1UX_vj56ikSV7HEKvVJDzbcdNI6CkFRGAuI_R_FfLJy8",
+    "name": "CLOPEGA-ALGODAO FIBRA SINTETICA",
+    "url": "https://docs.google.com/spreadsheets/d/1UX_vj56ikSV7HEKvVJDzbcdNI6CkFRGAuI_R_FfLJy8/edit?usp=drivesdk"
+  },
+  {
+    "id": "1hSjdl_AJ98n9qJrzMqc32tDFhoidpjEdJSMo63RgLpg",
+    "name": "ISOTERM",
+    "url": "https://docs.google.com/spreadsheets/d/1hSjdl_AJ98n9qJrzMqc32tDFhoidpjEdJSMo63RgLpg/edit?usp=drivesdk"
+  },
+  {
+    "id": "1nJbfTuQqpbVrLmW6Q1HE6dzijZ78GW2P7HbnDaI1oyg",
+    "name": "GIACCHERINI",
+    "url": "https://docs.google.com/spreadsheets/d/1nJbfTuQqpbVrLmW6Q1HE6dzijZ78GW2P7HbnDaI1oyg/edit?usp=drivesdk"
+  },
+  {
+    "id": "1SyrWltJISx5jaOoy9mpMm7UiSebAG6-cijuI_nV4bxw",
+    "name": "AMYCRON",
+    "url": "https://docs.google.com/spreadsheets/d/1SyrWltJISx5jaOoy9mpMm7UiSebAG6-cijuI_nV4bxw/edit?usp=drivesdk"
+  },
+  {
+    "id": "1hMpNRl72MjEewLYwRvhUQnT4ueGyImYMerSjH2hctpw",
+    "name": "KUNSTEK/ACETEC",
+    "url": "https://docs.google.com/spreadsheets/d/1hMpNRl72MjEewLYwRvhUQnT4ueGyImYMerSjH2hctpw/edit?usp=drivesdk"
+  },
+  {
+    "id": "1hCUd69ZKV9FQpZCo07brFHga-MGDKt_DyewDnUB9F7U",
+    "name": "MULTINOVA/FERPEX",
+    "url": "https://docs.google.com/spreadsheets/d/1hCUd69ZKV9FQpZCo07brFHga-MGDKt_DyewDnUB9F7U/edit?usp=drivesdk"
+  },
+  {
+    "id": "1_IN9SloDbN-N2qe8NI2ZpEFR3cX-7P773EvsTwSbVjo",
+    "name": "MILENE",
+    "url": "https://docs.google.com/spreadsheets/d/1_IN9SloDbN-N2qe8NI2ZpEFR3cX-7P773EvsTwSbVjo/edit?usp=drivesdk"
+  },
+  {
+    "id": "1avviv9HPhcpM_OkSGvXXj58hkpAbNozucb5ry8ukNBg",
+    "name": "VICK-POLYBRASIL",
+    "url": "https://docs.google.com/spreadsheets/d/1avviv9HPhcpM_OkSGvXXj58hkpAbNozucb5ry8ukNBg/edit?usp=drivesdk"
+  },
+  {
+    "id": "1gkFsC5KmO7p6qoXHmVsI1r12JEgpmbih0GZrbaDozV0",
+    "name": "OBER-INYLBRA-ETRURIA-CARPETE",
+    "url": "https://docs.google.com/spreadsheets/d/1gkFsC5KmO7p6qoXHmVsI1r12JEgpmbih0GZrbaDozV0/edit?usp=drivesdk"
+  },
+  {
+    "id": "1GXI8KPR_x68QLdnrNsT83LNnD0scyyTKvg_j8NakNUQ",
+    "name": "CLASSE JL",
+    "url": "https://docs.google.com/spreadsheets/d/1GXI8KPR_x68QLdnrNsT83LNnD0scyyTKvg_j8NakNUQ/edit?usp=drivesdk"
+  },
+  {
+    "id": "16phBL86TvyME4SdSGt_lpfP70uAZhUVuTXOpXXuwDQk",
+    "name": "SCALTRO IND E COM DE PRODUTOS",
+    "url": "https://docs.google.com/spreadsheets/d/16phBL86TvyME4SdSGt_lpfP70uAZhUVuTXOpXXuwDQk/edit?usp=drivesdk"
+  },
+  {
+    "id": "1lyDnvzTOtLLAGKR5sy1IR3gcNv68rnRihfoYwFIS3lw",
+    "name": "MAN BOTÕES CARDENAS",
+    "url": "https://docs.google.com/spreadsheets/d/1lyDnvzTOtLLAGKR5sy1IR3gcNv68rnRihfoYwFIS3lw/edit?usp=drivesdk"
+  },
+  {
+    "id": "1hakQHFD5Vh2m-jvC3pOz8-pwGOxz2ayKCJgV0RpdB5U",
+    "name": "NS LIBANO",
+    "url": "https://docs.google.com/spreadsheets/d/1hakQHFD5Vh2m-jvC3pOz8-pwGOxz2ayKCJgV0RpdB5U/edit?usp=drivesdk"
+  },
+  {
+    "id": "124MqSyj3xySZ8wSUG32TLUT_zssQPggbwvfNzuCYGt8",
+    "name": "TR NYLON DUBLADO - VIVO",
+    "url": "https://docs.google.com/spreadsheets/d/124MqSyj3xySZ8wSUG32TLUT_zssQPggbwvfNzuCYGt8/edit?usp=drivesdk"
+  },
+  {
+    "id": "1qEGywU77BS557_ykFj77NllNP_cRNRy4vpjQ3O2LzKc",
+    "name": "MET SAO RAPHAEL-MET VERDADEIRO-FUSI",
+    "url": "https://docs.google.com/spreadsheets/d/1qEGywU77BS557_ykFj77NllNP_cRNRy4vpjQ3O2LzKc/edit?usp=drivesdk"
+  },
+  {
+    "id": "1E3JrR2Evg5wjzBl0aseLOAhg2OakxiTgr8m4yUG4smk",
+    "name": "THR/CYCLOPACK",
+    "url": "https://docs.google.com/spreadsheets/d/1E3JrR2Evg5wjzBl0aseLOAhg2OakxiTgr8m4yUG4smk/edit?usp=drivesdk"
+  },
+  {
+    "id": "1VbGCmnADI-2KNgvGLB7WO_5r5Ws5bl2iXa7e-9H6J7c",
+    "name": "COMPLETA",
+    "url": "https://docs.google.com/spreadsheets/d/1VbGCmnADI-2KNgvGLB7WO_5r5Ws5bl2iXa7e-9H6J7c/edit?usp=drivesdk"
+  },
+  {
+    "id": "1DCQN0N64GU7xz3XutiZcbGf0gUO-czbafpwdM23z6-Y",
+    "name": "NEOPRENE",
+    "url": "https://docs.google.com/spreadsheets/d/1DCQN0N64GU7xz3XutiZcbGf0gUO-czbafpwdM23z6-Y/edit?usp=drivesdk"
+  },
+  {
+    "id": "1-HG6VR564V8RECV_D_MtisxpAfruLACIVyKLOL-HNxA",
+    "name": "DISTR PREMIUM",
+    "url": "https://docs.google.com/spreadsheets/d/1-HG6VR564V8RECV_D_MtisxpAfruLACIVyKLOL-HNxA/edit?usp=drivesdk"
+  },
+  {
+    "id": "1_Lc_STTeOq1tnVzMZVJZ4a-wFP_GduQxXxNzjqHZZ0w",
+    "name": "PINCEIS TIGRE",
+    "url": "https://docs.google.com/spreadsheets/d/1_Lc_STTeOq1tnVzMZVJZ4a-wFP_GduQxXxNzjqHZZ0w/edit?usp=drivesdk"
+  },
+  {
+    "id": "182WYRKzAVfD5EalonGfTZ1eiKwqaaJAXieWcXF_0muU",
+    "name": "TEKBOND - SAINT GOBAIN",
+    "url": "https://docs.google.com/spreadsheets/d/182WYRKzAVfD5EalonGfTZ1eiKwqaaJAXieWcXF_0muU/edit?usp=drivesdk"
+  },
+  {
+    "id": "1ncx0_t4g1rAJQ9I-zRDlta3FO6N17e7wnL1g9Co-16s",
+    "name": "ADERE",
+    "url": "https://docs.google.com/spreadsheets/d/1ncx0_t4g1rAJQ9I-zRDlta3FO6N17e7wnL1g9Co-16s/edit?usp=drivesdk"
+  },
+  {
+    "id": "142DDNk_iH8ewIOqQOFMMnAMMRNzjjX98Xy-bvGtheU0",
+    "name": "ACRILEX",
+    "url": "https://docs.google.com/spreadsheets/d/142DDNk_iH8ewIOqQOFMMnAMMRNzjjX98Xy-bvGtheU0/edit?usp=drivesdk"
+  },
+  {
+    "id": "1CDilavwDOFX_C5iQ6BJZZ6raUia9pLlGIxOWQLTskUE",
+    "name": "MULTIFITAS",
+    "url": "https://docs.google.com/spreadsheets/d/1CDilavwDOFX_C5iQ6BJZZ6raUia9pLlGIxOWQLTskUE/edit?usp=drivesdk"
+  },
+  {
+    "id": "1uIGhodo9pX-AbkMtJgQAA3lWQTZnc5DUB07zXhGZCcY",
+    "name": "PALMILHAS TOP FLEX",
+    "url": "https://docs.google.com/spreadsheets/d/1uIGhodo9pX-AbkMtJgQAA3lWQTZnc5DUB07zXhGZCcY/edit?usp=drivesdk"
+  },
+  {
+    "id": "1u93LiVKCgQWnzNMSQxxEPPNLj_YgMHh7o1GnqDTXjo0",
+    "name": "LAHUMAN-NETTEN-MULTITEXTIL",
+    "url": "https://docs.google.com/spreadsheets/d/1u93LiVKCgQWnzNMSQxxEPPNLj_YgMHh7o1GnqDTXjo0/edit?usp=drivesdk"
+  },
+  {
+    "id": "1VfyScSZn7luNch9wWdwQlxxyuGDo6Dq6xWKozwz7bmg",
+    "name": "FCC",
+    "url": "https://docs.google.com/spreadsheets/d/1VfyScSZn7luNch9wWdwQlxxyuGDo6Dq6xWKozwz7bmg/edit?usp=drivesdk"
+  },
+  {
+    "id": "1woobp9-VJVqILchFFFnHIjKNc1Pc9GxVq0ZQMmbHpYY",
+    "name": "FITAS DEMARCAÇÃO E ANTIDERRAPANTE",
+    "url": "https://docs.google.com/spreadsheets/d/1woobp9-VJVqILchFFFnHIjKNc1Pc9GxVq0ZQMmbHpYY/edit?usp=drivesdk"
+  },
+  {
+    "id": "1EFuzi4QjJhjDd3ZcB8UOvcGgHOPv0LpHfRaDuOZ2HUU",
+    "name": "ULTRAFITAS",
+    "url": "https://docs.google.com/spreadsheets/d/1EFuzi4QjJhjDd3ZcB8UOvcGgHOPv0LpHfRaDuOZ2HUU/edit?usp=drivesdk"
+  },
+  {
+    "id": "15aL19fJSW2aX5oJGTN68iX3IrxzAvvVA4TptA1CKtFI",
+    "name": "YORK",
+    "url": "https://docs.google.com/spreadsheets/d/15aL19fJSW2aX5oJGTN68iX3IrxzAvvVA4TptA1CKtFI/edit?usp=drivesdk"
+  },
+  {
+    "id": "11JEa0DCEDqPZcW2xR_NTwnD2WjarX6PYDZZkg94PMOA",
+    "name": "BETINA",
+    "url": "https://docs.google.com/spreadsheets/d/11JEa0DCEDqPZcW2xR_NTwnD2WjarX6PYDZZkg94PMOA/edit?usp=drivesdk"
+  },
+  {
+    "id": "1kxxjidxagdTs1avLKvWToCKvmul-qlWKOUJDxxAlxrc",
+    "name": "CYCLOPAC-FITAR",
+    "url": "https://docs.google.com/spreadsheets/d/1kxxjidxagdTs1avLKvWToCKvmul-qlWKOUJDxxAlxrc/edit?usp=drivesdk"
+  },
+  {
+    "id": "1QRDoHEspNONUKHp6XxTql5iCvvaE0HLEY89p08c1qNQ",
+    "name": "DAUD-DISNAC",
+    "url": "https://docs.google.com/spreadsheets/d/1QRDoHEspNONUKHp6XxTql5iCvvaE0HLEY89p08c1qNQ/edit?usp=drivesdk"
+  },
+  {
+    "id": "1OOuHyN1RaWHX4tGM19fo3Fok6A67NlcBq_dKMYboc3A",
+    "name": "HORLLE PAPELAO PARDO",
+    "url": "https://docs.google.com/spreadsheets/d/1OOuHyN1RaWHX4tGM19fo3Fok6A67NlcBq_dKMYboc3A/edit?usp=drivesdk"
+  },
+  {
+    "id": "1NeaWMkLkNP0FqwZ-J55GnLz5L5SfFjMaE0LWBxSsFgY",
+    "name": "TECNOPLAST  - LONAFORTE",
+    "url": "https://docs.google.com/spreadsheets/d/1NeaWMkLkNP0FqwZ-J55GnLz5L5SfFjMaE0LWBxSsFgY/edit?usp=drivesdk"
+  },
+  {
+    "id": "1QGCvINB2vo_dQHTCoXZLuTJBFAmPhJr2iKR41DyFidk",
+    "name": "BARIFLEX",
+    "url": "https://docs.google.com/spreadsheets/d/1QGCvINB2vo_dQHTCoXZLuTJBFAmPhJr2iKR41DyFidk/edit?usp=drivesdk"
+  },
+  {
+    "id": "1aEovkopomkQHB5N6LjDVlke4LpcvrrQW8gFIiNpL1Ek",
+    "name": "VILELA-MANTA ACRILICA",
+    "url": "https://docs.google.com/spreadsheets/d/1aEovkopomkQHB5N6LjDVlke4LpcvrrQW8gFIiNpL1Ek/edit?usp=drivesdk"
+  },
+  {
+    "id": "1j6Jt8HvY5a_GMUcnNsajitjLX4YX5Q0N9K4X0W8gtbk",
+    "name": "BRASCOLA",
+    "url": "https://docs.google.com/spreadsheets/d/1j6Jt8HvY5a_GMUcnNsajitjLX4YX5Q0N9K4X0W8gtbk/edit?usp=drivesdk"
+  },
+  {
+    "id": "16LK_6jtXeYBtJdvDi_8ExaRgxXrO9qLJJSbKbH36ezk",
+    "name": "ATCO - BOLHA POP - PLASTBOLHA",
+    "url": "https://docs.google.com/spreadsheets/d/16LK_6jtXeYBtJdvDi_8ExaRgxXrO9qLJJSbKbH36ezk/edit?usp=drivesdk"
+  },
+  {
+    "id": "10GCCXJ_ChTtFafJnTYlEs48YSZk5hTZ0Ep7qmiH37Ac",
+    "name": "KISAFIX -KILLING",
+    "url": "https://docs.google.com/spreadsheets/d/10GCCXJ_ChTtFafJnTYlEs48YSZk5hTZ0Ep7qmiH37Ac/edit?usp=drivesdk"
+  },
+  {
+    "id": "1kfuvTEwlI9uQE1OZf2HfpFdz3Nwu8LF46lt5uOwc-cA",
+    "name": "INFINITY",
+    "url": "https://docs.google.com/spreadsheets/d/1kfuvTEwlI9uQE1OZf2HfpFdz3Nwu8LF46lt5uOwc-cA/edit?usp=drivesdk"
+  },
+  {
+    "id": "1e_HDbgf7UX3PLHQO64JdXV6bZwjou-7MNHiH0TAuDmY",
+    "name": "ADINA",
+    "url": "https://docs.google.com/spreadsheets/d/1e_HDbgf7UX3PLHQO64JdXV6bZwjou-7MNHiH0TAuDmY/edit?usp=drivesdk"
+  },
+  {
+    "id": "14MB2RKyO8OLCwPhmuEJaD9CuiVBO_0VJfnvDSVANf9w",
+    "name": "CIA CASTANHAL",
+    "url": "https://docs.google.com/spreadsheets/d/14MB2RKyO8OLCwPhmuEJaD9CuiVBO_0VJfnvDSVANf9w/edit?usp=drivesdk"
+  },
+  {
+    "id": "1KtgLTEPqbOFmoCBjbFzA1LKiMMjVsBqi1nr8_jGqVfk",
+    "name": "PLASTICO BRILHO",
+    "url": "https://docs.google.com/spreadsheets/d/1KtgLTEPqbOFmoCBjbFzA1LKiMMjVsBqi1nr8_jGqVfk/edit?usp=drivesdk"
+  },
+  {
+    "id": "13eBS2OuMofkyb9-0ZdtrDRdte7hx60Ab6MjwuDQWfOI",
+    "name": "RIOMAR CORDAS",
+    "url": "https://docs.google.com/spreadsheets/d/13eBS2OuMofkyb9-0ZdtrDRdte7hx60Ab6MjwuDQWfOI/edit?usp=drivesdk"
+  },
+  {
+    "id": "1n5WeTM-5v3KTRSbKKzCX8YuzfbL0O0Fip6yIq-Q9oTo",
+    "name": "STYROFORM - MARCOS C ATUI",
+    "url": "https://docs.google.com/spreadsheets/d/1n5WeTM-5v3KTRSbKKzCX8YuzfbL0O0Fip6yIq-Q9oTo/edit?usp=drivesdk"
+  },
+  {
+    "id": "1bEPWPo-Mphg_Ij6LGJSS0Q915Q318VvAfw-thrCeASg",
+    "name": "ETHERNA - ETERNITY",
+    "url": "https://docs.google.com/spreadsheets/d/1bEPWPo-Mphg_Ij6LGJSS0Q915Q318VvAfw-thrCeASg/edit?usp=drivesdk"
+  },
+  {
+    "id": "1fnVeAhlEJdX28rfhx-8gOyS8ULJxadDJ6FxsbjnxxTQ",
+    "name": "BELCHIOR",
+    "url": "https://docs.google.com/spreadsheets/d/1fnVeAhlEJdX28rfhx-8gOyS8ULJxadDJ6FxsbjnxxTQ/edit?usp=drivesdk"
+  },
+  {
+    "id": "1dWNzZVIh97N2Q14AAEk7fRNDzrtR9n-1kFC_YVr92zY",
+    "name": "RHAMOS BRITO",
+    "url": "https://docs.google.com/spreadsheets/d/1dWNzZVIh97N2Q14AAEk7fRNDzrtR9n-1kFC_YVr92zY/edit?usp=drivesdk"
+  },
+  {
+    "id": "13_7JaukGp9bx2Xzpb8vGx-g8k8nIjpEm0148fHI2qMk",
+    "name": "CIPATEX",
+    "url": "https://docs.google.com/spreadsheets/d/13_7JaukGp9bx2Xzpb8vGx-g8k8nIjpEm0148fHI2qMk/edit?usp=drivesdk"
+  },
+  {
+    "id": "1CgUA69Bg099owf1f4gNiBNdfvM0fBv6M-PpwqNRb0aM",
+    "name": "FIBRASCA",
+    "url": "https://docs.google.com/spreadsheets/d/1CgUA69Bg099owf1f4gNiBNdfvM0fBv6M-PpwqNRb0aM/edit?usp=drivesdk"
+  },
+  {
+    "id": "1OEPvllkIMswBbMfYpGAgeWcraIXiUE3mqopK8l5iXUA",
+    "name": "ALTENBURG",
+    "url": "https://docs.google.com/spreadsheets/d/1OEPvllkIMswBbMfYpGAgeWcraIXiUE3mqopK8l5iXUA/edit?usp=drivesdk"
+  },
+  {
+    "id": "1pNGisjSiDjYNv0oq3K-WYYjxn3zHATlaYUiXqaTEhrs",
+    "name": "FORT SPUMA",
+    "url": "https://docs.google.com/spreadsheets/d/1pNGisjSiDjYNv0oq3K-WYYjxn3zHATlaYUiXqaTEhrs/edit?usp=drivesdk"
+  },
+  {
+    "id": "1n4L8rxuts_dBAhx4AOhOFFf1Z92jdXOG6ibehpoUWnk",
+    "name": "VOCÊ RESOLVE - FELTROS TOLFO",
+    "url": "https://docs.google.com/spreadsheets/d/1n4L8rxuts_dBAhx4AOhOFFf1Z92jdXOG6ibehpoUWnk/edit?usp=drivesdk"
+  },
+  {
+    "id": "15EgMRAvXUMfQ87Jo-O5iV9MXZz7G6CIEeoy-KWDrhP4",
+    "name": "TERUYA",
+    "url": "https://docs.google.com/spreadsheets/d/15EgMRAvXUMfQ87Jo-O5iV9MXZz7G6CIEeoy-KWDrhP4/edit?usp=drivesdk"
+  },
+  {
+    "id": "1LFdwuG9uOm0L-uZs3pKON9twRckdezDXLuOqPXS9rsY",
+    "name": "METALURGICA GRAM-SERV - ROCAMA",
+    "url": "https://docs.google.com/spreadsheets/d/1LFdwuG9uOm0L-uZs3pKON9twRckdezDXLuOqPXS9rsY/edit?usp=drivesdk"
+  },
+  {
+    "id": "126e1GOiKP5uryoSeCeS1IgDnwomMFhcF7vfFsJbx32Q",
+    "name": "COLCHONETE HOSPITALAR - ESPUMA EM ROLO",
+    "url": "https://docs.google.com/spreadsheets/d/126e1GOiKP5uryoSeCeS1IgDnwomMFhcF7vfFsJbx32Q/edit?usp=drivesdk"
+  },
+  {
+    "id": "1kJpOlf1ylNnfQi-E5_romwLtLzZB7NToZXDh34aY6ok",
+    "name": "GRAMPAC-GRAMARC",
+    "url": "https://docs.google.com/spreadsheets/d/1kJpOlf1ylNnfQi-E5_romwLtLzZB7NToZXDh34aY6ok/edit?usp=drivesdk"
+  },
+  {
+    "id": "1xjlHB9Mb0Uo6UsHS3L8g2t8ynvhFlPHajCnQWgFAHr8",
+    "name": "CORTICEIRA PAULISTA",
+    "url": "https://docs.google.com/spreadsheets/d/1xjlHB9Mb0Uo6UsHS3L8g2t8ynvhFlPHajCnQWgFAHr8/edit?usp=drivesdk"
+  },
+  {
+    "id": "1vp-N3vc_xNnWOF-p1tcKFjbhc7IxyPY3Rt373Sr3Qxw",
+    "name": "PLASTICO IVONE",
+    "url": "https://docs.google.com/spreadsheets/d/1vp-N3vc_xNnWOF-p1tcKFjbhc7IxyPY3Rt373Sr3Qxw/edit?usp=drivesdk"
+  },
+  {
+    "id": "1Wjlb3qIgMqVyGnUvE0gmGMV-zHn2dnoe28dGkKtPw-g",
+    "name": "TECNOCAL",
+    "url": "https://docs.google.com/spreadsheets/d/1Wjlb3qIgMqVyGnUvE0gmGMV-zHn2dnoe28dGkKtPw-g/edit?usp=drivesdk"
+  },
+  {
+    "id": "155_8gjIb1o9ZlKoDChOlPCnKz6vv8lfs2SS4jmcaqz0",
+    "name": "TECNYL",
+    "url": "https://docs.google.com/spreadsheets/d/155_8gjIb1o9ZlKoDChOlPCnKz6vv8lfs2SS4jmcaqz0/edit?usp=drivesdk"
+  },
+  {
+    "id": "1it-FsI-Hc3m_ivvgl_BQy2aN2sjz-hZWxPRADjUQzgk",
+    "name": "FLEXMAG/NEW IMÃS",
+    "url": "https://docs.google.com/spreadsheets/d/1it-FsI-Hc3m_ivvgl_BQy2aN2sjz-hZWxPRADjUQzgk/edit?usp=drivesdk"
+  },
+  {
+    "id": "1z-SNmhHVmdbRefStsHBdQxWjqSzbffhb9AEwewwmAZk",
+    "name": "PRALANA",
+    "url": "https://docs.google.com/spreadsheets/d/1z-SNmhHVmdbRefStsHBdQxWjqSzbffhb9AEwewwmAZk/edit?usp=drivesdk"
+  },
+  {
+    "id": "1FMZFgLgFSIpJhTM4UTw_XScRc2tlrv7LZ6v8lKOLRko",
+    "name": "KAPAZI",
+    "url": "https://docs.google.com/spreadsheets/d/1FMZFgLgFSIpJhTM4UTw_XScRc2tlrv7LZ6v8lKOLRko/edit?usp=drivesdk"
+  },
+  {
+    "id": "1V52ZZ-pT0dVuQXPT_Zuj1ODRKGVPbfBQMu3KqCLm1Tc",
+    "name": "BAXMANN",
+    "url": "https://docs.google.com/spreadsheets/d/1V52ZZ-pT0dVuQXPT_Zuj1ODRKGVPbfBQMu3KqCLm1Tc/edit?usp=drivesdk"
+  },
+  {
+    "id": "1PFTA1-FHwdiH__1OjaRqgGbxwTx0IFGhrO-SdpTVib8",
+    "name": "ELASTICOS SÃO JOSÉ",
+    "url": "https://docs.google.com/spreadsheets/d/1PFTA1-FHwdiH__1OjaRqgGbxwTx0IFGhrO-SdpTVib8/edit?usp=drivesdk"
+  },
+  {
+    "id": "1wThZKThuK_87brgOk7XfNeA-P571uUsR9s-xPaUs_B4",
+    "name": "CIFA",
+    "url": "https://docs.google.com/spreadsheets/d/1wThZKThuK_87brgOk7XfNeA-P571uUsR9s-xPaUs_B4/edit?usp=drivesdk"
+  },
+  {
+    "id": "1h2WHGOufvQL0EcxMsUEqFotvfs1YMyNsA2pgLRJUe5M",
+    "name": "VONDER",
+    "url": "https://docs.google.com/spreadsheets/d/1h2WHGOufvQL0EcxMsUEqFotvfs1YMyNsA2pgLRJUe5M/edit?usp=drivesdk"
+  },
+  {
+    "id": "1xu493hAIGErr_3l6GbGPme9Jsbbff389CVk2XV60ZJc",
+    "name": "ZAS TRAS",
+    "url": "https://docs.google.com/spreadsheets/d/1xu493hAIGErr_3l6GbGPme9Jsbbff389CVk2XV60ZJc/edit?usp=drivesdk"
+  },
+  {
+    "id": "1tWmRLhKDKWONYXZWKt81_QBx87at7sNLAZu0pKsaAwo",
+    "name": "ZDM",
+    "url": "https://docs.google.com/spreadsheets/d/1tWmRLhKDKWONYXZWKt81_QBx87at7sNLAZu0pKsaAwo/edit?usp=drivesdk"
+  },
+  {
+    "id": "1SHnjuxSGow0DXODP1DvO7Tyv1Lm7z_n7z2fGvnN0vIk",
+    "name": "AZUL PACK",
+    "url": "https://docs.google.com/spreadsheets/d/1SHnjuxSGow0DXODP1DvO7Tyv1Lm7z_n7z2fGvnN0vIk/edit?usp=drivesdk"
+  },
+  {
+    "id": "1Ga8LKFuJ8FC7sX2YuzaPzXrKNR199uQUr2NGnIY5EFE",
+    "name": "IND TEXTIL BELEM",
+    "url": "https://docs.google.com/spreadsheets/d/1Ga8LKFuJ8FC7sX2YuzaPzXrKNR199uQUr2NGnIY5EFE/edit?usp=drivesdk"
+  },
+  {
+    "id": "1PvYuuumWdPQsobgfknx3zlUBi_9LLiq19y6RcWKQ-NA",
+    "name": "JET EMBALAGENS",
+    "url": "https://docs.google.com/spreadsheets/d/1PvYuuumWdPQsobgfknx3zlUBi_9LLiq19y6RcWKQ-NA/edit?usp=drivesdk"
+  },
+  {
+    "id": "1-2W2WpaREW-sp7pUP3JkNq3FQRTwdeUwgOo56SMnwoY",
+    "name": "REIMOLD",
+    "url": "https://docs.google.com/spreadsheets/d/1-2W2WpaREW-sp7pUP3JkNq3FQRTwdeUwgOo56SMnwoY/edit?usp=drivesdk"
+  },
+  {
+    "id": "1GDuRNh1Lg5ssqgh1sdAwUdR6FF179M-ObI1NMDB4Sd0",
+    "name": "ELISABETH GRAZIANO",
+    "url": "https://docs.google.com/spreadsheets/d/1GDuRNh1Lg5ssqgh1sdAwUdR6FF179M-ObI1NMDB4Sd0/edit?usp=drivesdk"
+  },
+  {
+    "id": "1D9JF84FvHm36j02AnuxFS43WRbrfd2dUjQ-eQEFtu3I",
+    "name": "FERMACO",
+    "url": "https://docs.google.com/spreadsheets/d/1D9JF84FvHm36j02AnuxFS43WRbrfd2dUjQ-eQEFtu3I/edit?usp=drivesdk"
+  },
+  {
+    "id": "1_Jqn1Hcu7wHquaOOezDj-SK6Tw73StfZgkQPQUogyFc",
+    "name": "CENTRAL DO ALERGICO - JAMES FROZINO",
+    "url": "https://docs.google.com/spreadsheets/d/1_Jqn1Hcu7wHquaOOezDj-SK6Tw73StfZgkQPQUogyFc/edit?usp=drivesdk"
+  },
+  {
+    "id": "1J65faWckekeQMgSfe4H1GsWb_Jsk4h2LFcNjDpeaxGs",
+    "name": "LEVI-CAPAS RAVELLE",
+    "url": "https://docs.google.com/spreadsheets/d/1J65faWckekeQMgSfe4H1GsWb_Jsk4h2LFcNjDpeaxGs/edit?usp=drivesdk"
+  },
+  {
+    "id": "1hKz-PNtx_p86j9Zo5cuR7oK6uGEUqN7jf0d6kip258o",
+    "name": "APAEB",
+    "url": "https://docs.google.com/spreadsheets/d/1hKz-PNtx_p86j9Zo5cuR7oK6uGEUqN7jf0d6kip258o/edit?usp=drivesdk"
+  },
+  {
+    "id": "1WsdvLECfE8kUQ-BU67nxOMvrA-8FOdMpurwpmRYd76Q",
+    "name": "EDMOND REI DA CUTELARIA",
+    "url": "https://docs.google.com/spreadsheets/d/1WsdvLECfE8kUQ-BU67nxOMvrA-8FOdMpurwpmRYd76Q/edit?usp=drivesdk"
+  },
+  {
+    "id": "1EUfnZfp2khgT8Y7slIX-_Klu1SQLFwj2Gz1XQ7ILP14",
+    "name": "ORION",
+    "url": "https://docs.google.com/spreadsheets/d/1EUfnZfp2khgT8Y7slIX-_Klu1SQLFwj2Gz1XQ7ILP14/edit?usp=drivesdk"
+  },
+  {
+    "id": "1_OJ2P6Z6VV643NIQh48YmRGG0Fgh_wfmnpAWIeBfVUA",
+    "name": "FITAS DE VEDACAO - SEALWAY/FZA",
+    "url": "https://docs.google.com/spreadsheets/d/1_OJ2P6Z6VV643NIQh48YmRGG0Fgh_wfmnpAWIeBfVUA/edit?usp=drivesdk"
+  },
+  {
+    "id": "1Tikw2QclcyJIVKdC9TvXpRlfq9yUmukJLzfO8TyTFMU",
+    "name": "RECIMEC-RODAFORT",
+    "url": "https://docs.google.com/spreadsheets/d/1Tikw2QclcyJIVKdC9TvXpRlfq9yUmukJLzfO8TyTFMU/edit?usp=drivesdk"
+  },
+  {
+    "id": "1x4MAQpapIe1JNnQ4o4cl6GuPEP90zsXb96mEioEtCc4",
+    "name": "PLASTICO GRETO-CASA KIM",
+    "url": "https://docs.google.com/spreadsheets/d/1x4MAQpapIe1JNnQ4o4cl6GuPEP90zsXb96mEioEtCc4/edit?usp=drivesdk"
+  },
+  {
+    "id": "1x1I6aJCqkqUZMHjLLylgP6egj3COjj_OmC0w2XUv00Y",
+    "name": "IND FELTRO SANTA FÉ",
+    "url": "https://docs.google.com/spreadsheets/d/1x1I6aJCqkqUZMHjLLylgP6egj3COjj_OmC0w2XUv00Y/edit?usp=drivesdk"
+  },
+  {
+    "id": "1gC0n-SJXuZhTbQ-8520aE13jsJjOsm7nVxtRRyL_Qog",
+    "name": "CAPATEX",
+    "url": "https://docs.google.com/spreadsheets/d/1gC0n-SJXuZhTbQ-8520aE13jsJjOsm7nVxtRRyL_Qog/edit?usp=drivesdk"
+  },
+  {
+    "id": "1NwH6zchB64vCaSpN1DxXNE_DB117L58IrfDkUckF4Gw",
+    "name": "ALUMINART - R ANTUNES",
+    "url": "https://docs.google.com/spreadsheets/d/1NwH6zchB64vCaSpN1DxXNE_DB117L58IrfDkUckF4Gw/edit?usp=drivesdk"
+  },
+  {
+    "id": "1-BhqnzuRWWmXuT5qQvW96DBwJGkLx9sorRYOaR2UTZs",
+    "name": "GMGG-FELTRO MOLETAO",
+    "url": "https://docs.google.com/spreadsheets/d/1-BhqnzuRWWmXuT5qQvW96DBwJGkLx9sorRYOaR2UTZs/edit?usp=drivesdk"
+  },
+  {
+    "id": "1MmPBOu8xvH_j2Q-ZnkF2QCF_5fqbxzG3o_Uqob1bfUM",
+    "name": "FRIGELAR/TUBOS POLIPEX",
+    "url": "https://docs.google.com/spreadsheets/d/1MmPBOu8xvH_j2Q-ZnkF2QCF_5fqbxzG3o_Uqob1bfUM/edit?usp=drivesdk"
+  },
+  {
+    "id": "1yfEdtKF--n9WYmttHBIPbHxtUpOHrJPPRLd1fvHDyvg",
+    "name": "FRIGELAR",
+    "url": "https://docs.google.com/spreadsheets/d/1yfEdtKF--n9WYmttHBIPbHxtUpOHrJPPRLd1fvHDyvg/edit?usp=drivesdk"
+  },
+  {
+    "id": "19hBQzMOapoxmOFnKbtxf4hO2BjafjZiVrzHwSzLBKas",
+    "name": "PERAME",
+    "url": "https://docs.google.com/spreadsheets/d/19hBQzMOapoxmOFnKbtxf4hO2BjafjZiVrzHwSzLBKas/edit?usp=drivesdk"
+  },
+  {
+    "id": "1zR0AOBolSdYS5KaqWJmQBMAIUrBvWq1R9hutxwv7I4I",
+    "name": "NOVOIL PIRACICABA",
+    "url": "https://docs.google.com/spreadsheets/d/1zR0AOBolSdYS5KaqWJmQBMAIUrBvWq1R9hutxwv7I4I/edit?usp=drivesdk"
+  }
+] as const;
 
 type TrelloList = { id: string; name: string; closed?: boolean };
 type TrelloBoard = { lists?: TrelloList[] };
@@ -115,7 +606,6 @@ async function context() {
   return {
     email,
     sheets: google.sheets({ version: "v4", auth: oauth }),
-    drive: google.drive({ version: "v3", auth: oauth }),
   };
 }
 
@@ -218,40 +708,12 @@ function analyzeSheetGrid(values: unknown[][]) {
   return best;
 }
 
-async function scanSupplierFolder(sheets: sheets_v4.Sheets, drive: ReturnType<typeof google.drive>) {
-  const filesResponse = await drive.files.list({
-    q: `'${SUPPLIERS_FOLDER_ID}' in parents and trashed = false`,
-    pageSize: 100,
-    fields: "files(id,name,mimeType,webViewLink,modifiedTime)",
-    orderBy: "name",
-  });
-  const files = filesResponse.data.files || [];
+async function scanSupplierFolder(sheets: sheets_v4.Sheets) {
   const results: Array<Record<string, unknown>> = [];
 
-  for (const file of files) {
-    const fileId = file.id || "";
-    const name = file.name || "Sem nome";
-    const mimeType = file.mimeType || "";
-    if (!fileId) continue;
-
-    if (EXCEL_MIMES.has(mimeType)) {
-      results.push({
-        spreadsheetId: fileId,
-        name,
-        url: file.webViewLink || "",
-        mimeType,
-        status: "revisar",
-        reason: "Arquivo Excel. Converter para Google Sheets antes de salvar o padrão.",
-        sheetName: "",
-        codeColumn: "",
-        descriptionColumn: "",
-        stockColumn: "",
-        startRow: 1,
-      });
-      continue;
-    }
-
-    if (mimeType !== GOOGLE_SHEET_MIME) continue;
+  for (const file of SUPPLIER_SPREADSHEETS) {
+    const fileId = file.id;
+    const name = file.name;
 
     try {
       const metadata = await sheets.spreadsheets.get({
@@ -297,8 +759,8 @@ async function scanSupplierFolder(sheets: sheets_v4.Sheets, drive: ReturnType<ty
       results.push({
         spreadsheetId: fileId,
         name,
-        url: file.webViewLink || `https://docs.google.com/spreadsheets/d/${fileId}/edit`,
-        mimeType,
+        url: file.url,
+        mimeType: "application/vnd.google-apps.spreadsheet",
         status: recognized ? "reconhecida" : "revisar",
         reason: recognized ? "" : "Cabeçalhos não identificados com segurança. Revise somente esta planilha.",
         sheetName: bestResult?.sheetName || sheetNames[0] || "",
@@ -312,8 +774,8 @@ async function scanSupplierFolder(sheets: sheets_v4.Sheets, drive: ReturnType<ty
       results.push({
         spreadsheetId: fileId,
         name,
-        url: file.webViewLink || `https://docs.google.com/spreadsheets/d/${fileId}/edit`,
-        mimeType,
+        url: file.url,
+        mimeType: "application/vnd.google-apps.spreadsheet",
         status: "revisar",
         reason: error instanceof Error ? error.message : "Não foi possível analisar esta planilha.",
         sheetName: "",
@@ -555,13 +1017,13 @@ function apiError(error: unknown) {
 
 export async function GET(request: Request) {
   try {
-    const { email, sheets, drive } = await context();
+    const { email, sheets } = await context();
     await clearExpiredHighlights(sheets);
     const searchParams = new URL(request.url).searchParams;
     const scanSuppliers = searchParams.get("scanSuppliers") === "1";
     if (scanSuppliers) {
       requireRole(email, "manage");
-      const analyses = await scanSupplierFolder(sheets, drive);
+      const analyses = await scanSupplierFolder(sheets);
       const data = await listRotatingStockData();
       return NextResponse.json({
         ok: true,

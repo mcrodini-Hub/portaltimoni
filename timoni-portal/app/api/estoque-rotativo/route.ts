@@ -684,7 +684,7 @@ const HEADER_ALIASES = {
   itemNumber: ["item", "n", "numero", "num", "0"],
 };
 
-function detectHeaderColumn(row: any[], aliases: string[]) {
+function detectHeaderColumn(row: SheetValue[], aliases: string[]) {
   const normalizedAliases = new Set(aliases.map(normalizeHeader));
   const matches: number[] = [];
   row.forEach((cell, index) => {
@@ -692,6 +692,8 @@ function detectHeaderColumn(row: any[], aliases: string[]) {
   });
   return matches.length === 1 ? matches[0] : null;
 }
+
+type SheetValue = string | number | boolean | null | undefined;
 
 type SupplierSheetDetection = {
   headerRow: number;
@@ -705,7 +707,7 @@ type SupplierSheetDetection = {
   score: number;
 };
 
-function analyzeSheetGrid(values: any[][]): SupplierSheetDetection | null {
+function analyzeSheetGrid(values: SheetValue[][]): SupplierSheetDetection | null {
   let best: SupplierSheetDetection | null = null;
 
   for (let index = 0; index < Math.min(values.length, 25); index += 1) {
@@ -739,7 +741,7 @@ function analyzeSheetGrid(values: any[][]): SupplierSheetDetection | null {
   return best;
 }
 
-function normalizeHistoryHeader(value: any) {
+function normalizeHistoryHeader(value: SheetValue) {
   if (typeof value === "number" && Number.isFinite(value) && value > 20000) {
     const milliseconds = Math.round((value - 25569) * 86400 * 1000);
     const date = new Date(milliseconds);
@@ -762,7 +764,7 @@ function normalizeHistoryHeader(value: any) {
   return `${months[match[1]]}/${year}${suffix ? ` ${suffix.toUpperCase()}` : ""}`;
 }
 
-function appendPreservedValue(row: any[], value: any, startAt = 5) {
+function appendPreservedValue(row: SheetValue[], value: SheetValue, startAt = 5) {
   if (value === "" || value === null || value === undefined) return;
   let index = startAt;
   while (row[index] !== undefined && row[index] !== "") index += 1;
@@ -777,7 +779,7 @@ async function standardizeSupplierSpreadsheet(
     spreadsheetId: file.id,
     fields: "sheets.properties(title,index,sheetId,gridProperties)",
   });
-  const candidates: any[] = ((metadata.data.sheets || []) as any[])
+  const candidates = (metadata.data.sheets || [])
     .sort((a, b) => (a.properties?.index || 0) - (b.properties?.index || 0))
     .filter((sheet) => sheet.properties?.title && sheet.properties?.sheetId !== undefined);
 
@@ -787,8 +789,8 @@ async function standardizeSupplierSpreadsheet(
     rowCount: number;
     columnCount: number;
     detection: SupplierSheetDetection;
-    formulas: any[][];
-    formatted: any[][];
+    formulas: SheetValue[][];
+    formatted: SheetValue[][];
   } | null = null;
 
   for (const sheet of candidates.slice(0, 8)) {
@@ -800,7 +802,7 @@ async function standardizeSupplierSpreadsheet(
       range: `'${title.replace(/'/g, "''")}'!A1:${columnLetter(Math.min(columnCount - 1, 51))}25`,
       valueRenderOption: "FORMATTED_VALUE",
     });
-    const detection = analyzeSheetGrid((preview.data.values || []) as any[][]);
+    const detection = analyzeSheetGrid((preview.data.values || []) as unknown as SheetValue[][]);
     if (!detection || detection.saleCodeColumn === null || detection.descriptionColumn === null || detection.stockColumn === null) continue;
 
     const lastColumn = columnLetter(columnCount - 1);
@@ -822,8 +824,8 @@ async function standardizeSupplierSpreadsheet(
       rowCount,
       columnCount,
       detection,
-      formulas: (formulaResponse.data.values || []) as any[][],
-      formatted: (formattedResponse.data.values || []) as any[][],
+      formulas: (formulaResponse.data.values || []) as unknown as SheetValue[][],
+      formatted: (formattedResponse.data.values || []) as unknown as SheetValue[][],
     };
     break;
   }
@@ -868,7 +870,7 @@ async function standardizeSupplierSpreadsheet(
   }
   if (lastDataIndex <= headerIndex) throw new Error(`${file.name}: nenhum produto encontrado abaixo do cabeçalho.`);
 
-  const topRows: any[][] = [[], [], [], []];
+  const topRows: SheetValue[][] = [[], [], [], []];
   const metadataRows = formulas.slice(0, headerIndex);
   for (let index = 0; index < Math.min(4, metadataRows.length); index += 1) {
     topRows[index] = [...(metadataRows[index] || [])];
@@ -898,7 +900,7 @@ async function standardizeSupplierSpreadsheet(
     ...extraColumns.map((column) => normalizeHistoryHeader(sourceHeader[column])),
   ];
 
-  const productRows: any[][] = [];
+  const productRows: SheetValue[][] = [];
   for (let rowIndex = headerIndex + 1; rowIndex <= lastDataIndex; rowIndex += 1) {
     const formulaRow = formulas[rowIndex] || [];
     const formattedRow = formatted[rowIndex] || [];
@@ -938,7 +940,7 @@ async function standardizeSupplierSpreadsheet(
     spreadsheetId: file.id,
     range: `${quotedTitle}!A1`,
     valueInputOption: "USER_ENTERED",
-    requestBody: { values: output } as any,
+    requestBody: { values: output.map((row) => row.map((value) => value ?? "")) },
   });
 
   const black = { red: 0, green: 0, blue: 0 };
@@ -989,8 +991,8 @@ async function standardizeSupplierSpreadsheet(
             fields: "userEnteredFormat.numberFormat",
           },
         },
-      ] as any[],
-    } as any,
+      ],
+    },
   });
 
   return {

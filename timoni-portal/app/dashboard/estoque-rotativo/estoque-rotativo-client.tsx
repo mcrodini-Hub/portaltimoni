@@ -40,14 +40,8 @@ const SITUATION_LABEL: Record<Situation, string> = {
   sem_alteracao: "OK",
 };
 
-const CENTRAL_SHEET_URL = "https://docs.google.com/spreadsheets/d/1r2BJbEyUN6WL8AnEwRKCgJMaOlBzPTUxQQjXZXfPyj8/edit";
-const CENTRAL_SHEET_GID = "1634865129";
-
-function updatedSheetUrl(updatedRows?: number[], conferenceRows?: number[]) {
-  const changedRow = updatedRows?.find((row) => Number.isInteger(row) && row > 0);
-  const checkedRow = conferenceRows?.find((row) => Number.isInteger(row) && row > 0);
-  const range = changedRow ? `D${changedRow}` : checkedRow ? `A${checkedRow}` : "";
-  return `${CENTRAL_SHEET_URL}#gid=${CENTRAL_SHEET_GID}${range ? `&range=${range}` : ""}`;
+function updatedSheetUrl(updateId: string) {
+  return `/api/estoque-rotativo?openUpdateId=${encodeURIComponent(updateId)}`;
 }
 const SUPPLIERS_DRIVE_URL = "https://drive.google.com/drive/u/0/folders/1P7Nb1FwfSQ6e7TA9Wkgizyy53tGGQajk";
 const TRELLO_URL = "https://trello.com/b/UfPrTr1H/compras";
@@ -583,7 +577,7 @@ export default function EstoqueRotativoClient() {
                     )}
                     <div className="mt-3 flex flex-wrap gap-2">
                       <a
-                        href={updatedSheetUrl(item.updated_rows, item.conference_rows)}
+                        href={updatedSheetUrl(item.id)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex min-h-11 items-center rounded-xl bg-blue-800 px-4 text-sm font-semibold text-white"

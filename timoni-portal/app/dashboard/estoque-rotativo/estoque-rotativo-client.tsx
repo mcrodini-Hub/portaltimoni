@@ -440,11 +440,11 @@ export default function EstoqueRotativoClient() {
               <label className="text-sm font-semibold text-slate-800">
                 Linha inicial
                 <input
-                  type="number"
-                  min="1"
-                  step="1"
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={sourceStartRow}
-                  onChange={(event) => setSourceStartRow(event.target.value)}
+                  onChange={(event) => setSourceStartRow(event.target.value.replace(/\D/g, ""))}
                   placeholder="Ex.: 7"
                   className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
                 />

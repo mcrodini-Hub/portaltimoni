@@ -10,6 +10,7 @@ import type { PortalIconName } from "@/components/portal-icon";
 const navItems: Array<{ href: string; label: string; module: PortalModule; updateModule?: UpdateModule; icon: PortalIconName; color: string; external?: boolean }> = [
   { href: "/colaboradores", label: "Avisos", module: "painel", updateModule: "avisos", icon: "notice", color: "text-rose-700" },
   { href: "/agenda", label: "Agenda Ciça", module: "agenda", updateModule: "agenda", icon: "star", color: "text-cyan-700" },
+  { href: "/agenda-ct", label: "Agenda CT", module: "agenda-ct", icon: "star", color: "text-cyan-700" },
   { href: "/dashboard/compras", label: "Compras", module: "compras", updateModule: "compras", icon: "cart", color: "text-orange-700" },
   { href: "/dashboard/conferencia-pedidos", label: "Conferência", module: "conferencia", updateModule: "conferencia", icon: "document", color: "text-rose-700" },
   { href: "/dashboard/estoque", label: "Estoque", module: "estoque", updateModule: "estoque", icon: "stock", color: "text-amber-700" },

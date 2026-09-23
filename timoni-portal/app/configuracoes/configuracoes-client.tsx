@@ -10,6 +10,7 @@ type ConfigurationResponse = { users: PortalUser[]; collaborators: ConfiguredCol
 const MODULES: Array<{ id: PortalModule; label: string }> = [
   { id: "painel", label: "Avisos/Painel" },
   { id: "agenda", label: "Agenda Ciça" },
+  { id: "agenda-ct", label: "Agenda CT" },
   { id: "chat", label: "Chat" },
   { id: "compras", label: "Compras" },
   { id: "conferencia", label: "Conferência" },

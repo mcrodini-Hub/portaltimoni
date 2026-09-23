@@ -12,6 +12,7 @@ import {
   acquireRotatingStockLock,
   attachSupplierToWaitingUpdates,
   createRotatingStockUpdate,
+  confirmSupplierStandardization,
   deleteCompletedRotatingStockUpdate,
   finishConference,
   getRotatingStockUpdate,
@@ -19,6 +20,7 @@ import {
   listExpiredHighlights,
   listRotatingStockData,
   markHighlightsCleared,
+  prepareSupplierStandardization,
   resolveNotFoundItem,
   reopenRotatingStockUpdate,
   saveConference,
@@ -672,12 +674,17 @@ function normalizeHeader(value: unknown) {
 }
 
 const HEADER_ALIASES = {
-  code: ["codigo", "cod", "cod produto", "codigo produto", "referencia", "ref", "sku", "codigo venda"],
-  description: ["descricao", "produto", "nome produto", "item", "mercadoria"],
+  saleCode: ["cod venda", "codigo venda", "codvenda", "codigo de venda"],
+  genericCode: ["codigo", "cod", "cod produto", "codigo produto", "referencia", "ref", "sku"],
+  purchaseCode: ["cod compra", "codigo compra", "codcompra", "codigo de compra", "cod fornecedor", "codigo fornecedor", "cod forn"],
+  description: ["descricao", "produto", "nome produto", "item produto", "mercadoria"],
+  min: ["min", "minimo", "estoque min", "estoque minimo", "est min"],
+  max: ["max", "maximo", "estoque max", "estoque maximo", "est max"],
   stock: ["estoque", "quantidade", "qtd", "saldo", "disponivel", "estoque atual", "saldo estoque"],
+  itemNumber: ["item", "n", "numero", "num", "0"],
 };
 
-function detectHeaderColumn(row: unknown[], aliases: string[]) {
+function detectHeaderColumn(row: SheetValue[], aliases: string[]) {
   const normalizedAliases = new Set(aliases.map(normalizeHeader));
   const matches: number[] = [];
   row.forEach((cell, index) => {
@@ -686,108 +693,315 @@ function detectHeaderColumn(row: unknown[], aliases: string[]) {
   return matches.length === 1 ? matches[0] : null;
 }
 
-function analyzeSheetGrid(values: unknown[][]) {
-  let best: {
-    headerRow: number;
-    codeColumn: number | null;
-    descriptionColumn: number | null;
-    stockColumn: number | null;
-    score: number;
-  } | null = null;
+type SheetValue = string | number | boolean | null | undefined;
+
+type SupplierSheetDetection = {
+  headerRow: number;
+  saleCodeColumn: number | null;
+  purchaseCodeColumn: number | null;
+  descriptionColumn: number | null;
+  minColumn: number | null;
+  maxColumn: number | null;
+  stockColumn: number | null;
+  itemNumberColumn: number | null;
+  score: number;
+};
+
+function analyzeSheetGrid(values: SheetValue[][]): SupplierSheetDetection | null {
+  let best: SupplierSheetDetection | null = null;
 
   for (let index = 0; index < Math.min(values.length, 25); index += 1) {
     const row = values[index] || [];
-    const codeColumn = detectHeaderColumn(row, HEADER_ALIASES.code);
+    const explicitSale = detectHeaderColumn(row, HEADER_ALIASES.saleCode);
+    const genericSale = detectHeaderColumn(row, HEADER_ALIASES.genericCode);
+    const saleCodeColumn = explicitSale ?? genericSale;
+    const purchaseCodeColumn = detectHeaderColumn(row, HEADER_ALIASES.purchaseCode);
     const descriptionColumn = detectHeaderColumn(row, HEADER_ALIASES.description);
+    const minColumn = detectHeaderColumn(row, HEADER_ALIASES.min);
+    const maxColumn = detectHeaderColumn(row, HEADER_ALIASES.max);
     const stockColumn = detectHeaderColumn(row, HEADER_ALIASES.stock);
-    const score = [codeColumn, descriptionColumn, stockColumn].filter((value) => value !== null).length;
+    const itemNumberColumn = detectHeaderColumn(row, HEADER_ALIASES.itemNumber);
+    const required = [saleCodeColumn, descriptionColumn, stockColumn].filter((value) => value !== null).length;
+    const optional = [purchaseCodeColumn, minColumn, maxColumn, itemNumberColumn].filter((value) => value !== null).length;
+    const score = required * 10 + optional;
     if (!best || score > best.score) {
-      best = { headerRow: index + 1, codeColumn, descriptionColumn, stockColumn, score };
+      best = {
+        headerRow: index + 1,
+        saleCodeColumn,
+        purchaseCodeColumn,
+        descriptionColumn,
+        minColumn,
+        maxColumn,
+        stockColumn,
+        itemNumberColumn,
+        score,
+      };
     }
   }
   return best;
 }
 
-async function scanSupplierFolder(sheets: sheets_v4.Sheets) {
-  const results: Array<Record<string, unknown>> = [];
+function normalizeHistoryHeader(value: SheetValue) {
+  if (typeof value === "number" && Number.isFinite(value) && value > 20000) {
+    const milliseconds = Math.round((value - 25569) * 86400 * 1000);
+    const date = new Date(milliseconds);
+    if (!Number.isNaN(date.getTime())) {
+      return `${String(date.getUTCMonth() + 1).padStart(2, "0")}/${String(date.getUTCFullYear()).slice(-2)}`;
+    }
+  }
+  const text = String(value ?? "").trim();
+  if (!text) return "";
+  if (/^(0[1-9]|1[0-2])\/[0-9]{2}$/.test(text)) return text;
+  const months: Record<string, string> = {
+    jan: "01", fev: "02", mar: "03", abr: "04", mai: "05", jun: "06",
+    jul: "07", ago: "08", set: "09", out: "10", nov: "11", dez: "12",
+  };
+  const normalized = normalizeMatch(text).replace(/\s+/g, "");
+  const match = normalized.match(/^(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[\/.-]?([0-9]{2,4})(.*)$/);
+  if (!match) return text;
+  const year = match[2].slice(-2);
+  const suffix = match[3].replace(/^[-_/]+/, "").trim();
+  return `${months[match[1]]}/${year}${suffix ? ` ${suffix.toUpperCase()}` : ""}`;
+}
 
-  for (const file of SUPPLIER_SPREADSHEETS) {
-    const fileId = file.id;
-    const name = file.name;
+function appendPreservedValue(row: SheetValue[], value: SheetValue, startAt = 5) {
+  if (value === "" || value === null || value === undefined) return;
+  let index = startAt;
+  while (row[index] !== undefined && row[index] !== "") index += 1;
+  row[index] = value;
+}
 
-    try {
-      const metadata = await sheets.spreadsheets.get({
-        spreadsheetId: fileId,
-        fields: "sheets.properties(title,index)",
-      });
-      const sheetNames = (metadata.data.sheets || [])
-        .sort((a, b) => (a.properties?.index || 0) - (b.properties?.index || 0))
-        .map((sheet) => sheet.properties?.title)
-        .filter((title): title is string => Boolean(title));
+async function standardizeSupplierSpreadsheet(
+  sheets: sheets_v4.Sheets,
+  file: { id: string; name: string; url: string },
+) {
+  const metadata = await sheets.spreadsheets.get({
+    spreadsheetId: file.id,
+    fields: "sheets.properties(title,index,sheetId,gridProperties)",
+  });
+  const candidates = (metadata.data.sheets || [])
+    .sort((a, b) => (a.properties?.index || 0) - (b.properties?.index || 0))
+    .filter((sheet) => sheet.properties?.title && sheet.properties?.sheetId !== undefined);
 
-      let bestResult: {
-        sheetName: string;
-        headerRow: number;
-        codeColumn: number | null;
-        descriptionColumn: number | null;
-        stockColumn: number | null;
-        score: number;
-      } | null = null;
+  let selected: {
+    title: string;
+    sheetId: number;
+    rowCount: number;
+    columnCount: number;
+    detection: SupplierSheetDetection;
+    formulas: SheetValue[][];
+    formatted: SheetValue[][];
+  } | null = null;
 
-      for (const sheetName of sheetNames.slice(0, 8)) {
-        const valueResponse = await sheets.spreadsheets.values.get({
-          spreadsheetId: fileId,
-          range: `'${sheetName.replace(/'/g, "''")}'!A1:Z25`,
-          valueRenderOption: "FORMATTED_VALUE",
-        });
-        const detected = analyzeSheetGrid((valueResponse.data.values || []) as unknown[][]);
-        if (detected && (!bestResult || detected.score > bestResult.score)) {
-          bestResult = { sheetName, ...detected };
-        }
-        if (bestResult?.score === 3) break;
-      }
+  for (const sheet of candidates.slice(0, 8)) {
+    const title = sheet.properties!.title!;
+    const rowCount = Math.max(1, sheet.properties?.gridProperties?.rowCount || 1000);
+    const columnCount = Math.max(5, sheet.properties?.gridProperties?.columnCount || 26);
+    const preview = await sheets.spreadsheets.values.get({
+      spreadsheetId: file.id,
+      range: `'${title.replace(/'/g, "''")}'!A1:${columnLetter(Math.min(columnCount - 1, 51))}25`,
+      valueRenderOption: "FORMATTED_VALUE",
+    });
+    const detection = analyzeSheetGrid((preview.data.values || []) as unknown as SheetValue[][]);
+    if (!detection || detection.saleCodeColumn === null || detection.descriptionColumn === null || detection.stockColumn === null) continue;
 
-      const recognized = Boolean(
-        bestResult
-        && bestResult.score === 3
-        && bestResult.codeColumn !== null
-        && bestResult.descriptionColumn !== null
-        && bestResult.stockColumn !== null
-        && new Set([bestResult.codeColumn, bestResult.descriptionColumn, bestResult.stockColumn]).size === 3
-      );
+    const lastColumn = columnLetter(columnCount - 1);
+    const [formulaResponse, formattedResponse] = await Promise.all([
+      sheets.spreadsheets.values.get({
+        spreadsheetId: file.id,
+        range: `'${title.replace(/'/g, "''")}'!A1:${lastColumn}${rowCount}`,
+        valueRenderOption: "FORMULA",
+      }),
+      sheets.spreadsheets.values.get({
+        spreadsheetId: file.id,
+        range: `'${title.replace(/'/g, "''")}'!A1:${lastColumn}${rowCount}`,
+        valueRenderOption: "FORMATTED_VALUE",
+      }),
+    ]);
+    selected = {
+      title,
+      sheetId: sheet.properties!.sheetId!,
+      rowCount,
+      columnCount,
+      detection,
+      formulas: (formulaResponse.data.values || []) as unknown as SheetValue[][],
+      formatted: (formattedResponse.data.values || []) as unknown as SheetValue[][],
+    };
+    break;
+  }
 
-      results.push({
-        spreadsheetId: fileId,
-        name,
-        url: file.url,
-        mimeType: "application/vnd.google-apps.spreadsheet",
-        status: recognized ? "reconhecida" : "revisar",
-        reason: recognized ? "" : "Cabeçalhos não identificados com segurança. Revise somente esta planilha.",
-        sheetName: bestResult?.sheetName || sheetNames[0] || "",
-        codeColumn: bestResult?.codeColumn === null || bestResult?.codeColumn === undefined ? "" : columnLetter(bestResult.codeColumn),
-        descriptionColumn: bestResult?.descriptionColumn === null || bestResult?.descriptionColumn === undefined ? "" : columnLetter(bestResult.descriptionColumn),
-        stockColumn: bestResult?.stockColumn === null || bestResult?.stockColumn === undefined ? "" : columnLetter(bestResult.stockColumn),
-        startRow: bestResult ? bestResult.headerRow + 1 : 1,
-        sheetNames,
-      });
-    } catch (error) {
-      results.push({
-        spreadsheetId: fileId,
-        name,
-        url: file.url,
-        mimeType: "application/vnd.google-apps.spreadsheet",
-        status: "revisar",
-        reason: error instanceof Error ? error.message : "Não foi possível analisar esta planilha.",
-        sheetName: "",
-        codeColumn: "",
-        descriptionColumn: "",
-        stockColumn: "",
-        startRow: 1,
-      });
+  if (!selected) throw new Error(`${file.name}: não foi possível identificar Código, Produto e Estoque com segurança.`);
+
+  const { detection, formulas, formatted } = selected;
+  const headerIndex = detection.headerRow - 1;
+  const sourceHeader = formulas[headerIndex] || [];
+  const excluded = new Set<number>([
+    detection.saleCodeColumn!,
+    detection.descriptionColumn!,
+    detection.stockColumn!,
+  ]);
+  for (const optional of [detection.purchaseCodeColumn, detection.minColumn, detection.maxColumn, detection.itemNumberColumn]) {
+    if (optional !== null) excluded.add(optional);
+  }
+
+  const extraColumns: number[] = [];
+  const maxSourceWidth = Math.max(
+    sourceHeader.length,
+    ...formulas.slice(headerIndex + 1).map((row) => row.length),
+    5,
+  );
+  for (let column = 0; column < maxSourceWidth; column += 1) {
+    if (excluded.has(column)) continue;
+    const headerValue = sourceHeader[column];
+    const hasData = formulas.slice(headerIndex + 1).some((row) => row[column] !== undefined && row[column] !== "");
+    if (headerValue !== undefined && headerValue !== "" || hasData) extraColumns.push(column);
+  }
+
+  let lastDataIndex = headerIndex;
+  for (let rowIndex = headerIndex + 1; rowIndex < formulas.length; rowIndex += 1) {
+    const row = formulas[rowIndex] || [];
+    const keyValues = [
+      row[detection.saleCodeColumn!],
+      detection.purchaseCodeColumn === null ? "" : row[detection.purchaseCodeColumn],
+      row[detection.descriptionColumn!],
+      row[detection.stockColumn!],
+    ];
+    if (keyValues.some((value) => value !== undefined && value !== "")) lastDataIndex = rowIndex;
+  }
+  if (lastDataIndex <= headerIndex) throw new Error(`${file.name}: nenhum produto encontrado abaixo do cabeçalho.`);
+
+  const topRows: SheetValue[][] = [[], [], [], []];
+  const metadataRows = formulas.slice(0, headerIndex);
+  for (let index = 0; index < Math.min(4, metadataRows.length); index += 1) {
+    topRows[index] = [...(metadataRows[index] || [])];
+  }
+  if (metadataRows.length > 4) {
+    for (const extraRow of metadataRows.slice(4)) {
+      for (const value of extraRow || []) appendPreservedValue(topRows[3], value, 5);
     }
   }
 
-  return results;
+  const oldA2 = topRows[1]?.[0];
+  if (oldA2 !== undefined && oldA2 !== "") appendPreservedValue(topRows[1], oldA2, 5);
+  topRows[1][0] = "";
+
+  const oldE3 = topRows[2]?.[4];
+  if (oldE3 !== undefined && oldE3 !== "" && normalizeHeader(oldE3) !== "lucas") {
+    appendPreservedValue(topRows[2], oldE3, 5);
+  }
+  topRows[2][4] = "LUCAS";
+
+  const standardizedHeaders = [
+    "COD-VENDA",
+    "COD-COMPRA",
+    "PRODUTO",
+    "EST-MIN",
+    "ESTOQUE ATUAL",
+    ...extraColumns.map((column) => normalizeHistoryHeader(sourceHeader[column])),
+  ];
+
+  const productRows: SheetValue[][] = [];
+  for (let rowIndex = headerIndex + 1; rowIndex <= lastDataIndex; rowIndex += 1) {
+    const formulaRow = formulas[rowIndex] || [];
+    const formattedRow = formatted[rowIndex] || [];
+    const saleValue = formattedRow[detection.saleCodeColumn!] ?? formulaRow[detection.saleCodeColumn!] ?? "";
+    const purchaseValue = detection.purchaseCodeColumn === null
+      ? ""
+      : (formattedRow[detection.purchaseCodeColumn] ?? formulaRow[detection.purchaseCodeColumn] ?? "");
+    const description = formattedRow[detection.descriptionColumn!] ?? formulaRow[detection.descriptionColumn!] ?? "";
+    const minValue = detection.minColumn === null ? "" : (formulaRow[detection.minColumn] ?? "");
+    const stockValue = formulaRow[detection.stockColumn!] ?? "";
+    if ([saleValue, purchaseValue, description, stockValue].every((value) => value === "" || value === undefined || value === null)) continue;
+    productRows.push([
+      String(saleValue ?? "").trim(),
+      String(purchaseValue ?? "").trim(),
+      description,
+      minValue,
+      stockValue,
+      ...extraColumns.map((column) => formulaRow[column] ?? ""),
+    ]);
+  }
+
+  productRows.sort((left, right) =>
+    String(left[2] ?? "").localeCompare(String(right[2] ?? ""), "pt-BR", { sensitivity: "base", numeric: true }),
+  );
+
+  const output = [...topRows, standardizedHeaders, ...productRows];
+  const outputWidth = Math.max(...output.map((row) => row.length), 5);
+  for (const row of output) while (row.length < outputWidth) row.push("");
+
+  const quotedTitle = `'${selected.title.replace(/'/g, "''")}'`;
+  const clearLastColumn = columnLetter(Math.max(selected.columnCount - 1, outputWidth - 1));
+  await sheets.spreadsheets.values.clear({
+    spreadsheetId: file.id,
+    range: `${quotedTitle}!A1:${clearLastColumn}${selected.rowCount}`,
+  });
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: file.id,
+    range: `${quotedTitle}!A1`,
+    valueInputOption: "USER_ENTERED",
+    requestBody: { values: output.map((row) => row.map((value) => value ?? "")) },
+  });
+
+  const black = { red: 0, green: 0, blue: 0 };
+  const blue = { red: 0.075, green: 0.012, blue: 0.553 };
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId: file.id,
+    requestBody: {
+      requests: [
+        {
+          repeatCell: {
+            range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: outputWidth },
+            cell: { userEnteredFormat: { textFormat: { fontFamily: "Calibri", fontSize: 11 } } },
+            fields: "userEnteredFormat.textFormat.fontFamily,userEnteredFormat.textFormat.fontSize",
+          },
+        },
+        {
+          repeatCell: {
+            range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: outputWidth },
+            cell: { userEnteredFormat: { textFormat: { bold: true } } },
+            fields: "userEnteredFormat.textFormat.bold",
+          },
+        },
+        {
+          repeatCell: {
+            range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 },
+            cell: { userEnteredFormat: { textFormat: { bold: true, foregroundColor: black } } },
+            fields: "userEnteredFormat.textFormat.bold,userEnteredFormat.textFormat.foregroundColor",
+          },
+        },
+        {
+          repeatCell: {
+            range: { sheetId: selected.sheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 1 },
+            cell: { userEnteredFormat: { textFormat: { bold: true, foregroundColor: blue } } },
+            fields: "userEnteredFormat.textFormat.bold,userEnteredFormat.textFormat.foregroundColor",
+          },
+        },
+        {
+          repeatCell: {
+            range: { sheetId: selected.sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 4, endColumnIndex: 5 },
+            cell: { userEnteredFormat: { textFormat: { bold: true } } },
+            fields: "userEnteredFormat.textFormat.bold",
+          },
+        },
+        {
+          repeatCell: {
+            range: { sheetId: selected.sheetId, startRowIndex: 5, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: 2 },
+            cell: { userEnteredFormat: { numberFormat: { type: "TEXT", pattern: "@" } } },
+            fields: "userEnteredFormat.numberFormat",
+          },
+        },
+      ],
+    },
+  });
+
+  return {
+    spreadsheetId: file.id,
+    supplierName: file.name,
+    spreadsheetUrl: file.url,
+    sheetName: selected.title,
+    products: productRows.length,
+  };
 }
 
 function buildComparison(
@@ -1020,17 +1234,6 @@ export async function GET(request: Request) {
     const { email, sheets } = await context();
     await clearExpiredHighlights(sheets);
     const searchParams = new URL(request.url).searchParams;
-    const scanSuppliers = searchParams.get("scanSuppliers") === "1";
-    if (scanSuppliers) {
-      requireRole(email, "manage");
-      const analyses = await scanSupplierFolder(sheets);
-      const data = await listRotatingStockData();
-      return NextResponse.json({
-        ok: true,
-        analyses,
-        savedMappings: data.suppliers,
-      }, { headers: { "Cache-Control": "no-store" } });
-    }
     const openUpdateId = searchParams.get("openUpdateId")?.trim() || "";
     if (openUpdateId) {
       const update = await getRotatingStockUpdate(openUpdateId);
@@ -1055,9 +1258,12 @@ export async function GET(request: Request) {
     }
     const id = searchParams.get("id");
     const data = await listRotatingStockData();
+    const supplierFiles = [...SUPPLIER_SPREADSHEETS]
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base", numeric: true }));
     return NextResponse.json({
       ok: true,
       ...data,
+      supplierFiles,
       items: id ? await listConferenceItems(id) : [],
       currentUpdate: id ? await getRotatingStockUpdate(id) : null,
       permissions: {
@@ -1076,6 +1282,66 @@ export async function POST(request: Request) {
     const { email, sheets } = await context();
     const body = await request.json() as Record<string, unknown>;
     const action = String(body.action || "");
+
+    if (action === "padronizar_proxima_planilha") {
+      requireRole(email, "manage");
+      const snapshot = await listRotatingStockData();
+      const prepared = snapshot.supplierStandardizations.find((item) => item.status === "preparada");
+      if (prepared) {
+        return NextResponse.json({
+          ok: true,
+          awaitingReview: true,
+          spreadsheetId: prepared.spreadsheet_id,
+          supplierName: prepared.supplier_name,
+          spreadsheetUrl: prepared.spreadsheet_url,
+          sheetName: prepared.sheet_name,
+        });
+      }
+      const updatedIds = new Set(
+        snapshot.supplierStandardizations
+          .filter((item) => item.status === "atualizada")
+          .map((item) => item.spreadsheet_id),
+      );
+      const next = [...SUPPLIER_SPREADSHEETS]
+        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base", numeric: true }))
+        .find((item) => !updatedIds.has(item.id));
+      if (!next) return NextResponse.json({ ok: true, complete: true });
+
+      const standardized = await standardizeSupplierSpreadsheet(sheets, next);
+      await prepareSupplierStandardization({
+        spreadsheetId: standardized.spreadsheetId,
+        supplierName: standardized.supplierName,
+        spreadsheetUrl: standardized.spreadsheetUrl,
+        sheetName: standardized.sheetName,
+        actor: email,
+      });
+      return NextResponse.json({ ok: true, awaitingReview: true, ...standardized });
+    }
+
+    if (action === "confirmar_planilha_fornecedor") {
+      requireRole(email, "manage");
+      const spreadsheetId = String(body.spreadsheetId || "").trim();
+      if (!spreadsheetId) throw new Error("Planilha não identificada.");
+      const snapshot = await listRotatingStockData();
+      const prepared = snapshot.supplierStandardizations.find(
+        (item) => item.spreadsheet_id === spreadsheetId && item.status === "preparada",
+      );
+      if (!prepared) throw new Error("Esta planilha não está aguardando conferência.");
+      if (!(await confirmSupplierStandardization(spreadsheetId, email))) throw new Error("Não foi possível confirmar a planilha.");
+
+      const mappingId = await saveSupplierMapping({
+        name: prepared.supplier_name,
+        spreadsheetId,
+        sheetName: prepared.sheet_name,
+        dataRange: "A6:E100000",
+        codeColumn: 0,
+        descriptionColumn: 2,
+        stockColumn: 4,
+        actor: email,
+      });
+      await attachSupplierToWaitingUpdates(mappingId, spreadsheetId, prepared.supplier_name);
+      return NextResponse.json({ ok: true, supplierName: prepared.supplier_name });
+    }
 
     if (action === "registrar") {
       requireRole(email, "report");

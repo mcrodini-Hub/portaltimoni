@@ -51,6 +51,7 @@ export type RotatingStockUpdate = {
   updated_count: number;
   source_sheet_name: string;
   source_code_column: string;
+  source_purchase_code_column: string;
   source_description_column: string;
   source_stock_column: string;
   source_start_row: number;
@@ -65,6 +66,10 @@ export type RotatingStockItem = {
   source_row: number;
   target_row: number | null;
   code: string;
+  source_sale_code: string;
+  purchase_code: string;
+  suggested_code: string;
+  suggestion_reason: string;
   description: string;
   old_stock: number | null;
   new_stock: number;
@@ -173,6 +178,25 @@ export async function ensureRotatingStockSchema() {
           ADD COLUMN IF NOT EXISTS source_start_row INTEGER NOT NULL DEFAULT 1,
           ADD COLUMN IF NOT EXISTS trello_card_id TEXT NOT NULL DEFAULT '',
           ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ
+      `;
+      await sql`
+        ALTER TABLE portal_rotating_stock_items
+          ADD COLUMN IF NOT EXISTS source_sale_code TEXT NOT NULL DEFAULT '',
+          ADD COLUMN IF NOT EXISTS purchase_code TEXT NOT NULL DEFAULT '',
+          ADD COLUMN IF NOT EXISTS suggested_code TEXT NOT NULL DEFAULT '',
+          ADD COLUMN IF NOT EXISTS suggestion_reason TEXT NOT NULL DEFAULT ''
+      `;
+      await sql`
+        CREATE TABLE IF NOT EXISTS portal_rotating_stock_code_links (
+          id BIGSERIAL PRIMARY KEY,
+          supplier_name TEXT NOT NULL,
+          purchase_code TEXT NOT NULL,
+          sale_code TEXT NOT NULL,
+          description TEXT NOT NULL DEFAULT '',
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_by TEXT NOT NULL,
+          UNIQUE (supplier_name, purchase_code)
+        )
       `;
       await sql`
         CREATE TABLE IF NOT EXISTS portal_rotating_stock_highlights (
@@ -356,7 +380,7 @@ export async function findSupplier(spreadsheetId: string, name: string) {
 export async function createRotatingStockUpdate(input: {
   id: string; supplierId: string | null; supplierName: string; spreadsheetName: string;
   spreadsheetLink: string; note: string; reportedBy: string; status: RotatingStockStatus;
-  sourceSheetName: string; sourceCodeColumn: string; sourceDescriptionColumn: string;
+  sourceSheetName: string; sourceCodeColumn: string; sourcePurchaseCodeColumn?: string; sourceDescriptionColumn: string;
   sourceStockColumn: string; sourceStartRow: number; trelloCardId?: string;
 }) {
   await ensureRotatingStockSchema();
@@ -364,11 +388,11 @@ export async function createRotatingStockUpdate(input: {
   await sql`
     INSERT INTO portal_rotating_stock_updates
       (id, supplier_id, supplier_name, spreadsheet_name, spreadsheet_link, note, reported_by, status,
-       source_sheet_name, source_code_column, source_description_column, source_stock_column, source_start_row, trello_card_id)
+       source_sheet_name, source_code_column, source_purchase_code_column, source_description_column, source_stock_column, source_start_row, trello_card_id)
     VALUES
       (${input.id}::UUID, ${input.supplierId}::BIGINT, ${input.supplierName}, ${input.spreadsheetName},
        ${input.spreadsheetLink}, ${input.note}, ${input.reportedBy}, ${input.status},
-       ${input.sourceSheetName}, ${input.sourceCodeColumn}, ${input.sourceDescriptionColumn},
+       ${input.sourceSheetName}, ${input.sourceCodeColumn}, ${input.sourcePurchaseCodeColumn || ""}, ${input.sourceDescriptionColumn},
        ${input.sourceStockColumn}, ${input.sourceStartRow}, ${input.trelloCardId || ""})
   `;
 }
@@ -430,8 +454,10 @@ export async function saveConference(id: string, actor: string, fingerprint: str
   for (const item of items) {
     await sql`
       INSERT INTO portal_rotating_stock_items
-        (update_id, source_row, target_row, code, description, old_stock, new_stock, situation)
-      VALUES (${id}::UUID, ${item.source_row}, ${item.target_row}, ${item.code}, ${item.description},
+        (update_id, source_row, target_row, code, source_sale_code, purchase_code, suggested_code, suggestion_reason,
+         description, old_stock, new_stock, situation)
+      VALUES (${id}::UUID, ${item.source_row}, ${item.target_row}, ${item.code}, ${item.source_sale_code},
+        ${item.purchase_code}, ${item.suggested_code}, ${item.suggestion_reason}, ${item.description},
         ${item.old_stock}, ${item.new_stock}, ${item.situation})
     `;
   }
@@ -527,6 +553,68 @@ export async function resolveNotFoundItem(id: string, actor: string) {
 }
 
 
+
+export async function listSupplierCodeLinks(supplierName: string) {
+  await ensureRotatingStockSchema();
+  const sql = getDatabase();
+  return await sql`
+    SELECT purchase_code, sale_code, description
+    FROM portal_rotating_stock_code_links
+    WHERE LOWER(supplier_name) = LOWER(${supplierName})
+  ` as unknown as Array<{ purchase_code: string; sale_code: string; description: string }>;
+}
+
+export async function saveSupplierCodeLink(input: {
+  supplierName: string;
+  purchaseCode: string;
+  saleCode: string;
+  description: string;
+  actor: string;
+}) {
+  if (!input.purchaseCode.trim()) return;
+  await ensureRotatingStockSchema();
+  const sql = getDatabase();
+  await sql`
+    INSERT INTO portal_rotating_stock_code_links
+      (supplier_name, purchase_code, sale_code, description, updated_at, updated_by)
+    VALUES
+      (${input.supplierName}, ${input.purchaseCode}, ${input.saleCode}, ${input.description}, NOW(), ${input.actor})
+    ON CONFLICT (supplier_name, purchase_code) DO UPDATE SET
+      sale_code = EXCLUDED.sale_code,
+      description = EXCLUDED.description,
+      updated_at = NOW(),
+      updated_by = EXCLUDED.updated_by
+  `;
+}
+
+export async function correctConferenceItem(input: {
+  itemId: string;
+  saleCode: string;
+  targetRow: number;
+  oldStock: number | null;
+  newStock: number;
+  situation: RotatingStockItemStatus;
+  actor: string;
+}) {
+  await ensureRotatingStockSchema();
+  const sql = getDatabase();
+  const rows = await sql`
+    UPDATE portal_rotating_stock_items
+    SET code = ${input.saleCode},
+        target_row = ${input.targetRow},
+        old_stock = ${input.oldStock},
+        new_stock = ${input.newStock},
+        situation = ${input.situation},
+        suggested_code = '',
+        suggestion_reason = '',
+        resolved_at = NOW(),
+        resolved_by = ${input.actor}
+    WHERE id = ${input.itemId}::BIGINT
+    RETURNING id::TEXT, purchase_code, description
+  ` as unknown as Array<{ id: string; purchase_code: string; description: string }>;
+  return rows[0] || null;
+}
+
 export async function reopenRotatingStockUpdate(input: {
   id: string;
   supplierName: string;
@@ -535,6 +623,7 @@ export async function reopenRotatingStockUpdate(input: {
   note: string;
   sourceSheetName: string;
   sourceCodeColumn: string;
+  sourcePurchaseCodeColumn?: string;
   sourceDescriptionColumn: string;
   sourceStockColumn: string;
   sourceStartRow: number;
@@ -550,6 +639,7 @@ export async function reopenRotatingStockUpdate(input: {
         note = ${input.note},
         source_sheet_name = ${input.sourceSheetName},
         source_code_column = ${input.sourceCodeColumn},
+        source_purchase_code_column = ${input.sourcePurchaseCodeColumn || ""},
         source_description_column = ${input.sourceDescriptionColumn},
         source_stock_column = ${input.sourceStockColumn},
         source_start_row = ${input.sourceStartRow},

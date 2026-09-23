@@ -129,7 +129,6 @@ export default function EstoqueRotativoClient() {
     [data?.updates],
   );
   const pending = trelloSuppliers.length || registeredPendingNames.size;
-  const inConference = data?.updates.filter((item) => item.status === "em_conferencia").length || 0;
   const currentMonth = new Date().toISOString().slice(0, 7);
   const updatedMonth = data?.updates.filter((item) => item.status === "atualizado" && item.reported_at.slice(0, 7) === currentMonth).length || 0;
 
@@ -273,10 +272,9 @@ export default function EstoqueRotativoClient() {
         </div>
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-3">
+      <section className="grid gap-3 sm:grid-cols-2">
         {[
           ["Atualizações pendentes", pending],
-          ["Em conferência", inConference],
           ["Atualizadas no mês", updatedMonth],
         ].map(([label, value]) => (
           <article key={String(label)} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
@@ -381,10 +379,6 @@ export default function EstoqueRotativoClient() {
           <article className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">2. Itens do estoque</p>
             <h2 className="mt-2 text-xl font-semibold text-slate-950">Planilha do fornecedor</h2>
-            <p className="mt-2 text-sm leading-6 text-slate-600">
-              Mesmo fluxo de Compras: informe a planilha, filtre os itens e confira o resultado antes de atualizar.
-            </p>
-
             <label className="mt-4 block text-sm font-semibold text-slate-800">
               Fornecedor / grupo
               <div className="mt-2 min-h-12 rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm">
@@ -450,15 +444,6 @@ export default function EstoqueRotativoClient() {
                 />
               </label>
             </div>
-
-            <label className="mt-4 block text-sm font-semibold text-slate-800">
-              Observação <span className="font-normal text-slate-500">(opcional)</span>
-              <input
-                value={note}
-                onChange={(event) => setNote(event.target.value)}
-                className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
-              />
-            </label>
 
             <button
               type="button"

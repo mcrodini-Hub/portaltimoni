@@ -684,7 +684,7 @@ const HEADER_ALIASES = {
   itemNumber: ["item", "n", "numero", "num", "0"],
 };
 
-function detectHeaderColumn(row: unknown[], aliases: string[]) {
+function detectHeaderColumn(row: any[], aliases: string[]) {
   const normalizedAliases = new Set(aliases.map(normalizeHeader));
   const matches: number[] = [];
   row.forEach((cell, index) => {
@@ -705,7 +705,7 @@ type SupplierSheetDetection = {
   score: number;
 };
 
-function analyzeSheetGrid(values: unknown[][]): SupplierSheetDetection | null {
+function analyzeSheetGrid(values: any[][]): SupplierSheetDetection | null {
   let best: SupplierSheetDetection | null = null;
 
   for (let index = 0; index < Math.min(values.length, 25); index += 1) {
@@ -739,7 +739,7 @@ function analyzeSheetGrid(values: unknown[][]): SupplierSheetDetection | null {
   return best;
 }
 
-function normalizeHistoryHeader(value: unknown) {
+function normalizeHistoryHeader(value: any) {
   if (typeof value === "number" && Number.isFinite(value) && value > 20000) {
     const milliseconds = Math.round((value - 25569) * 86400 * 1000);
     const date = new Date(milliseconds);
@@ -762,7 +762,7 @@ function normalizeHistoryHeader(value: unknown) {
   return `${months[match[1]]}/${year}${suffix ? ` ${suffix.toUpperCase()}` : ""}`;
 }
 
-function appendPreservedValue(row: unknown[], value: unknown, startAt = 5) {
+function appendPreservedValue(row: any[], value: any, startAt = 5) {
   if (value === "" || value === null || value === undefined) return;
   let index = startAt;
   while (row[index] !== undefined && row[index] !== "") index += 1;
@@ -777,7 +777,7 @@ async function standardizeSupplierSpreadsheet(
     spreadsheetId: file.id,
     fields: "sheets.properties(title,index,sheetId,gridProperties)",
   });
-  const candidates = (metadata.data.sheets || [])
+  const candidates: any[] = ((metadata.data.sheets || []) as any[])
     .sort((a, b) => (a.properties?.index || 0) - (b.properties?.index || 0))
     .filter((sheet) => sheet.properties?.title && sheet.properties?.sheetId !== undefined);
 
@@ -787,8 +787,8 @@ async function standardizeSupplierSpreadsheet(
     rowCount: number;
     columnCount: number;
     detection: SupplierSheetDetection;
-    formulas: unknown[][];
-    formatted: unknown[][];
+    formulas: any[][];
+    formatted: any[][];
   } | null = null;
 
   for (const sheet of candidates.slice(0, 8)) {
@@ -800,7 +800,7 @@ async function standardizeSupplierSpreadsheet(
       range: `'${title.replace(/'/g, "''")}'!A1:${columnLetter(Math.min(columnCount - 1, 51))}25`,
       valueRenderOption: "FORMATTED_VALUE",
     });
-    const detection = analyzeSheetGrid((preview.data.values || []) as unknown[][]);
+    const detection = analyzeSheetGrid((preview.data.values || []) as any[][]);
     if (!detection || detection.saleCodeColumn === null || detection.descriptionColumn === null || detection.stockColumn === null) continue;
 
     const lastColumn = columnLetter(columnCount - 1);
@@ -822,8 +822,8 @@ async function standardizeSupplierSpreadsheet(
       rowCount,
       columnCount,
       detection,
-      formulas: (formulaResponse.data.values || []) as unknown[][],
-      formatted: (formattedResponse.data.values || []) as unknown[][],
+      formulas: (formulaResponse.data.values || []) as any[][],
+      formatted: (formattedResponse.data.values || []) as any[][],
     };
     break;
   }
@@ -868,7 +868,7 @@ async function standardizeSupplierSpreadsheet(
   }
   if (lastDataIndex <= headerIndex) throw new Error(`${file.name}: nenhum produto encontrado abaixo do cabeçalho.`);
 
-  const topRows: unknown[][] = [[], [], [], []];
+  const topRows: any[][] = [[], [], [], []];
   const metadataRows = formulas.slice(0, headerIndex);
   for (let index = 0; index < Math.min(4, metadataRows.length); index += 1) {
     topRows[index] = [...(metadataRows[index] || [])];
@@ -898,7 +898,7 @@ async function standardizeSupplierSpreadsheet(
     ...extraColumns.map((column) => normalizeHistoryHeader(sourceHeader[column])),
   ];
 
-  const productRows: unknown[][] = [];
+  const productRows: any[][] = [];
   for (let rowIndex = headerIndex + 1; rowIndex <= lastDataIndex; rowIndex += 1) {
     const formulaRow = formulas[rowIndex] || [];
     const formattedRow = formatted[rowIndex] || [];
@@ -938,7 +938,7 @@ async function standardizeSupplierSpreadsheet(
     spreadsheetId: file.id,
     range: `${quotedTitle}!A1`,
     valueInputOption: "USER_ENTERED",
-    requestBody: { values: output },
+    requestBody: { values: output } as any,
   });
 
   const black = { red: 0, green: 0, blue: 0 };
@@ -989,8 +989,8 @@ async function standardizeSupplierSpreadsheet(
             fields: "userEnteredFormat.numberFormat",
           },
         },
-      ],
-    },
+      ] as any[],
+    } as any,
   });
 
   return {

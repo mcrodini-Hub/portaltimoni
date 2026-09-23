@@ -137,7 +137,6 @@ export default function EstoqueRotativoClient() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [standardizingSupplier, setStandardizingSupplier] = useState(false);
-  const [choosingStandardizationSupplier, setChoosingStandardizationSupplier] = useState(false);
   const [selectedStandardizationSupplierId, setSelectedStandardizationSupplierId] = useState("");
 
   const load = useCallback(async (id?: string | null) => {
@@ -246,7 +245,6 @@ export default function EstoqueRotativoClient() {
       verificationWindow?.close();
     }
     setFeedback(`Planilha ${result.supplierName} pronta para conferência. Confira a planilha aberta e depois marque como atualizada.`);
-    setChoosingStandardizationSupplier(false);
     setSelectedStandardizationSupplierId("");
     await load();
   }
@@ -458,7 +456,7 @@ export default function EstoqueRotativoClient() {
               <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">1. Padronizar fornecedores</p>
               <h2 className="mt-2 text-xl font-semibold text-slate-950">Uma planilha por vez</h2>
               <p className="mt-1 text-sm text-slate-500">
-                O Portal sugere a próxima em ordem alfabética, mas você pode selecionar outro fornecedor pendente. A próxima planilha só é liberada depois da sua conferência.
+                Selecione a empresa que deseja padronizar. Este fluxo é independente do bloco 2. Fornecedor.
               </p>
             </div>
             <button
@@ -501,57 +499,30 @@ export default function EstoqueRotativoClient() {
                 </button>
               </div>
             </div>
-          ) : nextSupplier ? (
+          ) : pendingSupplierFiles.length ? (
             <div className="mt-4 rounded-2xl border border-slate-200 p-5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Próxima planilha sugerida</p>
-              <p className="mt-2 text-lg font-semibold text-slate-950">{nextSupplier.name}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  onClick={() => void standardizeNextSupplier()}
+              <label className="block text-sm font-semibold text-slate-800">
+                Selecionar empresa
+                <select
+                  value={selectedStandardizationSupplierId}
+                  onChange={(event) => setSelectedStandardizationSupplierId(event.target.value)}
                   disabled={busy || standardizingSupplier}
-                  className="min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:opacity-50"
+                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm disabled:bg-slate-100"
                 >
-                  {standardizingSupplier ? "Padronizando..." : "Padronizar e abrir planilha"}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setChoosingStandardizationSupplier((value) => !value);
-                    setSelectedStandardizationSupplierId("");
-                  }}
-                  disabled={busy || standardizingSupplier}
-                  className="min-h-11 rounded-xl border border-blue-200 px-5 text-sm font-semibold text-blue-800 disabled:opacity-50"
-                >
-                  Selecionar fornecedor
-                </button>
-              </div>
-
-              {choosingStandardizationSupplier ? (
-                <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/40 p-4">
-                  <label className="block text-sm font-semibold text-slate-800">
-                    Fornecedor pendente
-                    <select
-                      value={selectedStandardizationSupplierId}
-                      onChange={(event) => setSelectedStandardizationSupplierId(event.target.value)}
-                      className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm"
-                    >
-                      <option value="">Selecione...</option>
-                      {pendingSupplierFiles.map((supplier) => (
-                        <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-                      ))}
-                    </select>
-                  </label>
-                  <button
-                    type="button"
-                    onClick={() => selectedStandardizationSupplier && void standardizeNextSupplier(selectedStandardizationSupplier.id)}
-                    disabled={busy || standardizingSupplier || !selectedStandardizationSupplier}
-                    className="mt-3 min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:bg-slate-300"
-                  >
-                    {standardizingSupplier ? "Padronizando..." : "Padronizar fornecedor selecionado"}
-                  </button>
-                </div>
-              ) : null}
+                  <option value="">Selecione...</option>
+                  {pendingSupplierFiles.map((supplier) => (
+                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
+                  ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                onClick={() => selectedStandardizationSupplier && void standardizeNextSupplier(selectedStandardizationSupplier.id)}
+                disabled={busy || standardizingSupplier || !selectedStandardizationSupplier}
+                className="mt-3 min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:bg-slate-300"
+              >
+                {standardizingSupplier ? "Padronizando..." : "Padronizar e abrir planilha"}
+              </button>
             </div>
           ) : (
             <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-sm font-semibold text-emerald-800">

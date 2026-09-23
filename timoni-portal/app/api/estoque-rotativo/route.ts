@@ -1509,7 +1509,7 @@ export async function POST(request: Request) {
     const codeColumn = columnIndex(update.source_code_column);
     const descriptionColumn = columnIndex(update.source_description_column);
     const stockColumn = columnIndex(update.source_stock_column);
-    const maxSourceColumn = Math.max(saleCodeColumn, descriptionColumn, stockColumn);
+    const maxSourceColumn = Math.max(codeColumn, descriptionColumn, stockColumn);
 
     if (action === "conferir") {
       requireRole(email, "conference");

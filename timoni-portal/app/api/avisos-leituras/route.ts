@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getPortalUser, type PortalUser } from "@/lib/access-control";
-import { listComunicados } from "@/lib/comunicados";
+import { canViewComunicado, listComunicados } from "@/lib/comunicados";
 import { getEffectiveCollaborators } from "@/lib/portal-config";
 import { recordModuleUpdateSafely } from "@/lib/module-updates";
 import {
@@ -44,15 +44,18 @@ export async function GET() {
   if (!current) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
 
   try {
-    const [reads, collaborators] = await Promise.all([
+    const [reads, collaborators, notices] = await Promise.all([
       listAvisoLeituras(current.accessToken),
       getEffectiveCollaborators(current.accessToken),
+      listComunicados(current.accessToken),
     ]);
     const employees = collaborators.filter((member) => member.noticeRequired).map((member) => ({ employee: member.name, unit: member.unit, pinConfigured: true }));
     const unit = allowedUnit(current.email, current.portalUser);
+    const currentUnit = unit === "Araras" ? "araras" : unit === "Rio Claro" ? "rio claro" : "geral";
+    const visibleIds = new Set(notices.filter((item) => MANAGEMENT_EMAILS.has(current.email) || canViewComunicado(item, current.email, currentUnit)).map((item) => item.id));
     return NextResponse.json({
       ok: true,
-      reads: unit === "geral" ? reads : reads.filter((read) => read.unit === unit),
+      reads: reads.filter((read) => visibleIds.has(read.avisoId) && (unit === "geral" || read.unit === unit)),
       employees: unit === "geral" ? employees : employees.filter((employee) => employee.unit === unit),
     });
   } catch (error) {
@@ -82,7 +85,8 @@ export async function POST(request: Request) {
     const avisoId = String(body?.avisoId ?? "").trim();
     if (!avisoId) return NextResponse.json({ error: "Aviso inválido." }, { status: 400 });
     const notices = await listComunicados(current.accessToken);
-    const notice = notices.find((item) => item.id === avisoId && item.status === "ativo");
+    const currentUnit = permittedUnit === "Araras" ? "araras" : permittedUnit === "Rio Claro" ? "rio claro" : "geral";
+    const notice = notices.find((item) => item.id === avisoId && item.status === "ativo" && (MANAGEMENT_EMAILS.has(current.email) || canViewComunicado(item, current.email, currentUnit)));
     if (!notice) return NextResponse.json({ error: "Aviso não encontrado ou encerrado." }, { status: 404 });
     const noticeUnit = notice.unit === "rio claro" ? "Rio Claro" : notice.unit === "araras" ? "Araras" : "geral";
     if (noticeUnit !== "geral" && noticeUnit !== unit) {

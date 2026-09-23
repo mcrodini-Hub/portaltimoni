@@ -14,6 +14,7 @@ type Comunicado = {
   updatedAt: string;
   startsAt: string;
   expiresAt: string;
+  recipientEmails?: string[] | null;
 };
 type AvisoLeitura = {
   avisoId: string;
@@ -195,6 +196,7 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
     <section className="space-y-4">
       {error && <p className="text-sm font-medium text-red-700">{error}</p>}
       {visible.map((item) => {
+        const targeted = Array.isArray(item.recipientEmails);
         const currentMemberKeys = new Set(members.map((member) => memberKey(member.unit, member.name)));
         const itemReadsByMember = new Map<string, AvisoLeitura>();
         for (const read of reads) {
@@ -212,7 +214,7 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
             <div>
               {canConfirmRead && members.length > 0 && (
                 <span className={`mb-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${pendingMembers.length > 0 ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
-                  {pendingMembers.length > 0 ? "Aviso não lido" : "Leitura concluída"}
+                  {targeted ? "Confirme sua leitura" : pendingMembers.length > 0 ? "Aviso não lido" : "Leitura concluída"}
                 </span>
               )}
               <h3 className="text-base font-bold text-slate-950 sm:text-lg">{item.title}</h3>
@@ -228,7 +230,7 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
           {isAdmin && members.length > 0 && (
             <details className="mt-3 rounded-xl border border-blue-200 bg-white/70 px-3 py-2">
               <summary className="cursor-pointer text-sm font-semibold text-blue-800">
-                Leituras: {itemReads.length} de {members.length} · Ver quem leu
+                {targeted ? `Leituras: ${itemReads.length} · Ver quem leu` : `Leituras: ${itemReads.length} de ${members.length} · Ver quem leu`}
               </summary>
               <div className="mt-3 grid gap-3 border-t border-blue-100 pt-3 text-xs sm:grid-cols-2">
                 <div>
@@ -239,14 +241,14 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
                     </ul>
                   )}
                 </div>
-                <div>
+                {!targeted && <div>
                   <p className="font-bold text-amber-800">Ainda não leram</p>
                   {pendingMembers.length === 0 ? <p className="mt-1 text-slate-500">Todos confirmaram.</p> : (
                     <ul className="mt-1 space-y-1 text-slate-700">
                       {pendingMembers.map((member) => <li key={`${member.unit}-${member.name}`}>{member.name}</li>)}
                     </ul>
                   )}
-                </div>
+                </div>}
               </div>
             </details>
           )}
@@ -277,7 +279,7 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
               {readFeedback?.id === item.id && <p className={`mt-2 text-sm font-medium ${readFeedback.success ? "text-emerald-700" : "text-red-700"}`}>{readFeedback.message}</p>}
               <details className="mt-3 rounded-xl border border-blue-100 bg-white/70 px-3 py-2">
                 <summary className="cursor-pointer text-xs font-semibold text-slate-700">
-                  Leituras: {itemReads.length} confirmada{itemReads.length === 1 ? "" : "s"} · {pendingMembers.length} pendente{pendingMembers.length === 1 ? "" : "s"}
+                  Leituras: {itemReads.length} confirmada{itemReads.length === 1 ? "" : "s"}{targeted ? "" : ` · ${pendingMembers.length} pendente${pendingMembers.length === 1 ? "" : "s"}`}
                 </summary>
                 <div className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
                   <div>
@@ -288,14 +290,14 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
                       </ul>
                     )}
                   </div>
-                  <div>
+                  {!targeted && <div>
                     <p className="font-bold text-amber-800">Ainda não leram</p>
                     {pendingMembers.length === 0 ? <p className="mt-1 text-slate-500">Todos confirmaram.</p> : (
                       <ul className="mt-1 space-y-1 text-slate-700">
                         {pendingMembers.map((member) => <li key={`${member.unit}-${member.name}`}>{member.name}</li>)}
                       </ul>
                     )}
-                  </div>
+                  </div>}
                 </div>
               </details>
             </div>

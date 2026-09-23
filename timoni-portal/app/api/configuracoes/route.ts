@@ -4,6 +4,7 @@ import { normalizeEmail, type PortalBox, type PortalModule, type PortalUser } fr
 import {
   appendAudit,
   CICA_EMAIL,
+  deleteCollaborator,
   loadPortalConfiguration,
   upsertCollaborator,
   upsertPortalUser,
@@ -23,6 +24,24 @@ async function adminContext() {
   const email = normalizeEmail(session?.user?.email);
   if (!MANAGEMENT_EMAILS.has(email) || !session?.accessToken) return null;
   return { email, accessToken: session.accessToken };
+}
+
+export async function DELETE(request: Request) {
+  const current = await adminContext();
+  if (!current) return NextResponse.json({ error: "Acesso exclusivo da gestão." }, { status: 403 });
+  try {
+    const { id } = await request.json();
+    if (typeof id !== "string" || !id.trim()) return NextResponse.json({ error: "Colaborador inválido." }, { status: 400 });
+    const configuration = await loadPortalConfiguration(current.accessToken);
+    const member = configuration.collaborators.find((item) => item.id === id);
+    if (!member) return NextResponse.json({ error: "Colaborador não encontrado." }, { status: 404 });
+    await deleteCollaborator(current.accessToken, id);
+    await appendAudit(current.accessToken, "Colaborador excluído", `${member.name} · ${member.unit}`, current.email);
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    console.error("[configuracoes][DELETE]", error);
+    return NextResponse.json({ error: "Não foi possível excluir o colaborador." }, { status: 500 });
+  }
 }
 
 function cleanModules(value: unknown): PortalModule[] {
@@ -45,6 +64,7 @@ function cleanUser(value: Record<string, unknown>): PortalUser {
     unit: ["Geral", "Araras", "Rio Claro"].includes(String(value.unit)) ? value.unit as PortalUser["unit"] : "Rio Claro",
     modules,
     boxes,
+    mobileModules: Array.isArray(value.mobileModules) ? cleanModules(value.mobileModules).filter((module) => modules.includes(module)) : undefined,
     requiresPassword: Boolean(value.requiresPassword),
     readOnly: Boolean(value.readOnly),
     active: email === CICA_EMAIL ? true : value.active !== false,

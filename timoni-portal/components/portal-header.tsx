@@ -27,6 +27,7 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
   const isManagement = ["mcrodini@gmail.com", "mrodini@gmail.com"].includes(email.trim().toLowerCase());
   const canViewUpdates = isManagement;
   const canUseChat = hasModuleAccess(email, "chat", portalUser);
+  const mobileVisible = (module: PortalModule) => portalUser?.mobileModules === undefined || portalUser.mobileModules.includes(module);
   const linkClass =
     "whitespace-nowrap rounded-lg px-2 py-2 text-[13px] font-medium text-white/90 transition hover:bg-white/10 hover:text-white";
   const allowedItems = navItems
@@ -44,15 +45,15 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
     ...(isManagement ? [{ href: "/configuracoes", targetHref: "/configuracoes", label: "Configurações", updateModule: undefined }] : []),
   ];
   const mobileItems = [
-    ...(!directPainelTimoniAccess ? [{ href: "/dashboard", targetHref: "/dashboard", label: "Painel", module: "painel" as PortalModule, updateModule: undefined, icon: "home" as PortalIconName, color: "text-blue-600" }] : []),
-    ...sortedAllowedItems,
+    ...(!directPainelTimoniAccess && mobileVisible("painel") ? [{ href: "/dashboard", targetHref: "/dashboard", label: "Painel", module: "painel" as PortalModule, updateModule: undefined, icon: "home" as PortalIconName, color: "text-blue-600" }] : []),
+    ...sortedAllowedItems.filter((item) => mobileVisible(item.module)),
     ...(isManagement ? [{ href: "/configuracoes", targetHref: "/configuracoes", label: "Configurações", module: "painel" as PortalModule, updateModule: undefined, icon: "settings" as PortalIconName, color: "text-slate-800" }] : []),
   ];
   const initials = email.trim().toLowerCase() === "mcrodini@gmail.com" ? "CR" : email.trim().toLowerCase() === "mrodini@gmail.com" ? "MR" : "CT";
 
   return (
     <header className="sticky top-0 z-40 border-b border-blue-950/50 bg-[#0F2D8F] text-white shadow-sm">
-      <MobilePortalHeader items={mobileItems} showUpdates={canViewUpdates} showGuide={isManagement} showChat={canUseChat} initials={initials} />
+      <MobilePortalHeader items={mobileItems} showUpdates={canViewUpdates} showGuide={isManagement} showChat={canUseChat && mobileVisible("chat")} initials={initials} />
       <div className="mx-auto hidden max-w-7xl flex-wrap items-center justify-between gap-x-2 px-4 sm:flex sm:flex-nowrap sm:gap-2 sm:px-4">
         <Link
           href="/dashboard"

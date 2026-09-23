@@ -19,11 +19,14 @@ import {
   listConferenceItems,
   listExpiredHighlights,
   listRotatingStockData,
+  listSupplierCodeLinks,
   markHighlightsCleared,
   prepareSupplierStandardization,
   resolveNotFoundItem,
+  correctConferenceItem,
   reopenRotatingStockUpdate,
   saveConference,
+  saveSupplierCodeLink,
   saveSupplierMapping,
   type RotatingStockItem,
 } from "@/lib/rotating-stock";
@@ -777,7 +780,7 @@ async function standardizeSupplierSpreadsheet(
 ) {
   const metadata = await sheets.spreadsheets.get({
     spreadsheetId: file.id,
-    fields: "sheets.properties(title,index,sheetId,gridProperties)",
+    fields: "sheets.properties(title,index,sheetId,gridProperties),sheets.merges,sheets.conditionalFormats",
   });
   const candidates = (metadata.data.sheets || [])
     .sort((a, b) => (a.properties?.index || 0) - (b.properties?.index || 0))
@@ -791,6 +794,8 @@ async function standardizeSupplierSpreadsheet(
     detection: SupplierSheetDetection;
     formulas: SheetValue[][];
     formatted: SheetValue[][];
+    merges: sheets_v4.Schema$GridRange[];
+    conditionalFormatCount: number;
   } | null = null;
 
   for (const sheet of candidates.slice(0, 8)) {
@@ -826,6 +831,8 @@ async function standardizeSupplierSpreadsheet(
       detection,
       formulas: (formulaResponse.data.values || []) as unknown as SheetValue[][],
       formatted: (formattedResponse.data.values || []) as unknown as SheetValue[][],
+      merges: sheet.merges || [],
+      conditionalFormatCount: sheet.conditionalFormats?.length || 0,
     };
     break;
   }
@@ -890,13 +897,16 @@ async function standardizeSupplierSpreadsheet(
     appendPreservedValue(topRows[2], oldE3, 5);
   }
   topRows[2][4] = "LUCAS";
+  topRows[3][4] = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "America/Sao_Paulo",
+  }).format(new Date());
 
   const standardizedHeaders = [
     "COD-VENDA",
     "COD-COMPRA",
-    "PRODUTO",
-    "EST-MIN",
-    "ESTOQUE ATUAL",
+    "DESCRIÇÃO",
+    "MINIMO",
+    "ESTOQUE",
     ...extraColumns.map((column) => normalizeHistoryHeader(sourceHeader[column])),
   ];
 
@@ -929,6 +939,10 @@ async function standardizeSupplierSpreadsheet(
   const output = [...topRows, standardizedHeaders, ...productRows];
   const outputWidth = Math.max(...output.map((row) => row.length), 5);
   for (const row of output) while (row.length < outputWidth) row.push("");
+  const lastProductRow = 5 + productRows.length;
+  for (let column = 6; column < outputWidth; column += 1) {
+    output[3][column] = `=COUNTA(${columnLetter(column)}6:${columnLetter(column)}${lastProductRow})`;
+  }
 
   const quotedTitle = `'${selected.title.replace(/'/g, "''")}'`;
   const clearLastColumn = columnLetter(Math.max(selected.columnCount - 1, outputWidth - 1));
@@ -944,55 +958,139 @@ async function standardizeSupplierSpreadsheet(
   });
 
   const black = { red: 0, green: 0, blue: 0 };
+  const white = { red: 1, green: 1, blue: 1 };
   const blue = { red: 0.075, green: 0.012, blue: 0.553 };
+  const orangeLight2 = { red: 0.976, green: 0.796, blue: 0.612 };
+  const formattingRequests: sheets_v4.Schema$Request[] = [];
+
+  for (const merge of selected.merges) formattingRequests.push({ unmergeCells: { range: merge } });
+  for (let index = selected.conditionalFormatCount - 1; index >= 0; index -= 1) {
+    formattingRequests.push({ deleteConditionalFormatRule: { sheetId: selected.sheetId, index } });
+  }
+
+  formattingRequests.push(
+    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: outputWidth },
+        cell: { userEnteredFormat: { textFormat: { fontFamily: "Calibri", fontSize: 11 } } },
+        fields: "userEnteredFormat.textFormat.fontFamily,userEnteredFormat.textFormat.fontSize",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 },
+        cell: { userEnteredFormat: {
+          backgroundColor: white,
+          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: true, foregroundColor: black },
+          horizontalAlignment: "LEFT",
+          verticalAlignment: "MIDDLE",
+        } },
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: outputWidth },
+        cell: { userEnteredFormat: {
+          backgroundColor: blue,
+          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: true, foregroundColor: white },
+          horizontalAlignment: "CENTER",
+          verticalAlignment: "MIDDLE",
+        } },
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 2, endColumnIndex: 3 },
+        cell: { userEnteredFormat: { horizontalAlignment: "LEFT" } },
+        fields: "userEnteredFormat.horizontalAlignment",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: 2 },
+        cell: { userEnteredFormat: { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } },
+        fields: "userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 3, endColumnIndex: outputWidth },
+        cell: { userEnteredFormat: { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } },
+        fields: "userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 4, endColumnIndex: 5 },
+        cell: { userEnteredFormat: { textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true } } },
+        fields: "userEnteredFormat.textFormat",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 4, endColumnIndex: 5 },
+        cell: { userEnteredFormat: { numberFormat: { type: "DATE", pattern: "dd/mm/yy" } } },
+        fields: "userEnteredFormat.numberFormat",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 5, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: 2 },
+        cell: { userEnteredFormat: { numberFormat: { type: "TEXT", pattern: "@" } } },
+        fields: "userEnteredFormat.numberFormat",
+      },
+    },
+    {
+      updateSheetProperties: {
+        properties: { sheetId: selected.sheetId, gridProperties: { frozenRowCount: 5 } },
+        fields: "gridProperties.frozenRowCount",
+      },
+    },
+  );
+
+  if (outputWidth > 6) {
+    formattingRequests.push(
+      {
+        repeatCell: {
+          range: { sheetId: selected.sheetId, startRowIndex: 5, endRowIndex: output.length, startColumnIndex: 6, endColumnIndex: outputWidth },
+          cell: { userEnteredFormat: { backgroundColor: white } },
+          fields: "userEnteredFormat.backgroundColor",
+        },
+      },
+      {
+        addConditionalFormatRule: {
+          index: 0,
+          rule: {
+            ranges: [{ sheetId: selected.sheetId, startRowIndex: 5, endRowIndex: output.length, startColumnIndex: 6, endColumnIndex: outputWidth }],
+            booleanRule: { condition: { type: "NOT_BLANK" }, format: { backgroundColor: orangeLight2 } },
+          },
+        },
+      },
+      {
+        setDataValidation: {
+          range: { sheetId: selected.sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 6, endColumnIndex: outputWidth },
+          rule: {
+            condition: {
+              type: "ONE_OF_LIST",
+              values: [
+                { userEnteredValue: "CT" },
+                { userEnteredValue: "MCR" },
+                { userEnteredValue: "ROD" },
+              ],
+            },
+            strict: true,
+            showCustomUi: true,
+          },
+        },
+      },
+    );
+  }
+
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId: file.id,
-    requestBody: {
-      requests: [
-        {
-          repeatCell: {
-            range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: outputWidth },
-            cell: { userEnteredFormat: { textFormat: { fontFamily: "Calibri", fontSize: 11 } } },
-            fields: "userEnteredFormat.textFormat.fontFamily,userEnteredFormat.textFormat.fontSize",
-          },
-        },
-        {
-          repeatCell: {
-            range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: outputWidth },
-            cell: { userEnteredFormat: { textFormat: { bold: true } } },
-            fields: "userEnteredFormat.textFormat.bold",
-          },
-        },
-        {
-          repeatCell: {
-            range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 },
-            cell: { userEnteredFormat: { textFormat: { bold: true, foregroundColor: black } } },
-            fields: "userEnteredFormat.textFormat.bold,userEnteredFormat.textFormat.foregroundColor",
-          },
-        },
-        {
-          repeatCell: {
-            range: { sheetId: selected.sheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 1 },
-            cell: { userEnteredFormat: { textFormat: { bold: true, foregroundColor: blue } } },
-            fields: "userEnteredFormat.textFormat.bold,userEnteredFormat.textFormat.foregroundColor",
-          },
-        },
-        {
-          repeatCell: {
-            range: { sheetId: selected.sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 4, endColumnIndex: 5 },
-            cell: { userEnteredFormat: { textFormat: { bold: true } } },
-            fields: "userEnteredFormat.textFormat.bold",
-          },
-        },
-        {
-          repeatCell: {
-            range: { sheetId: selected.sheetId, startRowIndex: 5, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: 2 },
-            cell: { userEnteredFormat: { numberFormat: { type: "TEXT", pattern: "@" } } },
-            fields: "userEnteredFormat.numberFormat",
-          },
-        },
-      ],
-    },
+    requestBody: { requests: formattingRequests },
   });
 
   return {
@@ -1009,18 +1107,26 @@ function buildComparison(
   targetRows: unknown[][],
   startRow: number,
   codeColumn: number,
+  purchaseCodeColumn: number | null,
   descriptionColumn: number,
   stockColumn: number,
+  codeLinks: Map<string, string>,
 ) {
-  const targetByCode = new Map<string, { row: number; stock: number | null }>();
-  const targetByDescription = new Map<string, { row: number; stock: number | null }>();
+  const targetByCode = new Map<string, { row: number; code: string; description: string; stock: number | null }>();
+  const targetByDescription = new Map<string, { row: number; code: string; description: string; stock: number | null }>();
   const duplicateDescriptions = new Set<string>();
 
   for (let index = 0; index < targetRows.length; index += 1) {
     const code = cleanCode(targetRows[index]?.[0]);
-    const description = normalizeMatch(targetRows[index]?.[1]);
+    const descriptionText = String(targetRows[index]?.[1] ?? "").trim();
+    const description = normalizeMatch(descriptionText);
     if (!code && !description) continue;
-    const target = { row: index + 2, stock: nullableStock(targetRows[index]?.[2], `Base central, linha ${index + 2}`) };
+    const target = {
+      row: index + 2,
+      code,
+      description: descriptionText,
+      stock: nullableStock(targetRows[index]?.[2], `Base central, linha ${index + 2}`),
+    };
     if (code) targetByCode.set(code, target);
     if (description) {
       if (targetByDescription.has(description)) duplicateDescriptions.add(description);
@@ -1033,24 +1139,70 @@ function buildComparison(
   const items: Omit<RotatingStockItem, "id" | "update_id" | "applied">[] = [];
   for (let index = 0; index < sourceRows.length; index += 1) {
     const row = sourceRows[index] || [];
-    const code = cleanCode(row[codeColumn]);
+    const sourceSaleCode = cleanCode(row[codeColumn]);
+    const purchaseCode = purchaseCodeColumn === null ? "" : cleanCode(row[purchaseCodeColumn]);
     const description = String(row[descriptionColumn] ?? "").trim();
     const stockValue = row[stockColumn];
-    if (!code && !description && String(stockValue ?? "").trim() === "") continue;
-    if (!code && !description) throw new Error(`Linha ${startRow + index}: código e descrição vazios.`);
-    if (code && sourceCodes.has(code)) throw new Error(`Código duplicado na planilha do fornecedor: ${code}.`);
-    if (code) sourceCodes.add(code);
-    const newStock = integerStock(stockValue, `Linha ${startRow + index}, código ${code || "sem código"}`);
-    const target = (code ? targetByCode.get(code) : undefined) || targetByDescription.get(normalizeMatch(description));
-    const situation = !target ? "nao_encontrado" : target.stock !== null && target.stock === newStock ? "sem_alteracao" : "encontrado";
+    if (!sourceSaleCode && !purchaseCode && !description && String(stockValue ?? "").trim() === "") continue;
+    if (!sourceSaleCode && !description) throw new Error(`Linha ${startRow + index}: COD-VENDA e descrição vazios.`);
+    if (sourceSaleCode && sourceCodes.has(sourceSaleCode)) throw new Error(`COD-VENDA duplicado na planilha do fornecedor: ${sourceSaleCode}.`);
+    if (sourceSaleCode) sourceCodes.add(sourceSaleCode);
+
+    const newStock = integerStock(stockValue, `Linha ${startRow + index}, COD-VENDA ${sourceSaleCode || "vazio"}`);
+    const direct = sourceSaleCode ? targetByCode.get(sourceSaleCode) : undefined;
+
+    if (direct) {
+      const situation = direct.stock !== null && direct.stock === newStock ? "sem_alteracao" : "encontrado";
+      items.push({
+        source_row: startRow + index,
+        target_row: direct.row,
+        code: sourceSaleCode,
+        source_sale_code: sourceSaleCode,
+        purchase_code: purchaseCode,
+        suggested_code: "",
+        suggestion_reason: "",
+        description,
+        old_stock: direct.stock,
+        new_stock: newStock,
+        situation,
+      });
+      continue;
+    }
+
+    let suggestion: { row: number; code: string; description: string; stock: number | null } | undefined;
+    let suggestionReason = "";
+    const mappedSaleCode = purchaseCode ? codeLinks.get(purchaseCode) : undefined;
+    if (mappedSaleCode) {
+      suggestion = targetByCode.get(mappedSaleCode);
+      if (suggestion) suggestionReason = "Vínculo já confirmado entre COD-COMPRA e COD-VENDA.";
+    }
+    if (!suggestion && purchaseCode) {
+      const purchaseAsSale = targetByCode.get(purchaseCode);
+      if (purchaseAsSale) {
+        suggestion = purchaseAsSale;
+        suggestionReason = "COD-COMPRA coincide com um COD-VENDA da base central.";
+      }
+    }
+    if (!suggestion && description) {
+      const descriptionMatch = targetByDescription.get(normalizeMatch(description));
+      if (descriptionMatch) {
+        suggestion = descriptionMatch;
+        suggestionReason = "Descrição coincide com um único item da base central.";
+      }
+    }
+
     items.push({
       source_row: startRow + index,
-      target_row: target?.row ?? null,
-      code,
+      target_row: suggestion?.row ?? null,
+      code: sourceSaleCode,
+      source_sale_code: sourceSaleCode,
+      purchase_code: purchaseCode,
+      suggested_code: suggestion?.code ?? "",
+      suggestion_reason: suggestionReason,
       description,
-      old_stock: target?.stock ?? null,
+      old_stock: suggestion?.stock ?? null,
       new_stock: newStock,
-      situation,
+      situation: "nao_encontrado",
     });
   }
   if (!items.length) throw new Error("A planilha não possui itens válidos a partir da linha informada.");
@@ -1355,6 +1507,7 @@ export async function POST(request: Request) {
       const note = String(body.note || "").trim();
       const sourceSheetName = String(body.sourceSheetName || "").trim();
       const sourceCodeColumn = String(body.sourceCodeColumn || "").trim().toUpperCase();
+      const sourcePurchaseCodeColumn = String(body.sourcePurchaseCodeColumn || "").trim().toUpperCase();
       const sourceDescriptionColumn = String(body.sourceDescriptionColumn || "").trim().toUpperCase();
       const sourceStockColumn = String(body.sourceStockColumn || "").trim().toUpperCase();
       const sourceStartRow = Number(body.sourceStartRow);
@@ -1364,8 +1517,9 @@ export async function POST(request: Request) {
       if (!extractSpreadsheetId(spreadsheetReference)) throw new Error("Link da planilha inválido.");
       if (!sourceSheetName) throw new Error("Informe a aba da planilha.");
       for (const column of [sourceCodeColumn, sourceDescriptionColumn, sourceStockColumn]) {
-        if (!/^[A-Z]+$/.test(column)) throw new Error("Informe colunas válidas para código, descrição e estoque.");
+        if (!/^[A-Z]+$/.test(column)) throw new Error("Informe colunas válidas para COD-VENDA, descrição e estoque.");
       }
+      if (sourcePurchaseCodeColumn && !/^[A-Z]+$/.test(sourcePurchaseCodeColumn)) throw new Error("Revise a coluna COD-COMPRA.");
       if (!Number.isInteger(sourceStartRow) || sourceStartRow < 1) throw new Error("Informe a linha inicial.");
       const id = randomUUID();
       await createRotatingStockUpdate({
@@ -1379,6 +1533,7 @@ export async function POST(request: Request) {
         status: "aguardando_conferencia",
         sourceSheetName,
         sourceCodeColumn,
+        sourcePurchaseCodeColumn,
         sourceDescriptionColumn,
         sourceStockColumn,
         sourceStartRow,
@@ -1479,6 +1634,7 @@ export async function POST(request: Request) {
       const spreadsheetReference = String(body.spreadsheetReference || "").trim();
       const sourceSheetName = String(body.sourceSheetName || "").trim();
       const sourceCodeColumn = String(body.sourceCodeColumn || "").trim().toUpperCase();
+      const sourcePurchaseCodeColumn = String(body.sourcePurchaseCodeColumn || "").trim().toUpperCase();
       const sourceDescriptionColumn = String(body.sourceDescriptionColumn || "").trim().toUpperCase();
       const sourceStockColumn = String(body.sourceStockColumn || "").trim().toUpperCase();
       const sourceStartRow = Number(body.sourceStartRow);
@@ -1486,12 +1642,13 @@ export async function POST(request: Request) {
       const trelloCardId = String(body.trelloCardId || "").trim();
       if (!id || !supplierName || !extractSpreadsheetId(spreadsheetReference) || !sourceSheetName) throw new Error("Complete todos os campos obrigatórios.");
       if (![sourceCodeColumn, sourceDescriptionColumn, sourceStockColumn].every((column) => /^[A-Z]+$/.test(column))) throw new Error("Revise as colunas.");
+      if (sourcePurchaseCodeColumn && !/^[A-Z]+$/.test(sourcePurchaseCodeColumn)) throw new Error("Revise a coluna COD-COMPRA.");
       if (!Number.isInteger(sourceStartRow) || sourceStartRow < 1) throw new Error("Revise a linha inicial.");
       await reopenRotatingStockUpdate({
         id, supplierName,
         spreadsheetName: supplierName,
         spreadsheetLink: spreadsheetReference,
-        note, sourceSheetName, sourceCodeColumn, sourceDescriptionColumn, sourceStockColumn, sourceStartRow, trelloCardId,
+        note, sourceSheetName, sourceCodeColumn, sourcePurchaseCodeColumn, sourceDescriptionColumn, sourceStockColumn, sourceStartRow, trelloCardId,
       });
       return NextResponse.json({ ok: true, id });
     }
@@ -1512,9 +1669,10 @@ export async function POST(request: Request) {
       throw new Error("Reabra para editar e complete aba, colunas e linha inicial.");
     }
     const codeColumn = columnIndex(update.source_code_column);
+    const purchaseCodeColumn = update.source_purchase_code_column ? columnIndex(update.source_purchase_code_column) : null;
     const descriptionColumn = columnIndex(update.source_description_column);
     const stockColumn = columnIndex(update.source_stock_column);
-    const maxSourceColumn = Math.max(codeColumn, descriptionColumn, stockColumn);
+    const maxSourceColumn = Math.max(codeColumn, purchaseCodeColumn ?? 0, descriptionColumn, stockColumn);
 
     if (action === "conferir") {
       requireRole(email, "conference");
@@ -1522,15 +1680,64 @@ export async function POST(request: Request) {
       await ensurePendingStatuses(sheets);
       if (!(await acquireRotatingStockLock(id, email))) throw new Error("Esta conferência está aberta por outro usuário. Tente novamente em alguns minutos.");
       const { sourceRows, targetRows } = await readComparedRows(sheets, sourceSpreadsheetId, update.source_sheet_name, update.source_start_row, maxSourceColumn);
-      const items = buildComparison(sourceRows, targetRows, update.source_start_row, codeColumn, descriptionColumn, stockColumn);
+      const savedLinks = await listSupplierCodeLinks(update.supplier_name);
+      const codeLinks = new Map(savedLinks.map((link) => [cleanCode(link.purchase_code), cleanCode(link.sale_code)]));
+      const items = buildComparison(sourceRows, targetRows, update.source_start_row, codeColumn, purchaseCodeColumn, descriptionColumn, stockColumn, codeLinks);
       await saveConference(id, email, fingerprint(sourceRows, targetRows), items);
       return NextResponse.json({ ok: true, items, fingerprint: fingerprint(sourceRows, targetRows) });
+    }
+
+    if (action === "corrigir_item_conferencia") {
+      requireRole(email, "conference");
+      if (update.status !== "em_conferencia" || update.locked_by !== email) throw new Error("Reabra a conferência antes de corrigir itens.");
+      const itemId = String(body.itemId || "").trim();
+      const saleCode = cleanCode(body.saleCode);
+      const newStock = integerStock(body.newStock, "Estoque corrigido");
+      if (!itemId || !saleCode) throw new Error("Informe o COD-VENDA correto.");
+
+      const storedItems = await listConferenceItems(id);
+      const item = storedItems.find((candidate) => candidate.id === itemId);
+      if (!item) throw new Error("Item da conferência não encontrado.");
+
+      const target = await sheets.spreadsheets.values.get({
+        spreadsheetId: ROTATING_STOCK_CENTRAL.spreadsheetId,
+        range: `${ROTATING_STOCK_CENTRAL.sheetName}!${ROTATING_STOCK_CENTRAL.range}`,
+        valueRenderOption: "FORMATTED_VALUE",
+      });
+      const targetRows = (target.data.values || []) as unknown[][];
+      const targetIndex = targetRows.findIndex((row) => cleanCode(row?.[0]) === saleCode);
+      if (targetIndex < 0) throw new Error(`COD-VENDA ${saleCode} não encontrado na planilha ESTOQUE ROTATIVO.`);
+      const targetRow = targetIndex + 2;
+      const oldStock = nullableStock(targetRows[targetIndex]?.[2], `Base central, linha ${targetRow}`);
+      const situation = oldStock !== null && oldStock === newStock ? "sem_alteracao" : "encontrado";
+      const corrected = await correctConferenceItem({
+        itemId,
+        saleCode,
+        targetRow,
+        oldStock,
+        newStock,
+        situation,
+        actor: email,
+      });
+      if (!corrected) throw new Error("Não foi possível corrigir o item.");
+      if (corrected.purchase_code) {
+        await saveSupplierCodeLink({
+          supplierName: update.supplier_name,
+          purchaseCode: corrected.purchase_code,
+          saleCode,
+          description: corrected.description,
+          actor: email,
+        });
+      }
+      return NextResponse.json({ ok: true });
     }
 
     if (action === "atualizar") {
       requireRole(email, "conference");
       if (update.status !== "em_conferencia" || update.locked_by !== email) throw new Error("Reabra a conferência antes de atualizar.");
       const storedItems = await listConferenceItems(id);
+      const unresolved = storedItems.filter((item) => item.situation === "nao_encontrado");
+      if (unresolved.length) throw new Error(`Corrija os ${unresolved.length} item(ns) sem COD-VENDA confirmado antes de atualizar o Estoque Rotativo.`);
       const matched = storedItems.filter((item) => item.situation !== "nao_encontrado" && item.target_row);
       const selected = storedItems.filter((item) => item.situation === "encontrado" && item.target_row);
       const { sourceRows, targetRows } = await readComparedRows(sheets, sourceSpreadsheetId, update.source_sheet_name, update.source_start_row, maxSourceColumn);

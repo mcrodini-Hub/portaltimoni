@@ -258,7 +258,7 @@ export default function EstoqueRotativoClient() {
       spreadsheetId: preparedSupplier.spreadsheet_id,
     });
     if (!result) return;
-    setFeedback(`${result.supplierName} marcada como atualizada. A próxima planilha seguirá a ordem alfabética.`);
+    setFeedback(`${result.supplierName} aprovada. O destaque amarelo de revisão foi removido.`);
     await load();
   }
 
@@ -474,7 +474,8 @@ export default function EstoqueRotativoClient() {
           <div className="mt-4 rounded-2xl border border-blue-100 bg-blue-50/50 p-4 text-sm text-slate-700">
             <p className="font-semibold text-blue-900">Padrão aplicado</p>
             <p className="mt-1">A · ITEM &nbsp; B · COD-VENDA &nbsp; C · COD-COMPRA &nbsp; D · DESCRIÇÃO &nbsp; E · MÍNIMO &nbsp; F · ESTOQUE</p>
-            <p className="mt-1 text-xs text-slate-500">Linha 2 vazia · E3 responsável (LUCAS editável) · E4 data do estoque físico · G3 em diante CT/MCR/ROD · F4 em diante CONT.VALORES · linha 5 congelada.</p>
+            <p className="mt-1 text-xs text-slate-500">Somente aba BKP · linha 2 vazia · E3 responsável (LUCAS editável) · E4 data do estoque físico · empresas dos meses anteriores preservadas para manutenção manual · F4 em diante CONT.VALORES · linha 5 congelada.</p>
+            <p className="mt-1 text-xs font-semibold text-amber-700">As células alteradas pelo Portal ficam em amarelo até você aprovar a atualização.</p>
           </div>
 
           {preparedSupplier ? (

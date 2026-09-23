@@ -784,7 +784,9 @@ async function standardizeSupplierSpreadsheet(
   });
   const candidates = (metadata.data.sheets || [])
     .sort((a, b) => (a.properties?.index || 0) - (b.properties?.index || 0))
-    .filter((sheet) => sheet.properties?.title && sheet.properties?.sheetId !== undefined);
+    .filter((sheet) => sheet.properties?.title && sheet.properties?.sheetId !== undefined)
+    .filter((sheet) => normalizeHeader(sheet.properties!.title!).includes("bkp"));
+  if (!candidates.length) throw new Error(`${file.name}: aba BKP não encontrada. A padronização usa somente a aba BKP.`);
 
   let selected: {
     title: string;
@@ -945,6 +947,31 @@ async function standardizeSupplierSpreadsheet(
     output[3][column] = `=COUNTA(${columnLetter(column)}6:${columnLetter(column)}${lastProductRow})`;
   }
 
+  const reviewRanges: sheets_v4.Schema$GridRange[] = [];
+  for (let rowIndex = 0; rowIndex < output.length; rowIndex += 1) {
+    const beforeRow = formulas[rowIndex] || [];
+    const afterRow = output[rowIndex] || [];
+    let startChanged: number | null = null;
+    for (let columnIndex = 0; columnIndex < outputWidth; columnIndex += 1) {
+      const before = String(beforeRow[columnIndex] ?? "");
+      const after = String(afterRow[columnIndex] ?? "");
+      const changed = before !== after;
+      if (changed && startChanged === null) startChanged = columnIndex;
+      const closing = startChanged !== null && (!changed || columnIndex === outputWidth - 1);
+      if (closing) {
+        const endColumn = changed && columnIndex === outputWidth - 1 ? columnIndex + 1 : columnIndex;
+        reviewRanges.push({
+          sheetId: selected.sheetId,
+          startRowIndex: rowIndex,
+          endRowIndex: rowIndex + 1,
+          startColumnIndex: startChanged!,
+          endColumnIndex: endColumn,
+        });
+        startChanged = null;
+      }
+    }
+  }
+
   const quotedTitle = `'${selected.title.replace(/'/g, "''")}'`;
   const clearLastColumn = columnLetter(Math.max(selected.columnCount - 1, outputWidth - 1));
   await sheets.spreadsheets.values.clear({
@@ -962,6 +989,7 @@ async function standardizeSupplierSpreadsheet(
   const white = { red: 1, green: 1, blue: 1 };
   const blue = { red: 0.075, green: 0.012, blue: 0.553 };
   const orangeLight2 = { red: 0.976, green: 0.796, blue: 0.612 };
+  const reviewYellow = { red: 1, green: 0.949, blue: 0.8 };
   const formattingRequests: sheets_v4.Schema$Request[] = [];
 
   for (const merge of selected.merges) formattingRequests.push({ unmergeCells: { range: merge } });
@@ -1088,24 +1116,23 @@ async function standardizeSupplierSpreadsheet(
           },
         },
       },
-      {
-        setDataValidation: {
-          range: { sheetId: selected.sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 6, endColumnIndex: outputWidth },
-          rule: {
-            condition: {
-              type: "ONE_OF_LIST",
-              values: [
-                { userEnteredValue: "CT" },
-                { userEnteredValue: "MCR" },
-                { userEnteredValue: "ROD" },
-              ],
-            },
-            strict: true,
-            showCustomUi: true,
+
+    );
+  }
+
+  if (reviewRanges.length) {
+    formattingRequests.push({
+      addConditionalFormatRule: {
+        index: 0,
+        rule: {
+          ranges: reviewRanges,
+          booleanRule: {
+            condition: { type: "CUSTOM_FORMULA", values: [{ userEnteredValue: "=TRUE" }] },
+            format: { backgroundColor: reviewYellow },
           },
         },
       },
-    );
+    });
   }
 
   await sheets.spreadsheets.batchUpdate({
@@ -1120,6 +1147,41 @@ async function standardizeSupplierSpreadsheet(
     sheetName: selected.title,
     products: productRows.length,
   };
+}
+
+async function clearSupplierReviewHighlight(
+  sheets: sheets_v4.Sheets,
+  spreadsheetId: string,
+  sheetName: string,
+) {
+  const metadata = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: "sheets(properties(sheetId,title),conditionalFormats)",
+  });
+  const sheet = metadata.data.sheets?.find((item) => item.properties?.title === sheetName);
+  const sheetId = sheet?.properties?.sheetId;
+  if (sheetId === undefined || sheetId === null) return;
+
+  const rules = sheet?.conditionalFormats || [];
+  const reviewIndex = rules.findIndex((rule) => {
+    const condition = rule.booleanRule?.condition;
+    const color = rule.booleanRule?.format?.backgroundColor;
+    const formula = condition?.values?.[0]?.userEnteredValue;
+    return condition?.type === "CUSTOM_FORMULA"
+      && formula === "=TRUE"
+      && Boolean(color)
+      && Number(color?.red || 0) > 0.99
+      && Number(color?.green || 0) > 0.93
+      && Number(color?.blue || 0) > 0.75;
+  });
+  if (reviewIndex < 0) return;
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [{ deleteConditionalFormatRule: { sheetId, index: reviewIndex } }],
+    },
+  });
 }
 
 function buildComparison(
@@ -1505,12 +1567,13 @@ export async function POST(request: Request) {
       );
       if (!prepared) throw new Error("Esta planilha não está aguardando conferência.");
       if (!(await confirmSupplierStandardization(spreadsheetId, email))) throw new Error("Não foi possível confirmar a planilha.");
+      await clearSupplierReviewHighlight(sheets, spreadsheetId, prepared.sheet_name);
 
       const mappingId = await saveSupplierMapping({
         name: prepared.supplier_name,
         spreadsheetId,
         sheetName: prepared.sheet_name,
-        dataRange: "A6:E100000",
+        dataRange: "B6:F100000",
         codeColumn: 0,
         descriptionColumn: 2,
         stockColumn: 4,

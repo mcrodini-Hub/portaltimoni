@@ -672,8 +672,8 @@ export default function EstoqueRotativoClient() {
               />
             </label>
 
-            <div className="mt-4 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-7">
-              <label className="text-sm font-semibold text-slate-800 lg:col-span-2">
+            <div className="mt-4 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-6">
+              <label className="text-sm font-semibold text-slate-800">
                 <span className="block h-5 whitespace-nowrap">Aba</span>
                 <input
                   value={sourceSheetName}
@@ -691,10 +691,11 @@ export default function EstoqueRotativoClient() {
                 />
               </label>
               <label className="text-sm font-semibold text-slate-800">
-                <span className="flex h-5 items-center gap-1 whitespace-nowrap">Cod-compra <span className="text-rose-600">*</span></span>
+                <span className="block h-5 whitespace-nowrap">Cod-compra</span>
                 <input
                   value={sourcePurchaseCodeColumn}
                   onChange={(event) => setSourcePurchaseCodeColumn(event.target.value.toUpperCase())}
+                  placeholder="Opcional"
                   className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
                 />
               </label>

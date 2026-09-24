@@ -517,6 +517,14 @@ export default function EstoqueRotativoClient() {
                       </a>
                       <button
                         type="button"
+                        onClick={() => void standardizeNextSupplier(selectedStandardizationSupplier.id)}
+                        disabled={busy || standardizingSupplier}
+                        className="min-h-11 rounded-xl border border-blue-200 px-4 text-sm font-semibold text-blue-800 disabled:opacity-50"
+                      >
+                        {standardizingSupplier ? "Padronizando..." : "Padronizar novamente"}
+                      </button>
+                      <button
+                        type="button"
                         onClick={() => void confirmSupplierSheet()}
                         disabled={busy}
                         className="min-h-11 rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white disabled:opacity-50"

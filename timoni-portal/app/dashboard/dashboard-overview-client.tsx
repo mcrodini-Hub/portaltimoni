@@ -128,21 +128,21 @@ export default function DashboardOverviewClient({ modules, motoristaControle, es
     const updateModule = ({ Compras: "compras", Leads: "leads", Estoque: "estoque", "Estoque Rotativo": "estoque-rotativo" } as const)[name as "Compras" | "Leads" | "Estoque" | "Estoque Rotativo"];
     const pending = updateModule ? updates[updateModule] : undefined;
     return <Link key={name} href={href} onClick={() => void markRead(updateModule)} className={mobile
-      ? "relative flex min-h-24 min-w-0 flex-col justify-between rounded-xl border border-blue-200 bg-blue-50 px-3.5 py-3 shadow-sm transition active:bg-blue-100"
+      ? "relative flex min-h-16 min-w-0 flex-col justify-between rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2 shadow-sm transition active:bg-blue-100"
       : "relative flex min-h-36 min-w-0 flex-col justify-between rounded-2xl border border-blue-200 bg-blue-50 p-5 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md"}>
       <div className="flex items-center justify-between">
-        <span className={mobile ? "text-xl leading-none" : "text-2xl text-blue-700"}>{icon}</span>
-        <span className="flex items-center gap-2">{pending ? <span aria-label={`${pending.count} atualizações em ${name}`} className="min-w-6 rounded-full bg-red-500 px-1.5 text-center text-xs font-bold leading-6 text-white">{pending.count > 99 ? "99+" : pending.count}</span> : null}<span className={mobile ? "text-base font-normal text-blue-700" : "text-xl text-blue-700"}>›</span></span>
+        <span className={mobile ? "text-base leading-none" : "text-2xl text-blue-700"}>{icon}</span>
+        <span className="flex items-center gap-2">{pending ? <span aria-label={`${pending.count} atualizações em ${name}`} className="min-w-6 rounded-full bg-red-500 px-1.5 text-center text-xs font-bold leading-6 text-white">{pending.count > 99 ? "99+" : pending.count}</span> : null}<span className={mobile ? "text-sm font-normal text-blue-700" : "text-xl text-blue-700"}>›</span></span>
       </div>
-      <div className={mobile ? "mt-2" : "mt-4"}>
-        <p className={mobile ? "truncate text-[15px] font-normal leading-5 text-slate-900" : "truncate text-lg font-semibold text-slate-950"}>{name}</p>
-        {count !== null ? <p className={mobile ? "mt-1.5 text-2xl font-bold leading-none text-[#0b1f5e]" : "mt-2 text-3xl font-bold leading-none text-[#0b1f5e]"}>{count}</p> : null}
+      <div className={mobile ? "mt-1" : "mt-4"}>
+        <p className={mobile ? "truncate text-[12px] font-normal leading-4 text-slate-900" : "truncate text-lg font-semibold text-slate-950"}>{name}</p>
+        {count !== null ? <p className={mobile ? "mt-1 text-xl font-bold leading-none text-[#0b1f5e]" : "mt-2 text-3xl font-bold leading-none text-[#0b1f5e]"}>{count}</p> : null}
       </div>
     </Link>;
   });
 
   return <>
-    <section className="grid grid-cols-2 gap-2.5 sm:hidden" aria-label="Atalhos do Painel">
+    <section className="grid grid-cols-2 gap-2 sm:hidden" aria-label="Atalhos do Painel">
       {renderCards(mobileCards, true)}
     </section>
     <section className="hidden gap-4 sm:grid lg:grid-cols-3" aria-label="Atalhos do Painel">

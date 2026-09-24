@@ -573,28 +573,42 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
     const visibleUnits = isManager || safeAllowedUnits.length > 1
       ? (["rio_claro", "araras"] as RequestUnit[])
       : safeAllowedUnits;
+
     return (
-      <section className="rounded-3xl border bg-white p-5 shadow-sm">
-        <h2 className="text-xl font-semibold uppercase tracking-wide">Pedidos enviados</h2>
-        <p className="mt-1 text-sm text-slate-500">Espelho automático da lista de Compras.</p>
-        <div className="mt-4 grid gap-5 lg:grid-cols-2">
+      <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Acompanhamento</p>
+            <h2 className="mt-2 text-xl font-semibold text-slate-950">Pedidos enviados</h2>
+          </div>
+          <button
+            type="button"
+            onClick={() => void refresh()}
+            disabled={loading}
+            className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50"
+          >
+            Atualizar lista
+          </button>
+        </div>
+
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
           {visibleUnits.map((currentUnit) => {
             const orders = sentOrders.filter((order) => order.unidade === currentUnit);
             return (
               <div key={currentUnit} className="overflow-hidden rounded-2xl border border-slate-200">
                 <div className="flex items-center justify-between bg-slate-50 px-4 py-3">
                   <h3 className="font-semibold text-slate-950">{unitLabel(currentUnit)}</h3>
-                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">{orders.length}</span>
+                  <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-800">{orders.length}</span>
                 </div>
-                <div className="divide-y divide-slate-100 px-4">
+                <div className="divide-y divide-slate-100">
                   {orders.map((order) => (
-                    <article key={order.id} className="py-4">
-                      <p className="font-semibold text-slate-950">{order.nome}</p>
-                      <p className="mt-1 text-sm text-slate-600">Enviado: {dateOnly(order.enviadoEm)} · Entrega: {dateOnly(order.previsaoEntrega)}</p>
+                    <article key={order.id} className="px-4 py-3">
+                      <p className="font-semibold text-slate-900">{order.nome}</p>
+                      <p className="mt-1 text-sm text-slate-500">Enviado: {dateOnly(order.enviadoEm)} · Entrega: {dateOnly(order.previsaoEntrega)}</p>
                     </article>
                   ))}
-                  {!loading && !orders.length && <p className="py-5 text-sm text-slate-500">Nenhum pedido enviado aguardando entrega.</p>}
-                  {loading && <p className="py-5 text-sm text-slate-500">Carregando pedidos enviados...</p>}
+                  {!loading && !orders.length && <p className="px-4 py-5 text-sm text-slate-500">Nenhum pedido enviado.</p>}
+                  {loading && <p className="px-4 py-5 text-sm text-slate-500">Atualizando...</p>}
                 </div>
               </div>
             );

@@ -1,5 +1,5 @@
 import { signOut } from "@/lib/auth";
-import { canManageMotorista, entersDirectlyInPainelTimoni, hasModuleAccess, type PortalModule, type PortalUser } from "@/lib/access-control";
+import { canManageMotorista, hasModuleAccess, type PortalModule, type PortalUser } from "@/lib/access-control";
 import Link from "next/link";
 import ModuleUpdatesNav from "@/components/module-updates-nav";
 import MobilePortalHeader from "@/components/mobile-portal-header";
@@ -24,7 +24,6 @@ const navItems: Array<{ href: string; label: string; module: PortalModule; updat
 ];
 
 export default function PortalHeader({ email, portalUser }: { email: string; portalUser?: PortalUser | null }) {
-  const directPainelTimoniAccess = entersDirectlyInPainelTimoni(email, portalUser);
   const isManagement = ["mcrodini@gmail.com", "mrodini@gmail.com"].includes(email.trim().toLowerCase());
   const canViewUpdates = isManagement;
   const canUseChat = hasModuleAccess(email, "chat", portalUser);
@@ -46,10 +45,10 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
     ...(isManagement ? [{ href: "/configuracoes", targetHref: "/configuracoes", label: "Configurações", updateModule: undefined }] : []),
   ];
   const mobileItems = [
-    ...(!directPainelTimoniAccess && mobileVisible("painel") ? [{ href: "/dashboard", targetHref: "/dashboard", label: "Painel", module: "painel" as PortalModule, updateModule: undefined, icon: "home" as PortalIconName, color: "text-blue-600" }] : []),
     ...sortedAllowedItems.filter((item) => mobileVisible(item.module)),
     ...(isManagement ? [{ href: "/configuracoes", targetHref: "/configuracoes", label: "Configurações", module: "painel" as PortalModule, updateModule: undefined, icon: "settings" as PortalIconName, color: "text-slate-800" }] : []),
   ];
+  const startHref = sortedAllowedItems[0]?.targetHref || (isManagement ? "/configuracoes" : "/login");
   const initials = email.trim().toLowerCase() === "mcrodini@gmail.com" ? "CR" : email.trim().toLowerCase() === "mrodini@gmail.com" ? "MR" : "CT";
 
   return (
@@ -58,7 +57,7 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
       <MobilePortalHeader items={mobileItems} showUpdates={canViewUpdates} showGuide={isManagement} showChat={canUseChat && mobileVisible("chat")} initials={initials} />
       <div className="mx-auto hidden max-w-7xl flex-wrap items-center justify-between gap-x-2 px-4 sm:flex sm:flex-nowrap sm:gap-2 sm:px-4">
         <Link
-          href="/dashboard"
+          href={startHref}
           className="order-1 flex min-h-12 shrink-0 items-center py-3 text-base font-bold tracking-tight text-white sm:order-none"
           aria-label="Casa Timoni — início"
         >

@@ -73,15 +73,17 @@ function cleanUser(value: Record<string, unknown>): PortalUser {
   };
 }
 
-function cleanCollaborator(value: Record<string, unknown>): ConfiguredCollaborator {
-  const name = String(value.name || "").trim();
-  const unit = String(value.unit || "");
-  if (name.length < 2 || !["Araras", "Rio Claro"].includes(unit)) throw new Error("Informe nome e unidade válidos.");
-  const id = String(value.id || `${unit}-${name}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-"));
+function cleanCollaborator(value: Record<string, unknown>, users: PortalUser[]): ConfiguredCollaborator {
+  const accessEmail = normalizeEmail(String(value.accessEmail || ""));
+  const access = users.find((user) => user.email === accessEmail);
+  if (!access) throw new Error("Selecione um acesso válido para este colaborador.");
+  if (!["Araras", "Rio Claro"].includes(access.unit)) throw new Error("O acesso precisa estar vinculado a Rio Claro ou Araras.");
+  const id = String(value.id || accessEmail.replace(/[^a-z0-9]+/g, "-"));
   return {
     id,
-    name,
-    unit: unit as ConfiguredCollaborator["unit"],
+    accessEmail,
+    name: access.name,
+    unit: access.unit as ConfiguredCollaborator["unit"],
     active: value.active !== false,
     noticeRequired: value.noticeRequired !== false,
     updatedAt: new Date().toISOString(),
@@ -106,16 +108,26 @@ export async function PUT(request: Request) {
     const body = await request.json();
     if (body.section === "user") {
       const item = cleanUser(body.item || {});
+      const configuration = await loadPortalConfiguration(current.accessToken);
+      const linked = configuration.collaborators.find((member) => member.accessEmail === item.email);
       await Promise.all([
         upsertPortalUser(current.accessToken, item),
+        linked ? upsertCollaborator(current.accessToken, {
+          ...linked,
+          name: item.name,
+          unit: item.unit === "Araras" ? "Araras" : "Rio Claro",
+          active: item.active !== false,
+          updatedAt: new Date().toISOString(),
+        }) : Promise.resolve(null),
         appendAudit(current.accessToken, "Acesso atualizado", `${item.name} · ${item.email}`, current.email),
       ]);
       return NextResponse.json({ ok: true, item });
     } else if (body.section === "collaborator") {
-      const item = cleanCollaborator(body.item || {});
+      const configuration = await loadPortalConfiguration(current.accessToken);
+      const item = cleanCollaborator(body.item || {}, configuration.users);
       await Promise.all([
         upsertCollaborator(current.accessToken, item),
-        appendAudit(current.accessToken, "Colaborador atualizado", `${item.name} · ${item.unit}`, current.email),
+        appendAudit(current.accessToken, "Colaborador atualizado", `${item.name} · ${item.unit} · ${item.accessEmail}`, current.email),
       ]);
       return NextResponse.json({ ok: true, item });
     } else {

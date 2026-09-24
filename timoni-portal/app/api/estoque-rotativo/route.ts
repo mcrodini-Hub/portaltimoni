@@ -893,21 +893,18 @@ async function standardizeSupplierSpreadsheet(
 
   topRows[1] = [];
 
-  const oldE3 = topRows[2]?.[4];
-  if (oldE3 !== undefined && oldE3 !== "" && normalizeHeader(oldE3) !== "lucas") {
-    appendPreservedValue(topRows[2], oldE3, 5);
-  }
-  topRows[2][4] = "LUCAS";
-  topRows[3][4] = new Intl.DateTimeFormat("pt-BR", {
+  topRows[3] = [];
+  topRows[3][0] = "Responsável:";
+  topRows[3][2] = "LUCAS";
+  topRows[3][4] = `Data: ${new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "America/Sao_Paulo",
-  }).format(new Date());
+  }).format(new Date())}`;
 
   const standardizedHeaders = [
-    "ITEM",
     "COD-VENDA",
     "COD-COMPRA",
     "DESCRIÇÃO",
-    "MINIMO",
+    "MÍNIMO",
     "ESTOQUE",
     ...extraColumns.map((column) => normalizeHistoryHeader(sourceHeader[column])),
   ];
@@ -925,7 +922,6 @@ async function standardizeSupplierSpreadsheet(
     const stockValue = formulaRow[detection.stockColumn!] ?? "";
     if ([saleValue, purchaseValue, description, stockValue].every((value) => value === "" || value === undefined || value === null)) continue;
     productRows.push([
-      String(productRows.length + 1),
       String(saleValue ?? "").trim(),
       String(purchaseValue ?? "").trim(),
       description,
@@ -936,9 +932,8 @@ async function standardizeSupplierSpreadsheet(
   }
 
   productRows.sort((left, right) =>
-    String(left[3] ?? "").localeCompare(String(right[3] ?? ""), "pt-BR", { sensitivity: "base", numeric: true }),
+    String(left[2] ?? "").localeCompare(String(right[2] ?? ""), "pt-BR", { sensitivity: "base", numeric: true }),
   );
-  productRows.forEach((row, index) => { row[0] = String(index + 1); });
 
   const output = [...topRows, standardizedHeaders, ...productRows];
   const outputWidth = Math.max(...output.map((row) => row.length), 5);
@@ -946,31 +941,6 @@ async function standardizeSupplierSpreadsheet(
   const lastProductRow = 5 + productRows.length;
   for (let column = 5; column < outputWidth; column += 1) {
     output[3][column] = `=COUNTA(${columnLetter(column)}6:${columnLetter(column)}${lastProductRow})`;
-  }
-
-  const reviewRanges: sheets_v4.Schema$GridRange[] = [];
-  for (let rowIndex = 0; rowIndex < output.length; rowIndex += 1) {
-    const beforeRow = formulas[rowIndex] || [];
-    const afterRow = output[rowIndex] || [];
-    let startChanged: number | null = null;
-    for (let columnIndex = 0; columnIndex < outputWidth; columnIndex += 1) {
-      const before = String(beforeRow[columnIndex] ?? "");
-      const after = String(afterRow[columnIndex] ?? "");
-      const changed = before !== after;
-      if (changed && startChanged === null) startChanged = columnIndex;
-      const closing = startChanged !== null && (!changed || columnIndex === outputWidth - 1);
-      if (closing) {
-        const endColumn = changed && columnIndex === outputWidth - 1 ? columnIndex + 1 : columnIndex;
-        reviewRanges.push({
-          sheetId: selected.sheetId,
-          startRowIndex: rowIndex,
-          endRowIndex: rowIndex + 1,
-          startColumnIndex: startChanged!,
-          endColumnIndex: endColumn,
-        });
-        startChanged = null;
-      }
-    }
   }
 
   const quotedTitle = `'${selected.title.replace(/'/g, "''")}'`;
@@ -989,8 +959,7 @@ async function standardizeSupplierSpreadsheet(
   const black = { red: 0, green: 0, blue: 0 };
   const white = { red: 1, green: 1, blue: 1 };
   const blue = { red: 0.075, green: 0.012, blue: 0.553 };
-  const orangeLight2 = { red: 0.976, green: 0.796, blue: 0.612 };
-  const reviewYellow = { red: 1, green: 0.949, blue: 0.8 };
+  const orangeLight2 = { red: 0.988, green: 0.91, blue: 0.698 };
   const formattingRequests: sheets_v4.Schema$Request[] = [];
 
   for (const merge of selected.merges) formattingRequests.push({ unmergeCells: { range: merge } });
@@ -1032,15 +1001,15 @@ async function standardizeSupplierSpreadsheet(
     },
     {
       repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 3, endColumnIndex: 4 },
-        cell: { userEnteredFormat: { horizontalAlignment: "LEFT" } },
-        fields: "userEnteredFormat.horizontalAlignment",
+        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: 2 },
+        cell: { userEnteredFormat: { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } },
+        fields: "userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment",
       },
     },
     {
       repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: 3 },
-        cell: { userEnteredFormat: { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } },
+        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 2, endColumnIndex: 3 },
+        cell: { userEnteredFormat: { horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE" } },
         fields: "userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment",
       },
     },
@@ -1053,21 +1022,14 @@ async function standardizeSupplierSpreadsheet(
     },
     {
       repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 4, endColumnIndex: 5 },
+        range: { sheetId: selected.sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 5 },
         cell: { userEnteredFormat: { textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true } } },
         fields: "userEnteredFormat.textFormat",
       },
     },
     {
       repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 4, endColumnIndex: 5 },
-        cell: { userEnteredFormat: { numberFormat: { type: "DATE", pattern: "dd/mm/yy" } } },
-        fields: "userEnteredFormat.numberFormat",
-      },
-    },
-    {
-      repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 5, endRowIndex: output.length, startColumnIndex: 1, endColumnIndex: 3 },
+        range: { sheetId: selected.sheetId, startRowIndex: 5, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: 2 },
         cell: { userEnteredFormat: { numberFormat: { type: "TEXT", pattern: "@" } } },
         fields: "userEnteredFormat.numberFormat",
       },
@@ -1092,18 +1054,19 @@ async function standardizeSupplierSpreadsheet(
     },
     {
       updateDimensionProperties: {
-        range: { sheetId: selected.sheetId, dimension: "COLUMNS", startIndex: 4, endIndex: outputWidth },
-        properties: { pixelSize: 65 },
+        range: { sheetId: selected.sheetId, dimension: "COLUMNS", startIndex: 4, endIndex: Math.max(selected.columnCount, outputWidth) },
+        properties: { pixelSize: 75 },
         fields: "pixelSize",
       },
     },
   );
 
-  if (outputWidth > 6) {
+  const historyEndColumn = Math.max(selected.columnCount, outputWidth);
+  if (historyEndColumn > 5) {
     formattingRequests.push(
       {
         repeatCell: {
-          range: { sheetId: selected.sheetId, startRowIndex: 5, endRowIndex: output.length, startColumnIndex: 6, endColumnIndex: outputWidth },
+          range: { sheetId: selected.sheetId, startRowIndex: 5, endRowIndex: selected.rowCount, startColumnIndex: 5, endColumnIndex: historyEndColumn },
           cell: { userEnteredFormat: { backgroundColor: white } },
           fields: "userEnteredFormat.backgroundColor",
         },
@@ -1112,28 +1075,12 @@ async function standardizeSupplierSpreadsheet(
         addConditionalFormatRule: {
           index: 0,
           rule: {
-            ranges: [{ sheetId: selected.sheetId, startRowIndex: 5, endRowIndex: output.length, startColumnIndex: 6, endColumnIndex: outputWidth }],
+            ranges: [{ sheetId: selected.sheetId, startRowIndex: 5, endRowIndex: selected.rowCount, startColumnIndex: 5, endColumnIndex: historyEndColumn }],
             booleanRule: { condition: { type: "NOT_BLANK" }, format: { backgroundColor: orangeLight2 } },
           },
         },
       },
-
     );
-  }
-
-  if (reviewRanges.length) {
-    formattingRequests.push({
-      addConditionalFormatRule: {
-        index: 0,
-        rule: {
-          ranges: reviewRanges,
-          booleanRule: {
-            condition: { type: "CUSTOM_FORMULA", values: [{ userEnteredValue: "=TRUE" }] },
-            format: { backgroundColor: reviewYellow },
-          },
-        },
-      },
-    });
   }
 
   await sheets.spreadsheets.batchUpdate({

@@ -87,7 +87,7 @@ export function defaultPortalUsers(): PortalUser[] {
   return Object.values(portalUsers).map((user) => ({
     ...user,
     unit: defaultUnit(user.email),
-    active: true,
+    active: user.active !== false,
     directPainel: entersDirectlyInPainelTimoni(user.email),
     boxes: DASHBOARD_BOX_MODULES.filter((module) => user.modules.includes(module)),
     lastAccess: "",

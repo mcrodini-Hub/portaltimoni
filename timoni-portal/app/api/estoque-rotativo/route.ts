@@ -1521,7 +1521,10 @@ export async function POST(request: Request) {
     if (action === "padronizar_proxima_planilha") {
       requireRole(email, "manage");
       const snapshot = await listRotatingStockData();
-      const prepared = snapshot.supplierStandardizations.find((item) => item.status === "preparada");
+      const requestedSpreadsheetId = String(body.spreadsheetId || "").trim();
+      const prepared = snapshot.supplierStandardizations.find(
+        (item) => item.status === "preparada" && (!requestedSpreadsheetId || item.spreadsheet_id === requestedSpreadsheetId),
+      );
       if (prepared) {
         return NextResponse.json({
           ok: true,
@@ -1537,7 +1540,6 @@ export async function POST(request: Request) {
           .filter((item) => item.status === "atualizada")
           .map((item) => item.spreadsheet_id),
       );
-      const requestedSpreadsheetId = String(body.spreadsheetId || "").trim();
       const pendingFiles = [...SUPPLIER_SPREADSHEETS]
         .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base", numeric: true }))
         .filter((item) => !updatedIds.has(item.id));

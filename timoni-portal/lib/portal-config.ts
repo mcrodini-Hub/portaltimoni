@@ -12,13 +12,14 @@ const USERS_SHEET = "PortalUsuarios";
 const COLLABORATORS_SHEET = "PortalColaboradores";
 const HISTORY_SHEET = "PortalHistorico";
 const ROTATING_STOCK_MIGRATION = "Permissões Estoque Rotativo v1";
-const THAIS_EMAIL = "caixarctimoni@gmail.com";
+const CAIXA_RC_EMAIL = "caixarctimoni@gmail.com";
 const REQUIRED_SHEETS = [USERS_SHEET, COLLABORATORS_SHEET, HISTORY_SHEET];
 export const CICA_EMAIL = "mcrodini@gmail.com";
 export const DASHBOARD_BOX_MODULES: PortalModule[] = ["painel", "agenda", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads"];
 
 export type ConfiguredCollaborator = TeamMember & {
   id: string;
+  accessEmail: string;
   active: boolean;
   noticeRequired: boolean;
   updatedAt: string;
@@ -44,18 +45,25 @@ function sheetsUrl(path = "", query?: Record<string, string>) {
 }
 
 async function sheetsRequest<T>(accessToken: string, url: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(url, {
-    ...init,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      ...(init?.body ? { "Content-Type": "application/json" } : {}),
-      ...(init?.headers || {}),
-    },
-    cache: "no-store",
-  });
-  if (!response.ok) {
-    const body = await response.text();
-    throw new Error(`Google Sheets respondeu ${response.status}: ${body.slice(0, 300)}`);
+  let response: Response | null = null;
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    response = await fetch(url, {
+      ...init,
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        ...(init?.body ? { "Content-Type": "application/json" } : {}),
+        ...(init?.headers || {}),
+      },
+      cache: "no-store",
+    });
+    if (response.status !== 429) break;
+    const retryAfter = Number(response.headers.get("retry-after") || "0");
+    const waitMs = retryAfter > 0 ? retryAfter * 1000 : 500 * 2 ** attempt;
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
+  }
+  if (!response || !response.ok) {
+    const body = response ? await response.text() : "";
+    throw new Error(`Google Sheets respondeu ${response?.status || 500}: ${body.slice(0, 300)}`);
   }
   if (response.status === 204) return undefined as T;
   return response.json() as Promise<T>;
@@ -99,13 +107,18 @@ export function defaultCollaborators(): ConfiguredCollaborator[] {
   return TEAM_MEMBERS.map((member) => ({
     ...member,
     id: `${member.unit}-${member.name}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    accessEmail: "",
     active: true,
     noticeRequired: noticeKeys.has(`${member.unit}::${member.name}`),
     updatedAt: "",
   }));
 }
 
+let ensureSheetsPromise: Promise<void> | null = null;
+
 async function ensureSheets(accessToken: string) {
+  if (ensureSheetsPromise) return ensureSheetsPromise;
+  ensureSheetsPromise = (async () => {
   const spreadsheet = await sheetsRequest<{ sheets?: Array<{ properties?: { title?: string } }> }>(
     accessToken,
     sheetsUrl("", { fields: "sheets.properties.title" }),
@@ -118,6 +131,11 @@ async function ensureSheets(accessToken: string) {
       body: JSON.stringify({ requests: missing.map((title) => ({ addSheet: { properties: { title } } })) }),
     });
   }
+  })().catch((error) => {
+    ensureSheetsPromise = null;
+    throw error;
+  });
+  return ensureSheetsPromise;
 }
 
 async function readUsers(accessToken: string): Promise<PortalUser[]> {
@@ -142,7 +160,7 @@ export async function listConfiguredPortalUsers(accessToken: string) {
 }
 
 async function readCollaborators(accessToken: string): Promise<ConfiguredCollaborator[]> {
-  const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A2:F500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
+  const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A2:G500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
   return (response.values || []).map((row) => ({
     id: row[0] || "",
     name: row[1] || "",
@@ -150,6 +168,7 @@ async function readCollaborators(accessToken: string): Promise<ConfiguredCollabo
     active: yes(row[3], true),
     noticeRequired: yes(row[4], true),
     updatedAt: row[5] || "",
+    accessEmail: normalizeEmail(row[6] || ""),
   })).filter((member) => member.id && member.name);
 }
 
@@ -249,13 +268,14 @@ export async function upsertPortalUser(accessToken: string, input: PortalUser) {
 
 export async function writeCollaborators(accessToken: string, collaborators: ConfiguredCollaborator[]) {
   const now = new Date().toISOString();
-  await replaceRange(accessToken, `${COLLABORATORS_SHEET}!A2:F500`, collaborators.map((member) => [
+  await replaceRange(accessToken, `${COLLABORATORS_SHEET}!A2:G500`, collaborators.map((member) => [
     member.id,
     member.name,
     member.unit,
     member.active ? "Sim" : "Não",
     member.noticeRequired ? "Sim" : "Não",
     member.updatedAt || now,
+    normalizeEmail(member.accessEmail || ""),
   ]));
 }
 
@@ -263,11 +283,11 @@ export async function upsertCollaborator(accessToken: string, member: Configured
   await ensureSheets(accessToken);
   const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A2:A500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
   const index = (response.values || []).findIndex((row) => row[0] === member.id);
-  const values = [[member.id, member.name, member.unit, member.active ? "Sim" : "Não", member.noticeRequired ? "Sim" : "Não", member.updatedAt || new Date().toISOString()]];
+  const values = [[member.id, member.name, member.unit, member.active ? "Sim" : "Não", member.noticeRequired ? "Sim" : "Não", member.updatedAt || new Date().toISOString(), normalizeEmail(member.accessEmail || "")]];
   if (index >= 0) {
-    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A${index + 2}:F${index + 2}`)}`, { valueInputOption: "RAW" }), { method: "PUT", body: JSON.stringify({ values }) });
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A${index + 2}:G${index + 2}`)}`, { valueInputOption: "RAW" }), { method: "PUT", body: JSON.stringify({ values }) });
   } else {
-    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A:F`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), { method: "POST", body: JSON.stringify({ values }) });
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A:G`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), { method: "POST", body: JSON.stringify({ values }) });
   }
   return member;
 }
@@ -277,7 +297,7 @@ export async function deleteCollaborator(accessToken: string, id: string) {
   const index = (response.values || []).findIndex((row) => row[0] === id);
   if (index < 0) return false;
   const row = index + 2;
-  await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A${row}:F${row}`)}:clear`), { method: "POST", body: "{}" });
+  await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A${row}:G${row}`)}:clear`), { method: "POST", body: "{}" });
   return true;
 }
 
@@ -293,27 +313,54 @@ export async function appendAudit(accessToken: string, action: string, details: 
 
 export async function ensurePortalConfiguration(accessToken: string) {
   await ensureSheets(accessToken);
-  const [users, collaborators] = await Promise.all([readUsers(accessToken), readCollaborators(accessToken)]);
+  let [users, collaborators] = await Promise.all([readUsers(accessToken), readCollaborators(accessToken)]);
   if (!users.length) {
-    await writeUsers(accessToken, defaultPortalUsers());
-  } else {
-    const thais = users.find((user) => user.email === THAIS_EMAIL);
-    if (thais && thais.active !== false) {
-      await upsertPortalUser(accessToken, { ...thais, active: false, readOnly: true });
-    }
+    users = defaultPortalUsers();
+    await writeUsers(accessToken, users);
   }
-  if (!collaborators.length) await writeCollaborators(accessToken, defaultCollaborators());
+  if (!collaborators.length) {
+    collaborators = defaultCollaborators();
+    await writeCollaborators(accessToken, collaborators);
+  }
+
+  const caixaRc = users.find((user) => user.email === CAIXA_RC_EMAIL);
+  if (caixaRc && (caixaRc.name !== "Bruna" || caixaRc.active === false)) {
+    const updated = { ...caixaRc, name: "Bruna", active: true };
+    await upsertPortalUser(accessToken, updated);
+    users = users.map((user) => user.email === CAIXA_RC_EMAIL ? updated : user);
+  }
+
+  const caixaCollaborator = collaborators.find((member) =>
+    member.accessEmail === CAIXA_RC_EMAIL || member.name.trim().toLowerCase() === "thais"
+  );
+  if (caixaRc && caixaCollaborator && (
+    caixaCollaborator.name !== "Bruna" ||
+    caixaCollaborator.accessEmail !== CAIXA_RC_EMAIL ||
+    caixaCollaborator.active === false
+  )) {
+    const updated = {
+      ...caixaCollaborator,
+      accessEmail: CAIXA_RC_EMAIL,
+      name: "Bruna",
+      unit: "Rio Claro" as const,
+      active: true,
+      updatedAt: new Date().toISOString(),
+    };
+    await upsertCollaborator(accessToken, updated);
+    collaborators = collaborators.map((member) => member.id === updated.id ? updated : member);
+  }
+
+  return { users, collaborators };
 }
 
 let rotatingStockMigration: Promise<void> | null = null;
 
 async function ensureRotatingStockPermissions(accessToken: string) {
   if (!rotatingStockMigration) rotatingStockMigration = (async () => {
-    await ensurePortalConfiguration(accessToken);
+    const { users } = await ensurePortalConfiguration(accessToken);
     const migrationRows = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${HISTORY_SHEET}!B2:B2000`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
     if ((migrationRows.values || []).some((row) => row[0] === ROTATING_STOCK_MIGRATION)) return;
     const allowed = new Set([CICA_EMAIL, "mrodini@gmail.com", "estoquetimoni@gmail.com", "carolina@casatimoni.com.br"]);
-    const users = await readUsers(accessToken);
     const changed = users.filter((user) => allowed.has(user.email) && !user.modules.includes("estoque-rotativo"));
     for (const user of changed) {
       await upsertPortalUser(accessToken, {
@@ -331,12 +378,8 @@ async function ensureRotatingStockPermissions(accessToken: string) {
 }
 
 export async function loadPortalConfiguration(accessToken: string): Promise<PortalConfiguration> {
-  await ensurePortalConfiguration(accessToken);
-  const [users, collaborators, history] = await Promise.all([
-    readUsers(accessToken),
-    readCollaborators(accessToken),
-    readHistory(accessToken),
-  ]);
+  const { users, collaborators } = await ensurePortalConfiguration(accessToken);
+  const history = await readHistory(accessToken);
   return { users, collaborators, history };
 }
 

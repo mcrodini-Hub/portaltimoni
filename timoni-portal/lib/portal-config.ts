@@ -409,7 +409,7 @@ export async function getEffectivePortalUser(accessToken: string | undefined, em
     await ensureRotatingStockPermissions(accessToken);
     const users = await readUsers(accessToken);
     if (!users.length) return portalUsers[normalized] || null;
-    return users.find((user) => user.email === normalized && user.active !== false) || null;
+    return users.find((user) => user.email === normalized) || null;
   } catch (error) {
     console.warn("[portal-config] Não foi possível carregar a configuração dinâmica; usando base segura.", error);
     return portalUsers[normalized] || null;

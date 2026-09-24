@@ -153,7 +153,7 @@ export default function ComunicadosAdmin() {
         <div>
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Gerenciar avisos</p>
           <h2 className="mt-2 text-2xl font-semibold text-slate-950">Avisos do Painel</h2>
-          <p className="mt-2 text-sm text-slate-600">Somente no seu acesso. Escolha quais acessos recebem cada aviso.</p>
+          <p className="mt-2 text-sm text-slate-600">Somente no seu acesso. Escolha Geral, Rio Claro, Araras ou acessos específicos.</p>
         </div>
         <div className="hidden items-center gap-3 lg:flex">
           <div className="min-w-28 rounded-2xl border border-blue-100 bg-blue-50 px-4 py-3 text-center">
@@ -176,11 +176,18 @@ export default function ComunicadosAdmin() {
         <label className="text-sm font-medium text-slate-700 lg:col-span-3">
           Destinatários
           <select
-            value={form.recipientEmails === null ? "todos" : "selecionados"}
-            onChange={(event) => setForm((current) => ({ ...current, unit: event.target.value === "selecionados" ? "geral" : current.unit, recipientEmails: event.target.value === "selecionados" ? [] : null }))}
+            value={form.recipientEmails !== null ? "selecionados" : form.unit}
+            onChange={(event) => {
+              const value = event.target.value;
+              setForm((current) => value === "selecionados"
+                ? { ...current, unit: "geral", recipientEmails: [] }
+                : { ...current, unit: value as Comunicado["unit"], recipientEmails: null });
+            }}
             className="mt-1 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5 outline-none focus:border-blue-500"
           >
-            <option value="todos">{form.id && form.unit !== "geral" ? `${unitLabel(form.unit)} (regra anterior)` : "Todos os acessos"}</option>
+            <option value="geral">Geral</option>
+            <option value="rio claro">Rio Claro</option>
+            <option value="araras">Araras</option>
             <option value="selecionados">Acessos selecionados</option>
           </select>
         </label>
@@ -193,8 +200,6 @@ export default function ComunicadosAdmin() {
             <p className="mt-2 text-xs text-slate-600">{form.recipientEmails.length} acesso(s) selecionado(s). A confirmação individual de leitura continua como hoje.</p>
           </fieldset>
         )}
-
-        {form.id && form.recipientEmails === null && form.unit !== "geral" && <label className="text-sm text-slate-700 lg:col-span-12">Abrangência original deste aviso<select value={form.unit} onChange={(event) => setForm((current) => ({ ...current, unit: event.target.value as Comunicado["unit"] }))} className="mt-1 block rounded-lg border border-blue-200 bg-white p-2"><option value="rio claro">Rio Claro</option><option value="araras">Araras</option><option value="geral">Geral</option></select></label>}
 
         <label className="text-sm font-medium text-slate-700 lg:col-span-9">
           Título

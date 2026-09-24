@@ -306,7 +306,7 @@ export default function MotoristaAgenda() {
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
   const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());
-  const [sellers, setSellers] = useState<Seller[]>([]);
+  const [sellers, setSellers] = useState<Seller[]>([]);\n  const [responsibles, setResponsibles] = useState<Responsible[]>([]);
 
   const diasMes = useMemo(() => monthDays(mesBase), [mesBase]);
   const diasSemana = useMemo(() => weekDays(selecionado), [selecionado]);
@@ -322,6 +322,20 @@ export default function MotoristaAgenda() {
         const response = await fetch("/api/agenda-motorista-vendedores", { cache: "no-store" });
         const payload = await response.json().catch(() => null);
         if (ativo && response.ok && payload?.ok && Array.isArray(payload.vendedores)) setSellers(payload.vendedores);
+      } catch {}
+    })();
+    return () => { ativo = false; };
+  }, []);
+
+  useEffect(() => {
+    let ativo = true;
+    void (async () => {
+      try {
+        const response = await fetch("/api/motorista-responsaveis", { cache: "no-store" });
+        const payload = await response.json().catch(() => null);
+        if (ativo && response.ok && payload?.ok && Array.isArray(payload.responsaveis)) {
+          setResponsibles(payload.responsaveis);
+        }
       } catch {}
     })();
     return () => { ativo = false; };
@@ -796,7 +810,7 @@ export default function MotoristaAgenda() {
               <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">* Número<input value={form.numeroEndereco} onChange={(e) => { const numero = e.target.value; set("numeroEndereco", numero); const destino = [montarEnderecoComBairro(form.endereco, form.bairro), numero].filter(Boolean).join(", "); set("linkEndereco", destino ? `https://maps.google.com/?q=${encodeURIComponent(destino)}` : ""); }} placeholder="Confirme o número" className={fieldClass("numeroEndereco")} /></label><label className="text-sm font-medium text-slate-700">Bairro<input value={form.bairro} onChange={(e) => set("bairro", e.target.value)} placeholder="Preenchido pelo CEP" className={fieldClass("bairro")} /></label></div>
               <label className="text-sm font-medium text-slate-700">Link endereço<input type="url" value={form.linkEndereco} onChange={(e) => set("linkEndereco", e.target.value)} placeholder="Gerado após informar o número" className={fieldClass("linkEndereco")} /></label>
               <label className="text-sm font-medium text-slate-700">Observação<textarea value={form.observacao} onChange={(e) => set("observacao", e.target.value)} rows={3} className={fieldClass("observacao")} /></label>
-              <label className="text-sm font-medium text-slate-700">* Preenchido por<select value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} className={fieldClass("preenchidoPor")}><option value="">Selecione</option>{form.preenchidoPor && !AUTORIZADOS.includes(form.preenchidoPor as (typeof AUTORIZADOS)[number]) && <option value={form.preenchidoPor}>{form.preenchidoPor}</option>}{AUTORIZADOS.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>
+              <label className="text-sm font-medium text-slate-700">* Preenchido por<select value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} className={fieldClass("preenchidoPor")}><option value="">Selecione</option>{form.preenchidoPor && !responsibles.some((item) => item.name === form.preenchidoPor) && <option value={form.preenchidoPor}>{form.preenchidoPor}</option>}{responsibles.map((item) => <option key={item.email} value={item.name}>{item.name}</option>)}</select></label>
             </div>
 
             {aviso && <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{aviso}</p>}

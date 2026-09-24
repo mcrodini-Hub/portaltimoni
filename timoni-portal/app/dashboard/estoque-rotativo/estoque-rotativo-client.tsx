@@ -750,18 +750,18 @@ export default function EstoqueRotativoClient() {
             <h2 className="mt-2 text-xl font-semibold text-slate-950">Total: {visibleItems.length} itens</h2>
           </div>
 
-          <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200">
-            <table className="w-full min-w-[1280px] border-collapse text-sm">
+          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+            <table className="w-full table-fixed border-collapse text-[12px] sm:text-sm">
               <thead className="bg-slate-100 text-left text-xs uppercase tracking-wide text-slate-600">
                 <tr>
-                  <th className="px-3 py-3">Cod-venda</th>
-                  <th className="px-3 py-3">Cod-compra</th>
-                  <th className="px-3 py-3">Descrição</th>
-                  <th className="px-3 py-3 text-right">Estoque anterior</th>
-                  <th className="px-3 py-3 text-right">Estoque atual</th>
-                  <th className="px-3 py-3 text-right">Diferença</th>
-                  <th className="px-3 py-3">Resultado</th>
-                  <th className="px-3 py-3">Ação</th>
+                  <th className="w-[9%] px-2 py-3">Cod-venda</th>
+                  <th className="w-[9%] px-2 py-3">Cod-compra</th>
+                  <th className="w-[28%] px-2 py-3">Descrição</th>
+                  <th className="w-[10%] px-2 py-3 text-center">Est. anterior</th>
+                  <th className="w-[9%] px-2 py-3 text-center">Est. atual</th>
+                  <th className="w-[8%] px-2 py-3 text-center">Dif.</th>
+                  <th className="w-[17%] px-2 py-3">Resultado</th>
+                  <th className="w-[10%] px-2 py-3">Ação</th>
                 </tr>
               </thead>
               <tbody>
@@ -773,14 +773,14 @@ export default function EstoqueRotativoClient() {
                   const editing = editingConferenceItemId === item.id;
                   return (
                     <tr key={item.id} className="border-t border-slate-100 align-top">
-                      <td className="px-3 py-3 font-semibold text-blue-800">{item.code || item.source_sale_code || "—"}</td>
-                      <td className="px-3 py-3 text-slate-700">{item.purchase_code || "—"}</td>
-                      <td className="px-3 py-3 text-slate-700">{item.description || "—"}</td>
-                      <td className="px-3 py-3 text-right font-semibold text-slate-700">{item.old_stock ?? "—"}</td>
-                      <td className="px-3 py-3 text-right font-semibold text-slate-950">{item.new_stock}</td>
-                      <td className="px-3 py-3 text-right font-semibold text-slate-950">{signedDifference(difference)}</td>
-                      <td className="px-3 py-3">
-                        <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      <td className="break-words px-2 py-3 font-semibold text-blue-800">{item.code || item.source_sale_code || "—"}</td>
+                      <td className="break-words px-2 py-3 text-slate-700">{item.purchase_code || "—"}</td>
+                      <td className="break-words px-2 py-3 text-slate-700">{item.description || "—"}</td>
+                      <td className="px-2 py-3 text-center font-semibold text-slate-700">{item.old_stock ?? "—"}</td>
+                      <td className="px-2 py-3 text-center font-semibold text-slate-950">{item.new_stock}</td>
+                      <td className="px-2 py-3 text-center font-semibold text-slate-950">{signedDifference(difference)}</td>
+                      <td className="break-words px-2 py-3">
+                        <span className={`inline-flex max-w-full whitespace-normal rounded-full px-2 py-1 text-[11px] font-semibold leading-4 ${
                           item.situation === "nao_encontrado"
                             ? "bg-rose-100 text-rose-800"
                             : item.old_stock === null
@@ -792,12 +792,12 @@ export default function EstoqueRotativoClient() {
                           {comparisonResult(item)}
                         </span>
                         {item.suggestion_reason ? (
-                          <p className="mt-2 max-w-xs text-xs leading-5 text-slate-500">{item.suggestion_reason}</p>
+                          <p className="mt-2 text-[11px] leading-4 text-slate-500">{item.suggestion_reason}</p>
                         ) : null}
                       </td>
-                      <td className="px-3 py-3">
+                      <td className="px-2 py-3">
                         {needsReview && data.permissions.canConference ? (
-                          <div className="min-w-[220px]">
+                          <div className="w-full">
                             {!editing ? (
                               <button
                                 type="button"
@@ -806,7 +806,7 @@ export default function EstoqueRotativoClient() {
                                   setEditingSaleCode(item.suggested_code || item.code || item.source_sale_code || "");
                                   setEditingStock(String(item.new_stock));
                                 }}
-                                className="rounded-lg border border-blue-200 px-3 py-2 text-sm font-semibold text-blue-800"
+                                className="w-full rounded-lg border border-blue-200 px-2 py-2 text-xs font-semibold text-blue-800"
                               >
                                 Editar
                               </button>

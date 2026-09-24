@@ -98,7 +98,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   callbacks: {
     async signIn({ user, account }) {
       const configured = await getEffectivePortalUser(account?.access_token, user.email);
-      return Boolean(configured);
+      return Boolean(configured && configured.active !== false);
     },
     async jwt({ token, account }) {
       if (account) {

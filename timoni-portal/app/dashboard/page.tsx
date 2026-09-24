@@ -1,40 +1,30 @@
 import { auth } from "@/lib/auth";
-import { canManageMotorista, entersDirectlyInPainelTimoni, hasModuleAccess, isBoxVisible, type PortalModule } from "@/lib/access-control";
-import DashboardOverviewClient from "./dashboard-overview-client";
+import { canManageMotorista, hasModuleAccess, type PortalModule } from "@/lib/access-control";
 import { redirect } from "next/navigation";
 
-const modules: Array<{ module: PortalModule; name: string; href: string; icon: string; accent: string }> = [
-  { module: "painel", name: "Painel Timoni", href: "/colaboradores", icon: "📢", accent: "" },
-  { module: "agenda", name: "Agenda", href: "/agenda", icon: "📅", accent: "" },
-  { module: "compras", name: "Compras", href: "/dashboard/compras", icon: "🛒", accent: "" },
-  { module: "conferencia", name: "Conferência", href: "/dashboard/conferencia-pedidos", icon: "📄", accent: "" },
-  { module: "estoque", name: "Estoque", href: "/dashboard/estoque", icon: "📦", accent: "" },
-  { module: "estoque-rotativo", name: "Estoque Rotativo", href: "/dashboard/estoque-rotativo", icon: "🔄", accent: "" },
-  { module: "motorista", name: "Motorista", href: "/dashboard/motorista-leitura", icon: "🚚", accent: "" },
-  { module: "reunioes", name: "Reuniões", href: "/dashboard/reunioes", icon: "👥", accent: "" },
-  { module: "leads", name: "Leads", href: "/dashboard/leads", icon: "🎯", accent: "" },
+const destinations: Array<{ module: PortalModule; href: string }> = [
+  { module: "painel", href: "/colaboradores" },
+  { module: "agenda", href: "/agenda" },
+  { module: "agenda-ct", href: "/agenda-ct" },
+  { module: "compras", href: "/dashboard/compras" },
+  { module: "conferencia", href: "/dashboard/conferencia-pedidos" },
+  { module: "estoque", href: "/dashboard/estoque" },
+  { module: "estoque-rotativo", href: "/dashboard/estoque-rotativo" },
+  { module: "motorista", href: "/dashboard/motorista-leitura" },
+  { module: "reunioes", href: "/dashboard/reunioes" },
+  { module: "leads", href: "/dashboard/leads" },
+  { module: "marketing", href: "/dashboard/marketing" },
+  { module: "financeiro", href: "/dashboard/financeiro" },
 ];
-const GESTAO_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
+
 export default async function DashboardPage() {
   const session = await auth();
   const email = session?.user?.email ?? "";
-  const normalizedEmail = email.trim().toLowerCase();
-  if (entersDirectlyInPainelTimoni(normalizedEmail, session?.portalUser)) {
-    redirect("/colaboradores");
+  const target = destinations.find((item) => hasModuleAccess(email, item.module, session?.portalUser));
+
+  if (!target) redirect("/login?error=AccessDenied");
+  if (target.module === "motorista" && canManageMotorista(email, session?.portalUser)) {
+    redirect("/dashboard/motorista");
   }
-  const visible = modules.filter((item) => hasModuleAccess(email, item.module, session?.portalUser) && isBoxVisible(email, item.module, session?.portalUser));
-  const isManagement = GESTAO_EMAILS.has(normalizedEmail);
-  const showEspacoEquipeBox = isManagement && isBoxVisible(email, "espaco-equipe", session?.portalUser);
-  return <div className="portal-dashboard pb-3 sm:pb-4">
-    <header className="mb-4">
-      <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Painel de Controle</h1>
-    </header>
-    <DashboardOverviewClient
-      modules={visible}
-      motoristaControle={canManageMotorista(email, session?.portalUser)}
-      espacoEquipeControle={showEspacoEquipeBox}
-      isManagement={isManagement}
-      isCica={normalizedEmail === "mcrodini@gmail.com"}
-    />
-  </div>;
+  redirect(target.href);
 }

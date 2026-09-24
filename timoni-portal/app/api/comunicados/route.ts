@@ -9,7 +9,8 @@ import {
   type ComunicadoUnidade,
 } from "@/lib/comunicados";
 import { getPortalUser, type PortalUser } from "@/lib/access-control";
-import { listConfiguredPortalUsers } from "@/lib/portal-config";
+import { getEffectiveCollaborators, listConfiguredPortalUsers } from "@/lib/portal-config";
+import { listAvisoLeituras } from "@/lib/aviso-leituras";
 
 const ADMIN_EMAIL = "mcrodini@gmail.com";
 const VALID_UNITS = new Set<ComunicadoUnidade>(["geral", "araras", "rio claro"]);
@@ -74,15 +75,35 @@ export async function GET() {
   if (!context) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
 
   try {
-    const items = await listComunicados(context.accessToken);
+    const [items, collaborators, reads] = await Promise.all([
+      listComunicados(context.accessToken),
+      getEffectiveCollaborators(context.accessToken),
+      listAvisoLeituras(context.accessToken),
+    ]);
     const unit = unitForEmail(context.email, context.portalUser);
     const now = Date.now();
-    const activeCount = items.filter((item) =>
+    const requiredMembers = collaborators.filter((member) =>
+      member.active &&
+      member.noticeRequired &&
+      normalizeEmail(member.accessEmail) === context.email
+    );
+    const activeItems = items.filter((item) =>
       item.status === "ativo" &&
       (!item.startsAt || Date.parse(item.startsAt) <= now) &&
       isWithinDisplayEndDate(item.expiresAt, now) &&
       (context.email === ADMIN_EMAIL || canViewComunicado(item, context.email, unit))
-    ).length;
+    );
+    const activeCount = activeItems.filter((item) => {
+      const membersForNotice = requiredMembers.filter((member) =>
+        item.unit === "geral" ||
+        (item.unit === "araras" && member.unit === "Araras") ||
+        (item.unit === "rio claro" && member.unit === "Rio Claro")
+      );
+      if (!membersForNotice.length) return false;
+      return membersForNotice.some((member) =>
+        !reads.some((read) => read.avisoId === item.id && read.employee === member.name && read.unit === member.unit)
+      );
+    }).length;
     const isAdmin = context.email === ADMIN_EMAIL;
     let recipientOptions: Array<{ email: string; name: string; unit?: string }> = [];
     let recipientOptionsError = false;

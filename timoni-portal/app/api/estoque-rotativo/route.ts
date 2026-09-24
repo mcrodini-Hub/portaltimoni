@@ -13,7 +13,7 @@ import {
   attachSupplierToWaitingUpdates,
   createRotatingStockUpdate,
   confirmSupplierStandardization,
-  deleteCompletedRotatingStockUpdate,
+  deleteRotatingStockUpdate,
   deleteSupplierStandardization,
   finishConference,
   getRotatingStockUpdate,
@@ -1984,12 +1984,12 @@ export async function POST(request: Request) {
       requireRole(email, "manage");
       const id = String(body.id || "").trim();
       if (!id) throw new Error("Atualização não identificada.");
-      const removed = await deleteCompletedRotatingStockUpdate(id);
-      if (!removed) throw new Error("Somente rotativos concluídos podem ser excluídos.");
+      const removed = await deleteRotatingStockUpdate(id);
+      if (!removed) throw new Error("Atualização não encontrada ou já excluída.");
       await recordModuleUpdateSafely(
         "estoque-rotativo",
         email,
-        "Rotativo concluído removido do histórico.",
+        "Atualização do Estoque Rotativo removida.",
         `estoque-rotativo:delete:${id}`,
       );
       return NextResponse.json({ ok: true });

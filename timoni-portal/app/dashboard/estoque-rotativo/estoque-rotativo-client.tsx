@@ -691,7 +691,7 @@ export default function EstoqueRotativoClient() {
                 />
               </label>
               <label className="text-sm font-semibold text-slate-800">
-                Cod-compra <span className="font-normal text-slate-500">(opcional)</span>
+                Cod-compra <span className="text-rose-600">*</span>
                 <input
                   value={sourcePurchaseCodeColumn}
                   onChange={(event) => setSourcePurchaseCodeColumn(event.target.value.toUpperCase())}

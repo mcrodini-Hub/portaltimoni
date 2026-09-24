@@ -330,24 +330,50 @@ export async function ensurePortalConfiguration(accessToken: string) {
     users = users.map((user) => user.email === CAIXA_RC_EMAIL ? updated : user);
   }
 
-  const caixaCollaborator = collaborators.find((member) =>
-    member.accessEmail === CAIXA_RC_EMAIL || member.name.trim().toLowerCase() === "thais"
+  // O vínculo com um acesso é apenas pelo e-mail. Nome, unidade e status do
+  // colaborador são dados próprios e nunca devem ser sobrescritos pelo acesso.
+  const defaultsById = new Map(defaultCollaborators().map((member) => [member.id, member]));
+  let collaboratorsChanged = false;
+
+  collaborators = collaborators.map((member) => {
+    const original = defaultsById.get(member.id);
+    if (!original) return member;
+
+    // A substituição de Thais por Bruna foi uma troca real de colaboradora.
+    if (member.id === "rio-claro-thais" && member.name.trim().toLowerCase() === "bruna") {
+      return member;
+    }
+
+    if (member.name !== original.name || member.unit !== original.unit) {
+      collaboratorsChanged = true;
+      return {
+        ...member,
+        name: original.name,
+        unit: original.unit,
+        updatedAt: new Date().toISOString(),
+      };
+    }
+    return member;
+  });
+
+  const defaultIds = new Set(defaultsById.keys());
+  const emailDerivedDuplicates = new Set(
+    collaborators
+      .filter((member) => defaultIds.has(member.id) && member.accessEmail)
+      .map((member) => member.accessEmail.replace(/[^a-z0-9]+/g, "-")),
   );
-  if (caixaRc && caixaCollaborator && (
-    caixaCollaborator.name !== "Bruna" ||
-    caixaCollaborator.accessEmail !== CAIXA_RC_EMAIL ||
-    caixaCollaborator.active === false
-  )) {
-    const updated = {
-      ...caixaCollaborator,
-      accessEmail: CAIXA_RC_EMAIL,
-      name: "Bruna",
-      unit: "Rio Claro" as const,
-      active: true,
-      updatedAt: new Date().toISOString(),
-    };
-    await upsertCollaborator(accessToken, updated);
-    collaborators = collaborators.map((member) => member.id === updated.id ? updated : member);
+  const dedupedCollaborators = collaborators.filter((member) => {
+    if (defaultIds.has(member.id)) return true;
+    if (!member.accessEmail) return true;
+    const generatedId = member.accessEmail.replace(/[^a-z0-9]+/g, "-");
+    const remove = member.id === generatedId && emailDerivedDuplicates.has(generatedId);
+    if (remove) collaboratorsChanged = true;
+    return !remove;
+  });
+
+  if (collaboratorsChanged) {
+    collaborators = dedupedCollaborators;
+    await writeCollaborators(accessToken, collaborators);
   }
 
   return { users, collaborators };

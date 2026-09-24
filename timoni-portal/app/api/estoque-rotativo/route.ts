@@ -1105,7 +1105,7 @@ async function standardizeSupplierSpreadsheet(
   return {
     spreadsheetId: file.id,
     supplierName: file.name,
-    spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${file.id}/edit#gid=${selected.sheetId}&range=A1:S21`,
+    spreadsheetUrl: `https://docs.google.com/spreadsheets/d/${file.id}/edit#gid=${selected.sheetId}&range=A1`,
     sheetName: selected.title,
     products: productRows.length,
   };

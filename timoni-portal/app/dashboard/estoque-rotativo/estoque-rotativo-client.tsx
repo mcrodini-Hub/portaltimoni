@@ -289,7 +289,6 @@ export default function EstoqueRotativoClient() {
     setSourceDescriptionColumn(item.source_description_column || "");
     setSourceStockColumn(item.source_stock_column || "");
     setSourceStartRow(String(item.source_start_row || ""));
-    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   const allowedNames = useMemo(
@@ -448,7 +447,40 @@ export default function EstoqueRotativoClient() {
       setFeedback("Clique em Editar antes de salvar.");
       return;
     }
-    await filterItems();
+    if (!supplierName.trim() || !spreadsheetReference.trim() || !sourceSheetName.trim()) {
+      setError("Complete fornecedor, link e aba antes de salvar.");
+      return;
+    }
+    if (![sourceCodeColumn, sourceDescriptionColumn, sourceStockColumn].every((column) => /^[A-Z]+$/i.test(column.trim()))) {
+      setError("Revise as colunas COD-VENDA, descrição e estoque.");
+      return;
+    }
+    if (sourcePurchaseCodeColumn.trim() && !/^[A-Z]+$/i.test(sourcePurchaseCodeColumn.trim())) {
+      setError("Revise a coluna COD-COMPRA.");
+      return;
+    }
+    if (!Number.isInteger(Number(sourceStartRow)) || Number(sourceStartRow) < 1) {
+      setError("Revise a linha inicial.");
+      return;
+    }
+    const result = await post({
+      action: "editar_registro",
+      id: item.id,
+      supplierName,
+      spreadsheetReference,
+      note,
+      sourceSheetName,
+      sourceCodeColumn,
+      sourcePurchaseCodeColumn,
+      sourceDescriptionColumn,
+      sourceStockColumn,
+      sourceStartRow: Number(sourceStartRow),
+      trelloCardId,
+    });
+    if (!result) return;
+    setEditingId(null);
+    setFeedback("Alterações salvas.");
+    await load();
   }
 
   const visibleItems = data?.items || [];
@@ -1006,6 +1038,72 @@ export default function EstoqueRotativoClient() {
                         Rotativo atualizado
                       </a>
 
+                    </div>
+                  </div>
+                ) : null}
+                {editingId === item.id ? (
+                  <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/40 p-3">
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="text-xs font-semibold text-slate-700 sm:col-span-2">
+                        Link do Google Sheets
+                        <input
+                          type="url"
+                          value={spreadsheetReference}
+                          onChange={(event) => setSpreadsheetReference(event.target.value)}
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                        />
+                      </label>
+                      <label className="text-xs font-semibold text-slate-700">
+                        Aba
+                        <input
+                          value={sourceSheetName}
+                          onChange={(event) => setSourceSheetName(event.target.value)}
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                        />
+                      </label>
+                      <label className="text-xs font-semibold text-slate-700">
+                        Linha inicial
+                        <input
+                          inputMode="numeric"
+                          value={sourceStartRow}
+                          onChange={(event) => setSourceStartRow(event.target.value.replace(/\D/g, ""))}
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                        />
+                      </label>
+                    </div>
+                    <div className="mt-3 grid grid-cols-4 gap-2">
+                      <label className="text-xs font-semibold text-slate-700">
+                        Cod-venda
+                        <input
+                          value={sourceCodeColumn}
+                          onChange={(event) => setSourceCodeColumn(event.target.value.toUpperCase())}
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm"
+                        />
+                      </label>
+                      <label className="text-xs font-semibold text-slate-700">
+                        Cod-compra
+                        <input
+                          value={sourcePurchaseCodeColumn}
+                          onChange={(event) => setSourcePurchaseCodeColumn(event.target.value.toUpperCase())}
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm"
+                        />
+                      </label>
+                      <label className="text-xs font-semibold text-slate-700">
+                        Descrição
+                        <input
+                          value={sourceDescriptionColumn}
+                          onChange={(event) => setSourceDescriptionColumn(event.target.value.toUpperCase())}
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm"
+                        />
+                      </label>
+                      <label className="text-xs font-semibold text-slate-700">
+                        Estoque
+                        <input
+                          value={sourceStockColumn}
+                          onChange={(event) => setSourceStockColumn(event.target.value.toUpperCase())}
+                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm"
+                        />
+                      </label>
                     </div>
                   </div>
                 ) : null}

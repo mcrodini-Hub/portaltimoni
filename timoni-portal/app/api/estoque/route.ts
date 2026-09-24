@@ -10,7 +10,6 @@ export const dynamic = "force-dynamic";
 
 const SPREADSHEET_ID = "1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo";
 const NEED_COLUMNS = 15;
-const RECEIVED_VISIBLE_DAYS = 30;
 const SENT_ORDERS_CACHE_RANGE = "Necessidades!Q:W";
 const SENT_ORDERS_CACHE_HEADER = ["id", "nome", "enviadoEm", "previsaoEntrega", "recebidoEm", "unidade", "situacao"];
 
@@ -54,19 +53,15 @@ type SentOrder = {
   situacao: "enviado" | "recebido";
 };
 type TrelloList = { id: string; name: string; closed?: boolean };
-type TrelloBoard = { lists?: TrelloList[] };
+type TrelloBoard = { lists?: TrelloList[]; cards?: TrelloCard[] };
 type TrelloCard = {
   id: string;
   name: string;
+  idList: string;
   start?: string | null;
   due?: string | null;
   dateLastActivity?: string | null;
   closed?: boolean;
-};
-type SentTarget = {
-  list: TrelloList;
-  unidade: "rio_claro" | "araras";
-  situacao: "enviado" | "recebido";
 };
 
 const fixedSellers: Seller[] = [
@@ -126,7 +121,7 @@ function rowsToCachedOrders(rows: unknown[][]): SentOrder[] {
       situacao: value(row, 6) === "recebido" ? "recebido" as const : "enviado" as const,
     }))
     .filter((order) => Boolean(order.id && order.nome))
-    .filter((order) => order.situacao === "enviado" || isWithinReceivedWindow(order.recebidoEm));
+    .filter((order) => order.situacao === "enviado");
 }
 
 function summarize(needs: Need[]) {
@@ -148,14 +143,6 @@ function summarize(needs: Need[]) {
 function hasAllTokens(value: string, tokens: string[]) {
   const normalized = normalizeTrelloText(value);
   return tokens.every((token) => normalized.includes(token));
-}
-
-function isWithinReceivedWindow(value: string) {
-  if (!value) return false;
-  const receivedAt = new Date(value).getTime();
-  if (Number.isNaN(receivedAt)) return false;
-  const limit = RECEIVED_VISIBLE_DAYS * 24 * 60 * 60 * 1000;
-  return Date.now() - receivedAt <= limit;
 }
 
 function dedupeOrders(orders: SentOrder[]) {
@@ -185,46 +172,38 @@ function sortOrders(orders: SentOrder[]) {
 
 async function readSentOrders(): Promise<SentOrder[]> {
   const board = await trelloFetch<TrelloBoard>(`/boards/${TRELLO_BOARD_SHORT_LINK}`, {
-    params: { fields: "name", lists: "open", list_fields: "name,closed" },
+    params: {
+      fields: "name",
+      lists: "open",
+      list_fields: "name,closed",
+      cards: "open",
+      card_fields: "name,idList,start,due,dateLastActivity,closed",
+    },
   });
   const lists = (board.lists || []).filter((list) => !list.closed);
-  const targets: SentTarget[] = [];
+  const cards = (board.cards || []).filter((card) => !card.closed);
+  const sentRioClaroList = lists.find((list) => hasAllTokens(list.name, ["pedidos", "enviado", "rio", "claro"]));
+  const sentArarasList = lists.find((list) => hasAllTokens(list.name, ["pedidos", "enviado", "araras"]));
 
-  for (const list of lists) {
-    const normalized = normalizeTrelloText(list.name || "");
-    const isRio = normalized.includes("rio claro");
-    const isAraras = normalized.includes("araras");
-    const isSent = hasAllTokens(normalized, ["pedido", "enviado"]);
-    const isReceived = hasAllTokens(normalized, ["pedido", "compra", "recebido"]);
+  const toOrders = (list: TrelloList | undefined, unidade: "rio_claro" | "araras"): SentOrder[] =>
+    list
+      ? cards
+          .filter((card) => card.idList === list.id)
+          .map((card) => ({
+            id: card.id,
+            nome: card.name,
+            enviadoEm: card.start || "",
+            previsaoEntrega: card.due || "",
+            recebidoEm: "",
+            unidade,
+            situacao: "enviado" as const,
+          }))
+      : [];
 
-    if (isSent && isRio) targets.push({ list, unidade: "rio_claro", situacao: "enviado" });
-    else if (isSent && isAraras) targets.push({ list, unidade: "araras", situacao: "enviado" });
-    else if (isReceived && isRio) targets.push({ list, unidade: "rio_claro", situacao: "recebido" });
-    else if (isReceived && isAraras) targets.push({ list, unidade: "araras", situacao: "recebido" });
-  }
-
-  const groups = await Promise.all(
-    targets.map(async ({ list, unidade, situacao }) => {
-      const cards = await trelloFetch<TrelloCard[]>(`/lists/${encodeURIComponent(list.id)}/cards`, {
-        params: { fields: "name,start,due,dateLastActivity,closed" },
-      });
-      return (cards || [])
-        .filter((card) => !card.closed)
-        .map((card) => ({
-          id: card.id,
-          nome: card.name,
-          enviadoEm: card.start || "",
-          previsaoEntrega: card.due || "",
-          recebidoEm: situacao === "recebido" ? card.dateLastActivity || "" : "",
-          unidade,
-          situacao,
-        } satisfies SentOrder))
-        .filter((order) => Boolean(order.id && order.nome))
-        .filter((order) => order.situacao === "enviado" || isWithinReceivedWindow(order.recebidoEm));
-    }),
-  );
-
-  return sortOrders(groups.flat());
+  return sortOrders([
+    ...toOrders(sentRioClaroList, "rio_claro"),
+    ...toOrders(sentArarasList, "araras"),
+  ]);
 }
 
 async function getSheets() {

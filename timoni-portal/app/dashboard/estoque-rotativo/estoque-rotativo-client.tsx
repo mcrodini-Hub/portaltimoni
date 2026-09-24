@@ -355,6 +355,13 @@ export default function EstoqueRotativoClient() {
     const compared = await post({ action: "conferir", id });
     if (!compared) return;
     setFeedback("Itens filtrados. Confira as divergências antes de atualizar o Estoque Rotativo.");
+    setSpreadsheetReference("");
+    setSourceSheetName("");
+    setSourceCodeColumn("");
+    setSourcePurchaseCodeColumn("");
+    setSourceDescriptionColumn("");
+    setSourceStockColumn("");
+    setSourceStartRow("");
     await load(id);
   }
 

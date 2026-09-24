@@ -12,7 +12,6 @@ const USERS_SHEET = "PortalUsuarios";
 const COLLABORATORS_SHEET = "PortalColaboradores";
 const HISTORY_SHEET = "PortalHistorico";
 const ROTATING_STOCK_MIGRATION = "Permissões Estoque Rotativo v1";
-const CAIXA_RC_EMAIL = "caixarctimoni@gmail.com";
 const REQUIRED_SHEETS = [USERS_SHEET, COLLABORATORS_SHEET, HISTORY_SHEET];
 export const CICA_EMAIL = "mcrodini@gmail.com";
 export const DASHBOARD_BOX_MODULES: PortalModule[] = ["painel", "agenda", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads"];
@@ -321,13 +320,6 @@ export async function ensurePortalConfiguration(accessToken: string) {
   if (!collaborators.length) {
     collaborators = defaultCollaborators();
     await writeCollaborators(accessToken, collaborators);
-  }
-
-  const caixaRc = users.find((user) => user.email === CAIXA_RC_EMAIL);
-  if (caixaRc && (caixaRc.name !== "Bruna" || caixaRc.active === false)) {
-    const updated = { ...caixaRc, name: "Bruna", active: true };
-    await upsertPortalUser(accessToken, updated);
-    users = users.map((user) => user.email === CAIXA_RC_EMAIL ? updated : user);
   }
 
   // O vínculo com um acesso é apenas pelo e-mail. Nome, unidade e status do

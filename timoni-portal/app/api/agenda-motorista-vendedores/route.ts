@@ -1,5 +1,6 @@
 import { auth } from "@/lib/auth";
-import { hasModuleAccess } from "@/lib/access-control";
+import { hasModuleAccess, portalUsers } from "@/lib/access-control";
+import { loadPortalConfiguration } from "@/lib/portal-config";
 import { google } from "googleapis";
 import { NextResponse } from "next/server";
 
@@ -9,6 +10,7 @@ export const dynamic = "force-dynamic";
 const SPREADSHEET_ID = "1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo";
 
 type Seller = { nome: string; unidade: string };
+type Responsible = { email: string; name: string; unit: string };
 
 const fixedSellers: Seller[] = [
   { nome: "Ciça", unidade: "araras" },
@@ -49,9 +51,16 @@ function dedupeSellers(vendedores: Seller[]) {
   });
 }
 
-function resposta(vendedores: Seller[], fallback = false) {
+function responsaveisFallback(): Responsible[] {
+  return Object.values(portalUsers)
+    .filter((user) => user.active !== false && user.readOnly !== true && user.modules.includes("motorista"))
+    .map((user) => ({ email: user.email, name: user.name, unit: user.unit || "Geral" }))
+    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }));
+}
+
+function resposta(vendedores: Seller[], responsaveis: Responsible[], fallback = false) {
   return NextResponse.json(
-    { ok: true, vendedores: dedupeSellers(vendedores), fallback },
+    { ok: true, vendedores: dedupeSellers(vendedores), responsaveis, fallback },
     { headers: { "Cache-Control": "no-store" } },
   );
 }
@@ -63,10 +72,16 @@ export async function GET() {
   }
 
   if (!session.accessToken || session.error === "RefreshAccessTokenError") {
-    return resposta(fallbackSellers, true);
+    return resposta(fallbackSellers, responsaveisFallback(), true);
   }
 
   try {
+    const configuration = await loadPortalConfiguration(session.accessToken);
+    const responsaveis: Responsible[] = configuration.users
+      .filter((user) => user.active !== false && user.readOnly !== true && user.modules.includes("motorista"))
+      .map((user) => ({ email: user.email, name: user.name, unit: user.unit || "Geral" }))
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }));
+
     const oauth = new google.auth.OAuth2();
     oauth.setCredentials({ access_token: session.accessToken });
     const sheets = google.sheets({ version: "v4", auth: oauth });
@@ -82,9 +97,9 @@ export async function GET() {
       .map((row) => ({ nome: String(row[0] ?? "").trim(), unidade: String(row[1] ?? "").trim().toLowerCase() }))
       .filter((item) => item.nome);
 
-    return resposta([...vendedores, ...fixedSellers]);
+    return resposta([...vendedores, ...fixedSellers], responsaveis);
   } catch (error) {
     console.error("[Agenda Motorista] Falha ao carregar vendedores; usando fallback.", error);
-    return resposta(fallbackSellers, true);
+    return resposta(fallbackSellers, responsaveisFallback(), true);
   }
 }

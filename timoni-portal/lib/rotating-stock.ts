@@ -720,14 +720,13 @@ export async function deleteSupplierStandardization(spreadsheetId: string) {
   return true;
 }
 
-export async function deleteCompletedRotatingStockUpdate(id: string) {
+export async function deleteRotatingStockUpdate(id: string) {
   await ensureRotatingStockSchema();
   const sql = getDatabase();
   const rows = await sql`
     UPDATE portal_rotating_stock_updates
     SET deleted_at = NOW()
     WHERE id = ${id}::UUID
-      AND status = 'atualizado'
       AND deleted_at IS NULL
     RETURNING id::TEXT
   ` as unknown as Array<{ id: string }>;

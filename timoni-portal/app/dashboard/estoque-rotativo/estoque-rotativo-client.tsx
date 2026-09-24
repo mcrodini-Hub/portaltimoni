@@ -420,13 +420,35 @@ export default function EstoqueRotativoClient() {
     await Promise.all([load(), refreshTrello()]);
   }
 
-  async function removeCompleted(item: Update) {
-    if (!data?.permissions.canManage || item.status !== "atualizado") return;
-    if (!window.confirm(`Excluir o rotativo concluído de ${item.supplier_name} do histórico?`)) return;
+  async function removeUpdate(item: Update) {
+    if (!data?.permissions.canManage) return;
+    if (!window.confirm(`Excluir a atualização de ${item.supplier_name}?`)) return;
     const result = await post({ action: "excluir_atualizacao", id: item.id });
     if (!result) return;
-    setFeedback("Rotativo concluído excluído do histórico.");
+    if (editingId === item.id) {
+      setEditingId(null);
+      setSupplierName("");
+      setTrelloCardId("");
+      setSpreadsheetReference("");
+      setNote("");
+      setSourceSheetName("");
+      setSourceCodeColumn("");
+      setSourcePurchaseCodeColumn("");
+      setSourceDescriptionColumn("");
+      setSourceStockColumn("");
+      setSourceStartRow("");
+    }
+    if (activeId === item.id) setActiveId(null);
+    setFeedback("Atualização excluída.");
     await load();
+  }
+
+  async function saveEditedUpdate(item: Update) {
+    if (editingId !== item.id) {
+      setFeedback("Clique em Editar antes de salvar.");
+      return;
+    }
+    await filterItems();
   }
 
   const visibleItems = data?.items || [];
@@ -983,30 +1005,35 @@ export default function EstoqueRotativoClient() {
                       >
                         Rotativo atualizado
                       </a>
-                      {data.permissions.canManage ? (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => void removeCompleted(item)}
-                          className="min-h-11 rounded-xl border border-rose-200 px-4 text-sm font-semibold text-rose-700 hover:bg-rose-50 disabled:opacity-50"
-                        >
-                          Excluir
-                        </button>
-                      ) : null}
+
                     </div>
                   </div>
                 ) : null}
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {data.permissions.canReport && item.status !== "atualizado" ? (
-                    <button
-                      type="button"
-                      disabled={busy}
-                      onClick={() => reopenForEdit(item)}
-                      className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700"
-                    >
-                      Reabrir para editar
-                    </button>
-                  ) : null}
+                  <button
+                    type="button"
+                    disabled={busy || !data.permissions.canReport}
+                    onClick={() => reopenForEdit(item)}
+                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-40"
+                  >
+                    Editar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy || !data.permissions.canReport || editingId !== item.id}
+                    onClick={() => void saveEditedUpdate(item)}
+                    className="rounded-lg bg-blue-800 px-3 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
+                  >
+                    Salvar
+                  </button>
+                  <button
+                    type="button"
+                    disabled={busy || !data.permissions.canManage}
+                    onClick={() => void removeUpdate(item)}
+                    className="rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 disabled:opacity-40"
+                  >
+                    Excluir
+                  </button>
                 </div>
               </article>
             )) : (

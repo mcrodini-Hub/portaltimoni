@@ -786,8 +786,8 @@ async function standardizeSupplierSpreadsheet(
   const candidates = (metadata.data.sheets || [])
     .sort((a, b) => (a.properties?.index || 0) - (b.properties?.index || 0))
     .filter((sheet) => sheet.properties?.title && sheet.properties?.sheetId !== undefined)
-    .filter((sheet) => normalizeHeader(sheet.properties!.title!).includes("bkp"));
-  if (!candidates.length) throw new Error(`${file.name}: aba BKP não encontrada. A padronização usa somente a aba BKP.`);
+    .filter((sheet) => !normalizeHeader(sheet.properties!.title!).includes("bkp"));
+  if (!candidates.length) throw new Error(`${file.name}: nenhuma aba principal disponível para padronização.`);
 
   let selected: {
     title: string;

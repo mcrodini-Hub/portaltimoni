@@ -891,14 +891,15 @@ async function standardizeSupplierSpreadsheet(
     }
   }
 
+  topRows[0][0] = "FORNECEDOR";
+  topRows[0][1] = file.name;
   topRows[1] = [];
 
   topRows[3] = [];
-  topRows[3][0] = "Responsável:";
   topRows[3][2] = "LUCAS";
-  topRows[3][4] = `Data: ${new Intl.DateTimeFormat("pt-BR", {
+  topRows[3][4] = new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "America/Sao_Paulo",
-  }).format(new Date())}`;
+  }).format(new Date());
 
   const standardizedHeaders = [
     "COD-VENDA",
@@ -1015,16 +1016,29 @@ async function standardizeSupplierSpreadsheet(
     },
     {
       repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 4, endColumnIndex: outputWidth },
+        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 3, endColumnIndex: outputWidth },
         cell: { userEnteredFormat: { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } },
         fields: "userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment",
       },
     },
     {
       repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 0, endColumnIndex: 5 },
-        cell: { userEnteredFormat: { textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true } } },
+        range: { sheetId: selected.sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 2, endColumnIndex: 3 },
+        cell: { userEnteredFormat: {
+          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: true, foregroundColor: black },
+        } },
         fields: "userEnteredFormat.textFormat",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 4, endColumnIndex: 5 },
+        cell: { userEnteredFormat: {
+          textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: black },
+          horizontalAlignment: "CENTER",
+          verticalAlignment: "MIDDLE",
+        } },
+        fields: "userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment)",
       },
     },
     {

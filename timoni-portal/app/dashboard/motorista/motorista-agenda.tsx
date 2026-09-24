@@ -321,20 +321,9 @@ export default function MotoristaAgenda() {
       try {
         const response = await fetch("/api/agenda-motorista-vendedores", { cache: "no-store" });
         const payload = await response.json().catch(() => null);
-        if (ativo && response.ok && payload?.ok && Array.isArray(payload.vendedores)) setSellers(payload.vendedores);
-      } catch {}
-    })();
-    return () => { ativo = false; };
-  }, []);
-
-  useEffect(() => {
-    let ativo = true;
-    void (async () => {
-      try {
-        const response = await fetch("/api/motorista-responsaveis", { cache: "no-store" });
-        const payload = await response.json().catch(() => null);
-        if (ativo && response.ok && payload?.ok && Array.isArray(payload.responsaveis)) {
-          setResponsibles(payload.responsaveis);
+        if (ativo && response.ok && payload?.ok) {
+          if (Array.isArray(payload.vendedores)) setSellers(payload.vendedores);
+          if (Array.isArray(payload.responsaveis)) setResponsibles(payload.responsaveis);
         }
       } catch {}
     })();

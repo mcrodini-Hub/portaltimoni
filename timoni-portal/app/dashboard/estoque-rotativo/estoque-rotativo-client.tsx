@@ -249,8 +249,10 @@ export default function EstoqueRotativoClient() {
       verificationWindow?.close();
     }
     setFeedback(`Planilha ${result.supplierName} pronta para conferência. Confira a planilha aberta e depois marque como atualizada.`);
-    setSelectedStandardizationSupplierId("");
-    setShowStandardizationSupplierSelector(false);
+    if (result.spreadsheetId) {
+      setSelectedStandardizationSupplierId(String(result.spreadsheetId));
+      setShowStandardizationSupplierSelector(true);
+    }
     await load();
   }
 

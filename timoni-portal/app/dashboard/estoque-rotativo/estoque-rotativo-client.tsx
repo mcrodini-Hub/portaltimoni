@@ -200,15 +200,16 @@ export default function EstoqueRotativoClient() {
   );
   const supplierUpdated = supplierUpdatedIds.size;
   const supplierPending = Math.max(0, (data?.supplierFiles?.length || 0) - supplierUpdated);
-  const preparedSupplier = (data?.supplierStandardizations || []).find((item) => item.status === "preparada") || null;
   const pendingSupplierFiles = useMemo(
     () => (data?.supplierFiles || [])
       .filter((item) => !supplierUpdatedIds.has(item.id))
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" })),
     [data?.supplierFiles, supplierUpdatedIds],
   );
-  const nextSupplier = preparedSupplier ? null : pendingSupplierFiles[0] || null;
   const selectedStandardizationSupplier = pendingSupplierFiles.find((item) => item.id === selectedStandardizationSupplierId) || null;
+  const selectedPreparedSupplier = (data?.supplierStandardizations || []).find(
+    (item) => item.spreadsheet_id === selectedStandardizationSupplierId && item.status === "preparada",
+  ) || null;
 
   async function post(body: Record<string, unknown>) {
     setBusy(true); setError(""); setFeedback("");
@@ -254,10 +255,10 @@ export default function EstoqueRotativoClient() {
   }
 
   async function confirmSupplierSheet() {
-    if (!preparedSupplier) return;
+    if (!selectedPreparedSupplier) return;
     const result = await post({
       action: "confirmar_planilha_fornecedor",
-      spreadsheetId: preparedSupplier.spreadsheet_id,
+      spreadsheetId: selectedPreparedSupplier.spreadsheet_id,
     });
     if (!result) return;
     setFeedback(`${result.supplierName} aprovada. O destaque amarelo de revisão foi removido.`);
@@ -504,10 +505,10 @@ export default function EstoqueRotativoClient() {
               </label>
               {selectedStandardizationSupplier ? (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  {preparedSupplier?.spreadsheet_id === selectedStandardizationSupplier.id ? (
+                  {selectedPreparedSupplier ? (
                     <>
                       <a
-                        href={preparedSupplier.spreadsheet_url}
+                        href={selectedPreparedSupplier.spreadsheet_url}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex min-h-11 items-center rounded-xl bg-blue-800 px-4 text-sm font-semibold text-white"
@@ -533,16 +534,14 @@ export default function EstoqueRotativoClient() {
                       >
                         Abrir planilha
                       </a>
-                      {!preparedSupplier ? (
-                        <button
-                          type="button"
-                          onClick={() => void standardizeNextSupplier(selectedStandardizationSupplier.id)}
-                          disabled={busy || standardizingSupplier}
-                          className="min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:bg-slate-300"
-                        >
-                          {standardizingSupplier ? "Padronizando..." : "Padronizar e abrir"}
-                        </button>
-                      ) : null}
+                      <button
+                        type="button"
+                        onClick={() => void standardizeNextSupplier(selectedStandardizationSupplier.id)}
+                        disabled={busy || standardizingSupplier}
+                        className="min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:bg-slate-300"
+                      >
+                        {standardizingSupplier ? "Padronizando..." : "Padronizar e abrir"}
+                      </button>
                     </>
                   )}
                 </div>

@@ -1472,7 +1472,9 @@ export async function POST(request: Request) {
       const prepared = snapshot.supplierStandardizations.find(
         (item) => item.status === "preparada" && (!requestedSpreadsheetId || item.spreadsheet_id === requestedSpreadsheetId),
       );
-      if (prepared) {
+      // Sem seleção explícita, mantém o fluxo atual e reabre a planilha já preparada.
+      // Com fornecedor selecionado, executa novamente a padronização sobre a própria aba principal.
+      if (prepared && !requestedSpreadsheetId) {
         return NextResponse.json({
           ok: true,
           awaitingReview: true,

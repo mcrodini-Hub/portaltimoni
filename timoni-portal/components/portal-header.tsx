@@ -53,7 +53,8 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
   const initials = email.trim().toLowerCase() === "mcrodini@gmail.com" ? "CR" : email.trim().toLowerCase() === "mrodini@gmail.com" ? "MR" : "CT";
 
   return (
-    <header className="sticky top-0 z-40 border-b border-blue-950/50 bg-[#0F2D8F] text-white shadow-sm">
+    <>
+    <header className="fixed inset-x-0 top-0 z-[90] border-b border-blue-950/50 bg-[#0F2D8F] text-white shadow-sm">
       <MobilePortalHeader items={mobileItems} showUpdates={canViewUpdates} showGuide={isManagement} showChat={canUseChat && mobileVisible("chat")} initials={initials} />
       <div className="mx-auto hidden max-w-7xl flex-wrap items-center justify-between gap-x-2 px-4 sm:flex sm:flex-nowrap sm:gap-2 sm:px-4">
         <Link
@@ -89,5 +90,7 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
         </form>
       </div>
     </header>
+    <div aria-hidden="true" className="h-16 sm:h-12" />
+    </>
   );
 }

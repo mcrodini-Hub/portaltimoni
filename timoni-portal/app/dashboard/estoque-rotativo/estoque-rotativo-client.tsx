@@ -574,7 +574,7 @@ export default function EstoqueRotativoClient() {
                         href={selectedPreparedSupplier.spreadsheet_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex min-h-11 items-center rounded-xl bg-blue-800 px-4 text-sm font-semibold text-white"
+                        className="inline-flex min-h-9 items-center rounded-lg bg-blue-800 px-3 text-sm font-semibold text-white"
                       >
                         Abrir planilha para verificar
                       </a>
@@ -997,25 +997,52 @@ export default function EstoqueRotativoClient() {
       {data ? (
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Acompanhamento</p>
-            <h2 className="mt-2 text-xl font-semibold text-slate-950">Atualizações registradas</h2>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Estoque Rotativo</p>
+            <h2 className="mt-1 text-xl font-semibold text-slate-950">Planilhas atualizadas</h2>
           </div>
-          <div className="mt-4 space-y-3">
+          <div className="mt-3 space-y-2">
             {visibleUpdates.length ? visibleUpdates.map((item) => (
-              <article key={item.id} className="rounded-2xl border border-slate-200 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-semibold text-slate-950">{item.supplier_name}</p>
-                    <p className="mt-1 text-sm text-slate-600">{formatDate(item.reported_at)}</p>
-                    <p className="mt-2 text-xs text-slate-500">
-                      {item.items_read} lidos · {item.found_count} divergências · {item.not_found_count} não encontrados · {item.unchanged_count} OK
-                    </p>
+              <article key={item.id} className="rounded-xl border border-slate-200 px-3 py-2.5 sm:px-4">
+                <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                  <p className="min-w-0 shrink truncate text-sm font-semibold text-slate-950 sm:min-w-[150px]">{item.supplier_name}</p>
+                  <p className="shrink-0 whitespace-nowrap text-xs text-slate-500">{formatDate(item.reported_at)}</p>
+                  <p className="hidden min-w-0 flex-1 truncate text-xs text-slate-500 md:block">
+                    {item.items_read} lidos · {item.found_count} divergências · {item.not_found_count} não encontrados · {item.unchanged_count} OK
+                  </p>
+                  <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+                    <StatusBadge status={item.status} />
+                    <button
+                      type="button"
+                      disabled={busy || !data.permissions.canReport}
+                      onClick={() => reopenForEdit(item)}
+                      className="min-h-9 rounded-lg border border-slate-300 px-2.5 text-sm font-semibold text-slate-700 disabled:opacity-40"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || !data.permissions.canReport || editingId !== item.id}
+                      onClick={() => void saveEditedUpdate(item)}
+                      className="min-h-9 rounded-lg bg-blue-800 px-2.5 text-sm font-semibold text-white disabled:bg-slate-300"
+                    >
+                      Salvar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || !data.permissions.canManage}
+                      onClick={() => void removeUpdate(item)}
+                      className="min-h-9 rounded-lg border border-rose-200 px-2.5 text-sm font-semibold text-rose-700 disabled:opacity-40"
+                    >
+                      Excluir
+                    </button>
                   </div>
-                  <StatusBadge status={item.status} />
                 </div>
+                <p className="mt-1 truncate text-xs text-slate-500 md:hidden">
+                  {item.items_read} lidos · {item.found_count} divergências · {item.not_found_count} não encontrados · {item.unchanged_count} OK
+                </p>
                 {item.status === "atualizado" ? (
-                  <div className="mt-3 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-                    <p className="text-sm font-semibold text-emerald-900">
+                  <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+                    <p className="text-xs font-semibold text-emerald-900">
                       Rotativo conferido · {(item.conference_rows || []).length} item(ns)
                     </p>
                     <p className="mt-1 text-xs text-emerald-800">
@@ -1028,7 +1055,7 @@ export default function EstoqueRotativoClient() {
                     ) : (
                       <p className="mt-1 text-xs text-emerald-800">Nenhum estoque precisou ser alterado.</p>
                     )}
-                    <div className="mt-3 flex flex-wrap gap-2">
+                    <div className="mt-2 flex flex-wrap gap-2">
                       <a
                         href={updatedSheetUrl(item.id)}
                         target="_blank"
@@ -1050,7 +1077,7 @@ export default function EstoqueRotativoClient() {
                           type="url"
                           value={spreadsheetReference}
                           onChange={(event) => setSpreadsheetReference(event.target.value)}
-                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                          className="mt-1 min-h-9 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm"
                         />
                       </label>
                       <label className="text-xs font-semibold text-slate-700">
@@ -1058,7 +1085,7 @@ export default function EstoqueRotativoClient() {
                         <input
                           value={sourceSheetName}
                           onChange={(event) => setSourceSheetName(event.target.value)}
-                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                          className="mt-1 min-h-9 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm"
                         />
                       </label>
                       <label className="text-xs font-semibold text-slate-700">
@@ -1067,7 +1094,7 @@ export default function EstoqueRotativoClient() {
                           inputMode="numeric"
                           value={sourceStartRow}
                           onChange={(event) => setSourceStartRow(event.target.value.replace(/\D/g, ""))}
-                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"
+                          className="mt-1 min-h-9 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm"
                         />
                       </label>
                     </div>
@@ -1077,7 +1104,7 @@ export default function EstoqueRotativoClient() {
                         <input
                           value={sourceCodeColumn}
                           onChange={(event) => setSourceCodeColumn(event.target.value.toUpperCase())}
-                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm"
+                          className="mt-1 min-h-9 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm"
                         />
                       </label>
                       <label className="text-xs font-semibold text-slate-700">
@@ -1085,7 +1112,7 @@ export default function EstoqueRotativoClient() {
                         <input
                           value={sourcePurchaseCodeColumn}
                           onChange={(event) => setSourcePurchaseCodeColumn(event.target.value.toUpperCase())}
-                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm"
+                          className="mt-1 min-h-9 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm"
                         />
                       </label>
                       <label className="text-xs font-semibold text-slate-700">
@@ -1093,7 +1120,7 @@ export default function EstoqueRotativoClient() {
                         <input
                           value={sourceDescriptionColumn}
                           onChange={(event) => setSourceDescriptionColumn(event.target.value.toUpperCase())}
-                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm"
+                          className="mt-1 min-h-9 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm"
                         />
                       </label>
                       <label className="text-xs font-semibold text-slate-700">
@@ -1101,38 +1128,13 @@ export default function EstoqueRotativoClient() {
                         <input
                           value={sourceStockColumn}
                           onChange={(event) => setSourceStockColumn(event.target.value.toUpperCase())}
-                          className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-2 py-2 text-sm"
+                          className="mt-1 min-h-9 w-full rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-sm"
                         />
                       </label>
                     </div>
                   </div>
                 ) : null}
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={busy || !data.permissions.canReport}
-                    onClick={() => reopenForEdit(item)}
-                    className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold text-slate-700 disabled:opacity-40"
-                  >
-                    Editar
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy || !data.permissions.canReport || editingId !== item.id}
-                    onClick={() => void saveEditedUpdate(item)}
-                    className="rounded-lg bg-blue-800 px-3 py-2 text-sm font-semibold text-white disabled:bg-slate-300"
-                  >
-                    Salvar
-                  </button>
-                  <button
-                    type="button"
-                    disabled={busy || !data.permissions.canManage}
-                    onClick={() => void removeUpdate(item)}
-                    className="rounded-lg border border-rose-200 px-3 py-2 text-sm font-semibold text-rose-700 disabled:opacity-40"
-                  >
-                    Excluir
-                  </button>
-                </div>
+
               </article>
             )) : (
               <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">Nenhuma atualização registrada.</p>
@@ -1144,24 +1146,22 @@ export default function EstoqueRotativoClient() {
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Planilhas de fornecedores</p>
-            <h2 className="mt-2 text-xl font-semibold text-slate-950">Planilhas atualizadas</h2>
+            <h2 className="mt-1 text-xl font-semibold text-slate-950">Planilhas atualizadas</h2>
           </div>
-          <div className="mt-4 space-y-2">
+          <div className="mt-3 space-y-2">
             {(data.supplierStandardizations || []).filter((item) => item.status === "atualizada").length ? (
               (data.supplierStandardizations || [])
                 .filter((item) => item.status === "atualizada")
                 .map((item) => (
-                  <div key={item.spreadsheet_id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 px-4 py-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-950">{item.supplier_name}</p>
-                      <p className="mt-1 text-xs text-slate-500">{item.confirmed_at ? formatDate(item.confirmed_at) : ""}</p>
-                    </div>
-                    <div className="flex items-center gap-3">
+                  <div key={item.spreadsheet_id} className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 sm:px-4">
+                    <p className="min-w-0 shrink truncate text-sm font-semibold text-slate-950 sm:min-w-[150px]">{item.supplier_name}</p>
+                    <p className="shrink-0 whitespace-nowrap text-xs text-slate-500">{item.confirmed_at ? formatDate(item.confirmed_at) : ""}</p>
+                    <div className="ml-auto flex shrink-0 items-center gap-2">
                       <a
                         href={item.spreadsheet_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-sm font-semibold text-blue-800 underline"
+                        className="whitespace-nowrap text-sm font-semibold text-blue-800 underline"
                       >
                         Abrir planilha
                       </a>
@@ -1169,7 +1169,7 @@ export default function EstoqueRotativoClient() {
                         type="button"
                         onClick={() => void removeSupplierStandardization(item)}
                         disabled={busy}
-                        className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 disabled:opacity-50"
+                        className="min-h-9 rounded-lg border border-red-200 px-2.5 text-sm font-semibold text-red-700 disabled:opacity-50"
                       >
                         Excluir
                       </button>

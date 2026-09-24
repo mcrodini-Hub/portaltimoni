@@ -62,6 +62,7 @@ export default function ConfiguracoesClient() {
   const [error, setError] = useState("");
   const [userForm, setUserForm] = useState<PortalUser | null>(null);
   const [collaboratorForm, setCollaboratorForm] = useState<ConfiguredCollaborator | null>(null);
+  const [chatScope, setChatScope] = useState<"geral" | "rio claro" | "araras">("geral");
 
   async function load() {
     setLoading(true);
@@ -117,6 +118,30 @@ export default function ConfiguracoesClient() {
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível salvar.");
     } finally { setSaving(false); }
+  }
+
+  async function updateChatScope(enabled: boolean) {
+    setSaving(true); setError(""); setFeedback("");
+    try {
+      const response = await fetch("/api/configuracoes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section: "chat-unit", scope: chatScope, enabled }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Não foi possível atualizar o Chat.");
+      const updated = (result.users || []) as PortalUser[];
+      setData((current) => ({
+        ...current,
+        users: current.users.map((user) => updated.find((item) => item.email === user.email) || user),
+      }));
+      const label = chatScope === "geral" ? "Geral" : chatScope === "araras" ? "Araras" : "Rio Claro";
+      setFeedback(`Chat ${enabled ? "habilitado" : "desabilitado"} para ${label}.`);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível atualizar o Chat.");
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function removeCollaborator(member: ConfiguredCollaborator) {
@@ -217,6 +242,26 @@ export default function ConfiguracoesClient() {
           </div>
 
           {userForm && !data.users.some((user) => user.email === userForm.email) && renderUserEditor()}
+
+          <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4">
+            <div className="flex flex-wrap items-end gap-3">
+              <label className="min-w-56 flex-1 text-sm font-medium text-slate-700">
+                Chat por cidade
+                <select
+                  value={chatScope}
+                  onChange={(event) => setChatScope(event.target.value as "geral" | "rio claro" | "araras")}
+                  className="mt-1 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5"
+                >
+                  <option value="geral">Geral</option>
+                  <option value="rio claro">Rio Claro</option>
+                  <option value="araras">Araras</option>
+                </select>
+              </label>
+              <button type="button" disabled={saving} onClick={() => void updateChatScope(true)} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Habilitar Chat</button>
+              <button type="button" disabled={saving} onClick={() => void updateChatScope(false)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50">Desabilitar Chat</button>
+            </div>
+            <p className="mt-2 text-xs text-slate-600">Geral aplica a todos os acessos ativos. Rio Claro e Araras aplicam somente aos acessos ativos daquela cidade.</p>
+          </div>
 
           <div className="grid items-start gap-3 lg:grid-cols-2">
             {[...data.users].sort((a, b) => a.name.localeCompare(b.name)).map((user) => {

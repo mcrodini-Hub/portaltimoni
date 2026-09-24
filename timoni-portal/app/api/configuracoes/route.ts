@@ -77,13 +77,14 @@ function cleanCollaborator(value: Record<string, unknown>, users: PortalUser[]):
   const accessEmail = normalizeEmail(String(value.accessEmail || ""));
   const access = users.find((user) => user.email === accessEmail);
   if (!access) throw new Error("Selecione um acesso válido para este colaborador.");
-  if (!["Araras", "Rio Claro"].includes(access.unit)) throw new Error("O acesso precisa estar vinculado a Rio Claro ou Araras.");
+  const unit = access.unit === "Araras" ? "Araras" : access.unit === "Rio Claro" ? "Rio Claro" : null;
+  if (!unit) throw new Error("O acesso precisa estar vinculado a Rio Claro ou Araras.");
   const id = String(value.id || accessEmail.replace(/[^a-z0-9]+/g, "-"));
   return {
     id,
     accessEmail,
     name: access.name,
-    unit: access.unit as ConfiguredCollaborator["unit"],
+    unit,
     active: value.active !== false,
     noticeRequired: value.noticeRequired !== false,
     updatedAt: new Date().toISOString(),

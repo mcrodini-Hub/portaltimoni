@@ -69,3 +69,172 @@ section.border-blue-100.bg-blue-50 { display:none; }
   #internal-chat-dialog [data-chat-composer] { padding: .35rem!important; gap: .35rem!important; }
   #internal-chat-dialog [data-chat-composer] button { min-height: 2.35rem!important; padding-left: .7rem!important; padding-right: .7rem!important; font-size: 11px!important; }
 }
+
+
+/* Portal Timoni — padrão visual enxuto inspirado no módulo Compras.
+   Exclusivamente estético: não altera fluxos, dados, permissões ou integrações. */
+main {
+  --ct-card-radius: 1.25rem;
+  --ct-inner-radius: .9rem;
+  --ct-card-border: rgb(226 232 240);
+  --ct-card-shadow: 0 1px 3px rgba(15, 23, 42, .06), 0 6px 18px rgba(15, 23, 42, .035);
+}
+
+main section.rounded-3xl,
+main article.rounded-3xl {
+  border-radius: var(--ct-card-radius) !important;
+  box-shadow: var(--ct-card-shadow);
+}
+
+main .rounded-2xl {
+  border-radius: var(--ct-inner-radius) !important;
+}
+
+main h1 {
+  letter-spacing: -.02em;
+  font-weight: 500 !important;
+}
+
+main h2,
+main h3 {
+  letter-spacing: -.01em;
+}
+
+main input,
+main select,
+main textarea {
+  background: #fff;
+  border-color: rgb(203 213 225);
+  box-shadow: none;
+}
+
+main input:focus,
+main select:focus,
+main textarea:focus {
+  outline: none;
+  border-color: #13038D;
+  box-shadow: 0 0 0 2px rgba(19, 3, 141, .08);
+}
+
+main button,
+main a[role="button"] {
+  box-shadow: none;
+}
+
+main table {
+  line-height: 1.35;
+}
+
+@media (min-width: 641px) {
+  main {
+    font-size: 15px;
+  }
+
+  main > div.space-y-5,
+  main > div.space-y-6 {
+    row-gap: 1.25rem;
+  }
+
+  main section.rounded-3xl,
+  main article.rounded-3xl {
+    padding: 1.35rem !important;
+  }
+
+  main h1 {
+    font-size: 1.9rem !important;
+    line-height: 1.2 !important;
+  }
+
+  main h2 {
+    font-size: 1.18rem !important;
+    line-height: 1.3 !important;
+  }
+
+  main h3 {
+    font-size: 1rem !important;
+    line-height: 1.3 !important;
+  }
+
+  main button,
+  main a.inline-flex {
+    min-height: 2.6rem;
+  }
+}
+
+@media (max-width: 640px) {
+  main {
+    padding: .8rem !important;
+  }
+
+  main > div.space-y-5,
+  main > div.space-y-6 {
+    row-gap: .8rem;
+  }
+
+  main section.rounded-3xl,
+  main article.rounded-3xl {
+    padding: 1rem !important;
+  }
+
+  main h1 {
+    font-size: 1.4rem !important;
+    line-height: 1.25 !important;
+  }
+
+  main h2 {
+    font-size: 1.08rem !important;
+    line-height: 1.3 !important;
+  }
+
+  main h3 {
+    font-size: .98rem !important;
+    line-height: 1.3 !important;
+  }
+
+  main p,
+  main label,
+  main li,
+  main td,
+  main th,
+  main input,
+  main select,
+  main textarea,
+  main button,
+  main a {
+    line-height: 1.35;
+  }
+
+  main input,
+  main select {
+    min-height: 2.75rem;
+  }
+
+  main textarea {
+    min-height: 5rem;
+  }
+
+  main button,
+  main a.inline-flex {
+    min-height: 2.6rem;
+  }
+
+  main .grid {
+    column-gap: .65rem;
+    row-gap: .65rem;
+  }
+
+  .portal-dashboard section > a {
+    min-height: 4.6rem !important;
+    padding: .7rem .8rem !important;
+  }
+
+  .portal-dashboard section > a p:first-of-type {
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+  }
+
+  .portal-dashboard section > a p + p {
+    font-size: 20px !important;
+    margin-top: .35rem !important;
+  }
+}

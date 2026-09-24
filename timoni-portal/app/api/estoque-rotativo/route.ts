@@ -894,15 +894,18 @@ async function standardizeSupplierSpreadsheet(
   const standardizedAt = new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Sao_Paulo",
   }).format(new Date());
+  const preservedRotatingStockUpdated = formulas[1]?.[2] ?? "";
+  const preservedManualDate = formulas[3]?.[4] ?? "";
 
   topRows[0][0] = "Fornecedor 1:";
   topRows[0][1] = file.name;
   topRows[0][2] = `Padronizada em ${standardizedAt}`;
   topRows[1] = [];
+  topRows[1][2] = preservedRotatingStockUpdated;
 
   topRows[2][4] = "LUCAS";
   topRows[3] = [];
-  topRows[3][4] = "";
+  topRows[3][4] = preservedManualDate;
 
   const standardizedHeaders = [
     "COD-VENDA",
@@ -1008,6 +1011,18 @@ async function standardizeSupplierSpreadsheet(
         range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 2, endColumnIndex: 3 },
         cell: { userEnteredFormat: {
           backgroundColor: { red: 0.82, green: 0.9, blue: 1 },
+          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: false, foregroundColor: black },
+          horizontalAlignment: "CENTER",
+          verticalAlignment: "MIDDLE",
+        } },
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 2, endColumnIndex: 3 },
+        cell: { userEnteredFormat: {
+          backgroundColor: { red: 0.82, green: 0.95, blue: 0.84 },
           textFormat: { fontFamily: "Calibri", fontSize: 12, bold: false, foregroundColor: black },
           horizontalAlignment: "CENTER",
           verticalAlignment: "MIDDLE",
@@ -1148,6 +1163,54 @@ async function standardizeSupplierSpreadsheet(
     sheetName: selected.title,
     products: productRows.length,
   };
+}
+
+async function markSupplierRotatingStockUpdated(
+  sheets: sheets_v4.Sheets,
+  spreadsheetId: string,
+  sheetName: string,
+) {
+  const metadata = await sheets.spreadsheets.get({
+    spreadsheetId,
+    fields: "sheets.properties(sheetId,title)",
+  });
+  const sheet = metadata.data.sheets?.find((item) => item.properties?.title === sheetName);
+  const sheetId = sheet?.properties?.sheetId;
+  if (sheetId === undefined || sheetId === null) return;
+
+  const date = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Sao_Paulo",
+  }).format(new Date());
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'${sheetName.replace(/'/g, "''")}'!C2`,
+    valueInputOption: "RAW",
+    requestBody: { values: [[`Estoque Rotativo atualizado em ${date}`]] },
+  });
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [{
+        repeatCell: {
+          range: { sheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 2, endColumnIndex: 3 },
+          cell: { userEnteredFormat: {
+            backgroundColor: { red: 0.82, green: 0.95, blue: 0.84 },
+            textFormat: {
+              fontFamily: "Calibri",
+              fontSize: 12,
+              bold: false,
+              foregroundColor: { red: 0, green: 0, blue: 0 },
+            },
+            horizontalAlignment: "CENTER",
+            verticalAlignment: "MIDDLE",
+          } },
+          fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+        },
+      }],
+    },
+  });
 }
 
 async function clearSupplierReviewHighlight(
@@ -1879,6 +1942,7 @@ export async function POST(request: Request) {
         });
       }
 
+      await markSupplierRotatingStockUpdated(sheets, sourceSpreadsheetId, update.source_sheet_name);
       await concludeRotatingStockCard(update.trello_card_id || "", update.supplier_name);
       await finishConference(id, email, selected.map((item) => item.id), matched.map((item) => item.target_row!));
       await recordModuleUpdateSafely(

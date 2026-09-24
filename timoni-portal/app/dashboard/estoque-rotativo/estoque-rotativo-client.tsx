@@ -672,9 +672,9 @@ export default function EstoqueRotativoClient() {
               />
             </label>
 
-            <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
-              <label className="text-sm font-semibold text-slate-800">
-                Aba
+            <div className="mt-4 grid items-end gap-3 sm:grid-cols-2 lg:grid-cols-7">
+              <label className="text-sm font-semibold text-slate-800 lg:col-span-2">
+                <span className="block h-5 whitespace-nowrap">Aba</span>
                 <input
                   value={sourceSheetName}
                   onChange={(event) => setSourceSheetName(event.target.value)}
@@ -683,7 +683,7 @@ export default function EstoqueRotativoClient() {
                 />
               </label>
               <label className="text-sm font-semibold text-slate-800">
-                Cod-venda
+                <span className="block h-5 whitespace-nowrap">Cod-venda</span>
                 <input
                   value={sourceCodeColumn}
                   onChange={(event) => setSourceCodeColumn(event.target.value.toUpperCase())}
@@ -691,7 +691,7 @@ export default function EstoqueRotativoClient() {
                 />
               </label>
               <label className="text-sm font-semibold text-slate-800">
-                Cod-compra <span className="text-rose-600">*</span>
+                <span className="flex h-5 items-center gap-1 whitespace-nowrap">Cod-compra <span className="text-rose-600">*</span></span>
                 <input
                   value={sourcePurchaseCodeColumn}
                   onChange={(event) => setSourcePurchaseCodeColumn(event.target.value.toUpperCase())}
@@ -699,7 +699,7 @@ export default function EstoqueRotativoClient() {
                 />
               </label>
               <label className="text-sm font-semibold text-slate-800">
-                Descrição
+                <span className="block h-5 whitespace-nowrap">Descrição</span>
                 <input
                   value={sourceDescriptionColumn}
                   onChange={(event) => setSourceDescriptionColumn(event.target.value.toUpperCase())}
@@ -707,7 +707,7 @@ export default function EstoqueRotativoClient() {
                 />
               </label>
               <label className="text-sm font-semibold text-slate-800">
-                Estoque
+                <span className="block h-5 whitespace-nowrap">Estoque</span>
                 <input
                   value={sourceStockColumn}
                   onChange={(event) => setSourceStockColumn(event.target.value.toUpperCase())}
@@ -715,7 +715,7 @@ export default function EstoqueRotativoClient() {
                 />
               </label>
               <label className="text-sm font-semibold text-slate-800">
-                Linha inicial
+                <span className="block h-5 whitespace-nowrap">Linha inicial</span>
                 <input
                   type="text"
                   inputMode="numeric"

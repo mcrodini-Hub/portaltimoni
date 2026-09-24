@@ -9,7 +9,7 @@ export async function GET() {
   const session = await auth();
   const email = session?.user?.email?.trim().toLowerCase();
 
-  if (!email || !hasModuleAccess(email, "motorista", session.portalUser)) {
+  if (!email || !hasModuleAccess(email, "motorista", session?.portalUser)) {
     return NextResponse.json({ ok: false, error: "Acesso não autorizado." }, { status: 403 });
   }
   if (!session.accessToken) {

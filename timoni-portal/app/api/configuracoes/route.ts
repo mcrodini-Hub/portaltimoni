@@ -123,6 +123,38 @@ export async function PUT(request: Request) {
         appendAudit(current.accessToken, "Colaborador atualizado", `${item.name} · ${item.unit} · ${item.accessEmail}`, current.email),
       ]);
       return NextResponse.json({ ok: true, item });
+    } else if (body.section === "chat-unit") {
+      const scope = String(body.scope || "").trim().toLowerCase();
+      const enabled = body.enabled !== false;
+      if (!["geral", "rio claro", "araras"].includes(scope)) {
+        return NextResponse.json({ error: "Cidade inválida para o Chat." }, { status: 400 });
+      }
+      const configuration = await loadPortalConfiguration(current.accessToken);
+      const targets = configuration.users.filter((user) =>
+        user.active !== false &&
+        (scope === "geral" || user.unit?.toLowerCase() === scope)
+      );
+      const updatedUsers = targets.map((user) => {
+        const modules = enabled
+          ? [...new Set([...user.modules, "chat" as PortalModule])]
+          : user.modules.filter((module) => module !== "chat");
+        const mobileModules = user.mobileModules === undefined
+          ? undefined
+          : enabled
+            ? [...new Set([...user.mobileModules, "chat" as PortalModule])]
+            : user.mobileModules.filter((module) => module !== "chat");
+        return { ...user, modules, mobileModules };
+      });
+      for (const user of updatedUsers) {
+        await upsertPortalUser(current.accessToken, user);
+      }
+      await appendAudit(
+        current.accessToken,
+        enabled ? "Chat habilitado por cidade" : "Chat desabilitado por cidade",
+        `${scope === "geral" ? "Geral" : scope === "araras" ? "Araras" : "Rio Claro"} · ${updatedUsers.length} acesso(s)`,
+        current.email,
+      );
+      return NextResponse.json({ ok: true, users: updatedUsers });
     } else {
       return NextResponse.json({ error: "Alteração inválida." }, { status: 400 });
     }

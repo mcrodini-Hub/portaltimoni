@@ -891,15 +891,18 @@ async function standardizeSupplierSpreadsheet(
     }
   }
 
-  topRows[0][0] = "FORNECEDOR";
+  const standardizedAt = new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit", month: "2-digit", year: "numeric", timeZone: "America/Sao_Paulo",
+  }).format(new Date());
+
+  topRows[0][0] = "Fornecedor 1:";
   topRows[0][1] = file.name;
+  topRows[0][2] = `Padronizada em ${standardizedAt}`;
   topRows[1] = [];
 
+  topRows[2][4] = "LUCAS";
   topRows[3] = [];
-  topRows[3][2] = "LUCAS";
-  topRows[3][4] = new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit", month: "2-digit", year: "2-digit", timeZone: "America/Sao_Paulo",
-  }).format(new Date());
+  topRows[3][4] = "";
 
   const standardizedHeaders = [
     "COD-VENDA",
@@ -990,6 +993,30 @@ async function standardizeSupplierSpreadsheet(
     },
     {
       repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 1, endColumnIndex: 2 },
+        cell: { userEnteredFormat: {
+          backgroundColor: white,
+          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: true, foregroundColor: { red: 0.831, green: 0.047, blue: 0.051 } },
+          horizontalAlignment: "LEFT",
+          verticalAlignment: "MIDDLE",
+        } },
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 2, endColumnIndex: 3 },
+        cell: { userEnteredFormat: {
+          backgroundColor: { red: 0.82, green: 0.9, blue: 1 },
+          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: false, foregroundColor: black },
+          horizontalAlignment: "CENTER",
+          verticalAlignment: "MIDDLE",
+        } },
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+      },
+    },
+    {
+      repeatCell: {
         range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: outputWidth },
         cell: { userEnteredFormat: {
           backgroundColor: blue,
@@ -1023,11 +1050,13 @@ async function standardizeSupplierSpreadsheet(
     },
     {
       repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 2, endColumnIndex: 3 },
+        range: { sheetId: selected.sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 4, endColumnIndex: 5 },
         cell: { userEnteredFormat: {
-          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: true, foregroundColor: black },
+          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: true, foregroundColor: { red: 0.831, green: 0.047, blue: 0.051 } },
+          horizontalAlignment: "CENTER",
+          verticalAlignment: "MIDDLE",
         } },
-        fields: "userEnteredFormat.textFormat",
+        fields: "userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment)",
       },
     },
     {
@@ -1035,10 +1064,20 @@ async function standardizeSupplierSpreadsheet(
         range: { sheetId: selected.sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 4, endColumnIndex: 5 },
         cell: { userEnteredFormat: {
           textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: black },
+          numberFormat: { type: "DATE", pattern: "dd/mm/yy" },
           horizontalAlignment: "CENTER",
           verticalAlignment: "MIDDLE",
         } },
-        fields: "userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment)",
+        fields: "userEnteredFormat(textFormat,numberFormat,horizontalAlignment,verticalAlignment)",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 5, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: outputWidth },
+        cell: { userEnteredFormat: {
+          textFormat: { fontFamily: "Calibri", fontSize: 11, bold: false, foregroundColor: black },
+        } },
+        fields: "userEnteredFormat.textFormat",
       },
     },
     {

@@ -8,16 +8,17 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const session = await auth();
   const email = session?.user?.email?.trim().toLowerCase();
+  const accessToken = session?.accessToken;
 
   if (!email || !hasModuleAccess(email, "motorista", session?.portalUser)) {
     return NextResponse.json({ ok: false, error: "Acesso não autorizado." }, { status: 403 });
   }
-  if (!session.accessToken) {
+  if (!accessToken) {
     return NextResponse.json({ ok: false, error: "Sessão expirada." }, { status: 401 });
   }
 
   try {
-    const configuration = await loadPortalConfiguration(session.accessToken);
+    const configuration = await loadPortalConfiguration(accessToken);
     const responsaveis = configuration.users
       .filter((user) =>
         user.active !== false &&

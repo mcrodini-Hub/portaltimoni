@@ -94,7 +94,6 @@ export async function GET() {
       (context.email === ADMIN_EMAIL || canViewComunicado(item, context.email, unit))
     );
     const activeCount = activeItems.filter((item) => {
-      if (context.email === ADMIN_EMAIL) return true;
       const membersForNotice = requiredMembers.filter((member) =>
         item.unit === "geral" ||
         (item.unit === "araras" && member.unit === "Araras") ||

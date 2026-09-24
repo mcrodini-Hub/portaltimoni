@@ -910,7 +910,6 @@ async function standardizeSupplierSpreadsheet(
   topRows[3][4] = preservedManualDate;
 
   const standardizedHeaders = [
-    "ITEM",
     "COD-VENDA",
     "COD-COMPRA",
     "DESCRIÇÃO",
@@ -932,7 +931,6 @@ async function standardizeSupplierSpreadsheet(
     const stockValue = formulaRow[detection.stockColumn!] ?? "";
     if ([saleValue, purchaseValue, description, stockValue].every((value) => value === "" || value === undefined || value === null)) continue;
     productRows.push([
-      "",
       String(saleValue ?? "").trim(),
       String(purchaseValue ?? "").trim(),
       description,
@@ -943,9 +941,8 @@ async function standardizeSupplierSpreadsheet(
   }
 
   productRows.sort((left, right) =>
-    String(left[3] ?? "").localeCompare(String(right[3] ?? ""), "pt-BR", { sensitivity: "base", numeric: true }),
+    String(left[2] ?? "").localeCompare(String(right[2] ?? ""), "pt-BR", { sensitivity: "base", numeric: true }),
   );
-  productRows.forEach((row, index) => { row[0] = String(index + 1); });
 
   const output = [...topRows, standardizedHeaders, ...productRows];
   const outputWidth = Math.max(...output.map((row) => row.length), 5);
@@ -1049,21 +1046,21 @@ async function standardizeSupplierSpreadsheet(
     },
     {
       repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: 3 },
+        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: 2 },
         cell: { userEnteredFormat: { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } },
         fields: "userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment",
       },
     },
     {
       repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 3, endColumnIndex: 4 },
+        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 2, endColumnIndex: 3 },
         cell: { userEnteredFormat: { horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE" } },
         fields: "userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment",
       },
     },
     {
       repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 4, endColumnIndex: outputWidth },
+        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 3, endColumnIndex: outputWidth },
         cell: { userEnteredFormat: { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } },
         fields: "userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment",
       },
@@ -1102,7 +1099,7 @@ async function standardizeSupplierSpreadsheet(
     },
     {
       repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 5, endRowIndex: output.length, startColumnIndex: 1, endColumnIndex: 3 },
+        range: { sheetId: selected.sheetId, startRowIndex: 5, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: 2 },
         cell: { userEnteredFormat: { numberFormat: { type: "TEXT", pattern: "@" } } },
         fields: "userEnteredFormat.numberFormat",
       },
@@ -1164,13 +1161,13 @@ async function standardizeSupplierSpreadsheet(
           sheetId: selected.sheetId,
           startRowIndex: 5,
           endRowIndex: output.length,
-          startColumnIndex: 1,
-          endColumnIndex: 2,
+          startColumnIndex: 0,
+          endColumnIndex: 1,
         }],
         booleanRule: {
           condition: {
             type: "CUSTOM_FORMULA",
-            values: [{ userEnteredValue: '=$B6=""' }],
+            values: [{ userEnteredValue: '=$A6=""' }],
           },
           format: { backgroundColor: { red: 1, green: 1, blue: 0 } },
         },

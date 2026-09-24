@@ -126,10 +126,10 @@ export default function EstoqueRotativoClient() {
   const [note, setNote] = useState("");
   const [sourceSheetName, setSourceSheetName] = useState("");
   const [detectingSheet, setDetectingSheet] = useState(false);
-  const [sourceCodeColumn, setSourceCodeColumn] = useState("B");
-  const [sourcePurchaseCodeColumn, setSourcePurchaseCodeColumn] = useState("C");
-  const [sourceDescriptionColumn, setSourceDescriptionColumn] = useState("D");
-  const [sourceStockColumn, setSourceStockColumn] = useState("F");
+  const [sourceCodeColumn, setSourceCodeColumn] = useState("A");
+  const [sourcePurchaseCodeColumn, setSourcePurchaseCodeColumn] = useState("B");
+  const [sourceDescriptionColumn, setSourceDescriptionColumn] = useState("C");
+  const [sourceStockColumn, setSourceStockColumn] = useState("E");
   const [sourceStartRow, setSourceStartRow] = useState("6");
   const [editingConferenceItemId, setEditingConferenceItemId] = useState<string | null>(null);
   const [editingSaleCode, setEditingSaleCode] = useState("");

@@ -202,7 +202,9 @@ export default function EstoqueRotativoClient() {
   const supplierPending = Math.max(0, (data?.supplierFiles?.length || 0) - supplierUpdated);
   const preparedSupplier = (data?.supplierStandardizations || []).find((item) => item.status === "preparada") || null;
   const pendingSupplierFiles = useMemo(
-    () => (data?.supplierFiles || []).filter((item) => !supplierUpdatedIds.has(item.id)),
+    () => (data?.supplierFiles || [])
+      .filter((item) => !supplierUpdatedIds.has(item.id))
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" })),
     [data?.supplierFiles, supplierUpdatedIds],
   );
   const nextSupplier = preparedSupplier ? null : pendingSupplierFiles[0] || null;
@@ -502,53 +504,53 @@ export default function EstoqueRotativoClient() {
               </label>
               {selectedStandardizationSupplier ? (
                 <div className="mt-3 flex flex-wrap gap-2">
-                  <a
-                    href={selectedStandardizationSupplier.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex min-h-11 items-center rounded-xl border border-blue-200 px-4 text-sm font-semibold text-blue-800"
-                  >
-                    Abrir planilha
-                  </a>
-                  {!preparedSupplier ? (
-                    <button
-                      type="button"
-                      onClick={() => void standardizeNextSupplier(selectedStandardizationSupplier.id)}
-                      disabled={busy || standardizingSupplier}
-                      className="min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:bg-slate-300"
-                    >
-                      {standardizingSupplier ? "Padronizando..." : "Padronizar e abrir"}
-                    </button>
-                  ) : null}
+                  {preparedSupplier?.spreadsheet_id === selectedStandardizationSupplier.id ? (
+                    <>
+                      <a
+                        href={preparedSupplier.spreadsheet_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-h-11 items-center rounded-xl bg-blue-800 px-4 text-sm font-semibold text-white"
+                      >
+                        Abrir planilha para verificar
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => void confirmSupplierSheet()}
+                        disabled={busy}
+                        className="min-h-11 rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white disabled:opacity-50"
+                      >
+                        Marcar planilha como atualizada
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <a
+                        href={selectedStandardizationSupplier.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex min-h-11 items-center rounded-xl border border-blue-200 px-4 text-sm font-semibold text-blue-800"
+                      >
+                        Abrir planilha
+                      </a>
+                      {!preparedSupplier ? (
+                        <button
+                          type="button"
+                          onClick={() => void standardizeNextSupplier(selectedStandardizationSupplier.id)}
+                          disabled={busy || standardizingSupplier}
+                          className="min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:bg-slate-300"
+                        >
+                          {standardizingSupplier ? "Padronizando..." : "Padronizar e abrir"}
+                        </button>
+                      ) : null}
+                    </>
+                  )}
                 </div>
               ) : null}
             </div>
           ) : null}
 
-          {preparedSupplier ? (
-            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-5">
-              <p className="text-xs font-semibold uppercase tracking-wide text-amber-800">Aguardando sua conferência</p>
-              <p className="mt-2 text-lg font-semibold text-slate-950">{preparedSupplier.supplier_name}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <a
-                  href={preparedSupplier.spreadsheet_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex min-h-11 items-center rounded-xl bg-blue-800 px-4 text-sm font-semibold text-white"
-                >
-                  Abrir planilha para verificar
-                </a>
-                <button
-                  type="button"
-                  onClick={() => void confirmSupplierSheet()}
-                  disabled={busy}
-                  className="min-h-11 rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white disabled:opacity-50"
-                >
-                  Marcar planilha como atualizada
-                </button>
-              </div>
-            </div>
-          ) : !pendingSupplierFiles.length ? (
+          {!pendingSupplierFiles.length ? (
             <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 sm:p-5">
               Todas as planilhas de fornecedores estão atualizadas.
             </p>

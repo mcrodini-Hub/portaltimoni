@@ -8,7 +8,7 @@ type Tab = "acessos" | "colaboradores" | "backup" | "historico" | "guia";
 type ConfigurationResponse = { users: PortalUser[]; collaborators: ConfiguredCollaborator[]; history: PortalAuditEntry[] };
 
 const MODULES: Array<{ id: PortalModule; label: string }> = [
-  { id: "painel", label: "Avisos/Painel" },
+  { id: "painel", label: "Avisos" },
   { id: "agenda", label: "Agenda Ciça" },
   { id: "agenda-ct", label: "Agenda CT" },
   { id: "chat", label: "Chat" },
@@ -189,12 +189,10 @@ export default function ConfiguracoesClient() {
           <label className="text-sm font-medium text-slate-700">Unidade<select value={userForm.unit} onChange={(e) => setUserForm({ ...userForm, unit: e.target.value as PortalUser["unit"] })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option>Rio Claro</option><option>Araras</option><option>Geral</option></select></label>
         </div>
         <div className="mt-3"><p className="text-sm font-semibold text-slate-900">Permissões dos módulos</p><div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">{MODULES.map((module) => <Checkbox key={module.id} label={module.label} checked={userForm.modules.includes(module.id)} onChange={(checked) => toggleModule(module.id, checked)} />)}</div></div>
-        <details className="mt-3 rounded-lg border border-slate-200 p-2"><summary className="cursor-pointer text-sm font-semibold text-slate-900">Boxes visíveis no Painel</summary><div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">{BOXES.map((box) => <Checkbox key={box.id} label={box.label} checked={(userForm.boxes || []).includes(box.id)} disabled={!userForm.modules.includes(box.requiresModule)} onChange={(checked) => setUserForm({ ...userForm, boxes: checked ? [...new Set([...(userForm.boxes || []), box.id])] : (userForm.boxes || []).filter((item) => item !== box.id) })} />)}</div></details>
         <details className="mt-2 rounded-lg border border-slate-200 p-2"><summary className="cursor-pointer text-sm font-semibold text-slate-900">Mostrar no menu mobile</summary><p className="mt-1 text-xs text-slate-600">Por padrão, mostra todos os módulos permitidos. Ocultar do menu não altera o acesso.</p><div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">{MODULES.filter((module) => userForm.modules.includes(module.id)).map((module) => <Checkbox key={module.id} label={module.label} checked={(userForm.mobileModules ?? userForm.modules).includes(module.id)} onChange={(checked) => setUserForm({ ...userForm, mobileModules: checked ? [...new Set([...(userForm.mobileModules ?? userForm.modules), module.id])] : (userForm.mobileModules ?? userForm.modules).filter((item) => item !== module.id) })} />)}</div></details>
-        <div className="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+        <div className="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
           <Checkbox label="Acesso ativo" checked={userForm.active !== false} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => setUserForm({ ...userForm, active: checked })} />
           <Checkbox label="Somente leitura" checked={Boolean(userForm.readOnly)} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => setUserForm({ ...userForm, readOnly: checked })} />
-          <Checkbox label="Entrar direto em Avisos" checked={Boolean(userForm.directPainel)} onChange={(checked) => setUserForm({ ...userForm, directPainel: checked })} />
         </div>
         <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setUserForm(null)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancelar</button><button type="button" disabled={saving} onClick={() => void save("user", userForm)} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? "Salvando..." : "Salvar acesso"}</button></div>
       </div>
@@ -206,7 +204,7 @@ export default function ConfiguracoesClient() {
       <header className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Acesso da gestão</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Configurações</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Gerencie quem utiliza o Portal, o que cada acesso pode abrir e quais boxes aparecem no Painel.</p>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Gerencie quem utiliza o Portal e quais módulos cada acesso pode abrir.</p>
       </header>
 
       <section className="grid gap-3 sm:grid-cols-3">
@@ -226,7 +224,7 @@ export default function ConfiguracoesClient() {
       {!loading && tab === "acessos" && (
         <section className="mt-5 space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><h2 className="text-xl font-semibold text-slate-950">Acessos</h2><p className="mt-1 text-sm text-slate-600">Permissão libera o módulo; box controla apenas o atalho no Painel.</p></div>
+            <div><h2 className="text-xl font-semibold text-slate-950">Acessos</h2><p className="mt-1 text-sm text-slate-600">Defina os módulos disponíveis para cada acesso.</p></div>
             <button type="button" onClick={() => setUserForm({ ...EMPTY_USER })} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white">+ Novo acesso</button>
           </div>
 
@@ -241,7 +239,7 @@ export default function ConfiguracoesClient() {
                     <div><p className="font-semibold text-slate-950">{user.name}</p><p className="mt-1 text-sm text-slate-600">{user.email}</p><p className="mt-1 text-xs text-slate-500">{user.unit} · Último acesso: {dateLabel(user.lastAccess)}</p></div>
                     <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${user.active === false ? "bg-slate-100 text-slate-600" : "bg-emerald-100 text-emerald-800"}`}>{user.active === false ? "Desativado" : "Ativo"}</span>
                   </div>
-                  <p className="mt-3 text-sm text-slate-700">{user.modules.length} módulos · {(user.boxes || []).length} boxes</p>
+                  <p className="mt-3 text-sm text-slate-700">{user.modules.length} módulos</p>
                   {!editing && <div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => setUserForm({ ...user, boxes: [...(user.boxes || [])], modules: [...user.modules] })} className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-800">Editar permissões</button><button type="button" onClick={() => setUserForm({ ...user, email: "", name: `Cópia de ${user.name}`, lastAccess: "" })} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">Duplicar permissões</button></div>}
                   {editing && renderUserEditor(true)}
                 </article>
@@ -271,8 +269,8 @@ export default function ConfiguracoesClient() {
             <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Consulte abaixo o funcionamento dos principais módulos. Abra cada tópico para ver as orientações. O Portal mostra a cada usuário apenas os módulos liberados para o seu acesso.</p>
           </div>
           <div className="mt-4 grid gap-3">
-            <GuideItem title="1. Painel e Avisos">
-              <p>O Painel é o ponto inicial do Portal. Use os boxes para entrar nos módulos disponíveis. Em Avisos, leia os comunicados da unidade e, quando o seu acesso exigir confirmação, registre a ciência pelo botão disponível no card.</p>
+            <GuideItem title="1. Avisos">
+              <p>Avisos reúne os comunicados da unidade. Quando o colaborador vinculado ao acesso exigir confirmação, registre a ciência pelo botão disponível no card.</p>
             </GuideItem>
             <GuideItem title="2. Motorista">
               <p>No Dashboard do Motorista, consulte viagens, bloqueios, endereços, observações e situação de cada serviço. Use os botões de ação somente quando necessário e confira data, empresa, NF/Pedido e endereço antes de alterar um registro. A tela pública do motorista recebe as atualizações do mesmo cadastro.</p>
@@ -287,7 +285,7 @@ export default function ConfiguracoesClient() {
               <p>Em Leads, acompanhe as listas FOLLOW UP e A PROSPECTAR. Registre contatos, próxima data e observações. Use STATUS para transferir o cliente entre as listas e consulte os indicadores para acompanhar realizado, pendente e evolução do trabalho comercial.</p>
             </GuideItem>
             <GuideItem title="6. Reuniões e demais módulos">
-              <p>Use cada módulo apenas para a finalidade indicada no Portal. Os conteúdos e botões disponíveis variam conforme a permissão do usuário. Quando um módulo não aparecer no cabeçalho ou no Painel, ele não está liberado para aquele acesso.</p>
+              <p>Use cada módulo apenas para a finalidade indicada no Portal. Os conteúdos e botões disponíveis variam conforme a permissão do usuário. Quando um módulo não aparecer no cabeçalho, ele não está liberado para aquele acesso.</p>
             </GuideItem>
             <GuideItem title="7. Configurações — permissões">
               <p>Configurações é uma área de gestão.</p>
@@ -299,7 +297,7 @@ export default function ConfiguracoesClient() {
                 <li>Realizar backups e restauração de dados.</li>
                 <li>Consultar o histórico de ações.</li>
                 <li>Acessar e editar o Guia de uso.</li>
-                <li>Acessar todas as informações e módulos do Painel.</li>
+                <li>Acessar os módulos liberados para a gestão.</li>
               </ul>
               <p>O nível de acesso e as permissões de cada usuário podem variar conforme a necessidade da função. Ao alterar permissões, revise com cuidado quais módulos e boxes ficarão disponíveis para cada usuário.</p>
             </GuideItem>

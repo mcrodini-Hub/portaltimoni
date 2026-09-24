@@ -12,6 +12,7 @@ const USERS_SHEET = "PortalUsuarios";
 const COLLABORATORS_SHEET = "PortalColaboradores";
 const HISTORY_SHEET = "PortalHistorico";
 const ROTATING_STOCK_MIGRATION = "Permissões Estoque Rotativo v1";
+const THAIS_EMAIL = "caixarctimoni@gmail.com";
 const REQUIRED_SHEETS = [USERS_SHEET, COLLABORATORS_SHEET, HISTORY_SHEET];
 export const CICA_EMAIL = "mcrodini@gmail.com";
 export const DASHBOARD_BOX_MODULES: PortalModule[] = ["painel", "agenda", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads"];
@@ -293,7 +294,14 @@ export async function appendAudit(accessToken: string, action: string, details: 
 export async function ensurePortalConfiguration(accessToken: string) {
   await ensureSheets(accessToken);
   const [users, collaborators] = await Promise.all([readUsers(accessToken), readCollaborators(accessToken)]);
-  if (!users.length) await writeUsers(accessToken, defaultPortalUsers());
+  if (!users.length) {
+    await writeUsers(accessToken, defaultPortalUsers());
+  } else {
+    const thais = users.find((user) => user.email === THAIS_EMAIL);
+    if (thais && thais.active !== false) {
+      await upsertPortalUser(accessToken, { ...thais, active: false, readOnly: true });
+    }
+  }
   if (!collaborators.length) await writeCollaborators(accessToken, defaultCollaborators());
 }
 

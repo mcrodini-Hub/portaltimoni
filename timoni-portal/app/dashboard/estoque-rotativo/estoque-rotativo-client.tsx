@@ -262,6 +262,15 @@ export default function EstoqueRotativoClient() {
     await load();
   }
 
+  async function removeSupplierStandardization(item: SupplierStandardization) {
+    if (!data?.permissions.canManage || item.status !== "atualizada") return;
+    if (!window.confirm(`Excluir ${item.supplier_name} dos fornecedores padronizados para refazer o teste?`)) return;
+    const result = await post({ action: "excluir_fornecedor_padronizado", spreadsheetId: item.spreadsheet_id });
+    if (!result) return;
+    setFeedback(`${item.supplier_name} voltou para Padronizar fornecedor.`);
+    await load();
+  }
+
   function reopenForEdit(item: Update) {
     setActiveId(null);
     setEditingId(item.id);
@@ -476,7 +485,7 @@ export default function EstoqueRotativoClient() {
           </div>
 
           {showStandardizationSupplierSelector && pendingSupplierFiles.length ? (
-            <div className="mt-4 rounded-2xl border border-slate-200 p-4 sm:p-5">
+            <div className="mt-3 rounded-2xl border border-slate-200 p-3 sm:mt-4 sm:p-5">
               <label className="block text-sm font-semibold text-slate-800">
                 Empresa
                 <select
@@ -491,14 +500,28 @@ export default function EstoqueRotativoClient() {
                   ))}
                 </select>
               </label>
-              <button
-                type="button"
-                onClick={() => selectedStandardizationSupplier && void standardizeNextSupplier(selectedStandardizationSupplier.id)}
-                disabled={busy || standardizingSupplier || !selectedStandardizationSupplier || Boolean(preparedSupplier)}
-                className="mt-3 min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:bg-slate-300"
-              >
-                {preparedSupplier ? "Aprove a planilha atual primeiro" : standardizingSupplier ? "Padronizando..." : "Padronizar e abrir planilha"}
-              </button>
+              {selectedStandardizationSupplier ? (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <a
+                    href={selectedStandardizationSupplier.url}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex min-h-11 items-center rounded-xl border border-blue-200 px-4 text-sm font-semibold text-blue-800"
+                  >
+                    Abrir planilha
+                  </a>
+                  {!preparedSupplier ? (
+                    <button
+                      type="button"
+                      onClick={() => void standardizeNextSupplier(selectedStandardizationSupplier.id)}
+                      disabled={busy || standardizingSupplier}
+                      className="min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:bg-slate-300"
+                    >
+                      {standardizingSupplier ? "Padronizando..." : "Padronizar e abrir"}
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           ) : null}
 
@@ -981,14 +1004,24 @@ export default function EstoqueRotativoClient() {
                       <p className="text-sm font-semibold text-slate-950">{item.supplier_name}</p>
                       <p className="mt-1 text-xs text-slate-500">{item.confirmed_at ? formatDate(item.confirmed_at) : ""}</p>
                     </div>
-                    <a
-                      href={item.spreadsheet_url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="text-sm font-semibold text-blue-800 underline"
-                    >
-                      Abrir planilha
-                    </a>
+                    <div className="flex items-center gap-3">
+                      <a
+                        href={item.spreadsheet_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-sm font-semibold text-blue-800 underline"
+                      >
+                        Abrir planilha
+                      </a>
+                      <button
+                        type="button"
+                        onClick={() => void removeSupplierStandardization(item)}
+                        disabled={busy}
+                        className="rounded-lg border border-red-200 px-3 py-2 text-sm font-semibold text-red-700 disabled:opacity-50"
+                      >
+                        Excluir
+                      </button>
+                    </div>
                   </div>
                 ))
             ) : (

@@ -52,8 +52,8 @@ type FormState = {
 
 type Modo = "dia" | "semana" | "mes";
 type Seller = { nome: string; unidade: string };
+type Responsible = { email: string; name: string; unit: string };
 
-const AUTORIZADOS = ["Ciça", "Thais", "Jaqueline", "Jeovana", "Margareth", "Reginaldo", "Carol Araras"] as const;
 
 const REQUIRED: Array<keyof FormState> = [
   "loja",
@@ -306,7 +306,8 @@ export default function MotoristaAgenda() {
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
   const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());
-  const [sellers, setSellers] = useState<Seller[]>([]);\n  const [responsibles, setResponsibles] = useState<Responsible[]>([]);
+  const [sellers, setSellers] = useState<Seller[]>([]);
+  const [responsibles, setResponsibles] = useState<Responsible[]>([]);
 
   const diasMes = useMemo(() => monthDays(mesBase), [mesBase]);
   const diasSemana = useMemo(() => weekDays(selecionado), [selecionado]);

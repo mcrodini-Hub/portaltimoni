@@ -1,7 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useState } from "react";
-import type { PortalBox, PortalModule, PortalUser } from "@/lib/access-control";
+import type { PortalModule, PortalUser } from "@/lib/access-control";
 import type { ConfiguredCollaborator, PortalAuditEntry } from "@/lib/portal-config";
 
 type Tab = "acessos" | "colaboradores" | "backup" | "historico" | "guia";
@@ -21,18 +21,6 @@ const MODULES: Array<{ id: PortalModule; label: string }> = [
   { id: "leads", label: "Leads" },
   { id: "marketing", label: "Marketing" },
   { id: "financeiro", label: "Financeiro" },
-];
-const BOXES: Array<{ id: PortalBox; label: string; requiresModule: PortalModule }> = [
-  { id: "painel", label: "Avisos/Painel", requiresModule: "painel" },
-  { id: "agenda", label: "Agenda Ciça", requiresModule: "agenda" },
-  { id: "compras", label: "Compras", requiresModule: "compras" },
-  { id: "conferencia", label: "Conferência", requiresModule: "conferencia" },
-  { id: "estoque", label: "Estoque", requiresModule: "estoque" },
-  { id: "estoque-rotativo", label: "Estoque Rotativo", requiresModule: "estoque-rotativo" },
-  { id: "motorista", label: "Motorista", requiresModule: "motorista" },
-  { id: "reunioes", label: "Reuniões", requiresModule: "reunioes" },
-  { id: "leads", label: "Leads", requiresModule: "leads" },
-  { id: "espaco-equipe", label: "Espaço Equipe", requiresModule: "painel" },
 ];
 const EMPTY_USER: PortalUser = { name: "", email: "", unit: "Rio Claro", modules: ["painel"], boxes: [], requiresPassword: false, readOnly: true, active: true, directPainel: true };
 const EMPTY_COLLABORATOR: ConfiguredCollaborator = { id: "", accessEmail: "", name: "", unit: "Rio Claro", active: true, noticeRequired: true, updatedAt: "" };

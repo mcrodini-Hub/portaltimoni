@@ -20,6 +20,7 @@ type Need = {
   vendedor: string;
   quantidade: string;
   notaVendedor: string;
+  chegouEm: string;
 };
 type Product = { codigo: string; descricao: string; unidade: string };
 type Seller = { nome: string; unidade: string };
@@ -404,7 +405,10 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
   const openNeeds = filtered.filter((need) => ["pendente", "observacao", "consulta"].includes(need.status));
   const purchaseNeeds = filtered.filter((need) => need.status === "em_compra");
   const onWay = filtered.filter((need) => need.status === "pedido_existente");
-  const history = filtered.filter((need) => need.status === "chegou").slice(0, 50);
+  const finalizedCutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const history = filtered
+    .filter((need) => need.status === "chegou" && timestamp(need.chegouEm) >= finalizedCutoff)
+    .slice(0, 50);
   const codeResults = useMemo(() => (selected ? [] : findByCode(products, codeSearch)), [products, codeSearch, selected]);
   const descriptionResults = useMemo(() => (selected ? [] : findByDescription(products, descriptionSearch)), [products, descriptionSearch, selected]);
   const sellerOptions = sellers.filter((item) => !item.unidade || item.unidade === newUnit || item.unidade === "todas");

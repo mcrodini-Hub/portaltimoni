@@ -899,12 +899,12 @@ async function standardizeSupplierSpreadsheet(
   const preservedRotatingStockUpdated = formulas[1]?.[2] ?? "";
   const preservedManualDate = formulas[3]?.[4] ?? "";
 
-  topRows[0][0] = "Fornecedor 1:";
-  topRows[0][1] = file.name;
-  topRows[0][2] = `Padronizada em ${standardizedAt}`;
+  topRows[0] = [file.name, `Padronizada em ${standardizedAt}`];
   topRows[1] = [];
   topRows[1][2] = preservedRotatingStockUpdated;
 
+  // A3:C4 must remain empty in the supplier standard.
+  topRows[2] = [];
   topRows[2][4] = "LUCAS";
   topRows[3] = [];
   topRows[3][4] = preservedManualDate;
@@ -913,7 +913,6 @@ async function standardizeSupplierSpreadsheet(
     "COD-VENDA",
     "COD-COMPRA",
     "DESCRIÇÃO",
-    "MÍNIMO",
     "ESTOQUE",
     ...extraColumns.map((column) => normalizeHistoryHeader(sourceHeader[column])),
   ];
@@ -927,14 +926,12 @@ async function standardizeSupplierSpreadsheet(
       ? ""
       : (formattedRow[detection.purchaseCodeColumn] ?? formulaRow[detection.purchaseCodeColumn] ?? "");
     const description = formattedRow[detection.descriptionColumn!] ?? formulaRow[detection.descriptionColumn!] ?? "";
-    const minValue = detection.minColumn === null ? "" : (formulaRow[detection.minColumn] ?? "");
     const stockValue = formulaRow[detection.stockColumn!] ?? "";
     if ([saleValue, purchaseValue, description, stockValue].every((value) => value === "" || value === undefined || value === null)) continue;
     productRows.push([
       String(saleValue ?? "").trim(),
       String(purchaseValue ?? "").trim(),
       description,
-      minValue,
       stockValue,
       ...extraColumns.map((column) => formulaRow[column] ?? ""),
     ]);
@@ -945,10 +942,10 @@ async function standardizeSupplierSpreadsheet(
   );
 
   const output = [...topRows, standardizedHeaders, ...productRows];
-  const outputWidth = Math.max(...output.map((row) => row.length), 5);
+  const outputWidth = Math.max(...output.map((row) => row.length), 4);
   for (const row of output) while (row.length < outputWidth) row.push("");
   const lastProductRow = 5 + productRows.length;
-  for (let column = 5; column < outputWidth; column += 1) {
+  for (let column = 4; column < outputWidth; column += 1) {
     output[3][column] = `=COUNTA(${columnLetter(column)}6:${columnLetter(column)}${lastProductRow})`;
   }
 
@@ -1118,8 +1115,17 @@ async function standardizeSupplierSpreadsheet(
       },
     },
     {
-      autoResizeDimensions: {
-        dimensions: { sheetId: selected.sheetId, dimension: "COLUMNS", startIndex: 3, endIndex: 4 },
+      updateDimensionProperties: {
+        range: { sheetId: selected.sheetId, dimension: "COLUMNS", startIndex: 2, endIndex: 3 },
+        properties: { pixelSize: 700 },
+        fields: "pixelSize",
+      },
+    },
+    {
+      updateDimensionProperties: {
+        range: { sheetId: selected.sheetId, dimension: "COLUMNS", startIndex: 3, endIndex: 4 },
+        properties: { pixelSize: 100 },
+        fields: "pixelSize",
       },
     },
     {
@@ -1667,10 +1673,10 @@ export async function POST(request: Request) {
         name: prepared.supplier_name,
         spreadsheetId,
         sheetName: prepared.sheet_name,
-        dataRange: "B6:F100000",
+        dataRange: "A6:D100000",
         codeColumn: 0,
         descriptionColumn: 2,
-        stockColumn: 4,
+        stockColumn: 3,
         actor: email,
       });
       await attachSupplierToWaitingUpdates(mappingId, spreadsheetId, prepared.supplier_name);

@@ -48,7 +48,7 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
     ...sortedAllowedItems.filter((item) => mobileVisible(item.module)),
     ...(isManagement ? [{ href: "/configuracoes", targetHref: "/configuracoes", label: "Configurações", module: "painel" as PortalModule, updateModule: undefined, icon: "settings" as PortalIconName, color: "text-slate-800" }] : []),
   ];
-  const startHref = sortedAllowedItems[0]?.targetHref || (isManagement ? "/configuracoes" : "/login");
+  const startHref = "/dashboard";
   const initials = email.trim().toLowerCase() === "mcrodini@gmail.com" ? "CR" : email.trim().toLowerCase() === "mrodini@gmail.com" ? "MR" : "CT";
 
   return (

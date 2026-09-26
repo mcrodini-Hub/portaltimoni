@@ -110,11 +110,26 @@ export async function PUT(request: Request) {
     const body = await request.json();
     if (body.section === "user") {
       const item = cleanUser(body.item || {});
-      await Promise.all([
-        upsertPortalUser(current.accessToken, item),
-        appendAudit(current.accessToken, "Acesso atualizado", `${item.name} · ${item.email}`, current.email),
-      ]);
-      return NextResponse.json({ ok: true, item });
+      const configuration = await loadPortalConfiguration(current.accessToken);
+      const isNew = !configuration.users.some((user) => user.email === item.email);
+      await upsertPortalUser(current.accessToken, item);
+      // Um novo email tem um único colaborador inicial. A identificação individual
+      // de Avisos em acessos compartilhados continua preservada na lista existente.
+      let collaborator: ConfiguredCollaborator | undefined;
+      if (isNew && item.unit !== "Geral" && !configuration.collaborators.some((member) => member.accessEmail === item.email)) {
+        collaborator = {
+          id: `acesso-${item.email.replace(/[^a-z0-9]+/g, "-")}`,
+          accessEmail: item.email,
+          name: item.name,
+          unit: item.unit || "Rio Claro",
+          active: item.active !== false,
+          noticeRequired: true,
+          updatedAt: new Date().toISOString(),
+        };
+        await upsertCollaborator(current.accessToken, collaborator);
+      }
+      await appendAudit(current.accessToken, "Acesso atualizado", `${item.name} · ${item.email}`, current.email);
+      return NextResponse.json({ ok: true, item, collaborator });
     } else if (body.section === "collaborator") {
       const configuration = await loadPortalConfiguration(current.accessToken);
       const item = cleanCollaborator(body.item || {}, configuration.users);

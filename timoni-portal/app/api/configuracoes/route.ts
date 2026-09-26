@@ -61,6 +61,7 @@ function cleanUser(value: Record<string, unknown>): PortalUser {
   return {
     email,
     name,
+    accessLabel: String(value.accessLabel || name).trim().slice(0, 80) || name,
     unit: ["Geral", "Araras", "Rio Claro"].includes(String(value.unit)) ? value.unit as PortalUser["unit"] : "Rio Claro",
     modules,
     boxes,

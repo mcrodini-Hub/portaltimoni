@@ -116,14 +116,16 @@ export async function PUT(request: Request) {
       // Um novo email tem um único colaborador inicial. A identificação individual
       // de Avisos em acessos compartilhados continua preservada na lista existente.
       let collaborator: ConfiguredCollaborator | undefined;
-      if (isNew && item.unit !== "Geral" && !configuration.collaborators.some((member) => member.accessEmail === item.email)) {
+      const managedMemberId = `acesso-${item.email.replace(/[^a-z0-9]+/g, "-")}`;
+      const managedMember = configuration.collaborators.find((member) => member.id === managedMemberId);
+      if (item.unit !== "Geral" && (managedMember || (isNew && !configuration.collaborators.some((member) => member.accessEmail === item.email)))) {
         collaborator = {
-          id: `acesso-${item.email.replace(/[^a-z0-9]+/g, "-")}`,
+          id: managedMemberId,
           accessEmail: item.email,
           name: item.name,
           unit: item.unit || "Rio Claro",
           active: item.active !== false,
-          noticeRequired: true,
+          noticeRequired: managedMember?.noticeRequired ?? true,
           updatedAt: new Date().toISOString(),
         };
         await upsertCollaborator(current.accessToken, collaborator);

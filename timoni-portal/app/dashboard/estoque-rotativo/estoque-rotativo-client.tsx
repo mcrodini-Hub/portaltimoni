@@ -291,24 +291,14 @@ export default function EstoqueRotativoClient() {
     setSourceStartRow(String(item.source_start_row || ""));
   }
 
-  const allowedNames = useMemo(
-    () => new Set(trelloSuppliers.map((supplier) => supplier.name.trim().toLocaleLowerCase("pt-BR"))),
-    [trelloSuppliers],
-  );
   const visibleUpdates = useMemo(
-    () => (data?.updates || []).filter(
-      (item) => item.status === "atualizado" || allowedNames.has(item.supplier_name.trim().toLocaleLowerCase("pt-BR")),
-    ),
-    [data?.updates, allowedNames],
+    () => data?.updates || [],
+    [data?.updates],
   );
 
   async function filterItems() {
     setError("");
     setFeedback("");
-    if (!supplierName.trim()) {
-      setError("Selecione um card do fornecedor.");
-      return;
-    }
     if (!spreadsheetReference.trim()) {
       setError("Cole o link da planilha do fornecedor.");
       return;
@@ -716,10 +706,16 @@ export default function EstoqueRotativoClient() {
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">3. Itens do estoque</p>
             <h2 className="mt-2 text-xl font-semibold text-slate-950">Planilha do fornecedor</h2>
             <label className="mt-4 block text-sm font-semibold text-slate-800">
-              Fornecedor / grupo
-              <div className="mt-2 min-h-12 rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm">
-                {supplierName || "Selecione um card ao lado"}
-              </div>
+              Fornecedor / grupo · opcional
+              <input
+                value={supplierName}
+                onChange={(event) => {
+                  setSupplierName(event.target.value);
+                  if (trelloCardId) setTrelloCardId("");
+                }}
+                placeholder="Selecione um card ao lado ou digite"
+                className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm"
+              />
             </label>
 
             <label className="mt-4 block text-sm font-semibold text-slate-800">
@@ -793,7 +789,7 @@ export default function EstoqueRotativoClient() {
             <button
               type="button"
               onClick={() => void filterItems()}
-              disabled={busy || !supplierName}
+              disabled={busy}
               className="mt-4 min-h-12 rounded-xl bg-blue-700 px-6 text-sm font-semibold text-white hover:bg-blue-800 disabled:bg-slate-300"
             >
               {busy ? "Filtrando..." : "Filtrar itens do estoque"}

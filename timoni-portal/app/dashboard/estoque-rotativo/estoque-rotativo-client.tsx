@@ -990,11 +990,12 @@ export default function EstoqueRotativoClient() {
         </section>
       ) : null}
 
+      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
       {data ? (
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Estoque Rotativo</p>
-            <h2 className="mt-1 text-xl font-semibold text-slate-950">Planilhas atualizadas</h2>
+            <h2 className="mt-1 text-xl font-semibold text-slate-950">Estoque atualizado</h2>
           </div>
           <div className="mt-3 space-y-2">
             {visibleUpdates.length ? visibleUpdates.map((item) => (
@@ -1142,7 +1143,7 @@ export default function EstoqueRotativoClient() {
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Planilhas de fornecedores</p>
-            <h2 className="mt-1 text-xl font-semibold text-slate-950">Planilhas atualizadas</h2>
+            <h2 className="mt-1 text-xl font-semibold text-slate-950">Planilha padronizada</h2>
           </div>
           <div className="mt-3 space-y-2">
             {(data.supplierStandardizations || []).filter((item) => item.status === "atualizada").length ? (
@@ -1178,6 +1179,7 @@ export default function EstoqueRotativoClient() {
           </div>
         </section>
       ) : null}
+      </div>
 
     </div>
   );

@@ -23,6 +23,20 @@ const ARARAS_EMAILS = new Set([
   "casatimoniararas@gmail.com",
 ]);
 
+const ACCESS_LABELS: Record<string, string> = {
+  "mcrodini@gmail.com": "Ciça",
+  "mrodini@gmail.com": "Marcelo",
+  "balcaotimoni@gmail.com": "Vendedores Rio Claro",
+  "fotoscasatimoni@gmail.com": "Vendedores Araras",
+  "caixarctimoni@gmail.com": "Caixa Rio Claro",
+  "estoquetimoni@gmail.com": "Estoque Rio Claro",
+  "estoqueararascasatimoni@gmail.com": "Estoque Araras",
+  "marketplacerc.mcr@gmail.com": "Marketplace Rio Claro",
+  "comercialrc@casatimoni.com.br": "Comercial Rio Claro",
+  "comercialara@casatimoni.com.br": "Comercial Araras",
+  "casatimoniararas@gmail.com": "Casa Timoni Araras",
+};
+
 function normalizeEmail(value?: string | null) {
   return value?.trim().toLowerCase() ?? "";
 }
@@ -111,7 +125,7 @@ export async function GET() {
       try {
         recipientOptions = (await listConfiguredPortalUsers(context.accessToken))
           .filter((user) => user.active !== false && user.modules.includes("painel"))
-          .map((user) => ({ email: user.email, name: user.name, unit: user.unit }));
+          .map((user) => ({ email: user.email, name: ACCESS_LABELS[user.email] || user.name, unit: user.unit }));
       } catch { recipientOptionsError = true; }
     }
     return NextResponse.json({ ok: true, items: isAdmin ? items : items.filter((item) => canViewComunicado(item, context.email, unit)), activeCount, isAdmin, recipientOptions, recipientOptionsError });

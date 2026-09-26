@@ -94,7 +94,7 @@ const EXISTING_ACCESS_LABELS: Record<string, string> = {
   "margareth@casatimoni.com.br": "Gestão",
 };
 
-function defaultAccessLabel(email: string, name: string) {
+function defaultAccessLabel(email: string) {
   return EXISTING_ACCESS_LABELS[normalizeEmail(email)] || `Acesso ${defaultUnit(email)}`;
 }
 
@@ -115,7 +115,7 @@ export function defaultPortalUsers(): PortalUser[] {
   return Object.values(portalUsers).map((user) => ({
     ...user,
     unit: defaultUnit(user.email),
-    accessLabel: defaultAccessLabel(user.email, user.name),
+    accessLabel: defaultAccessLabel(user.email),
     active: user.active !== false,
     directPainel: entersDirectlyInPainelTimoni(user.email),
     boxes: DASHBOARD_BOX_MODULES.filter((module) => user.modules.includes(module)),
@@ -354,7 +354,7 @@ export async function ensurePortalConfiguration(accessToken: string) {
     const data = (response.values || []).flatMap((row, index) => {
       const email = normalizeEmail(row[0]);
       if (!email || row[12]) return [];
-      return [{ range: `${USERS_SHEET}!M${index + 2}`, values: [[defaultAccessLabel(email, row[1] || "")]] }];
+      return [{ range: `${USERS_SHEET}!M${index + 2}`, values: [[defaultAccessLabel(email)]] }];
     });
     if (data.length) {
       await sheetsRequest(accessToken, sheetsUrl("/values:batchUpdate"), {

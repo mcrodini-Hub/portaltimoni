@@ -17,6 +17,7 @@ export type PortalBox = PortalModule | "espaco-equipe";
 
 export type PortalUser = {
   name: string;
+  accessLabel?: string;
   email: string;
   modules: PortalModule[];
   boxes?: PortalBox[];

@@ -77,6 +77,24 @@ function csvModules(value: string | undefined): PortalModule[] {
   return (value || "").split(",").map((item) => item.trim()).filter(Boolean) as PortalModule[];
 }
 
+const EXISTING_ACCESS_LABELS: Record<string, string> = {
+  "mcrodini@gmail.com": "Ciça",
+  "mrodini@gmail.com": "Marcelo",
+  "balcaotimoni@gmail.com": "Vendedores Rio Claro",
+  "fotoscasatimoni@gmail.com": "Vendedores Araras",
+  "caixarctimoni@gmail.com": "Caixa Rio Claro",
+  "estoquetimoni@gmail.com": "Estoque Rio Claro",
+  "estoqueararascasatimoni@gmail.com": "Estoque Araras",
+  "marketplacerc.mcr@gmail.com": "Marketplace Rio Claro",
+  "comercialrc@casatimoni.com.br": "Comercial Rio Claro",
+  "comercialara@casatimoni.com.br": "Comercial Araras",
+  "casatimoniararas@gmail.com": "Casa Timoni Araras",
+};
+
+function defaultAccessLabel(email: string, name: string) {
+  return EXISTING_ACCESS_LABELS[normalizeEmail(email)] || name;
+}
+
 function defaultUnit(email: string): PortalUser["unit"] {
   const normalized = normalizeEmail(email);
   if ([CICA_EMAIL, "mrodini@gmail.com"].includes(normalized)) return "Geral";
@@ -94,6 +112,7 @@ export function defaultPortalUsers(): PortalUser[] {
   return Object.values(portalUsers).map((user) => ({
     ...user,
     unit: defaultUnit(user.email),
+    accessLabel: defaultAccessLabel(user.email, user.name),
     active: user.active !== false,
     directPainel: entersDirectlyInPainelTimoni(user.email),
     boxes: DASHBOARD_BOX_MODULES.filter((module) => user.modules.includes(module)),
@@ -138,7 +157,7 @@ async function ensureSheets(accessToken: string) {
 }
 
 async function readUsers(accessToken: string): Promise<PortalUser[]> {
-  const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:L500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
+  const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:M500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
   return (response.values || []).map((row) => ({
     email: normalizeEmail(row[0]),
     name: row[1] || "",
@@ -151,6 +170,7 @@ async function readUsers(accessToken: string): Promise<PortalUser[]> {
     directPainel: yes(row[8]),
     lastAccess: row[9] || "",
     mobileModules: row[11] ? row[11] === "nenhum" ? [] : csvModules(row[11]) : undefined,
+    accessLabel: row[12] || defaultAccessLabel(row[0], row[1] || ""),
   })).filter((user) => user.email && user.name);
 }
 
@@ -209,7 +229,7 @@ export async function writeUsers(accessToken: string, users: PortalUser[]) {
     active: true,
     readOnly: false,
   };
-  await replaceRange(accessToken, `${USERS_SHEET}!A2:L500`, normalized.map((user) => [
+  await replaceRange(accessToken, `${USERS_SHEET}!A2:M500`, normalized.map((user) => [
     user.email,
     user.name,
     user.unit || defaultUnit(user.email) || "Rio Claro",
@@ -222,6 +242,7 @@ export async function writeUsers(accessToken: string, users: PortalUser[]) {
     user.lastAccess || "",
     now,
     user.mobileModules === undefined ? "" : user.mobileModules.join(",") || "nenhum",
+    user.accessLabel || defaultAccessLabel(user.email, user.name),
   ]));
 }
 
@@ -239,6 +260,7 @@ function userRow(user: PortalUser, now = new Date().toISOString()) {
     user.lastAccess || "",
     now,
     user.mobileModules === undefined ? "" : user.mobileModules.join(",") || "nenhum",
+    user.accessLabel || defaultAccessLabel(user.email, user.name),
   ];
 }
 
@@ -252,12 +274,12 @@ export async function upsertPortalUser(accessToken: string, input: PortalUser) {
   const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:A500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
   const index = (response.values || []).findIndex((row) => normalizeEmail(row[0]) === user.email);
   if (index >= 0) {
-    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A${index + 2}:L${index + 2}`)}`, { valueInputOption: "RAW" }), {
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A${index + 2}:M${index + 2}`)}`, { valueInputOption: "RAW" }), {
       method: "PUT",
       body: JSON.stringify({ values: [userRow(user)] }),
     });
   } else {
-    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A:L`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), {
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A:M`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), {
       method: "POST",
       body: JSON.stringify({ values: [userRow(user)] }),
     });

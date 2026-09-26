@@ -1706,7 +1706,7 @@ export async function POST(request: Request) {
 
     if (action === "registrar") {
       requireRole(email, "report");
-      const supplierName = String(body.supplierName || "").trim();
+      let supplierName = String(body.supplierName || "").trim();
       const spreadsheetReference = String(body.spreadsheetReference || "").trim();
       const note = String(body.note || "").trim();
       const sourceSheetName = String(body.sourceSheetName || "").trim();
@@ -1716,9 +1716,16 @@ export async function POST(request: Request) {
       const sourceStockColumn = String(body.sourceStockColumn || "").trim().toUpperCase();
       const sourceStartRow = Number(body.sourceStartRow);
       const trelloCardId = String(body.trelloCardId || "").trim();
-      if (supplierName.length < 2) throw new Error("Informe o fornecedor ou grupo.");
       if (!spreadsheetReference) throw new Error("Informe o link da planilha.");
-      if (!extractSpreadsheetId(spreadsheetReference)) throw new Error("Link da planilha inválido.");
+      const sourceSpreadsheetId = extractSpreadsheetId(spreadsheetReference);
+      if (!sourceSpreadsheetId) throw new Error("Link da planilha inválido.");
+      if (!supplierName) {
+        const sourceMetadata = await sheets.spreadsheets.get({
+          spreadsheetId: sourceSpreadsheetId,
+          fields: "properties.title",
+        });
+        supplierName = String(sourceMetadata.data.properties?.title || "").trim() || "Planilha sem fornecedor";
+      }
       if (!sourceSheetName) throw new Error("Informe a aba da planilha.");
       for (const column of [sourceCodeColumn, sourceDescriptionColumn, sourceStockColumn]) {
         if (!/^[A-Z]+$/.test(column)) throw new Error("Informe colunas válidas para COD-VENDA, descrição e estoque.");
@@ -1834,7 +1841,7 @@ export async function POST(request: Request) {
     if (action === "editar_registro") {
       requireRole(email, "report");
       const id = String(body.id || "");
-      const supplierName = String(body.supplierName || "").trim();
+      const supplierNameInput = String(body.supplierName || "").trim();
       const spreadsheetReference = String(body.spreadsheetReference || "").trim();
       const sourceSheetName = String(body.sourceSheetName || "").trim();
       const sourceCodeColumn = String(body.sourceCodeColumn || "").trim().toUpperCase();
@@ -1844,7 +1851,10 @@ export async function POST(request: Request) {
       const sourceStartRow = Number(body.sourceStartRow);
       const note = String(body.note || "").trim();
       const trelloCardId = String(body.trelloCardId || "").trim();
-      if (!id || !supplierName || !extractSpreadsheetId(spreadsheetReference) || !sourceSheetName) throw new Error("Complete todos os campos obrigatórios.");
+      if (!id || !extractSpreadsheetId(spreadsheetReference) || !sourceSheetName) throw new Error("Complete os campos obrigatórios.");
+      const currentUpdate = await getRotatingStockUpdate(id);
+      if (!currentUpdate) throw new Error("Atualização não encontrada.");
+      const supplierName = supplierNameInput || currentUpdate.supplier_name;
       if (![sourceCodeColumn, sourceDescriptionColumn, sourceStockColumn].every((column) => /^[A-Z]+$/.test(column))) throw new Error("Revise as colunas.");
       if (sourcePurchaseCodeColumn && !/^[A-Z]+$/.test(sourcePurchaseCodeColumn)) throw new Error("Revise a coluna COD-COMPRA.");
       if (!Number.isInteger(sourceStartRow) || sourceStartRow < 1) throw new Error("Revise a linha inicial.");

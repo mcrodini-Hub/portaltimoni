@@ -991,46 +991,80 @@ export default function EstoqueRotativoClient() {
       ) : null}
 
       <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
-      {data?.permissions.canManage ? (
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      {data ? (
+        <section className="order-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Planilhas de fornecedores</p>
-            <h2 className="mt-1 text-xl font-semibold text-slate-950">Planilha padronizada</h2>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Estoque Rotativo</p>
+            <h2 className="mt-1 text-xl font-semibold text-slate-950">Estoque atualizado</h2>
           </div>
           <div className="mt-3 space-y-2">
-            {(data.supplierStandardizations || []).filter((item) => item.status === "atualizada").length ? (
-              (data.supplierStandardizations || [])
-                .filter((item) => item.status === "atualizada")
-                .map((item) => (
-                  <div key={item.spreadsheet_id} className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 sm:px-4">
-                    <p className="min-w-0 shrink truncate text-sm font-semibold text-slate-950 sm:min-w-[150px]">{item.supplier_name}</p>
-                    <p className="shrink-0 whitespace-nowrap text-xs text-slate-500">{item.confirmed_at ? formatDate(item.confirmed_at) : ""}</p>
-                    <div className="ml-auto flex shrink-0 items-center gap-2">
+            {visibleUpdates.length ? visibleUpdates.map((item) => (
+              <article key={item.id} className="rounded-xl border border-slate-200 px-3 py-2.5 sm:px-4">
+                <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+                  <p className="min-w-0 shrink truncate text-sm font-semibold text-slate-950 sm:min-w-[150px]">{item.supplier_name}</p>
+                  <p className="shrink-0 whitespace-nowrap text-xs text-slate-500">{formatDate(item.reported_at)}</p>
+                  <p className="hidden min-w-0 flex-1 truncate text-xs text-slate-500 md:block">
+                    {item.items_read} lidos · {item.found_count} divergências · {item.not_found_count} não encontrados · {item.unchanged_count} OK
+                  </p>
+                  <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
+                    <StatusBadge status={item.status} />
+                    <button
+                      type="button"
+                      disabled={busy || !data.permissions.canReport}
+                      onClick={() => reopenForEdit(item)}
+                      className="min-h-9 rounded-lg border border-slate-300 px-2.5 text-sm font-semibold text-slate-700 disabled:opacity-40"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || !data.permissions.canReport || editingId !== item.id}
+                      onClick={() => void saveEditedUpdate(item)}
+                      className="min-h-9 rounded-lg bg-blue-800 px-2.5 text-sm font-semibold text-white disabled:bg-slate-300"
+                    >
+                      Salvar
+                    </button>
+                    <button
+                      type="button"
+                      disabled={busy || !data.permissions.canManage}
+                      onClick={() => void removeUpdate(item)}
+                      className="min-h-9 rounded-lg border border-rose-200 px-2.5 text-sm font-semibold text-rose-700 disabled:opacity-40"
+                    >
+                      Excluir
+                    </button>
+                  </div>
+                </div>
+                <p className="mt-1 truncate text-xs text-slate-500 md:hidden">
+                  {item.items_read} lidos · {item.found_count} divergências · {item.not_found_count} não encontrados · {item.unchanged_count} OK
+                </p>
+                {item.status === "atualizado" ? (
+                  <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
+                    <p className="text-xs font-semibold text-emerald-900">
+                      Rotativo conferido · {(item.conference_rows || []).length} item(ns)
+                    </p>
+                    <p className="mt-1 text-xs text-emerald-800">
+                      Coluna Status atualizada para todos os itens encontrados.
+                    </p>
+                    {item.updated_rows?.length ? (
+                      <p className="mt-1 text-xs text-emerald-800">
+                        {item.updated_count} estoque(s) alterado(s) · destaque amarelo em Produtos!D{item.updated_rows.join(", D")}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs text-emerald-800">Nenhum estoque precisou ser alterado.</p>
+                    )}
+                    <div className="mt-2 flex flex-wrap gap-2">
                       <a
-                        href={item.spreadsheet_url}
+                        href={updatedSheetUrl(item.id)}
                         target="_blank"
                         rel="noreferrer"
-                        className="whitespace-nowrap text-sm font-semibold text-blue-800 underline"
+                        className="inline-flex min-h-11 items-center rounded-xl bg-blue-800 px-4 text-sm font-semibold text-white"
                       >
-                        Abrir planilha
+                        Rotativo atualizado
                       </a>
-                      <button
-                        type="button"
-                        onClick={() => void removeSupplierStandardization(item)}
-                        disabled={busy}
-                        className="min-h-9 rounded-lg border border-red-200 px-2.5 text-sm font-semibold text-red-700 disabled:opacity-50"
-                      >
-                        Excluir
-                      </button>
+
                     </div>
                   </div>
-                ))
-            ) : (
-              <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">Nenhuma planilha padronizada e confirmada ainda.</p>
-            )}
-          </div>
-        </section>
-      ) : null}
+                ) : null}
                 {editingId === item.id ? (
                   <div className="mt-4 rounded-xl border border-blue-100 bg-blue-50/40 p-3">
                     <div className="grid gap-3 sm:grid-cols-2">
@@ -1105,80 +1139,46 @@ export default function EstoqueRotativoClient() {
           </div>
         </section>
       ) : null}
-      {data ? (
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+      {data?.permissions.canManage ? (
+        <section className="order-1 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Estoque Rotativo</p>
-            <h2 className="mt-1 text-xl font-semibold text-slate-950">Estoque atualizado</h2>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Planilhas de fornecedores</p>
+            <h2 className="mt-1 text-xl font-semibold text-slate-950">Planilha padronizada</h2>
           </div>
           <div className="mt-3 space-y-2">
-            {visibleUpdates.length ? visibleUpdates.map((item) => (
-              <article key={item.id} className="rounded-xl border border-slate-200 px-3 py-2.5 sm:px-4">
-                <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-                  <p className="min-w-0 shrink truncate text-sm font-semibold text-slate-950 sm:min-w-[150px]">{item.supplier_name}</p>
-                  <p className="shrink-0 whitespace-nowrap text-xs text-slate-500">{formatDate(item.reported_at)}</p>
-                  <p className="hidden min-w-0 flex-1 truncate text-xs text-slate-500 md:block">
-                    {item.items_read} lidos · {item.found_count} divergências · {item.not_found_count} não encontrados · {item.unchanged_count} OK
-                  </p>
-                  <div className="ml-auto flex shrink-0 items-center gap-1.5 sm:gap-2">
-                    <StatusBadge status={item.status} />
-                    <button
-                      type="button"
-                      disabled={busy || !data.permissions.canReport}
-                      onClick={() => reopenForEdit(item)}
-                      className="min-h-9 rounded-lg border border-slate-300 px-2.5 text-sm font-semibold text-slate-700 disabled:opacity-40"
-                    >
-                      Editar
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy || !data.permissions.canReport || editingId !== item.id}
-                      onClick={() => void saveEditedUpdate(item)}
-                      className="min-h-9 rounded-lg bg-blue-800 px-2.5 text-sm font-semibold text-white disabled:bg-slate-300"
-                    >
-                      Salvar
-                    </button>
-                    <button
-                      type="button"
-                      disabled={busy || !data.permissions.canManage}
-                      onClick={() => void removeUpdate(item)}
-                      className="min-h-9 rounded-lg border border-rose-200 px-2.5 text-sm font-semibold text-rose-700 disabled:opacity-40"
-                    >
-                      Excluir
-                    </button>
-                  </div>
-                </div>
-                <p className="mt-1 truncate text-xs text-slate-500 md:hidden">
-                  {item.items_read} lidos · {item.found_count} divergências · {item.not_found_count} não encontrados · {item.unchanged_count} OK
-                </p>
-                {item.status === "atualizado" ? (
-                  <div className="mt-2 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2">
-                    <p className="text-xs font-semibold text-emerald-900">
-                      Rotativo conferido · {(item.conference_rows || []).length} item(ns)
-                    </p>
-                    <p className="mt-1 text-xs text-emerald-800">
-                      Coluna Status atualizada para todos os itens encontrados.
-                    </p>
-                    {item.updated_rows?.length ? (
-                      <p className="mt-1 text-xs text-emerald-800">
-                        {item.updated_count} estoque(s) alterado(s) · destaque amarelo em Produtos!D{item.updated_rows.join(", D")}
-                      </p>
-                    ) : (
-                      <p className="mt-1 text-xs text-emerald-800">Nenhum estoque precisou ser alterado.</p>
-                    )}
-                    <div className="mt-2 flex flex-wrap gap-2">
+            {(data.supplierStandardizations || []).filter((item) => item.status === "atualizada").length ? (
+              (data.supplierStandardizations || [])
+                .filter((item) => item.status === "atualizada")
+                .map((item) => (
+                  <div key={item.spreadsheet_id} className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 sm:px-4">
+                    <p className="min-w-0 shrink truncate text-sm font-semibold text-slate-950 sm:min-w-[150px]">{item.supplier_name}</p>
+                    <p className="shrink-0 whitespace-nowrap text-xs text-slate-500">{item.confirmed_at ? formatDate(item.confirmed_at) : ""}</p>
+                    <div className="ml-auto flex shrink-0 items-center gap-2">
                       <a
-                        href={updatedSheetUrl(item.id)}
+                        href={item.spreadsheet_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex min-h-11 items-center rounded-xl bg-blue-800 px-4 text-sm font-semibold text-white"
+                        className="whitespace-nowrap text-sm font-semibold text-blue-800 underline"
                       >
-                        Rotativo atualizado
+                        Abrir planilha
                       </a>
-
+                      <button
+                        type="button"
+                        onClick={() => void removeSupplierStandardization(item)}
+                        disabled={busy}
+                        className="min-h-9 rounded-lg border border-red-200 px-2.5 text-sm font-semibold text-red-700 disabled:opacity-50"
+                      >
+                        Excluir
+                      </button>
                     </div>
                   </div>
-                ) : null}
+                ))
+            ) : (
+              <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">Nenhuma planilha padronizada e confirmada ainda.</p>
+            )}
+          </div>
+        </section>
+      ) : null}
       </div>
 
     </div>

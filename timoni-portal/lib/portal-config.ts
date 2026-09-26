@@ -89,10 +89,13 @@ const EXISTING_ACCESS_LABELS: Record<string, string> = {
   "comercialrc@casatimoni.com.br": "Comercial Rio Claro",
   "comercialara@casatimoni.com.br": "Comercial Araras",
   "casatimoniararas@gmail.com": "Casa Timoni Araras",
+  "carolina@casatimoni.com.br": "Vendas Rio Claro",
+  "reginaldo@casatimoni.com.br": "Vendas Araras",
+  "margareth@casatimoni.com.br": "Gestão",
 };
 
-function defaultAccessLabel(email: string, name: string) {
-  return EXISTING_ACCESS_LABELS[normalizeEmail(email)] || name;
+function defaultAccessLabel(email: string) {
+  return EXISTING_ACCESS_LABELS[normalizeEmail(email)] || `Acesso ${defaultUnit(email)}`;
 }
 
 function defaultUnit(email: string): PortalUser["unit"] {
@@ -112,7 +115,7 @@ export function defaultPortalUsers(): PortalUser[] {
   return Object.values(portalUsers).map((user) => ({
     ...user,
     unit: defaultUnit(user.email),
-    accessLabel: defaultAccessLabel(user.email, user.name),
+    accessLabel: defaultAccessLabel(user.email),
     active: user.active !== false,
     directPainel: entersDirectlyInPainelTimoni(user.email),
     boxes: DASHBOARD_BOX_MODULES.filter((module) => user.modules.includes(module)),
@@ -170,7 +173,7 @@ async function readUsers(accessToken: string): Promise<PortalUser[]> {
     directPainel: yes(row[8]),
     lastAccess: row[9] || "",
     mobileModules: row[11] ? row[11] === "nenhum" ? [] : csvModules(row[11]) : undefined,
-    accessLabel: row[12] || defaultAccessLabel(row[0], row[1] || ""),
+    accessLabel: row[12] || "",
   })).filter((user) => user.email && user.name);
 }
 
@@ -242,7 +245,7 @@ export async function writeUsers(accessToken: string, users: PortalUser[]) {
     user.lastAccess || "",
     now,
     user.mobileModules === undefined ? "" : user.mobileModules.join(",") || "nenhum",
-    user.accessLabel || defaultAccessLabel(user.email, user.name),
+    user.accessLabel || user.name,
   ]));
 }
 
@@ -260,7 +263,7 @@ function userRow(user: PortalUser, now = new Date().toISOString()) {
     user.lastAccess || "",
     now,
     user.mobileModules === undefined ? "" : user.mobileModules.join(",") || "nenhum",
-    user.accessLabel || defaultAccessLabel(user.email, user.name),
+    user.accessLabel || user.name,
   ];
 }
 
@@ -342,6 +345,24 @@ export async function ensurePortalConfiguration(accessToken: string) {
   if (!collaborators.length) {
     collaborators = defaultCollaborators();
     await writeCollaborators(accessToken, collaborators);
+  }
+
+  // Importação única dos rótulos antigos. Depois disso, PortalUsuarios!M
+  // é a fonte para Configurações e para os destinatários dos Avisos.
+  if (users.some((user) => !user.accessLabel)) {
+    const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:M500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
+    const data = (response.values || []).flatMap((row, index) => {
+      const email = normalizeEmail(row[0]);
+      if (!email || row[12]) return [];
+      return [{ range: `${USERS_SHEET}!M${index + 2}`, values: [[defaultAccessLabel(email)]] }];
+    });
+    if (data.length) {
+      await sheetsRequest(accessToken, sheetsUrl("/values:batchUpdate"), {
+        method: "POST",
+        body: JSON.stringify({ valueInputOption: "RAW", data }),
+      });
+      users = await readUsers(accessToken);
+    }
   }
 
   // O vínculo com um acesso é apenas pelo e-mail. Nome, unidade e status do

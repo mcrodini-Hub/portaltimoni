@@ -1047,6 +1047,13 @@ async function standardizeSupplierSpreadsheet(
     },
     {
       repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: 5, startColumnIndex: 5, endColumnIndex: outputWidth },
+        cell: { userEnteredFormat: { numberFormat: { type: "DATE", pattern: "mmm/yy" } } },
+        fields: "userEnteredFormat.numberFormat",
+      },
+    },
+    {
+      repeatCell: {
         range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: 2 },
         cell: { userEnteredFormat: { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } },
         fields: "userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment",

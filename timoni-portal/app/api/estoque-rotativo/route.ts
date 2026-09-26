@@ -903,9 +903,13 @@ async function standardizeSupplierSpreadsheet(
   topRows[1] = [];
   topRows[1][2] = preservedRotatingStockUpdated;
 
-  // A3:C4 must remain empty in the supplier standard.
+  // A3:E3 may be standardized, but preserve row 3 content from column F onward.
+  const preservedRow3Tail = [...(metadataRows[2] || [])].slice(5);
   topRows[2] = [];
   topRows[2][4] = "LUCAS";
+  preservedRow3Tail.forEach((value, index) => {
+    topRows[2][index + 5] = value;
+  });
   topRows[3] = [];
   topRows[3][4] = preservedManualDate;
 

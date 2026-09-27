@@ -11,7 +11,7 @@ const MODULES: Array<{ id: PortalModule; label: string }> = [
   { id: "painel", label: "Avisos" },
   { id: "agenda", label: "Agenda Ciça" },
   { id: "agenda-ct", label: "Agenda CT" },
-  { id: "chat", label: "Chat" },
+  { id: "chat", label: "Chat · por colaborador" },
   { id: "compras", label: "Compras" },
   { id: "conferencia", label: "Conferência" },
   { id: "estoque", label: "Estoque" },
@@ -180,7 +180,7 @@ export default function ConfiguracoesClient() {
         </div>
         {isExisting && <label className="mt-3 block text-sm font-medium text-slate-700">Nome do acesso<input value={userForm.accessLabel || userForm.name} onChange={(e) => setUserForm({ ...userForm, accessLabel: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>}
         {isNew && <p className="mt-2 text-xs text-slate-600">Ao salvar, o colaborador será vinculado ao email. Em seguida, defina as permissões no box criado.</p>}
-        {isExisting && <div className="mt-3"><p className="text-sm font-semibold text-slate-900">Permissões dos módulos</p><div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">{MODULES.map((module) => <Checkbox key={module.id} label={module.label} checked={userForm.modules.includes(module.id)} onChange={(checked) => toggleModule(module.id, checked)} />)}</div></div>}
+        {isExisting && <div className="mt-3"><p className="text-sm font-semibold text-slate-900">Permissões dos módulos</p><div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">{MODULES.map((module) => <Checkbox key={module.id} label={module.label} checked={userForm.modules.includes(module.id)} disabled={module.id === "chat"} onChange={(checked) => toggleModule(module.id, checked)} />)}</div></div>}
         {isExisting && <details className="mt-2 rounded-lg border border-slate-200 p-2"><summary className="cursor-pointer text-sm font-semibold text-slate-900">Mostrar no menu mobile</summary><p className="mt-1 text-xs text-slate-600">Por padrão, mostra todos os módulos permitidos. Ocultar do menu não altera o acesso.</p><div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">{MODULES.filter((module) => userForm.modules.includes(module.id)).map((module) => <Checkbox key={module.id} label={module.label} checked={(userForm.mobileModules ?? userForm.modules).includes(module.id)} onChange={(checked) => setUserForm({ ...userForm, mobileModules: checked ? [...new Set([...(userForm.mobileModules ?? userForm.modules), module.id])] : (userForm.mobileModules ?? userForm.modules).filter((item) => item !== module.id) })} />)}</div></details>}
         {isExisting && <div className="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
           <Checkbox label="Acesso ativo" checked={userForm.active !== false} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => setUserForm({ ...userForm, active: checked })} />

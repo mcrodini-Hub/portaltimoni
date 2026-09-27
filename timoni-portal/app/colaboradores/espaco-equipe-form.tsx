@@ -43,7 +43,7 @@ export default function EspacoEquipeForm() {
   return (
     <section className="mt-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
       <div className="max-w-3xl">
-        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Espaço Equipe</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Equipe</p>
         <h2 className="mt-2 text-xl font-semibold text-slate-950">Sua contribuição ajuda a melhorar nosso dia a dia</h2>
         <p className="mt-2 text-sm leading-6 text-slate-600">
           Use este espaço para enviar sugestões, reclamações, dificuldades ou ideias de melhoria.

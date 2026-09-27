@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getPortalUser, hasModuleAccess, type PortalUser } from "@/lib/access-control";
 import { listTeamMessages } from "@/lib/espaco-equipe";
@@ -66,7 +66,7 @@ function isWithinDisplayEndDate(value: string, now = Date.now()) {
   return now < Date.UTC(year, month - 1, day + 1, 3);
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const session = await auth();
   const email = normalizeEmail(session?.user?.email ?? "");
 
@@ -75,8 +75,9 @@ export async function GET() {
   }
 
   const items: NotificationItem[] = [];
+  const stockOnly = request.nextUrl.searchParams.get("stockOnly") === "1";
 
-  {
+  if (!stockOnly) {
     try {
       const now = Date.now();
       const unit = unitForEmail(email, session?.portalUser);
@@ -100,7 +101,7 @@ export async function GET() {
     }
   }
 
-  if (GESTAO_EMAILS.has(email)) {
+  if (!stockOnly && GESTAO_EMAILS.has(email)) {
     try {
       const messages = await listTeamMessages(session?.accessToken);
       for (const message of messages.filter((item) => (item.status || "Novo").toLowerCase() === "novo").slice(0, 8)) {

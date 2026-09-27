@@ -33,6 +33,7 @@ export type PortalUser = {
 const allModules: PortalModule[] = [
   "painel",
   "agenda",
+  "agenda-ct",
   "chat",
   "compras",
   "conferencia",
@@ -117,9 +118,7 @@ export function getPortalUser(email?: string | null, configured?: PortalUser | n
   if (configured && normalizeEmail(configured.email) === normalized) {
     if (configured.active === false) return null;
     if (normalized === MARCELO_EMAIL) {
-      const modules = configured.modules.filter((module) => module !== "agenda");
-      if (!modules.includes("chat")) modules.push("chat");
-      return { ...configured, modules };
+      return { ...configured, modules: configured.modules.filter((module) => module !== "agenda") };
     }
     return configured;
   }

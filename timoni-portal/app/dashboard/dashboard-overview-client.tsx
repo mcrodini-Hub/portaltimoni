@@ -36,9 +36,16 @@ export default function DashboardOverviewClient({ modules, motoristaControle, es
   }, [isManagement]);
 
   useEffect(() => {
-    void loadUpdates();
-    const interval = window.setInterval(loadUpdates, 10_000);
-    return () => window.clearInterval(interval);
+    const refreshWhenVisible = () => {
+      if (!document.hidden) void loadUpdates();
+    };
+    refreshWhenVisible();
+    const interval = window.setInterval(refreshWhenVisible, 60_000);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [loadUpdates]);
 
   const markRead = useCallback(async (module?: UpdateModule) => {
@@ -105,9 +112,17 @@ export default function DashboardOverviewClient({ modules, motoristaControle, es
       }
       setSnapshot(next);
     }
-    void load();
-    const interval = window.setInterval(load, 60_000);
-    return () => { cancelled = true; window.clearInterval(interval); };
+    const refreshWhenVisible = () => {
+      if (!document.hidden) void load();
+    };
+    refreshWhenVisible();
+    const interval = window.setInterval(refreshWhenVisible, 120_000);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [allowed, espacoEquipeControle]);
 
   const desktopCards = [

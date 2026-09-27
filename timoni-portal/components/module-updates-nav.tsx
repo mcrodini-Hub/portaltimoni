@@ -49,9 +49,16 @@ export default function ModuleUpdatesNav({
   }, [canViewUpdates]);
 
   useEffect(() => {
-    void load();
-    const interval = window.setInterval(load, 10_000);
-    return () => window.clearInterval(interval);
+    const refreshWhenVisible = () => {
+      if (!document.hidden) void load();
+    };
+    refreshWhenVisible();
+    const interval = window.setInterval(refreshWhenVisible, 60_000);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [load]);
 
   const markRead = useCallback(async (item: PendingUpdate, showArrival: boolean) => {

@@ -3,67 +3,28 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { UpdateModule } from "@/lib/module-updates";
+import { useModuleUpdates } from "@/components/module-updates-store";
 
 type ModuleItem = { module: string; name: string; href: string; icon: string; accent: string };
 type Props = { modules: ModuleItem[]; motoristaControle: boolean; espacoEquipeControle: boolean; isManagement: boolean; isCica: boolean };
 type Snapshot = { compras: number | null; estoqueRotativo: number | null; solicitacoes: number | null; agenda: number | null; motorista: number | null; equipe: number | null; leads: number | null };
-type PendingUpdate = { module: UpdateModule; count: number; latestAt: string };
 
 const empty: Snapshot = { compras: null, estoqueRotativo: null, solicitacoes: null, agenda: null, motorista: null, equipe: null, leads: null };
 const localDate = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
 export default function DashboardOverviewClient({ modules, motoristaControle, espacoEquipeControle, isManagement }: Props) {
   const [snapshot, setSnapshot] = useState<Snapshot>(empty);
-  const [updates, setUpdates] = useState<Record<string, PendingUpdate>>({});
+  const { updates, reload: reloadUpdates, markRead: markModuleRead } = useModuleUpdates(isManagement);
   const allowed = useMemo(() => new Set(modules.map((item) => item.module)), [modules]);
-
-  const loadUpdates = useCallback(async () => {
-    if (!isManagement) return;
-    try {
-      const response = await fetch("/api/module-updates", { cache: "no-store" });
-      const data = await response.json();
-      if (!response.ok) return;
-      const next: Record<string, PendingUpdate> = {};
-      for (const item of data.updates || []) next[item.module] = item;
-      setUpdates(next);
-    } catch {
-      // Falhas temporárias não devem impedir o uso dos módulos.
-    }
-  }, [isManagement]);
-
-  useEffect(() => {
-    const refreshWhenVisible = () => {
-      if (!document.hidden) void loadUpdates();
-    };
-    refreshWhenVisible();
-    const interval = window.setInterval(refreshWhenVisible, 60_000);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
-  }, [loadUpdates]);
 
   const markRead = useCallback(async (module?: UpdateModule) => {
     if (!module || !updates[module]) return;
-    const pending = updates[module];
-    setUpdates((current) => {
-      const next = { ...current };
-      delete next[module];
-      return next;
-    });
     try {
-      const response = await fetch("/api/module-updates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ module, through: pending.latestAt }),
-        keepalive: true,
-      });
-      if (!response.ok) throw new Error("Falha ao confirmar leitura.");
+      await markModuleRead(module);
     } catch {
-      void loadUpdates();
+      void reloadUpdates();
     }
-  }, [loadUpdates, updates]);
+  }, [markModuleRead, reloadUpdates, updates]);
 
   useEffect(() => {
     let cancelled = false;

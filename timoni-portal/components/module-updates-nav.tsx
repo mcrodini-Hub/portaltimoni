@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useEffect } from "react";
 import AvisosNavLink from "@/components/avisos-nav-link";
 import type { UpdateModule } from "@/lib/module-updates";
+import { useModuleUpdates } from "@/components/module-updates-store";
 
 type NavItem = {
   href: string;
@@ -14,7 +15,6 @@ type NavItem = {
   external?: boolean;
 };
 
-type PendingUpdate = { module: UpdateModule; count: number; latestAt: string; summaries: string[] };
 
 export default function ModuleUpdatesNav({
   items,
@@ -26,65 +26,7 @@ export default function ModuleUpdatesNav({
   linkClass: string;
 }) {
   const pathname = usePathname();
-  const [updates, setUpdates] = useState<Record<string, PendingUpdate>>({});
-  const acknowledgedThrough = useRef<Record<string, string>>({});
-
-  const load = useCallback(async () => {
-    if (!canViewUpdates) return;
-    try {
-      const response = await fetch("/api/module-updates", { cache: "no-store" });
-      const data = await response.json();
-      if (!response.ok) return;
-      const next: Record<string, PendingUpdate> = {};
-      for (const item of data.updates || []) {
-        const acknowledgedAt = acknowledgedThrough.current[item.module];
-        if (!acknowledgedAt || Date.parse(item.latestAt) > Date.parse(acknowledgedAt)) {
-          next[item.module] = item;
-        }
-      }
-      setUpdates(next);
-    } catch {
-      // Uma falha temporária não deve impedir a navegação pelo Portal.
-    }
-  }, [canViewUpdates]);
-
-  useEffect(() => {
-    const refreshWhenVisible = () => {
-      if (!document.hidden) void load();
-    };
-    refreshWhenVisible();
-    const interval = window.setInterval(refreshWhenVisible, 60_000);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
-  }, [load]);
-
-  const markRead = useCallback(async (item: PendingUpdate, showArrival: boolean) => {
-    acknowledgedThrough.current[item.module] = item.latestAt;
-    setUpdates((current) => {
-      const next = { ...current };
-      delete next[item.module];
-      return next;
-    });
-    if (showArrival) {
-      window.sessionStorage.setItem(`portal-module-arrival:${item.module}`, JSON.stringify(item));
-      window.dispatchEvent(new CustomEvent("portal-module-arrival", { detail: item }));
-    }
-    try {
-      const response = await fetch("/api/module-updates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ module: item.module, through: item.latestAt }),
-        keepalive: true,
-      });
-      if (!response.ok) throw new Error("Falha ao confirmar leitura.");
-    } catch {
-      delete acknowledgedThrough.current[item.module];
-      void load();
-    }
-  }, [load]);
+  const { updates, markRead } = useModuleUpdates(canViewUpdates);
 
   useEffect(() => {
     if (!canViewUpdates) return;
@@ -93,7 +35,7 @@ export default function ModuleUpdatesNav({
       .sort((a, b) => b.targetHref.length - a.targetHref.length)[0];
     if (!activeItem?.updateModule) return;
     const pending = updates[activeItem.updateModule];
-    if (pending) void markRead(pending, true);
+    if (pending) void markRead(pending.module, true);
   }, [canViewUpdates, items, markRead, pathname, updates]);
 
   return items.map((item) => {
@@ -108,7 +50,7 @@ export default function ModuleUpdatesNav({
             href={item.targetHref}
             target={item.external ? "_blank" : undefined}
             rel={item.external ? "noopener noreferrer" : undefined}
-            onClick={() => pending && void markRead(pending, true)}
+            onClick={() => pending && void markRead(pending.module, true)}
             className={`${linkClass} inline-flex items-center gap-2`}
             aria-label={pending ? `${item.label} tem novidades. Abrir e visualizar.` : item.label}
           >

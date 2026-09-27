@@ -349,6 +349,20 @@ export async function ensurePortalConfiguration(accessToken: string) {
 
   // Importação única dos rótulos antigos. Depois disso, PortalUsuarios!M
   // é a fonte para Configurações e para os destinatários dos Avisos.
+  const cicaUser = users.find((user) => user.email === CICA_EMAIL);
+  if (cicaUser && !cicaUser.modules.includes("agenda-ct")) {
+    const updatedCica = {
+      ...cicaUser,
+      modules: [...cicaUser.modules, "agenda-ct" as PortalModule],
+      mobileModules: cicaUser.mobileModules === undefined
+        ? undefined
+        : [...new Set([...cicaUser.mobileModules, "agenda-ct" as PortalModule])],
+    };
+    await upsertPortalUser(accessToken, updatedCica);
+    users = users.map((user) => user.email === CICA_EMAIL ? updatedCica : user);
+    await appendAudit(accessToken, "Agenda CT liberada", "Agenda CT habilitada para o acesso da Ciça.", CICA_EMAIL);
+  }
+
   if (users.some((user) => !user.accessLabel)) {
     const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:M500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
     const data = (response.values || []).flatMap((row, index) => {

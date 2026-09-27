@@ -89,6 +89,7 @@ function cleanCollaborator(value: Record<string, unknown>, users: PortalUser[]):
     unit,
     active: value.active !== false,
     noticeRequired: value.noticeRequired !== false,
+    chatEnabled: value.chatEnabled !== false,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -127,6 +128,7 @@ export async function PUT(request: Request) {
           unit: item.unit || "Rio Claro",
           active: item.active !== false,
           noticeRequired: managedMember?.noticeRequired ?? true,
+          chatEnabled: managedMember?.chatEnabled ?? true,
           updatedAt: new Date().toISOString(),
         };
         await upsertCollaborator(current.accessToken, collaborator);

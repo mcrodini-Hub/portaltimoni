@@ -57,6 +57,7 @@ function cleanUser(value: Record<string, unknown>): PortalUser {
   const name = String(value.name || "").trim();
   if (!email.includes("@") || name.length < 2) throw new Error("Informe nome e e-mail válidos.");
   const modules = cleanModules(value.modules);
+  if (!modules.includes("chat")) modules.push("chat");
   const boxes = cleanBoxes(value.boxes).filter((box) => box === "espaco-equipe" ? modules.includes("painel") : modules.includes(box));
   return {
     email,

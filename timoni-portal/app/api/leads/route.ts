@@ -12,10 +12,20 @@ async function authorizedContext() {
   return { accessToken: session.accessToken, email };
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const context = await authorizedContext();
   if (!context) return NextResponse.json({ error: "Sessão Google sem acesso à planilha. Entre novamente no Portal." }, { status: 401 });
   try {
+    const summaryOnly = new URL(request.url).searchParams.get("summary") === "1";
+    if (summaryOnly) {
+      const leads = await listLeads(context.accessToken);
+      const atrasados = leads.filter((x) => x.status === "atrasado").length;
+      const hoje = leads.filter((x) => x.status === "hoje").length;
+      return NextResponse.json(
+        { summary: { pendentes: atrasados + hoje } },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
     const [leads, prospects, activities] = await Promise.all([listLeads(context.accessToken), listProspects(context.accessToken), listLeadActivities(context.accessToken)]);
     const atrasados = leads.filter((x) => x.status === "atrasado").length;
     const hoje = leads.filter((x) => x.status === "hoje").length;

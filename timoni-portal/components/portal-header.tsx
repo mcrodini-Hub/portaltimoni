@@ -52,7 +52,7 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
     <>
     <header className="fixed inset-x-0 top-0 z-[90] border-b border-blue-950/50 bg-[#0F2D8F] text-white shadow-sm">
       <MobilePortalHeader items={mobileItems} showUpdates={canViewUpdates} showGuide={isManagement} showChat={canUseChat && mobileVisible("chat")} initials={initials} />
-      <div className="mx-auto hidden max-w-7xl flex-wrap items-center justify-between gap-x-2 px-4 xl:flex xl:flex-nowrap xl:gap-2 xl:px-4">
+      <div className="mx-auto hidden max-w-7xl flex-wrap items-center justify-between gap-x-2 px-4 sm:flex sm:flex-nowrap sm:gap-2 sm:px-4">
         <Link
           href={startHref}
           className="order-1 flex min-h-12 shrink-0 items-center py-3 text-base font-bold tracking-tight text-white sm:order-none"
@@ -88,7 +88,7 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
         </form>
       </div>
     </header>
-    <div aria-hidden="true" className="h-16 xl:h-12" />
+    <div aria-hidden="true" className="h-16 sm:h-12" />
     </>
   );
 }

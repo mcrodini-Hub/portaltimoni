@@ -1572,9 +1572,10 @@ function apiError(error: unknown) {
 
 export async function GET(request: Request) {
   try {
-    const { email, sheets } = await context();
-    await clearExpiredHighlights(sheets);
     const searchParams = new URL(request.url).searchParams;
+    const summaryOnly = searchParams.get("summary") === "1";
+    const { email, sheets } = await context();
+    if (!summaryOnly) await clearExpiredHighlights(sheets);
     const openUpdateId = searchParams.get("openUpdateId")?.trim() || "";
     if (openUpdateId) {
       const update = await getRotatingStockUpdate(openUpdateId);
@@ -1599,6 +1600,12 @@ export async function GET(request: Request) {
     }
     const id = searchParams.get("id");
     const data = await listRotatingStockData();
+    if (summaryOnly) {
+      return NextResponse.json(
+        { ok: true, updates: data.updates },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
     const supplierFiles = [...SUPPLIER_SPREADSHEETS]
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base", numeric: true }));
     return NextResponse.json({

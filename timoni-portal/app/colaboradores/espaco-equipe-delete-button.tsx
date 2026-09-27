@@ -9,7 +9,7 @@ export default function EspacoEquipeDeleteButton({ id }: { id: string }) {
   const [error, setError] = useState("");
 
   async function handleDelete() {
-    if (!window.confirm("Excluir esta mensagem do Espaço Equipe?")) return;
+    if (!window.confirm("Excluir esta mensagem do Equipe?")) return;
 
     setDeleting(true);
     setError("");

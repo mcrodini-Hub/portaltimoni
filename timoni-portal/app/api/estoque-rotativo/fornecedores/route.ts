@@ -18,7 +18,7 @@ function hasAllTokens(value: string, tokens: string[]) {
 export async function GET() {
   const session = await auth();
   if (!session?.user?.email) return NextResponse.json({ error: "Sessão expirada." }, { status: 401 });
-  if (!hasModuleAccess(session.user.email, "estoque-rotativo", session.portalUser)) return NextResponse.json({ error: "Acesso não autorizado ao Estoque Rotativo." }, { status: 403 });
+  if (!hasModuleAccess(session.user.email, "estoque-rotativo", session.portalUser)) return NextResponse.json({ error: "Acesso não autorizado ao Rotativo." }, { status: 403 });
   const credentials = await getStoredTrelloCredentials();
   if (!credentials) return NextResponse.json({ configured: false, suppliers: [] }, { headers: { "Cache-Control": "no-store" } });
   try {

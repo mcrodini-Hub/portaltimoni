@@ -605,7 +605,7 @@ function fingerprint(sourceRows: unknown[][], targetRows: unknown[][]) {
 async function context() {
   const session = await auth();
   const email = normalizeEmail(session?.user?.email);
-  if (!email || !hasModuleAccess(email, "estoque-rotativo", session?.portalUser)) throw new Error("Acesso não autorizado ao Estoque Rotativo.");
+  if (!email || !hasModuleAccess(email, "estoque-rotativo", session?.portalUser)) throw new Error("Acesso não autorizado ao Rotativo.");
   if (!session?.accessToken || session.error === "RefreshAccessTokenError") throw new Error("Sessão expirada. Saia e entre novamente no Portal.");
   const oauth = new google.auth.OAuth2();
   oauth.setCredentials({ access_token: session.accessToken });
@@ -1229,7 +1229,7 @@ async function markSupplierRotatingStockUpdated(
     spreadsheetId,
     range: `'${sheetName.replace(/'/g, "''")}'!C2`,
     valueInputOption: "RAW",
-    requestBody: { values: [[`Estoque Rotativo atualizado em ${date}`]] },
+    requestBody: { values: [[`Rotativo atualizado em ${date}`]] },
   });
 
   await sheets.spreadsheets.batchUpdate({
@@ -1753,7 +1753,7 @@ export async function POST(request: Request) {
       const date = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date());
       const conversation = await ensureConversation(ROTATING_STOCK_EMAILS.lucas, ROTATING_STOCK_EMAILS.carolina);
       await createChatMessage(conversation.id, ROTATING_STOCK_EMAILS.lucas, ROTATING_STOCK_EMAILS.carolina,
-        `[Mensagem automática] ESTOQUE ROTATIVO\n\nNova relação de produtos disponível para atualização.\n\nPlanilha: ${spreadsheetReference}\nFornecedor: ${supplierName}\nInformado por: Lucas\nData: ${date}\n\nStatus: Aguardando conferência.\n\nPor favor, verificar no módulo Estoque Rotativo.`);
+        `[Mensagem automática] ESTOQUE ROTATIVO\n\nNova relação de produtos disponível para atualização.\n\nPlanilha: ${spreadsheetReference}\nFornecedor: ${supplierName}\nInformado por: Lucas\nData: ${date}\n\nStatus: Aguardando conferência.\n\nPor favor, verificar no módulo Rotativo.`);
       await recordModuleUpdateSafely("estoque-rotativo", email, `Nova relação: ${supplierName}.`, `estoque-rotativo:${id}`);
       return NextResponse.json({ ok: true, id, needsMapping: false });
     }
@@ -1951,7 +1951,7 @@ export async function POST(request: Request) {
       if (update.status !== "em_conferencia" || update.locked_by !== email) throw new Error("Reabra a conferência antes de atualizar.");
       const storedItems = await listConferenceItems(id);
       const unresolved = storedItems.filter((item) => item.situation === "nao_encontrado");
-      if (unresolved.length) throw new Error(`Corrija os ${unresolved.length} item(ns) sem COD-VENDA confirmado antes de atualizar o Estoque Rotativo.`);
+      if (unresolved.length) throw new Error(`Corrija os ${unresolved.length} item(ns) sem COD-VENDA confirmado antes de atualizar o Rotativo.`);
       const matched = storedItems.filter((item) => item.situation !== "nao_encontrado" && item.target_row);
       const selected = storedItems.filter((item) => item.situation === "encontrado" && item.target_row);
       const { sourceRows, targetRows } = await readComparedRows(sheets, sourceSpreadsheetId, update.source_sheet_name, update.source_start_row, maxSourceColumn);
@@ -2016,7 +2016,7 @@ export async function POST(request: Request) {
       await recordModuleUpdateSafely(
         "estoque-rotativo",
         email,
-        "Atualização do Estoque Rotativo removida.",
+        "Atualização do Rotativo removida.",
         `estoque-rotativo:delete:${id}`,
       );
       return NextResponse.json({ ok: true });

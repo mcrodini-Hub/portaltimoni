@@ -114,18 +114,18 @@ export default function DashboardOverviewClient({ modules, motoristaControle, es
     ...(allowed.has("agenda") ? [["Agenda", "/agenda", "📅", snapshot.agenda] as const] : []),
     ...(allowed.has("compras") ? [["Compras", "/dashboard/compras", "🛒", snapshot.compras] as const] : []),
     ...(allowed.has("estoque") ? [["Estoque", "/dashboard/estoque", "📦", snapshot.solicitacoes] as const] : []),
-    ...(allowed.has("estoque-rotativo") ? [["Estoque Rotativo", "/dashboard/estoque-rotativo", "🔄", snapshot.estoqueRotativo] as const] : []),
+    ...(allowed.has("estoque-rotativo") ? [["Rotativo", "/dashboard/estoque-rotativo", "🔄", snapshot.estoqueRotativo] as const] : []),
     ...(allowed.has("leads") ? [["Leads", "/dashboard/leads", "🎯", snapshot.leads] as const] : []),
     ...(allowed.has("motorista") ? [["Motorista", motoristaControle ? "/dashboard/motorista" : "/dashboard/motorista-leitura", "🚚", snapshot.motorista] as const] : []),
   ];
 
   const mobileCards = [
     ...desktopCards,
-    ...(espacoEquipeControle ? [["Espaço Equipe", "/espaco-equipe", "👥", snapshot.equipe] as const] : []),
+    ...(espacoEquipeControle ? [["Equipe", "/espaco-equipe", "👥", snapshot.equipe] as const] : []),
   ];
 
   const renderCards = (cards: typeof mobileCards, mobile = false) => cards.map(([name, href, _icon, count]) => {
-    const updateModule = ({ Compras: "compras", Leads: "leads", Estoque: "estoque", "Estoque Rotativo": "estoque-rotativo" } as const)[name as "Compras" | "Leads" | "Estoque" | "Estoque Rotativo"];
+    const updateModule = ({ Compras: "compras", Leads: "leads", Estoque: "estoque", "Rotativo": "estoque-rotativo" } as const)[name as "Compras" | "Leads" | "Estoque" | "Rotativo"];
     const pending = updateModule ? updates[updateModule] : undefined;
     return <Link key={name} href={href} onClick={() => void markRead(updateModule)} className={mobile
       ? "relative flex min-h-16 min-w-0 flex-col justify-between rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2 shadow-sm transition active:bg-blue-100"

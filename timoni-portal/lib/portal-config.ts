@@ -389,6 +389,28 @@ export async function ensurePortalConfiguration(accessToken: string) {
   const defaultsById = new Map(defaultCollaborators().map((member) => [member.id, member]));
   let collaboratorsChanged = false;
 
+  const preferredChatAccess = (member: ConfiguredCollaborator) => {
+    const key = `${member.unit}::${member.name}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const named: Record<string, string> = {
+      "rio claro::lucas": "estoquetimoni@gmail.com",
+      "rio claro::jaqueline": "marketplacerc.mcr@gmail.com",
+      "rio claro::jeovana": "comercialrc@casatimoni.com.br",
+      "rio claro::carolina": "carolina@casatimoni.com.br",
+      "araras::reginaldo": "reginaldo@casatimoni.com.br",
+      "araras::maria carolina": "comercialara@casatimoni.com.br",
+    };
+    return named[key] || (member.unit === "Araras" ? "fotoscasatimoni@gmail.com" : "balcaotimoni@gmail.com");
+  };
+
+  const validAccessEmails = new Set(users.filter((user) => user.active !== false).map((user) => normalizeEmail(user.email)));
+  collaborators = collaborators.map((member) => {
+    if (member.accessEmail || !member.active) return member;
+    const accessEmail = preferredChatAccess(member);
+    if (!validAccessEmails.has(accessEmail)) return member;
+    collaboratorsChanged = true;
+    return { ...member, accessEmail, chatEnabled: member.chatEnabled !== false, updatedAt: new Date().toISOString() };
+  });
+
   collaborators = collaborators.map((member) => {
     const original = defaultsById.get(member.id);
     if (!original) return member;

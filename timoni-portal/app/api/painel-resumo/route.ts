@@ -15,7 +15,6 @@ type Summary = {
 
 type NotificationItem = { type?: string };
 type CalendarEvent = { completed?: boolean };
-type RotatingUpdate = { status?: string };
 
 function requestedModules(request: NextRequest) {
   return new Set(
@@ -74,10 +73,7 @@ export async function GET(request: NextRequest) {
       ? readJson(request, "/api/leads?summary=1")
       : null,
     rotativo: modules.has("estoque-rotativo")
-      ? Promise.all([
-          readJson(request, "/api/estoque-rotativo?summary=1"),
-          readJson(request, "/api/estoque-rotativo/fornecedores"),
-        ])
+      ? readJson(request, "/api/estoque-rotativo/resumo")
       : null,
   };
 
@@ -107,18 +103,8 @@ export async function GET(request: NextRequest) {
   const leads = values.get("leads") as { summary?: { pendentes?: number } } | undefined;
   if (leads) summary.leads = leads.summary?.pendentes ?? 0;
 
-  const rotativo = values.get("rotativo") as [
-    { updates?: RotatingUpdate[] },
-    { suppliers?: unknown[] },
-  ] | undefined;
-  if (rotativo) {
-    const [rotatingData, trelloData] = rotativo;
-    const trelloCount = (trelloData.suppliers ?? []).length;
-    const registeredCount = (rotatingData.updates ?? []).filter(
-      (item) => item.status === "aguardando_conferencia" || item.status === "aguardando_mapeamento",
-    ).length;
-    summary.estoqueRotativo = trelloCount || registeredCount;
-  }
+  const rotativo = values.get("rotativo") as { pending?: number } | undefined;
+  if (rotativo) summary.estoqueRotativo = rotativo.pending ?? 0;
 
   return NextResponse.json(
     { ok: true, summary, updatedAt: new Date().toISOString() },

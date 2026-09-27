@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { UpdateModule } from "@/lib/module-updates";
 
 export type PendingUpdate = {
@@ -12,33 +12,23 @@ export type PendingUpdate = {
 
 type UpdateState = Record<string, PendingUpdate>;
 
-let state: UpdateState = {};
-let listeners = new Set<() => void>();
-let acknowledgedThrough: Record<string, string> = {};
+let sharedState: UpdateState = {};
+const listeners = new Set<(next: UpdateState) => void>();
+const acknowledgedThrough: Record<string, string> = {};
 let intervalId: number | null = null;
 let activeConsumers = 0;
 let loading: Promise<void> | null = null;
 
-function emit() {
-  listeners.forEach((listener) => listener());
+function setSharedState(next: UpdateState) {
+  sharedState = next;
+  listeners.forEach((listener) => listener(next));
 }
 
-function setState(next: UpdateState) {
-  state = next;
-  emit();
-}
-
-function subscribe(listener: () => void) {
+function subscribe(listener: (next: UpdateState) => void) {
   listeners.add(listener);
-  return () => listeners.delete(listener);
-}
-
-function getSnapshot() {
-  return state;
-}
-
-function getServerSnapshot() {
-  return {};
+  return () => {
+    listeners.delete(listener);
+  };
 }
 
 async function load() {
@@ -58,7 +48,7 @@ async function load() {
           next[item.module] = item;
         }
       }
-      setState(next);
+      setSharedState(next);
     } catch {
       // Uma falha temporária não deve impedir o uso do Portal.
     } finally {
@@ -96,13 +86,13 @@ function stopPolling() {
 }
 
 async function markRead(module: UpdateModule, showArrival = false) {
-  const pending = state[module];
+  const pending = sharedState[module];
   if (!pending) return;
 
   acknowledgedThrough[module] = pending.latestAt;
-  const next = { ...state };
+  const next = { ...sharedState };
   delete next[module];
-  setState(next);
+  setSharedState(next);
 
   if (showArrival && typeof window !== "undefined") {
     window.sessionStorage.setItem(`portal-module-arrival:${module}`, JSON.stringify(pending));
@@ -124,7 +114,9 @@ async function markRead(module: UpdateModule, showArrival = false) {
 }
 
 export function useModuleUpdates(enabled: boolean) {
-  const updates = useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+  const [updates, setUpdates] = useState<UpdateState>(sharedState);
+
+  useEffect(() => subscribe(setUpdates), []);
 
   useEffect(() => {
     if (!enabled) return;

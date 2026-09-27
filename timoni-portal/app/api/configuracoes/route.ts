@@ -100,6 +100,12 @@ export async function GET() {
     return NextResponse.json({ ok: true, ...(await loadPortalConfiguration(current.accessToken)) });
   } catch (error) {
     console.error("[configuracoes][GET]", error);
+    if (error instanceof Error && error.message.includes("Google Sheets respondeu 429")) {
+      return NextResponse.json(
+        { error: "O Google atingiu o limite temporário de leituras. Aguarde enquanto tentamos novamente." },
+        { status: 503, headers: { "Retry-After": "20" } },
+      );
+    }
     return NextResponse.json({ error: "Não foi possível carregar as configurações." }, { status: 500 });
   }
 }

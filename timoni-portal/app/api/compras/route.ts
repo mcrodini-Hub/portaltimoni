@@ -110,7 +110,7 @@ function labelNames(card: TrelloCard) {
   return (card.labels || []).map((label) => normalizeTrelloText(label.name || ""));
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const { response: unauthorized } = await authorize();
   if (unauthorized) return unauthorized;
 
@@ -122,13 +122,16 @@ export async function GET() {
     );
   }
 
+  const summaryOnly = new URL(request.url).searchParams.get("summary") === "1";
   let portalDocsSync: Awaited<ReturnType<typeof syncPortalTrelloDocs>> | { error: string } | null = null;
-  try {
-    portalDocsSync = await syncPortalTrelloDocs(credentials);
-  } catch (error) {
-    portalDocsSync = {
-      error: error instanceof Error ? error.message : "Não foi possível sincronizar a documentação do Portal Timoni.",
-    };
+  if (!summaryOnly) {
+    try {
+      portalDocsSync = await syncPortalTrelloDocs(credentials);
+    } catch (error) {
+      portalDocsSync = {
+        error: error instanceof Error ? error.message : "Não foi possível sincronizar a documentação do Portal Timoni.",
+      };
+    }
   }
 
   try {
@@ -159,6 +162,12 @@ export async function GET() {
     const pendingCards = pendingList
       ? cards.filter((card) => card.idList === pendingList.id)
       : [];
+    if (summaryOnly) {
+      return NextResponse.json(
+        { configured: true, summary: { pedidosParaFazer: pendingCards.length } },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
     const sentRioClaro = uniqueSentCards(sentRioClaroList
       ? cards.filter((card) => card.idList === sentRioClaroList.id)
       : []);

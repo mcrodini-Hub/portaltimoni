@@ -68,7 +68,7 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, show
   }
 
   return <>
-    <div className="portal-mobile-header sticky top-0 z-[90] grid h-16 grid-cols-[2.75rem_1fr_auto] items-center bg-[#0F2D8F] px-3 text-white xl:hidden">
+    <div className="portal-mobile-header sticky top-0 z-[90] grid h-16 grid-cols-[2.75rem_1fr_auto] items-center bg-[#0F2D8F] px-3 text-white sm:hidden">
       <button type="button" onClick={() => setOpen(true)} className="flex h-10 w-10 items-center justify-center rounded-lg" aria-label="Abrir menu" aria-expanded={open} aria-controls="portal-mobile-menu">
         <PortalIcon name="menu" className="h-6 w-6" />
       </button>
@@ -85,7 +85,7 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, show
       </div>
     </div>
 
-    {open ? createPortal(<div id="portal-mobile-menu" className="fixed inset-x-0 bottom-0 top-16 z-[100] xl:hidden" role="dialog" aria-modal="true" aria-label="Menu principal">
+    {open ? createPortal(<div id="portal-mobile-menu" className="fixed inset-x-0 bottom-0 top-16 z-[100] sm:hidden" role="dialog" aria-modal="true" aria-label="Menu principal">
       <button type="button" className="absolute inset-0 bg-slate-950/45" onClick={() => setOpen(false)} aria-label="Fechar menu" />
       <aside className="absolute inset-y-0 left-0 flex w-[58%] max-w-[12rem] flex-col bg-white shadow-2xl">
         <div className="flex h-10 items-center justify-between border-b border-slate-100 px-2.5">

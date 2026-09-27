@@ -12,6 +12,7 @@ const USERS_SHEET = "PortalUsuarios";
 const COLLABORATORS_SHEET = "PortalColaboradores";
 const HISTORY_SHEET = "PortalHistorico";
 const ROTATING_STOCK_MIGRATION = "Permissões Estoque Rotativo v1";
+const CHAT_ALL_ACCESS_MIGRATION = "Chat disponível em todos os acessos v1";
 const REQUIRED_SHEETS = [USERS_SHEET, COLLABORATORS_SHEET, HISTORY_SHEET];
 export const CICA_EMAIL = "mcrodini@gmail.com";
 export const DASHBOARD_BOX_MODULES: PortalModule[] = ["painel", "agenda", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads"];
@@ -21,6 +22,7 @@ export type ConfiguredCollaborator = TeamMember & {
   accessEmail: string;
   active: boolean;
   noticeRequired: boolean;
+  chatEnabled: boolean;
   updatedAt: string;
 };
 
@@ -131,6 +133,7 @@ export function defaultCollaborators(): ConfiguredCollaborator[] {
     accessEmail: "",
     active: true,
     noticeRequired: noticeKeys.has(`${member.unit}::${member.name}`),
+    chatEnabled: true,
     updatedAt: "",
   }));
 }
@@ -182,7 +185,7 @@ export async function listConfiguredPortalUsers(accessToken: string) {
 }
 
 async function readCollaborators(accessToken: string): Promise<ConfiguredCollaborator[]> {
-  const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A2:G500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
+  const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A2:H500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
   return (response.values || []).map((row) => ({
     id: row[0] || "",
     name: row[1] || "",
@@ -191,6 +194,7 @@ async function readCollaborators(accessToken: string): Promise<ConfiguredCollabo
     noticeRequired: yes(row[4], true),
     updatedAt: row[5] || "",
     accessEmail: normalizeEmail(row[6] || ""),
+    chatEnabled: yes(row[7], true),
   })).filter((member) => member.id && member.name);
 }
 
@@ -292,7 +296,7 @@ export async function upsertPortalUser(accessToken: string, input: PortalUser) {
 
 export async function writeCollaborators(accessToken: string, collaborators: ConfiguredCollaborator[]) {
   const now = new Date().toISOString();
-  await replaceRange(accessToken, `${COLLABORATORS_SHEET}!A2:G500`, collaborators.map((member) => [
+  await replaceRange(accessToken, `${COLLABORATORS_SHEET}!A2:H500`, collaborators.map((member) => [
     member.id,
     member.name,
     member.unit,
@@ -300,6 +304,7 @@ export async function writeCollaborators(accessToken: string, collaborators: Con
     member.noticeRequired ? "Sim" : "Não",
     member.updatedAt || now,
     normalizeEmail(member.accessEmail || ""),
+    member.chatEnabled === false ? "Não" : "Sim",
   ]));
 }
 
@@ -307,11 +312,11 @@ export async function upsertCollaborator(accessToken: string, member: Configured
   await ensureSheets(accessToken);
   const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A2:A500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
   const index = (response.values || []).findIndex((row) => row[0] === member.id);
-  const values = [[member.id, member.name, member.unit, member.active ? "Sim" : "Não", member.noticeRequired ? "Sim" : "Não", member.updatedAt || new Date().toISOString(), normalizeEmail(member.accessEmail || "")]];
+  const values = [[member.id, member.name, member.unit, member.active ? "Sim" : "Não", member.noticeRequired ? "Sim" : "Não", member.updatedAt || new Date().toISOString(), normalizeEmail(member.accessEmail || ""), member.chatEnabled === false ? "Não" : "Sim"]];
   if (index >= 0) {
-    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A${index + 2}:G${index + 2}`)}`, { valueInputOption: "RAW" }), { method: "PUT", body: JSON.stringify({ values }) });
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A${index + 2}:H${index + 2}`)}`, { valueInputOption: "RAW" }), { method: "PUT", body: JSON.stringify({ values }) });
   } else {
-    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A:G`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), { method: "POST", body: JSON.stringify({ values }) });
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A:H`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), { method: "POST", body: JSON.stringify({ values }) });
   }
   return member;
 }
@@ -321,7 +326,7 @@ export async function deleteCollaborator(accessToken: string, id: string) {
   const index = (response.values || []).findIndex((row) => row[0] === id);
   if (index < 0) return false;
   const row = index + 2;
-  await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A${row}:G${row}`)}:clear`), { method: "POST", body: "{}" });
+  await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A${row}:H${row}`)}:clear`), { method: "POST", body: "{}" });
   return true;
 }
 
@@ -428,6 +433,28 @@ export async function ensurePortalConfiguration(accessToken: string) {
   return { users, collaborators };
 }
 
+let chatAllAccessMigration: Promise<void> | null = null;
+
+async function ensureChatAllAccess(accessToken: string) {
+  if (!chatAllAccessMigration) chatAllAccessMigration = (async () => {
+    const { users } = await ensurePortalConfiguration(accessToken);
+    const migrationRows = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${HISTORY_SHEET}!B2:B2000`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
+    if ((migrationRows.values || []).some((row) => row[0] === CHAT_ALL_ACCESS_MIGRATION)) return;
+    for (const user of users.filter((item) => item.active !== false && !item.modules.includes("chat"))) {
+      await upsertPortalUser(accessToken, {
+        ...user,
+        modules: [...user.modules, "chat"],
+        mobileModules: user.mobileModules === undefined ? undefined : [...new Set([...user.mobileModules, "chat" as PortalModule])],
+      });
+    }
+    await appendAudit(accessToken, CHAT_ALL_ACCESS_MIGRATION, "Chat disponibilizado para todos os acessos ativos; liberação individual controlada por colaborador.", CICA_EMAIL);
+  })().catch((error) => {
+    chatAllAccessMigration = null;
+    throw error;
+  });
+  await chatAllAccessMigration;
+}
+
 let rotatingStockMigration: Promise<void> | null = null;
 
 async function ensureRotatingStockPermissions(accessToken: string) {
@@ -464,6 +491,7 @@ export async function getEffectivePortalUser(accessToken: string | undefined, em
   if (!accessToken) return portalUsers[normalized] || null;
   try {
     await ensureRotatingStockPermissions(accessToken);
+    await ensureChatAllAccess(accessToken);
     const users = await readUsers(accessToken);
     if (!users.length) return portalUsers[normalized] || null;
     return users.find((user) => user.email === normalized) || null;

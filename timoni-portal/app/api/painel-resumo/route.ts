@@ -56,10 +56,10 @@ export async function GET(request: NextRequest) {
 
   const tasks = {
     compras: modules.has("compras")
-      ? readJson(request, "/api/compras")
+      ? readJson(request, "/api/compras?summary=1")
       : null,
     solicitacoes: modules.has("estoque")
-      ? readJson(request, "/api/painel-notifications")
+      ? readJson(request, "/api/painel-notifications?stockOnly=1")
       : null,
     agenda: modules.has("agenda") && timeMin && timeMax
       ? readJson(request, `/api/events?timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}`)
@@ -71,11 +71,11 @@ export async function GET(request: NextRequest) {
       ? readJson(request, "/api/espaco-equipe")
       : null,
     leads: modules.has("leads")
-      ? readJson(request, "/api/leads")
+      ? readJson(request, "/api/leads?summary=1")
       : null,
     rotativo: modules.has("estoque-rotativo")
       ? Promise.all([
-          readJson(request, "/api/estoque-rotativo"),
+          readJson(request, "/api/estoque-rotativo?summary=1"),
           readJson(request, "/api/estoque-rotativo/fornecedores"),
         ])
       : null,

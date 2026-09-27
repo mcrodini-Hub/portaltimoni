@@ -21,19 +21,29 @@ export default function ChatButton({ mobile = false, mobileHeader = false, onOpe
   const [unread, setUnread] = useState(0);
 
   const loadUnread = useCallback(async () => {
+    const layout = window.matchMedia(mobile || mobileHeader ? "(max-width: 639px)" : "(min-width: 640px)");
+    if (open || document.hidden || !layout.matches) return;
     try {
       const response = await fetch("/api/internal-chat", { cache: "no-store" });
       if (!response.ok) return;
       const data = await response.json();
       setUnread(Number(data.totalUnread || 0));
     } catch {}
-  }, []);
+  }, [mobile, mobileHeader, open]);
 
   useEffect(() => {
     void loadUnread();
-    const interval = window.setInterval(loadUnread, 30000);
-    return () => window.clearInterval(interval);
-  }, [loadUnread]);
+    const interval = window.setInterval(loadUnread, 120_000);
+    const onVisible = () => { if (!document.hidden) void loadUnread(); };
+    document.addEventListener("visibilitychange", onVisible);
+    const layout = window.matchMedia(mobile || mobileHeader ? "(max-width: 639px)" : "(min-width: 640px)");
+    layout.addEventListener("change", onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      layout.removeEventListener("change", onVisible);
+    };
+  }, [loadUnread, mobile, mobileHeader]);
 
   const badge = unread > 0 ? <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[.65rem] font-bold text-white ring-2 ring-white">{unread > 99 ? "99+" : unread}</span> : null;
   const openChat = () => { onOpen?.(); setOpen(true); };

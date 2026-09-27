@@ -30,7 +30,7 @@ export default function ModuleUpdatesNav({
   const acknowledgedThrough = useRef<Record<string, string>>({});
 
   const load = useCallback(async () => {
-    if (!canViewUpdates) return;
+    if (!canViewUpdates || document.hidden || !window.matchMedia("(min-width: 640px)").matches) return;
     try {
       const response = await fetch("/api/module-updates", { cache: "no-store" });
       const data = await response.json();
@@ -50,8 +50,16 @@ export default function ModuleUpdatesNav({
 
   useEffect(() => {
     void load();
-    const interval = window.setInterval(load, 10_000);
-    return () => window.clearInterval(interval);
+    const interval = window.setInterval(load, 60_000);
+    const onVisible = () => { if (!document.hidden) void load(); };
+    document.addEventListener("visibilitychange", onVisible);
+    const layout = window.matchMedia("(min-width: 640px)");
+    layout.addEventListener("change", onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      layout.removeEventListener("change", onVisible);
+    };
   }, [load]);
 
   const markRead = useCallback(async (item: PendingUpdate, showArrival: boolean) => {

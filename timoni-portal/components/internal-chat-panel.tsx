@@ -99,9 +99,20 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
 
   useEffect(() => {
     if (!open) return;
-    void refresh();
-    const interval = window.setInterval(() => void refresh(), 5_000);
-    return () => window.clearInterval(interval);
+    let running = false;
+    const poll = async () => {
+      if (document.hidden || running) return;
+      running = true;
+      try { await refresh(); } finally { running = false; }
+    };
+    void poll();
+    const interval = window.setInterval(() => void poll(), 15_000);
+    const onVisible = () => { if (!document.hidden) void poll(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [open, refresh]);
 
   useEffect(() => {

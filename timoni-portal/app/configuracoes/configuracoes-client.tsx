@@ -67,10 +67,20 @@ export default function ConfiguracoesClient() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/configuracoes", { cache: "no-store" });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Não foi possível carregar.");
-      setData({ users: result.users || [], collaborators: result.collaborators || [], history: result.history || [] });
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const response = await fetch("/api/configuracoes", { cache: "no-store" });
+        const result = await response.json();
+        if (response.status === 503 && attempt < 2) {
+          setError("Limite temporário do Google. Tentando carregar novamente...");
+          const retryAfter = Number(response.headers.get("Retry-After") || "20");
+          await new Promise((resolve) => window.setTimeout(resolve, Math.max(20, retryAfter) * 1000 * (attempt + 1)));
+          continue;
+        }
+        if (!response.ok) throw new Error(result.error || "Não foi possível carregar.");
+        setData({ users: result.users || [], collaborators: result.collaborators || [], history: result.history || [] });
+        setError("");
+        break;
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível carregar.");
     } finally {
@@ -210,7 +220,7 @@ export default function ConfiguracoesClient() {
       </nav>
 
       {feedback && <p className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">{feedback}</p>}
-      {error && <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">{error}</p>}
+      {error && <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">{error}{!loading && !data.users.length ? <button type="button" onClick={() => void load()} className="ml-3 underline">Tentar novamente</button> : null}</p>}
       {loading ? <p className="mt-6 text-sm text-slate-500">Carregando configurações...</p> : null}
 
       {!loading && tab === "acessos" && (

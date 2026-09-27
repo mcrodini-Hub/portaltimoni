@@ -16,7 +16,7 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, show
   const [updates, setUpdates] = useState<Record<string, PendingUpdate>>({});
 
   const load = useCallback(async () => {
-    if (!showUpdates) return;
+    if (!showUpdates || document.hidden || !window.matchMedia("(max-width: 639px)").matches) return;
     try {
       const response = await fetch("/api/module-updates", { cache: "no-store" });
       const data = await response.json();
@@ -31,8 +31,16 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, show
 
   useEffect(() => {
     void load();
-    const interval = window.setInterval(load, 10_000);
-    return () => window.clearInterval(interval);
+    const interval = window.setInterval(load, 60_000);
+    const onVisible = () => { if (!document.hidden) void load(); };
+    document.addEventListener("visibilitychange", onVisible);
+    const layout = window.matchMedia("(max-width: 639px)");
+    layout.addEventListener("change", onVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisible);
+      layout.removeEventListener("change", onVisible);
+    };
   }, [load]);
 
   useEffect(() => {

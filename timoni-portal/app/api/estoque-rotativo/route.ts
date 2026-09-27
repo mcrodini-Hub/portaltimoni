@@ -17,6 +17,7 @@ import {
   deleteSupplierStandardization,
   finishConference,
   getRotatingStockUpdate,
+  getRotatingStockPendingUpdateCount,
   listConferenceItems,
   listExpiredHighlights,
   listRotatingStockData,
@@ -1599,13 +1600,14 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: true, sheetNames, singleSheetName: sheetNames.length === 1 ? sheetNames[0] : null }, { headers: { "Cache-Control": "no-store" } });
     }
     const id = searchParams.get("id");
-    const data = await listRotatingStockData();
     if (summaryOnly) {
+      const pending = await getRotatingStockPendingUpdateCount();
       return NextResponse.json(
-        { ok: true, updates: data.updates },
+        { ok: true, pending },
         { headers: { "Cache-Control": "no-store" } },
       );
     }
+    const data = await listRotatingStockData();
     const supplierFiles = [...SUPPLIER_SPREADSHEETS]
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base", numeric: true }));
     return NextResponse.json({

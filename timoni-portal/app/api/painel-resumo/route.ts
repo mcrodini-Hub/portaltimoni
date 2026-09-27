@@ -15,7 +15,6 @@ type Summary = {
 
 type NotificationItem = { type?: string };
 type CalendarEvent = { completed?: boolean };
-type RotatingUpdate = { status?: string };
 
 function requestedModules(request: NextRequest) {
   return new Set(
@@ -108,15 +107,13 @@ export async function GET(request: NextRequest) {
   if (leads) summary.leads = leads.summary?.pendentes ?? 0;
 
   const rotativo = values.get("rotativo") as [
-    { updates?: RotatingUpdate[] },
+    { pending?: number },
     { suppliers?: unknown[] },
   ] | undefined;
   if (rotativo) {
     const [rotatingData, trelloData] = rotativo;
     const trelloCount = (trelloData.suppliers ?? []).length;
-    const registeredCount = (rotatingData.updates ?? []).filter(
-      (item) => item.status === "aguardando_conferencia" || item.status === "aguardando_mapeamento",
-    ).length;
+    const registeredCount = rotatingData.pending ?? 0;
     summary.estoqueRotativo = trelloCount || registeredCount;
   }
 

@@ -33,7 +33,6 @@ export type PortalUser = {
 const allModules: PortalModule[] = [
   "painel",
   "agenda",
-  "agenda-ct",
   "chat",
   "compras",
   "conferencia",
@@ -95,7 +94,7 @@ function operationalUser(name: string, email: string): PortalUser {
 }
 
 export const portalUsers: Record<string, PortalUser> = {
-  "mcrodini@gmail.com": { name: "Ciça Rodini", email: "mcrodini@gmail.com", modules: allModules, requiresPassword: true },
+  "mcrodini@gmail.com": { name: "Ciça Rodini", email: "mcrodini@gmail.com", modules: [...allModules, "agenda-ct"], requiresPassword: true },
   "mrodini@gmail.com": { name: "Marcelo Rodini", email: "mrodini@gmail.com", modules: modulesWithoutCicaAgenda, requiresPassword: true },
   "margareth@casatimoni.com.br": { name: "Margareth", email: "margareth@casatimoni.com.br", modules: allModules, requiresPassword: true },
   "fotoscasatimoni@gmail.com": operationalUser("Lucas e Vendedores - Araras", "fotoscasatimoni@gmail.com"),

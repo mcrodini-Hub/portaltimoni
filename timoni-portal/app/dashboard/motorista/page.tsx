@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { auth } from "@/lib/auth";
-import { isReadOnlyUser } from "@/lib/access-control";
+import { hasModuleAccess, isReadOnlyUser } from "@/lib/access-control";
 import MotoristaAgenda from "./motorista-agenda";
 
 export const metadata: Metadata = {
@@ -10,7 +10,9 @@ export const metadata: Metadata = {
 
 export default async function MotoristaPage() {
   const session = await auth();
-  if (isReadOnlyUser(session?.user?.email, session?.portalUser)) redirect("/motorista");
+  const email = session?.user?.email || "";
+  if (!email || !hasModuleAccess(email, "motorista", session?.portalUser)) redirect("/dashboard");
+  const readOnly = isReadOnlyUser(email, session?.portalUser);
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-4">
@@ -20,7 +22,7 @@ export default async function MotoristaPage() {
         <p className="mt-1 text-sm text-slate-600">Entregas, retiradas e bloqueios de horário em uma agenda única.</p>
       </header>
       <div className="motorista-agenda-controle">
-        <MotoristaAgenda />
+        <MotoristaAgenda readOnly={readOnly} />
       </div>
       <style>{`
         .motorista-agenda-controle button.bg-emerald-700,

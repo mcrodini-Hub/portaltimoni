@@ -1,5 +1,5 @@
 import { signOut } from "@/lib/auth";
-import { canManageMotorista, hasModuleAccess, type PortalModule, type PortalUser } from "@/lib/access-control";
+import { hasModuleAccess, type PortalModule, type PortalUser } from "@/lib/access-control";
 import Link from "next/link";
 import ModuleUpdatesNav from "@/components/module-updates-nav";
 import MobilePortalHeader from "@/components/mobile-portal-header";
@@ -8,17 +8,16 @@ import type { UpdateModule } from "@/lib/module-updates";
 import type { PortalIconName } from "@/components/portal-icon";
 
 const navItems: Array<{ href: string; label: string; module: PortalModule; updateModule?: UpdateModule; icon: PortalIconName; color: string; external?: boolean }> = [
-  { href: "/colaboradores", label: "Avisos", module: "painel", updateModule: "avisos", icon: "notice", color: "text-rose-700" },
   { href: "/agenda", label: "Agenda Ciça", module: "agenda", updateModule: "agenda", icon: "star", color: "text-cyan-700" },
   { href: "/agenda-ct", label: "Agenda CT", module: "agenda-ct", icon: "star", color: "text-cyan-700" },
   { href: "/dashboard/compras", label: "Compras", module: "compras", updateModule: "compras", icon: "cart", color: "text-orange-700" },
   { href: "/dashboard/conferencia-pedidos", label: "Conferência", module: "conferencia", updateModule: "conferencia", icon: "document", color: "text-rose-700" },
   { href: "/dashboard/estoque", label: "Estoque", module: "estoque", updateModule: "estoque", icon: "stock", color: "text-amber-700" },
   { href: "/dashboard/estoque-rotativo", label: "Estoque Rotativo", module: "estoque-rotativo", updateModule: "estoque-rotativo", icon: "stock", color: "text-yellow-700" },
-  { href: "/dashboard/motorista-leitura", label: "Motorista", module: "motorista", updateModule: "motorista", icon: "truck", color: "text-blue-600" },
+  { href: "/dashboard/motorista", label: "Motorista", module: "motorista", updateModule: "motorista", icon: "truck", color: "text-blue-600" },
   { href: "/dashboard/reunioes", label: "Reuniões", module: "reunioes", updateModule: "reunioes", icon: "meetings", color: "text-indigo-800" },
   { href: "/dashboard/leads", label: "Leads", module: "leads", updateModule: "leads", icon: "leads", color: "text-cyan-800" },
-  { href: "/espaco-equipe", label: "Equipe", module: "painel", updateModule: "espaco-equipe", icon: "team", color: "text-indigo-800" },
+  { href: "/espaco-equipe", label: "Espaço Equipe", module: "painel", updateModule: "espaco-equipe", icon: "team", color: "text-indigo-800" },
   { href: "/dashboard/marketing", label: "Marketing", module: "marketing", updateModule: "marketing", icon: "leads", color: "text-cyan-800" },
   { href: "/dashboard/financeiro", label: "Financeiro", module: "financeiro", updateModule: "financeiro", icon: "document", color: "text-emerald-700" },
 ];
@@ -32,20 +31,18 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
     "whitespace-nowrap rounded-lg px-2 py-2 text-[13px] font-medium text-white/90 transition hover:bg-white/10 hover:text-white";
   const allowedItems = navItems
     .filter((item) => hasModuleAccess(email, item.module, portalUser))
-    .map((item) => ({
-      ...item,
-      targetHref: item.module === "motorista" && canManageMotorista(email, portalUser)
-        ? "/dashboard/motorista"
-        : item.href,
-    }));
+    .map((item) => ({ ...item, targetHref: item.href }));
   const byLabel = (a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label, "pt-BR", { sensitivity: "base" });
   const sortedAllowedItems = [...allowedItems].sort(byLabel);
-  const desktopItems = sortedAllowedItems;
+  const equipeItems = sortedAllowedItems.filter((item) => item.href === "/espaco-equipe");
+  const otherItems = sortedAllowedItems.filter((item) => item.href !== "/espaco-equipe");
+  const desktopItems = [...otherItems, ...equipeItems];
   const mobileItems = [
-    ...sortedAllowedItems.filter((item) => mobileVisible(item.module)),
+    ...otherItems.filter((item) => mobileVisible(item.module)),
+    ...equipeItems.filter((item) => mobileVisible(item.module)),
     ...(isManagement ? [{ href: "/configuracoes", targetHref: "/configuracoes", label: "Configurações", module: "painel" as PortalModule, updateModule: undefined, icon: "settings" as PortalIconName, color: "text-slate-800" }] : []),
   ];
-  const startHref = "/dashboard";
+  const startHref = "/colaboradores";
   const initials = email.trim().toLowerCase() === "mcrodini@gmail.com" ? "CR" : email.trim().toLowerCase() === "mrodini@gmail.com" ? "MR" : "CT";
 
   return (

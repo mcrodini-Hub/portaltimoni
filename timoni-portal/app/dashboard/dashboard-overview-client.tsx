@@ -12,7 +12,7 @@ type Snapshot = { compras: number | null; estoqueRotativo: number | null; solici
 const empty: Snapshot = { compras: null, estoqueRotativo: null, solicitacoes: null, agenda: null, motorista: null, equipe: null, leads: null };
 const localDate = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
-export default function DashboardOverviewClient({ modules, motoristaControle, espacoEquipeControle, isManagement }: Props) {
+export default function DashboardOverviewClient({ modules, espacoEquipeControle, isManagement }: Props) {
   const [snapshot, setSnapshot] = useState<Snapshot>(empty);
   const { updates, reload: reloadUpdates, markRead: markModuleRead } = useModuleUpdates(isManagement);
   const allowed = useMemo(() => new Set(modules.map((item) => item.module)), [modules]);
@@ -68,7 +68,7 @@ export default function DashboardOverviewClient({ modules, motoristaControle, es
     ...(allowed.has("estoque") ? [["Estoque", "/dashboard/estoque", "📦", snapshot.solicitacoes] as const] : []),
     ...(allowed.has("estoque-rotativo") ? [["Estoque Rotativo", "/dashboard/estoque-rotativo", "🔄", snapshot.estoqueRotativo] as const] : []),
     ...(allowed.has("leads") ? [["Leads", "/dashboard/leads", "🎯", snapshot.leads] as const] : []),
-    ...(allowed.has("motorista") ? [["Motorista", motoristaControle ? "/dashboard/motorista" : "/dashboard/motorista-leitura", "🚚", snapshot.motorista] as const] : []),
+    ...(allowed.has("motorista") ? [["Motorista", "/dashboard/motorista", "🚚", snapshot.motorista] as const] : []),
   ];
 
   const mobileCards = [

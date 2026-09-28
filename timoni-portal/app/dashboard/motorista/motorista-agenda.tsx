@@ -38,6 +38,7 @@ type FormState = {
   clienteFornecedor: string;
   volumes: string;
   unidadeVolume: string;
+  quantidadeVolume: string;
   contatoNome: string;
   contatoWhats: string;
   cep: string;
@@ -62,8 +63,6 @@ const REQUIRED: Array<keyof FormState> = [
   "numeroPedido",
   "clienteFornecedor",
   "volumes",
-  "contatoNome",
-  "contatoWhats",
   "endereco",
   "numeroEndereco",
   "preenchidoPor",
@@ -112,6 +111,7 @@ function emptyForm(data = localDateString()): FormState {
     clienteFornecedor: "",
     volumes: "",
     unidadeVolume: "",
+    quantidadeVolume: "",
     contatoNome: "",
     contatoWhats: "",
     cep: "",
@@ -149,6 +149,7 @@ function formFromViagem(v: Viagem): FormState {
     clienteFornecedor: v.clienteFornecedor || "",
     volumes: volumeInfo.volume,
     unidadeVolume: volumeInfo.unidade,
+    quantidadeVolume: volumeInfo.quantidade,
     contatoNome: v.contatoNome || "",
     contatoWhats: v.contatoWhats || "",
     cep: "",
@@ -225,22 +226,39 @@ function pedidoTexto(valor?: string) {
 
 function separarVolume(valor?: string) {
   const texto = String(valor ?? "").trim();
-  const marcador = " | Unidade: ";
-  const indice = texto.indexOf(marcador);
-  if (indice >= 0) {
+  const unidadeMarcador = " | Unidade: ";
+  const quantidadeMarcador = " | Quantidade: ";
+  const indiceUnidade = texto.indexOf(unidadeMarcador);
+  const indiceQuantidade = texto.indexOf(quantidadeMarcador);
+
+  if (indiceUnidade >= 0) {
+    const fimUnidade = indiceQuantidade >= 0 ? indiceQuantidade : texto.length;
     return {
-      volume: texto.slice(0, indice).trim(),
-      unidade: texto.slice(indice + marcador.length).trim(),
+      volume: texto.slice(0, indiceUnidade).trim(),
+      unidade: texto.slice(indiceUnidade + unidadeMarcador.length, fimUnidade).trim(),
+      quantidade: indiceQuantidade >= 0 ? texto.slice(indiceQuantidade + quantidadeMarcador.length).trim() : "",
     };
   }
+
   const combinado = texto.match(/^(\S+)\s+(.+)$/);
-  return combinado ? { volume: combinado[1], unidade: combinado[2].trim() } : { volume: texto, unidade: "" };
+  return combinado
+    ? { volume: combinado[1], unidade: combinado[2].trim(), quantidade: "" }
+    : { volume: texto, unidade: "", quantidade: "" };
 }
 
-function formatarVolume(volume?: string, unidade?: string) {
+function formatarVolume(volume?: string, unidade?: string, quantidade?: string) {
   const vol = String(volume ?? "").trim();
   const un = String(unidade ?? "").trim();
-  return [vol, un].filter(Boolean).join(" ");
+  const qtd = String(quantidade ?? "").trim();
+  const base = [vol, un].filter(Boolean).join(" ");
+  return [base, qtd ? `Quantidade: ${qtd}` : ""].filter(Boolean).join(" | ");
+}
+
+function serializarVolume(volume?: string, unidade?: string, quantidade?: string) {
+  const vol = String(volume ?? "").trim();
+  const un = String(unidade ?? "").trim();
+  const qtd = String(quantidade ?? "").trim();
+  return [vol, un ? `Unidade: ${un}` : "", qtd ? `Quantidade: ${qtd}` : ""].filter(Boolean).join(" | ");
 }
 
 function lerConclusao(notasJson?: string) {
@@ -498,7 +516,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
         vendedor: form.vendedor,
         clienteFornecedor: form.clienteFornecedor,
         numeroPedido: form.numeroPedido,
-        volumes: formatarVolume(form.volumes, form.unidadeVolume),
+        volumes: serializarVolume(form.volumes, form.unidadeVolume, form.quantidadeVolume),
         contatoNome: form.contatoNome,
         contatoWhats: form.contatoWhats,
         endereco: detalhesEndereco,
@@ -617,7 +635,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
     const diaSemana = data.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
     const linhas = itens.map((v, index) => {
       const endereco = [separarEndereco(v.endereco).texto, v.numero, v.complemento].filter(Boolean).join(" - ");
-      return `<div class="item"><p><strong>${index + 1}. ${v.tipoHorario || "Entrega"} ${lojaLabel(v.loja)} | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}${v.vendedor ? ` | Vendedor: ${v.vendedor}` : ""}</strong></p><p>${v.clienteFornecedor || ""}${v.numeroPedido ? ` · ${v.numeroPedido}` : ""}${v.volumes ? ` · Volume: ${formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade)}` : ""}</p><p>${endereco}</p><p>Contato: ${v.contatoNome || ""}${v.contatoWhats ? ` - ${v.contatoWhats}` : ""}</p>${v.info ? `<p style="white-space: pre-line;">Observação:<br>${String(v.info).replace(/^[\r\n]+/, "")}</p>` : ""}${v.preenchidoPor ? `<p class="preenchido">Preenchido por: ${v.preenchidoPor}</p>` : ""}</div>`;
+      return `<div class="item"><p><strong>${index + 1}. ${v.tipoHorario || "Entrega"} ${lojaLabel(v.loja)} | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}${v.vendedor ? ` | Vendedor: ${v.vendedor}` : ""}</strong></p><p>${v.clienteFornecedor || ""}${v.numeroPedido ? ` · ${v.numeroPedido}` : ""}${v.volumes ? ` · Volume: ${formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade)}` : ""}</p><p>${endereco}</p><p>Contato: ${v.contatoNome || ""}${v.contatoWhats ? ` - ${v.contatoWhats}` : ""}</p>${v.info ? `<p style="white-space: pre-line;">Observação:<br>${String(v.info).replace(/^[\r\n]+/, "")}</p>` : ""}${v.preenchidoPor ? `<p class="preenchido">Preenchido por: ${v.preenchidoPor}</p>` : ""}</div>`;
     }).join("");
 
     const popup = window.open("", "_blank", "width=850,height=900");
@@ -695,10 +713,10 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                         {v.tipoHorario === "Bloqueio" && v.endereco && <p className="mt-1 text-sm text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
                         {v.tipoHorario === "Bloqueio" && separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Abrir no Google Maps</a>}
                         {v.tipoHorario !== "Bloqueio" && <>
-                          <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade)}` : ""}</p>
+                          <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade)}` : ""}</p>
                           {v.endereco && <p className="mt-1 text-sm text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
                           {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}
-                          {(v.contatoNome || v.contatoWhats) && <p className="mt-2 text-sm text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
+                          {(v.contatoNome || v.contatoWhats) && <p className="mt-2 text-sm text-slate-700">Falar com: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
                         </>}
                         {v.info && <p className="mt-2 text-sm text-slate-600"><span className="block">Observação:</span><span className="block whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
                         {v.preenchidoPor && <p className="mt-2 text-xs text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
@@ -729,10 +747,10 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                     {v.tipoHorario === "Bloqueio" && v.endereco && <p className="mt-3 text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
                     {v.tipoHorario === "Bloqueio" && separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}
                     {v.tipoHorario !== "Bloqueio" && <>
-                      <p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade)}` : ""}</p>
+                      <p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade)}` : ""}</p>
                       {v.endereco && <p className="mt-3 text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
                       {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}
-                      {(v.contatoNome || v.contatoWhats) && <p className="mt-3 text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
+                      {(v.contatoNome || v.contatoWhats) && <p className="mt-3 text-slate-700">Falar com: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
                     </>}
                     {v.info && <p className="mt-3 text-slate-600"><span className="block">Observação:</span><span className="block whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
                     {v.preenchidoPor && <p className="mt-3 font-[Arial] text-[10pt] text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
@@ -790,8 +808,8 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
             <div className="mt-4 grid gap-4 sm:grid-cols-2">
               <label className="text-sm font-medium text-slate-700">* NF/PEDIDO<input value={form.numeroPedido} onChange={(e) => set("numeroPedido", e.target.value)} className={fieldClass("numeroPedido")} /></label>
               <label className="text-sm font-medium text-slate-700">* CLIENTE/FORNECEDOR<input value={form.clienteFornecedor} onChange={(e) => set("clienteFornecedor", e.target.value)} className={fieldClass("clienteFornecedor")} /></label>
-              <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">* Volume<input value={form.volumes} onChange={(e) => set("volumes", e.target.value)} className={fieldClass("volumes")} /></label><label className="text-sm font-medium text-slate-700">Unidade<input value={form.unidadeVolume} onChange={(e) => set("unidadeVolume", e.target.value)} placeholder="Ex.: caixa, pallet, kg" className={fieldClass("unidadeVolume")} /></label></div>
-              <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">* Contato<input value={form.contatoNome} onChange={(e) => set("contatoNome", e.target.value)} className={fieldClass("contatoNome")} /></label><label className="text-sm font-medium text-slate-700">* Tel/Cel<input value={form.contatoWhats} onChange={(e) => set("contatoWhats", formatarTelefone(e.target.value))} inputMode="tel" placeholder="19 98181-9171" className={fieldClass("contatoWhats")} /></label></div>
+              <div className="grid gap-4 sm:grid-cols-3"><label className="text-sm font-medium text-slate-700">* Volume<input value={form.volumes} onChange={(e) => set("volumes", e.target.value)} placeholder="Ex.: 10" className={fieldClass("volumes")} /></label><label className="text-sm font-medium text-slate-700">Unidade<input value={form.unidadeVolume} onChange={(e) => set("unidadeVolume", e.target.value)} placeholder="Ex.: saco" className={fieldClass("unidadeVolume")} /></label><label className="text-sm font-medium text-slate-700">Quantidade<input value={form.quantidadeVolume} onChange={(e) => set("quantidadeVolume", e.target.value)} placeholder="Ex.: 30 Kg" className={fieldClass("quantidadeVolume")} /></label></div>
+              <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">Falar com<input value={form.contatoNome} onChange={(e) => set("contatoNome", e.target.value)} className={fieldClass("contatoNome")} /></label><label className="text-sm font-medium text-slate-700">Tel/Cel<input value={form.contatoWhats} onChange={(e) => set("contatoWhats", formatarTelefone(e.target.value))} inputMode="tel" placeholder="19 98181-9171" className={fieldClass("contatoWhats")} /></label></div>
             </div>
 
             <div className="mt-4 grid gap-4">

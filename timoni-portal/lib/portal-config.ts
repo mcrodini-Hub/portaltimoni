@@ -12,7 +12,6 @@ const USERS_SHEET = "PortalUsuarios";
 const COLLABORATORS_SHEET = "PortalColaboradores";
 const HISTORY_SHEET = "PortalHistorico";
 const ROTATING_STOCK_MIGRATION = "Permissões Estoque Rotativo v1";
-const CHAT_ALL_ACCESS_MIGRATION = "Chat disponível em todos os acessos v1";
 const REQUIRED_SHEETS = [USERS_SHEET, COLLABORATORS_SHEET, HISTORY_SHEET];
 export const CICA_EMAIL = "mcrodini@gmail.com";
 export const DASHBOARD_BOX_MODULES: PortalModule[] = ["painel", "agenda", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads"];
@@ -471,28 +470,6 @@ export async function ensurePortalConfiguration(accessToken: string) {
   return { users, collaborators };
 }
 
-let chatAllAccessMigration: Promise<void> | null = null;
-
-async function ensureChatAllAccess(accessToken: string) {
-  if (!chatAllAccessMigration) chatAllAccessMigration = (async () => {
-    const { users } = await ensurePortalConfiguration(accessToken);
-    const migrationRows = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${HISTORY_SHEET}!B2:B2000`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
-    if ((migrationRows.values || []).some((row) => row[0] === CHAT_ALL_ACCESS_MIGRATION)) return;
-    for (const user of users.filter((item) => item.active !== false && !item.modules.includes("chat"))) {
-      await upsertPortalUser(accessToken, {
-        ...user,
-        modules: [...user.modules, "chat"],
-        mobileModules: user.mobileModules === undefined ? undefined : [...new Set([...user.mobileModules, "chat" as PortalModule])],
-      });
-    }
-    await appendAudit(accessToken, CHAT_ALL_ACCESS_MIGRATION, "Chat disponibilizado para todos os acessos ativos; liberação individual controlada por colaborador.", CICA_EMAIL);
-  })().catch((error) => {
-    chatAllAccessMigration = null;
-    throw error;
-  });
-  await chatAllAccessMigration;
-}
-
 let rotatingStockMigration: Promise<void> | null = null;
 
 async function ensureRotatingStockPermissions(accessToken: string) {
@@ -529,7 +506,6 @@ export async function getEffectivePortalUser(accessToken: string | undefined, em
   if (!accessToken) return portalUsers[normalized] || null;
   try {
     await ensureRotatingStockPermissions(accessToken);
-    await ensureChatAllAccess(accessToken);
     const users = await readUsers(accessToken);
     if (!users.length) return portalUsers[normalized] || null;
     return users.find((user) => user.email === normalized) || null;

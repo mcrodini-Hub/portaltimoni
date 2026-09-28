@@ -144,6 +144,43 @@ export async function PUT(request: Request) {
         appendAudit(current.accessToken, "Colaborador atualizado", `${item.name} · ${item.unit} · ${item.accessEmail}`, current.email),
       ]);
       return NextResponse.json({ ok: true, item });
+    } else if (body.section === "chat-unit") {
+      const scope = String(body.scope || "").trim().toLowerCase();
+      if (!["geral", "rio claro", "araras"].includes(scope) || typeof body.enabled !== "boolean") {
+        return NextResponse.json({ error: "Seleção inválida para o Chat." }, { status: 400 });
+      }
+      if (!Array.isArray(body.memberIds) || !body.memberIds.length || body.memberIds.some((id: unknown) => typeof id !== "string")) {
+        return NextResponse.json({ error: "Selecione ao menos um colaborador." }, { status: 400 });
+      }
+      const memberIds = body.memberIds as string[];
+      if (new Set(memberIds).size !== memberIds.length) {
+        return NextResponse.json({ error: "Há colaboradores repetidos na seleção." }, { status: 400 });
+      }
+      const configuration = await loadPortalConfiguration(current.accessToken);
+      const targets = memberIds.map((id) => configuration.collaborators.find((member) => member.id === id));
+      if (targets.some((member) => {
+        if (!member || !member.active || MANAGEMENT_EMAILS.has(normalizeEmail(member.accessEmail)) ||
+            (scope !== "geral" && member.unit.toLowerCase() !== scope)) return true;
+        const user = configuration.users.find((item) => item.email === normalizeEmail(member.accessEmail));
+        return !user || user.active === false;
+      })) {
+        return NextResponse.json({ error: "A seleção contém um colaborador fora da unidade ou sem acesso ativo." }, { status: 400 });
+      }
+      const updated = targets.map((member) => ({
+        ...(member as ConfiguredCollaborator),
+        chatEnabled: body.enabled as boolean,
+        updatedAt: new Date().toISOString(),
+      }));
+      for (const member of updated) {
+        await upsertCollaborator(current.accessToken, member);
+      }
+      await appendAudit(
+        current.accessToken,
+        body.enabled ? "Chat habilitado para colaboradores selecionados" : "Chat desabilitado para colaboradores selecionados",
+        `${scope === "geral" ? "Geral" : scope === "araras" ? "Araras" : "Rio Claro"} · ${updated.map((member) => member.name).join(", ")}`,
+        current.email,
+      );
+      return NextResponse.json({ ok: true, collaborators: updated });
     } else {
       return NextResponse.json({ error: "Alteração inválida." }, { status: 400 });
     }

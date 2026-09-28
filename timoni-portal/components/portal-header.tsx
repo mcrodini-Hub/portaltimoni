@@ -13,13 +13,11 @@ const navItems: Array<{ href: string; label: string; module: PortalModule; updat
   { href: "/dashboard/compras", label: "Compras", module: "compras", updateModule: "compras", icon: "cart", color: "text-orange-700" },
   { href: "/dashboard/conferencia-pedidos", label: "Conferência", module: "conferencia", updateModule: "conferencia", icon: "document", color: "text-rose-700" },
   { href: "/dashboard/estoque", label: "Estoque", module: "estoque", updateModule: "estoque", icon: "stock", color: "text-amber-700" },
-  { href: "/dashboard/estoque-rotativo", label: "Estoque Rotativo", module: "estoque-rotativo", updateModule: "estoque-rotativo", icon: "stock", color: "text-yellow-700" },
+  { href: "/dashboard/estoque-rotativo", label: "Rotativo", module: "estoque-rotativo", updateModule: "estoque-rotativo", icon: "stock", color: "text-yellow-700" },
   { href: "/dashboard/motorista", label: "Motorista", module: "motorista", updateModule: "motorista", icon: "truck", color: "text-blue-600" },
   { href: "/dashboard/reunioes", label: "Reuniões", module: "reunioes", updateModule: "reunioes", icon: "meetings", color: "text-indigo-800" },
   { href: "/dashboard/leads", label: "Leads", module: "leads", updateModule: "leads", icon: "leads", color: "text-cyan-800" },
-  { href: "/espaco-equipe", label: "Espaço Equipe", module: "painel", updateModule: "espaco-equipe", icon: "team", color: "text-indigo-800" },
-  { href: "/dashboard/marketing", label: "Marketing", module: "marketing", updateModule: "marketing", icon: "leads", color: "text-cyan-800" },
-  { href: "/dashboard/financeiro", label: "Financeiro", module: "financeiro", updateModule: "financeiro", icon: "document", color: "text-emerald-700" },
+  { href: "/espaco-equipe", label: "Equipe", module: "painel", updateModule: "espaco-equipe", icon: "team", color: "text-indigo-800" },
 ];
 
 export default function PortalHeader({ email, portalUser }: { email: string; portalUser?: PortalUser | null }) {

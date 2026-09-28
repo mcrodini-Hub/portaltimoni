@@ -12,7 +12,7 @@ import {
 } from "@/lib/portal-config";
 
 const VALID_MODULES = new Set<PortalModule>([
-  "painel", "agenda", "agenda-ct", "chat", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads", "marketing", "financeiro",
+  "painel", "agenda", "agenda-ct", "chat", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads",
 ]);
 const VALID_BOXES = new Set<PortalBox>([
   "painel", "agenda", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads", "espaco-equipe",
@@ -57,7 +57,6 @@ function cleanUser(value: Record<string, unknown>): PortalUser {
   const name = String(value.name || "").trim();
   if (!email.includes("@") || name.length < 2) throw new Error("Informe nome e e-mail válidos.");
   const modules = cleanModules(value.modules);
-  if (!modules.includes("chat")) modules.push("chat");
   const boxes = cleanBoxes(value.boxes).filter((box) => box === "espaco-equipe" ? modules.includes("painel") : modules.includes(box));
   return {
     email,
@@ -113,29 +112,9 @@ export async function PUT(request: Request) {
     const body = await request.json();
     if (body.section === "user") {
       const item = cleanUser(body.item || {});
-      const configuration = await loadPortalConfiguration(current.accessToken);
-      const isNew = !configuration.users.some((user) => user.email === item.email);
       await upsertPortalUser(current.accessToken, item);
-      // Um novo email tem um único colaborador inicial. A identificação individual
-      // de Avisos em acessos compartilhados continua preservada na lista existente.
-      let collaborator: ConfiguredCollaborator | undefined;
-      const managedMemberId = `acesso-${item.email.replace(/[^a-z0-9]+/g, "-")}`;
-      const managedMember = configuration.collaborators.find((member) => member.id === managedMemberId);
-      if (item.unit !== "Geral" && (managedMember || (isNew && !configuration.collaborators.some((member) => member.accessEmail === item.email)))) {
-        collaborator = {
-          id: managedMemberId,
-          accessEmail: item.email,
-          name: item.name,
-          unit: item.unit || "Rio Claro",
-          active: item.active !== false,
-          noticeRequired: managedMember?.noticeRequired ?? true,
-          chatEnabled: managedMember?.chatEnabled ?? true,
-          updatedAt: new Date().toISOString(),
-        };
-        await upsertCollaborator(current.accessToken, collaborator);
-      }
-      await appendAudit(current.accessToken, "Acesso atualizado", `${item.name} · ${item.email}`, current.email);
-      return NextResponse.json({ ok: true, item, collaborator });
+      await appendAudit(current.accessToken, "Acesso atualizado", `${item.accessLabel || item.name} · ${item.email}`, current.email);
+      return NextResponse.json({ ok: true, item });
     } else if (body.section === "collaborator") {
       const configuration = await loadPortalConfiguration(current.accessToken);
       const item = cleanCollaborator(body.item || {}, configuration.users);

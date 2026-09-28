@@ -481,7 +481,7 @@ export default function EstoqueRotativoClient() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Módulo operacional</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Rotativo</h1>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Estoque Rotativo</h1>
           </div>
         </div>
       </section>
@@ -994,7 +994,7 @@ export default function EstoqueRotativoClient() {
       {data ? (
         <section className="order-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Rotativo</p>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Estoque Rotativo</p>
             <h2 className="mt-1 text-xl font-semibold text-slate-950">Estoque atualizado</h2>
           </div>
           <div className="mt-3 space-y-2">

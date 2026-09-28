@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getPortalUser, type PortalUser } from "@/lib/access-control";
 import { canViewComunicado, listComunicados } from "@/lib/comunicados";
-import { getEffectiveCollaborators } from "@/lib/portal-config";
+import { getEffectiveCollaborators, listConfiguredPortalUsers } from "@/lib/portal-config";
 import { recordModuleUpdateSafely } from "@/lib/module-updates";
 import {
   listAvisoLeituras,
@@ -44,12 +44,16 @@ export async function GET() {
   if (!current) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
 
   try {
-    const [reads, collaborators, notices] = await Promise.all([
+    const [reads, collaborators, notices, users] = await Promise.all([
       listAvisoLeituras(current.accessToken),
       getEffectiveCollaborators(current.accessToken),
       listComunicados(current.accessToken),
+      listConfiguredPortalUsers(current.accessToken),
     ]);
-    const employees = collaborators.filter((member) => member.noticeRequired).map((member) => ({ employee: member.name, unit: member.unit, pinConfigured: true }));
+    const confirmationAccesses = new Set(users.filter((user) => user.active !== false && user.noticeRequired).map((user) => normalizeEmail(user.email)));
+    const employees = collaborators
+      .filter((member) => member.active && confirmationAccesses.has(normalizeEmail(member.accessEmail)))
+      .map((member) => ({ employee: member.name, unit: member.unit, pinConfigured: true }));
     const unit = allowedUnit(current.email, current.portalUser);
     const currentUnit = unit === "Araras" ? "araras" : unit === "Rio Claro" ? "rio claro" : "geral";
     const visibleIds = new Set(notices.filter((item) => MANAGEMENT_EMAILS.has(current.email) || canViewComunicado(item, current.email, currentUnit)).map((item) => item.id));
@@ -73,8 +77,12 @@ export async function POST(request: Request) {
     const employee = String(body?.employee ?? "").trim();
     const unit = String(body?.unit ?? "").trim();
 
-    const collaborators = await getEffectiveCollaborators(current.accessToken);
-    if (!collaborators.some((member) => member.name === employee && member.unit === unit && member.noticeRequired)) {
+    const [collaborators, users] = await Promise.all([
+      getEffectiveCollaborators(current.accessToken),
+      listConfiguredPortalUsers(current.accessToken),
+    ]);
+    const confirmationAccesses = new Set(users.filter((user) => user.active !== false && user.noticeRequired).map((user) => normalizeEmail(user.email)));
+    if (!collaborators.some((member) => member.name === employee && member.unit === unit && member.active && confirmationAccesses.has(normalizeEmail(member.accessEmail)))) {
       return NextResponse.json({ error: "Selecione um funcionário válido." }, { status: 400 });
     }
     const permittedUnit = allowedUnit(current.email, current.portalUser);

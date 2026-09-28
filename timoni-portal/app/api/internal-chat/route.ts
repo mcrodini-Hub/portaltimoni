@@ -55,7 +55,7 @@ async function getChatParticipants(accessToken?: string): Promise<ChatParticipan
 
   for (const member of collaborators) {
     const email = normalizeEmail(member.accessEmail);
-    if (!member.active || member.chatEnabled === false || !email) continue;
+    if (!member.active || !email) continue;
     const user = users.find((item) => normalizeEmail(item.email) === email && item.active !== false);
     if (!user || !hasModuleAccess(email, "chat", user)) continue;
     const id = legacyId(email, member.name) || `colaborador:${member.id}`;

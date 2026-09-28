@@ -75,18 +75,18 @@ export async function GET() {
   if (!context) return NextResponse.json({ error: "Acesso não autorizado." }, { status: 401 });
 
   try {
-    const [items, collaborators, reads] = await Promise.all([
+    const [items, collaborators, reads, users] = await Promise.all([
       listComunicados(context.accessToken),
       getEffectiveCollaborators(context.accessToken),
       listAvisoLeituras(context.accessToken),
+      listConfiguredPortalUsers(context.accessToken),
     ]);
     const unit = unitForEmail(context.email, context.portalUser);
     const now = Date.now();
-    const requiredMembers = collaborators.filter((member) =>
-      member.active &&
-      member.noticeRequired &&
-      normalizeEmail(member.accessEmail) === context.email
-    );
+    const currentAccess = users.find((user) => normalizeEmail(user.email) === context.email);
+    const requiredMembers = currentAccess?.noticeRequired
+      ? collaborators.filter((member) => member.active && normalizeEmail(member.accessEmail) === context.email)
+      : [];
     const activeItems = items.filter((item) =>
       item.status === "ativo" &&
       (!item.startsAt || Date.parse(item.startsAt) <= now) &&

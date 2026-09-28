@@ -84,6 +84,7 @@ function cleanUser(value: Record<string, unknown>): PortalUser {
     active: email === CICA_EMAIL ? true : value.active !== false,
     directPainel: Boolean(value.directPainel),
     lastAccess: String(value.lastAccess || ""),
+    noticeRequired: Boolean(value.noticeRequired),
   };
 }
 
@@ -101,8 +102,8 @@ function cleanCollaborator(value: Record<string, unknown>, users: PortalUser[]):
     name,
     unit,
     active: value.active !== false,
-    noticeRequired: value.noticeRequired !== false,
-    chatEnabled: value.chatEnabled !== false,
+    noticeRequired: true,
+    chatEnabled: true,
     updatedAt: new Date().toISOString(),
   };
 }

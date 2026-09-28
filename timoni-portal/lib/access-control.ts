@@ -28,6 +28,7 @@ export type PortalUser = {
   directPainel?: boolean;
   unit?: "Geral" | "Araras" | "Rio Claro";
   lastAccess?: string;
+  noticeRequired?: boolean;
 };
 
 const allModules: PortalModule[] = [

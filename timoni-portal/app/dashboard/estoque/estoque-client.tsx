@@ -570,7 +570,7 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
             <p className="mt-1 text-sm text-slate-500">Solicitações organizadas por etapa</p>
           </div>
           {isManager && (
-            <div className="flex rounded-xl bg-slate-100 p-1" aria-label="Filtrar todos os quadros por unidade">
+            <div role="group" className="flex rounded-xl bg-slate-100 p-1" aria-label="Filtrar todos os quadros por unidade">
               {(["todas", "rio_claro", "araras"] as Unit[]).map((item) => (
                 <button
                   key={item}

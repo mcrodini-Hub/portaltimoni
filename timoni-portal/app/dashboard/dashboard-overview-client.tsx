@@ -68,7 +68,7 @@ export default function DashboardOverviewClient({ modules, motoristaControle, es
     ...(allowed.has("estoque") ? [["Estoque", "/dashboard/estoque", "📦", snapshot.solicitacoes] as const] : []),
     ...(allowed.has("estoque-rotativo") ? [["Estoque Rotativo", "/dashboard/estoque-rotativo", "🔄", snapshot.estoqueRotativo] as const] : []),
     ...(allowed.has("leads") ? [["Leads", "/dashboard/leads", "🎯", snapshot.leads] as const] : []),
-    ...(allowed.has("motorista") ? [["Motorista", motoristaControle ? "/dashboard/motorista" : "/dashboard/motorista-leitura", "🚚", snapshot.motorista] as const] : []),
+    ...(allowed.has("motorista") ? [["Motorista", "/dashboard/motorista", "🚚", snapshot.motorista] as const] : []),
   ];
 
   const mobileCards = [

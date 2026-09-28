@@ -125,33 +125,43 @@ export async function PUT(request: Request) {
       return NextResponse.json({ ok: true, item });
     } else if (body.section === "chat-unit") {
       const scope = String(body.scope || "").trim().toLowerCase();
-      const enabled = body.enabled !== false;
-      if (!["geral", "rio claro", "araras"].includes(scope)) {
-        return NextResponse.json({ error: "Cidade inválida para o Chat." }, { status: 400 });
+      if (!["geral", "rio claro", "araras"].includes(scope) || typeof body.enabled !== "boolean") {
+        return NextResponse.json({ error: "Seleção inválida para o Chat." }, { status: 400 });
+      }
+      if (!Array.isArray(body.emails) || !body.emails.length || body.emails.some((email: unknown) => typeof email !== "string")) {
+        return NextResponse.json({ error: "Selecione ao menos um acesso." }, { status: 400 });
+      }
+      const emails = body.emails.map((email: string) => normalizeEmail(email));
+      if (new Set(emails).size !== emails.length) {
+        return NextResponse.json({ error: "Há acessos repetidos na seleção." }, { status: 400 });
       }
       const configuration = await loadPortalConfiguration(current.accessToken);
-      const targets = configuration.users.filter((user) =>
-        user.active !== false &&
-        (scope === "geral" || user.unit?.toLowerCase() === scope)
-      );
+      const targets = emails.map((email: string) => configuration.users.find((user) => user.email === email));
+      if (targets.some((user) =>
+        !user || user.active === false || MANAGEMENT_EMAILS.has(user.email) ||
+        (scope !== "geral" && user.unit?.toLowerCase() !== scope)
+      )) {
+        return NextResponse.json({ error: "A seleção contém um acesso fora da cidade ou indisponível." }, { status: 400 });
+      }
       const updatedUsers = targets.map((user) => {
-        const modules = enabled
-          ? [...new Set([...user.modules, "chat" as PortalModule])]
-          : user.modules.filter((module) => module !== "chat");
-        const mobileModules = user.mobileModules === undefined
+        const access = user as PortalUser;
+        const modules = body.enabled
+          ? [...new Set([...access.modules, "chat" as PortalModule])]
+          : access.modules.filter((module) => module !== "chat");
+        const mobileModules = access.mobileModules === undefined
           ? undefined
-          : enabled
-            ? [...new Set([...user.mobileModules, "chat" as PortalModule])]
-            : user.mobileModules.filter((module) => module !== "chat");
-        return { ...user, modules, mobileModules };
+          : body.enabled
+            ? [...new Set([...access.mobileModules, "chat" as PortalModule])]
+            : access.mobileModules.filter((module) => module !== "chat");
+        return { ...access, modules, mobileModules };
       });
       for (const user of updatedUsers) {
         await upsertPortalUser(current.accessToken, user);
       }
       await appendAudit(
         current.accessToken,
-        enabled ? "Chat habilitado por cidade" : "Chat desabilitado por cidade",
-        `${scope === "geral" ? "Geral" : scope === "araras" ? "Araras" : "Rio Claro"} · ${updatedUsers.length} acesso(s)`,
+        body.enabled ? "Chat habilitado para acessos selecionados" : "Chat desabilitado para acessos selecionados",
+        `${scope === "geral" ? "Geral" : scope === "araras" ? "Araras" : "Rio Claro"} · ${emails.join(", ")}`,
         current.email,
       );
       return NextResponse.json({ ok: true, users: updatedUsers });

@@ -77,10 +77,10 @@ export function EventCard({
               {event.calendarLabel}
             </span>
           </div>
-          <p className={clsx("mt-2 break-words text-[17px] font-medium sm:text-base", event.completed && "text-slate-500 line-through")}>
+          <p className={clsx("mt-2 break-words text-base font-medium", event.completed && "text-slate-500 line-through")}>
             {event.summary}
           </p>
-          {event.location && <p className="mt-1 break-words text-sm text-slate-500">{event.location}</p>}
+          {event.location && <p className="mt-1 break-words text-[15px] text-slate-500 sm:text-sm">{event.location}</p>}
         </div>
         <div className="grid w-full grid-cols-3 items-center gap-2 sm:flex sm:w-auto sm:shrink-0 sm:flex-wrap sm:items-center">
           <button

@@ -7,7 +7,7 @@ import clsx from "clsx";
 import { Button } from "@/components/ui/button";
 import { EventCard, getUrgency } from "@/components/event-card";
 import { EventForm } from "./event-form";
-import type { CalendarEventDTO } from "@/lib/types";
+import type { CalendarEventDTO, CalendarKey } from "@/lib/types";
 
 const POLL_INTERVAL_MS = 60_000;
 const TICK_INTERVAL_MS = 30_000;
@@ -120,9 +120,13 @@ function monthGrid(year: number, month: number): CalendarDay[] {
 export function CalendarView({
   initialEvents,
   initialError,
+  title = "Agenda",
+  fixedCalendarKey,
 }: {
   initialEvents: CalendarEventDTO[];
   initialError: string | null;
+  title?: string;
+  fixedCalendarKey?: CalendarKey;
 }) {
   const [events, setEvents] = useState(initialEvents);
   const [view, setView] = useState<ViewMode>("week");
@@ -141,8 +145,9 @@ export function CalendarView({
   async function refreshEvents(currentView: ViewMode, offset: number) {
     const { start, end } = periodRange(currentView, offset);
     try {
+      const calendarFilter = fixedCalendarKey ? `&calendarKey=${encodeURIComponent(fixedCalendarKey)}` : "";
       const res = await fetch(
-        `/api/events?timeMin=${encodeURIComponent(start.toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}`
+        `/api/events?timeMin=${encodeURIComponent(start.toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}${calendarFilter}`
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -160,8 +165,9 @@ export function CalendarView({
     const { start, end } = periodRange("week", 0);
     setSearchLoading(true);
     try {
+      const calendarFilter = fixedCalendarKey ? `&calendarKey=${encodeURIComponent(fixedCalendarKey)}` : "";
       const res = await fetch(
-        `/api/events?timeMin=${encodeURIComponent(start.toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}`
+        `/api/events?timeMin=${encodeURIComponent(start.toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}${calendarFilter}`
       );
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -181,7 +187,7 @@ export function CalendarView({
     refreshEvents(view, periodOffset);
     const poll = setInterval(() => refreshEvents(view, periodOffset), POLL_INTERVAL_MS);
     return () => clearInterval(poll);
-  }, [view, periodOffset]);
+  }, [view, periodOffset, fixedCalendarKey]);
 
   useEffect(() => {
     const tick = setInterval(() => setNow(Date.now()), TICK_INTERVAL_MS);
@@ -418,7 +424,7 @@ export function CalendarView({
     <div>
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-lg font-semibold">Agenda</h1>
+          <h1 className="text-lg font-semibold">{title}</h1>
           <p className="capitalize text-sm text-slate-400">{rangeLabel}</p>
         </div>
         <Button
@@ -661,6 +667,7 @@ export function CalendarView({
       {formOpen && (
         <EventForm
           event={editingEvent}
+          fixedCalendarKey={fixedCalendarKey}
           onClose={() => setFormOpen(false)}
           onSaved={() => {
             void refreshEvents(view, periodOffset);

@@ -23,12 +23,20 @@ export async function GET(request: NextRequest) {
   const defaultWeek = getWeekRange();
   const timeMin = searchParams.get("timeMin") ?? defaultWeek.start.toISOString();
   const timeMax = searchParams.get("timeMax") ?? defaultWeek.end.toISOString();
+  const requestedCalendarKey = searchParams.get("calendarKey");
+  if (requestedCalendarKey && !isCalendarKey(requestedCalendarKey)) {
+    return NextResponse.json({ error: "Agenda inválida." }, { status: 400 });
+  }
   try {
-    const events = await listEventsInRange(session!.accessToken!, {
-      timeMin,
-      timeMax,
-      maxResults: 500,
-    });
+    const events = await listEventsInRange(
+      session!.accessToken!,
+      {
+        timeMin,
+        timeMax,
+        maxResults: 500,
+      },
+      requestedCalendarKey ? [requestedCalendarKey] : undefined
+    );
     return NextResponse.json({ events });
   } catch (error) {
     const { message, status } = toApiError(error);

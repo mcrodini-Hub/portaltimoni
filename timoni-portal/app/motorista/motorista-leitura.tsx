@@ -80,6 +80,43 @@ function pedidoTexto(valor?: string) {
   return String(valor ?? "").replace(/\s*\/\s*/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function lerOperacao(notasJson?: string): "Entrega" | "Retirada" {
+  try {
+    const parsed = JSON.parse(String(notasJson || "[]"));
+    return parsed && !Array.isArray(parsed) && parsed.operacao === "Retirada" ? "Retirada" : "Entrega";
+  } catch {
+    return "Entrega";
+  }
+}
+
+function separarVolume(valor?: string) {
+  const texto = String(valor ?? "").trim();
+  const unidadeMarcador = " | Unidade: ";
+  const quantidadeMarcador = " | Quantidade: ";
+  const indiceUnidade = texto.indexOf(unidadeMarcador);
+  const indiceQuantidade = texto.indexOf(quantidadeMarcador);
+
+  if (indiceUnidade >= 0) {
+    const fimUnidade = indiceQuantidade >= 0 ? indiceQuantidade : texto.length;
+    return {
+      volume: texto.slice(0, indiceUnidade).trim(),
+      unidade: texto.slice(indiceUnidade + unidadeMarcador.length, fimUnidade).trim(),
+      quantidade: indiceQuantidade >= 0 ? texto.slice(indiceQuantidade + quantidadeMarcador.length).trim() : "",
+    };
+  }
+
+  const combinado = texto.match(/^(\S+)\s+(.+)$/);
+  return combinado
+    ? { volume: combinado[1], unidade: combinado[2].trim(), quantidade: "" }
+    : { volume: texto, unidade: "", quantidade: "" };
+}
+
+function formatarVolume(valor?: string) {
+  const info = separarVolume(valor);
+  const base = [info.volume, info.unidade].filter(Boolean).join(" ");
+  return [base, info.quantidade].filter(Boolean).join(" = ");
+}
+
 function finalizada(v: Viagem) {
   try {
     const parsed = JSON.parse(String(v.notasJson || "[]"));
@@ -213,28 +250,21 @@ export default function MotoristaLeitura() {
                       return (
                         <article key={v.id} className={`rounded-xl border p-3 ${bloqueio ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
                           <div className="flex items-start gap-3">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow-sm">{index + 1}</span>
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="text-sm font-semibold text-slate-950">
-                                  {bloqueio ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}
+                                  {index + 1}. {lerOperacao(v.notasJson)} | {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}{bloqueio ? " | Bloqueio" : ""}
                                 </p>
                                 {!bloqueio && concluida(v.notasJson) && <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">Concluído</span>}
                               </div>
-                              {bloqueio && (v.clienteFornecedor || pedidoTexto(v.numeroPedido)) && (
-                                <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor ? `Empresa: ${v.clienteFornecedor}` : ""}{v.clienteFornecedor && pedidoTexto(v.numeroPedido) ? " | " : ""}{pedidoTexto(v.numeroPedido) ? `NF/Pedido: ${pedidoTexto(v.numeroPedido)}` : ""}</p>
+                              {(v.clienteFornecedor || pedidoTexto(v.numeroPedido)) && (
+                                <p className="mt-2 text-sm text-slate-900">Empresa: <strong>{v.clienteFornecedor || ""}{v.clienteFornecedor && pedidoTexto(v.numeroPedido) ? " | " : ""}{pedidoTexto(v.numeroPedido) ? `NF/Pedido: ${pedidoTexto(v.numeroPedido)}` : ""}</strong></p>
                               )}
-                              {bloqueio && endereco && <p className="mt-1 text-sm text-slate-700">End.: {endereco}</p>}
-                              {bloqueio && enderecoInfo.link && <a href={enderecoInfo.link} target="_blank" rel="noreferrer" className="mt-2 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Google Maps</a>}
-                              {!bloqueio && (
-                                <>
-                                  <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>
-                                  {endereco && <p className="mt-1 text-sm text-slate-700">End.: {endereco}</p>}
-                                  {enderecoInfo.link && <a href={enderecoInfo.link} target="_blank" rel="noreferrer" className="mt-2 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Google Maps</a>}
-                                  {(v.contatoNome || v.contatoWhats) && <p className="mt-1 text-sm text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
-                                </>
-                              )}
-                              {v.info && <p className="mt-2 text-sm text-slate-600"><span className="block">Observação:</span><span className="block whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
+                              {endereco && <p className="mt-1 text-sm text-slate-700">End.: {endereco}</p>}
+                              {v.contatoNome && <p className="mt-1 text-sm text-slate-700">Falar com: {v.contatoNome}</p>}
+                              {v.volumes && <p className="mt-1 text-sm text-slate-700">Volume: {formatarVolume(v.volumes)}</p>}
+                              {v.info && <p className="mt-1 text-sm text-slate-600">Observação: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
+                              {enderecoInfo.link && <a href={enderecoInfo.link} target="_blank" rel="noreferrer" className="mt-2 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Google Maps</a>}
                               {v.preenchidoPor && <p className="mt-3 font-[Arial] text-[9px] text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
                             </div>
                           </div>

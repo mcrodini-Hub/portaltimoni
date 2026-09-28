@@ -183,7 +183,7 @@ export default function ConfiguracoesClient() {
           <Checkbox label="Acesso ativo" checked={userForm.active !== false} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => setUserForm({ ...userForm, active: checked })} />
           <Checkbox label="Somente leitura" checked={Boolean(userForm.readOnly)} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => setUserForm({ ...userForm, readOnly: checked })} />
         </div>}
-        <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setUserForm(null)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancelar</button><button type="button" disabled={saving} onClick={() => void save("user", userForm)} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? "Salvando..." : isNew ? "Criar usuário" : "Salvar acesso"}</button></div>
+        <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setUserForm(null)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancelar</button><button type="button" disabled={saving} onClick={() => void save("user", userForm)} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? "Salvando..." : isNew ? "Criar acesso" : "Salvar acesso"}</button></div>
       </div>
     );
   }
@@ -300,7 +300,7 @@ export default function ConfiguracoesClient() {
                 <li>Acessar e editar o Guia de uso.</li>
                 <li>Acessar os módulos liberados para a gestão.</li>
               </ul>
-              <p>O nível de acesso e as permissões de cada usuário podem variar conforme a necessidade da função. Ao alterar permissões, revise com cuidado quais módulos e boxes ficarão disponíveis para cada usuário.</p>
+              <p>A lógica das permissões segue três níveis: Módulos → Acessos → Colaboradores. O acesso define os módulos disponíveis para aquele login. Quando o login é compartilhado, Chat e ciência dos Avisos são definidos individualmente no colaborador vinculado.</p>
             </GuideItem>
             <GuideItem title="8. Backup e restauração">
               <p>Faça backups periódicos pelo botão Baixar backup agora. Para restaurar, selecione um ZIP válido. Antes da restauração, o Portal gera automaticamente uma cópia do estado atual. Confirme sempre o arquivo e a data antes de prosseguir.</p>

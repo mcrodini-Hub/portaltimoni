@@ -4,7 +4,7 @@ import { ChangeEvent, useEffect, useState } from "react";
 import type { PortalModule, PortalUser } from "@/lib/access-control";
 import type { ConfiguredCollaborator, PortalAuditEntry } from "@/lib/portal-config";
 
-type Tab = "modulos" | "acessos" | "colaboradores" | "backup" | "historico" | "guia";
+type Tab = "modulos" | "cadastros" | "backup" | "historico" | "guia";
 type ConfigurationResponse = { users: PortalUser[]; collaborators: ConfiguredCollaborator[]; history: PortalAuditEntry[] };
 
 const MODULES: Array<{ id: PortalModule; label: string }> = [
@@ -60,6 +60,7 @@ export default function ConfiguracoesClient() {
   const [error, setError] = useState("");
   const [userForm, setUserForm] = useState<PortalUser | null>(null);
   const [collaboratorForm, setCollaboratorForm] = useState<ConfiguredCollaborator | null>(null);
+  const [savingKey, setSavingKey] = useState("");
 
   async function load() {
     setLoading(true);
@@ -118,6 +119,38 @@ export default function ConfiguracoesClient() {
     } finally { setSaving(false); }
   }
 
+  async function saveDirect(section: "user" | "collaborator", item: PortalUser | ConfiguredCollaborator, key: string) {
+    setSavingKey(key); setError(""); setFeedback("");
+    try {
+      const response = await fetch("/api/configuracoes", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ section, item }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Não foi possível salvar.");
+      if (section === "user") {
+        const updated = result.item as PortalUser;
+        setData((current) => ({ ...current, users: current.users.map((user) => user.email === updated.email ? updated : user) }));
+      } else {
+        const updated = result.item as ConfiguredCollaborator;
+        setData((current) => ({ ...current, collaborators: current.collaborators.map((member) => member.id === updated.id ? updated : member) }));
+      }
+      setFeedback("Permissão atualizada.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível salvar.");
+    } finally {
+      setSavingKey("");
+    }
+  }
+
+  function userWithModule(user: PortalUser, module: PortalModule, checked: boolean): PortalUser {
+    const modules = checked ? [...new Set([...user.modules, module])] : user.modules.filter((item) => item !== module);
+    const mobileModules = !checked && user.mobileModules ? user.mobileModules.filter((item) => item !== module) : user.mobileModules;
+    const boxes = checked ? user.boxes : (user.boxes || []).filter((item) => item !== module && !(module === "painel" && item === "espaco-equipe"));
+    return { ...user, modules, mobileModules, boxes };
+  }
+
   async function removeCollaborator(member: ConfiguredCollaborator) {
     if (!window.confirm(`Excluir ${member.name} (${member.unit}) da lista de colaboradores?`)) return;
     setSaving(true); setError(""); setFeedback("");
@@ -162,7 +195,7 @@ export default function ConfiguracoesClient() {
     } finally { setSaving(false); }
   }
 
-  const tabs: Array<[Tab, string]> = [["modulos", "1. Módulos"], ["acessos", "2. Acessos"], ["colaboradores", "3. Colaboradores"], ["backup", "Backup"], ["historico", "Histórico"], ["guia", "Guia de uso"]];
+  const tabs: Array<[Tab, string]> = [["modulos", "Permissões"], ["cadastros", "Cadastros"], ["backup", "Backup"], ["historico", "Histórico"], ["guia", "Guia de uso"]];
 
   function renderUserEditor(inline = false) {
     if (!userForm) return null;
@@ -177,7 +210,7 @@ export default function ConfiguracoesClient() {
           <label className="text-sm font-medium text-slate-700">Unidade<select value={userForm.unit} onChange={(e) => setUserForm({ ...userForm, unit: e.target.value as PortalUser["unit"] })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option>Geral</option><option>Araras</option><option>Rio Claro</option></select></label>
         </div>
         {isNew && <p className="mt-2 text-xs text-slate-600">Crie primeiro o acesso. Depois vincule os colaboradores na etapa 3.</p>}
-        {isExisting && <div className="mt-3"><p className="text-sm font-semibold text-slate-900">Permissões dos módulos</p><div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">{MODULES.map((module) => <Checkbox key={module.id} label={module.label} checked={userForm.modules.includes(module.id)} onChange={(checked) => toggleModule(module.id, checked)} />)}</div></div>}
+        
         {isExisting && <details className="mt-2 rounded-lg border border-slate-200 p-2"><summary className="cursor-pointer text-sm font-semibold text-slate-900">Mostrar no menu mobile</summary><p className="mt-1 text-xs text-slate-600">Por padrão, mostra todos os módulos permitidos. Ocultar do menu não altera o acesso.</p><div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">{MODULES.filter((module) => userForm.modules.includes(module.id)).map((module) => <Checkbox key={module.id} label={module.label} checked={(userForm.mobileModules ?? userForm.modules).includes(module.id)} onChange={(checked) => setUserForm({ ...userForm, mobileModules: checked ? [...new Set([...(userForm.mobileModules ?? userForm.modules), module.id])] : (userForm.mobileModules ?? userForm.modules).filter((item) => item !== module.id) })} />)}</div></details>}
         {isExisting && <div className="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-2">
           <Checkbox label="Acesso ativo" checked={userForm.active !== false} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => setUserForm({ ...userForm, active: checked })} />
@@ -193,7 +226,7 @@ export default function ConfiguracoesClient() {
       <header className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Acesso da gestão</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Configurações</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Estrutura simples: Módulo → Acesso → Colaborador. Primeiro defina os módulos do acesso; depois as permissões individuais quando um login for compartilhado.</p>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Clique em um módulo e libere ou bloqueie os acessos diretamente. Chat e Avisos mostram também os colaboradores vinculados ao login.</p>
       </header>
 
       <section className="grid gap-3 sm:grid-cols-3">
@@ -212,20 +245,92 @@ export default function ConfiguracoesClient() {
 
       {!loading && tab === "modulos" && (
         <section className="mt-5">
-          <div className="mb-4"><h2 className="text-xl font-semibold text-slate-950">Módulos</h2><p className="mt-1 text-sm text-slate-600">Esta é a lista de módulos disponíveis. A liberação é feita na etapa 2, por acesso.</p></div>
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mb-4">
+            <h2 className="text-xl font-semibold text-slate-950">Permissões por módulo</h2>
+            <p className="mt-1 text-sm text-slate-600">Clique no módulo. Os acessos abrem logo abaixo para você ligar ou desligar sem mudar de tela.</p>
+          </div>
+          <div className="space-y-3">
             {MODULES.map((module) => {
-              const count = data.users.filter((user) => user.active !== false && user.modules.includes(module.id)).length;
-              return <article key={module.id} className="rounded-2xl border border-slate-200 bg-white p-4"><p className="font-semibold text-slate-950">{module.label}</p><p className="mt-2 text-sm text-slate-600">{count} acesso{count === 1 ? "" : "s"} liberado{count === 1 ? "" : "s"}</p></article>;
+              const activeAccesses = data.users.filter((user) => user.active !== false && user.modules.includes(module.id)).length;
+              return (
+                <details key={module.id} className="group rounded-2xl border border-slate-200 bg-white shadow-sm">
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-4">
+                    <div>
+                      <p className="font-semibold text-slate-950">{module.label}</p>
+                      <p className="mt-1 text-sm text-slate-500">{activeAccesses} acesso{activeAccesses === 1 ? "" : "s"} liberado{activeAccesses === 1 ? "" : "s"}</p>
+                    </div>
+                    <span className="text-xl font-semibold text-blue-800 transition group-open:rotate-45">+</span>
+                  </summary>
+                  <div className="border-t border-slate-100 p-3 sm:p-4">
+                    <div className="space-y-2">
+                      {[...data.users].sort((a, b) => (a.accessLabel || a.name).localeCompare(b.accessLabel || b.name, "pt-BR")).map((user) => {
+                        const enabled = user.active !== false && user.modules.includes(module.id);
+                        const key = `user:${module.id}:${user.email}`;
+                        const members = data.collaborators.filter((member) => member.active && member.accessEmail === user.email).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
+                        return (
+                          <div key={user.email} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
+                            <div className="flex items-center justify-between gap-3">
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-semibold text-slate-900">{user.accessLabel || user.name}</p>
+                                <p className="truncate text-xs text-slate-500">{user.email} · {user.unit}</p>
+                              </div>
+                              <label className="inline-flex shrink-0 cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
+                                <input
+                                  type="checkbox"
+                                  checked={enabled}
+                                  disabled={savingKey === key || user.active === false}
+                                  onChange={(event) => void saveDirect("user", userWithModule(user, module.id, event.target.checked), key)}
+                                  className="h-5 w-5 accent-blue-800"
+                                />
+                                {enabled ? "Liberado" : "Bloqueado"}
+                              </label>
+                            </div>
+
+                            {members.length > 0 && (
+                              <div className="mt-3 border-t border-slate-200 pt-2">
+                                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Colaboradores deste acesso</p>
+                                <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+                                  {members.map((member) => {
+                                    const memberKey = `member:${module.id}:${member.id}`;
+                                    if (module.id === "chat") {
+                                      const checked = enabled && member.chatEnabled !== false;
+                                      return (
+                                        <label key={member.id} className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-sm ${checked ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white"}`}>
+                                          <span className="truncate">{member.name}</span>
+                                          <input type="checkbox" checked={checked} disabled={!enabled || savingKey === memberKey} onChange={(event) => void saveDirect("collaborator", { ...member, chatEnabled: event.target.checked }, memberKey)} className="h-4 w-4 accent-blue-800" />
+                                        </label>
+                                      );
+                                    }
+                                    if (module.id === "painel") {
+                                      const checked = enabled && member.noticeRequired;
+                                      return (
+                                        <label key={member.id} className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-sm ${checked ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"}`}>
+                                          <span className="truncate">{member.name}</span>
+                                          <span className="flex items-center gap-2 text-xs text-slate-500">Ciência<input type="checkbox" checked={checked} disabled={!enabled || savingKey === memberKey} onChange={(event) => void saveDirect("collaborator", { ...member, noticeRequired: event.target.checked }, memberKey)} className="h-4 w-4 accent-blue-800" /></span>
+                                        </label>
+                                      );
+                                    }
+                                    return <div key={member.id} className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700">{member.name}<span className="ml-2 text-xs text-slate-400">segue o acesso</span></div>;
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </details>
+              );
             })}
           </div>
         </section>
       )}
 
-      {!loading && tab === "acessos" && (
+      {!loading && tab === "cadastros" && (
         <section className="mt-5 space-y-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><h2 className="text-xl font-semibold text-slate-950">Acessos</h2><p className="mt-1 text-sm text-slate-600">Cada login recebe somente os módulos marcados aqui. O Chat só pode aparecer se o acesso tiver Chat liberado.</p></div>
+            <div><h2 className="text-xl font-semibold text-slate-950">Nomes dos acessos</h2><p className="mt-1 text-sm text-slate-600">Use esta área apenas para criar, renomear ou desativar logins. As permissões ficam na tela principal.</p></div>
             <button type="button" onClick={() => setUserForm({ ...EMPTY_USER })} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white">+ Novo acesso</button>
           </div>
 
@@ -250,9 +355,9 @@ export default function ConfiguracoesClient() {
         </section>
       )}
 
-      {!loading && tab === "colaboradores" && (
+      {!loading && tab === "cadastros" && (
         <section className="mt-5 space-y-5 rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-semibold text-slate-950">Colaboradores</h2><p className="mt-1 text-sm text-slate-600">Vincule cada pessoa ao acesso que ela usa. Aqui ficam apenas permissões individuais: Chat e ciência dos Avisos.</p></div><button type="button" onClick={() => setCollaboratorForm({ ...EMPTY_COLLABORATOR })} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white">+ Vincular colaborador</button></div>
+          <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-semibold text-slate-950">Colaboradores</h2><p className="mt-1 text-sm text-slate-600">Use esta área apenas para cadastrar, vincular ou excluir pessoas. Chat e Avisos são liberados diretamente no módulo.</p></div><button type="button" onClick={() => setCollaboratorForm({ ...EMPTY_COLLABORATOR })} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white">+ Vincular colaborador</button></div>
           {collaboratorForm && !collaboratorForm.id && <div className="rounded-3xl border border-blue-200 bg-white p-5 shadow-sm"><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">Nome<input value={collaboratorForm.name} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, name: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label><label className="text-sm font-medium text-slate-700">Unidade<select value={collaboratorForm.unit} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, unit: e.target.value as ConfiguredCollaborator["unit"] })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option>Rio Claro</option><option>Araras</option></select></label></div><label className="mt-3 block text-sm font-medium text-slate-700">E-mail de acesso<select value={collaboratorForm.accessEmail} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, accessEmail: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="">Selecione o acesso</option>{data.users.filter((user) => user.unit !== "Geral").sort((a, b) => (a.accessLabel || a.name).localeCompare(b.accessLabel || b.name)).map((user) => <option key={user.email} value={user.email}>{user.accessLabel || user.name} · {user.email}</option>)}</select></label><div className="mt-4 grid gap-2 sm:grid-cols-3"><Checkbox label="Colaborador ativo" checked={collaboratorForm.active} onChange={(checked) => setCollaboratorForm({ ...collaboratorForm, active: checked })} /><Checkbox label="Exigir ciência dos Avisos" checked={collaboratorForm.noticeRequired} onChange={(checked) => setCollaboratorForm({ ...collaboratorForm, noticeRequired: checked })} /><Checkbox label="Permitir Chat" checked={collaboratorForm.chatEnabled !== false} onChange={(checked) => setCollaboratorForm({ ...collaboratorForm, chatEnabled: checked })} /></div><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setCollaboratorForm(null)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancelar</button><button type="button" disabled={saving || !collaboratorForm.accessEmail || !collaboratorForm.name.trim()} onClick={() => void save("collaborator", collaboratorForm)} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">Salvar vínculo</button></div></div>}
           <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">{[...data.collaborators].sort((a, b) => a.name.localeCompare(b.name)).map((member) => <article key={member.id} className={`rounded-2xl border border-slate-200 bg-white p-4 ${member.active ? "" : "opacity-60"} ${collaboratorForm?.id === member.id ? "sm:col-span-2 lg:col-span-3" : ""}`}><div className="flex items-start justify-between gap-3"><div><p className="font-semibold text-slate-950">{member.name}</p><p className="mt-1 text-sm text-slate-600">{member.unit}</p>{member.accessEmail && <p className="mt-1 text-xs text-slate-500">{member.accessEmail}</p>}</div><div className="flex flex-col items-end gap-1.5"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${member.active ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>{member.active ? "Ativo" : "Desativado"}</span><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${member.noticeRequired ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-600"}`}>{member.noticeRequired ? "Confirma Avisos" : "Sem confirmação"}</span><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${member.chatEnabled !== false ? "bg-blue-100 text-blue-800" : "bg-slate-100 text-slate-600"}`}>{member.chatEnabled !== false ? "Chat liberado" : "Chat bloqueado"}</span></div></div>{collaboratorForm?.id === member.id ? <div className="mt-4 rounded-xl border-t border-blue-100 pt-4"><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">Nome<input value={collaboratorForm.name} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, name: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label><label className="text-sm font-medium text-slate-700">Unidade<select value={collaboratorForm.unit} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, unit: e.target.value as ConfiguredCollaborator["unit"] })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option>Rio Claro</option><option>Araras</option></select></label></div><label className="mt-3 block text-sm font-medium text-slate-700">E-mail de acesso<select value={collaboratorForm.accessEmail} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, accessEmail: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="">Selecione o acesso</option>{data.users.filter((user) => user.unit !== "Geral").sort((a, b) => a.name.localeCompare(b.name)).map((user) => <option key={user.email} value={user.email}>{user.name} · {user.email}</option>)}</select></label><p className="mt-3 text-sm text-slate-600">O e-mail do acesso não altera o nome nem a unidade do colaborador.</p><div className="mt-4 grid gap-2 sm:grid-cols-3"><Checkbox label="Colaborador ativo" checked={collaboratorForm.active} onChange={(checked) => setCollaboratorForm({ ...collaboratorForm, active: checked })} /><Checkbox label="Exigir ciência dos Avisos" checked={collaboratorForm.noticeRequired} onChange={(checked) => setCollaboratorForm({ ...collaboratorForm, noticeRequired: checked })} /><Checkbox label="Permitir Chat" checked={collaboratorForm.chatEnabled !== false} onChange={(checked) => setCollaboratorForm({ ...collaboratorForm, chatEnabled: checked })} /></div><div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" disabled={saving} onClick={() => void removeCollaborator(member)} className="mr-auto rounded-xl border border-red-300 px-4 py-2.5 text-sm font-semibold text-red-700">Excluir colaborador</button><button type="button" onClick={() => setCollaboratorForm(null)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold">Cancelar</button><button type="button" disabled={saving} onClick={() => void save("collaborator", collaboratorForm)} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white">Salvar vínculo</button></div></div> : <button type="button" onClick={() => setCollaboratorForm({ ...member })} className="mt-4 rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-800">Editar</button>}</article>)}</div>
         </section>
@@ -300,7 +405,7 @@ export default function ConfiguracoesClient() {
                 <li>Acessar e editar o Guia de uso.</li>
                 <li>Acessar os módulos liberados para a gestão.</li>
               </ul>
-              <p>A lógica das permissões segue três níveis: Módulos → Acessos → Colaboradores. O acesso define os módulos disponíveis para aquele login. Quando o login é compartilhado, Chat e ciência dos Avisos são definidos individualmente no colaborador vinculado.</p>
+              <p>Para alterar permissões, abra o módulo desejado e ligue ou desligue o acesso na própria tela. No Chat e em Avisos, os colaboradores vinculados aparecem logo abaixo do acesso para controle individual.</p>
             </GuideItem>
             <GuideItem title="8. Backup e restauração">
               <p>Faça backups periódicos pelo botão Baixar backup agora. Para restaurar, selecione um ZIP válido. Antes da restauração, o Portal gera automaticamente uma cópia do estado atual. Confirme sempre o arquivo e a data antes de prosseguir.</p>

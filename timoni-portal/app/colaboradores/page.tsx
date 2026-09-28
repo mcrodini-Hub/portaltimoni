@@ -8,6 +8,8 @@ import type { ConfiguredCollaborator } from "@/lib/portal-config";
 import { getEffectiveCollaborators } from "@/lib/portal-config";
 import ModuleArrivalSummary from "@/components/module-arrival-summary";
 
+export const dynamic = "force-dynamic";
+
 type PanelStore = "geral" | "rio claro" | "araras";
 type Store = "rio claro" | "araras";
 type FixedMeeting = { summary: string; start: string; label: string };
@@ -16,32 +18,52 @@ type PanelDateItem = { id: string; summary: string; start: string; end?: string 
 function normalizeText(value:string){return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()}
 function getPanelStore(email:string,portalUser?:PortalUser|null):PanelStore{const e=email.trim().toLowerCase();if(["mcrodini@gmail.com","mrodini@gmail.com"].includes(e))return "geral";if(portalUser?.unit==="Geral")return "geral";if(portalUser?.unit==="Araras")return "araras";if(portalUser?.unit==="Rio Claro")return "rio claro";if(["estoqueararascasatimoni@gmail.com","comercialara@casatimoni.com.br","fotoscasatimoni@gmail.com","reginaldo@casatimoni.com.br","casatimoniararas@gmail.com"].includes(e))return "araras";return "rio claro"}
 function parseEventDate(value:string){return new Date(value.includes("T")?value:`${value}T12:00:00-03:00`)}
+const PANEL_TIME_ZONE="America/Sao_Paulo";
+const PANEL_UTC_OFFSET="-03:00";
+const PANEL_WINDOW_DAYS_AHEAD=60;
+type PanelDateWindow={start:Date;endExclusive:Date;timeMin:string;timeMax:string};
+function getPanelDateWindow(now:Date):PanelDateWindow{
+ const parts=new Intl.DateTimeFormat("en-US",{timeZone:PANEL_TIME_ZONE,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(now);
+ const part=(type:Intl.DateTimeFormatPartTypes)=>parts.find(item=>item.type===type)?.value??"";
+ const today=`${part("year")}-${part("month")}-${part("day")}`;
+ const lastDayExclusive=new Date(`${today}T00:00:00Z`);
+ lastDayExclusive.setUTCDate(lastDayExclusive.getUTCDate()+PANEL_WINDOW_DAYS_AHEAD+1);
+ const timeMin=`${today}T00:00:00${PANEL_UTC_OFFSET}`;
+ const timeMax=`${lastDayExclusive.toISOString().slice(0,10)}T00:00:00${PANEL_UTC_OFFSET}`;
+ return {start:new Date(timeMin),endExclusive:new Date(timeMax),timeMin,timeMax};
+}
+function eventStartsInPanelWindow(event:CalendarEventDTO,window:PanelDateWindow){
+ const start=parseEventDate(event.start);
+ return start>=window.start&&start<window.endExclusive;
+}
+function eventOverlapsPanelWindow(event:CalendarEventDTO,window:PanelDateWindow){
+ const start=parseEventDate(event.start),end=parseEventDate(event.end);
+ return start<window.endExclusive&&end>window.start;
+}
 function formatDate(value:string|Date){const d=typeof value==="string"?parseEventDate(value):value;return new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric"}).format(d)}
 function formatMeeting(m:FixedMeeting){const d=parseEventDate(m.start);const time=new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",hour:"2-digit",minute:"2-digit"}).format(d);return `${formatDate(d)} · ${time}`}
 function isBirthday(e:CalendarEventDTO){const t=normalizeText(e.summary);return t.includes("aniversario")||t.includes("aniversariante")||t.includes("birthday")}
 function isVacation(e:CalendarEventDTO){return normalizeText(e.summary).includes("ferias")}
 function panelItem(e:CalendarEventDTO):PanelDateItem{return{id:`${e.calendarKey}-${e.id}`,summary:e.summary,start:e.start,end:e.end}}
 function cleanSummary(s:string){return s.replace(/^anivers[aá]rio\s*/i,"").replace(/\s*-\s*f[eé]rias\s*$/i,"").trim()}
-function unique(items:PanelDateItem[],limit=6){const seen=new Set<string>();return items.sort((a,b)=>parseEventDate(a.start).getTime()-parseEventDate(b.start).getTime()).filter(i=>{const k=`${normalizeText(cleanSummary(i.summary))}-${formatDate(i.start)}`;if(seen.has(k))return false;seen.add(k);return true}).slice(0,limit)}
+function unique(items:PanelDateItem[]){const seen=new Set<string>();return items.sort((a,b)=>parseEventDate(a.start).getTime()-parseEventDate(b.start).getTime()).filter(i=>{const k=`${normalizeText(cleanSummary(i.summary))}-${formatDate(i.start)}`;if(seen.has(k))return false;seen.add(k);return true})}
 
 const fixedMeetingSchedule:Record<Store,FixedMeeting[]>={
  araras:[{summary:"Reunião Araras",start:"2026-09-08T07:40:00-03:00",label:"Próxima"},{summary:"Reunião Araras",start:"2026-10-09T07:40:00-03:00",label:"Seguinte"}],
  "rio claro":[{summary:"Reunião Rio Claro",start:"2026-09-03T07:30:00-03:00",label:"Próxima"},{summary:"Reunião Rio Claro",start:"2026-10-03T07:30:00-03:00",label:"Seguinte"}]
 };
 function meetings(now:Date,unit:Store){return fixedMeetingSchedule[unit].filter(m=>new Date(parseEventDate(m.start).getTime()+3600000)>now).slice(0,2)}
-const fixedBirthdays:PanelDateItem[]=[{id:"reinaldo-araras",summary:"Reinaldo (Araras)",start:"2026-08-13"},{id:"thais",summary:"Thais",start:"2026-08-19"},{id:"maria-carolina-araras",summary:"Maria Carolina (Araras)",start:"2026-08-30"},{id:"joao-aniversario-loja",summary:"João aniversário de loja",start:"2026-09-01"}];
-const fixedVacations:PanelDateItem[]=[{id:"leopoldo",summary:"Leopoldo",start:"2026-08-03",end:"2026-08-23"}];
 function AnnouncementCard({store,isAdmin,canConfirmRead,collaborators}:{store:Store;isAdmin:boolean;canConfirmRead:boolean;collaborators:ConfiguredCollaborator[]}){const unit=store==="rio claro"?"Rio Claro":"Araras";const members=collaborators.filter(member=>member.unit===unit&&member.noticeRequired);return <article className="h-full min-w-0 rounded-3xl border border-blue-200 bg-blue-50 p-5 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wider text-blue-700">AVISOS</p><h2 className="mt-2 text-xl font-semibold text-slate-950">{unit}</h2><div className="mt-4 space-y-4"><ComunicadosFeed store={store} isAdmin={isAdmin} canConfirmRead={canConfirmRead} members={members}/></div></article>}
 function MeetingSummaryCard({title,list}:{title:string;list:FixedMeeting[]}){return <article className="h-full min-w-0 rounded-3xl border border-violet-200 bg-violet-50 p-5 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Reuniões</p><h3 className="mt-3 font-semibold text-slate-950">{title}</h3>{list.length?<div className="mt-2 space-y-2">{list.map((m,i)=><div key={m.start} className="rounded-xl bg-white/70 p-3"><p className="text-xs font-semibold uppercase text-violet-700">{i===0?"Próxima":"Seguinte"}</p><p className="mt-1 text-sm font-semibold text-slate-800">{formatMeeting(m)}</p></div>)}</div>:<p className="mt-2 text-sm text-slate-500">Nenhuma reunião programada.</p>}</article>}
 function EventCard({title,tone,events}:{title:string;tone:"pink"|"amber";events:PanelDateItem[]}){const cls=tone==="pink"?"border-pink-200 bg-pink-50":"border-amber-200 bg-amber-50";return <article className={`h-full min-w-0 rounded-3xl border p-5 shadow-sm ${cls}`}><p className="text-xs font-semibold uppercase tracking-wider text-slate-700">{title}</p>{events.length?<ul className="mt-3 space-y-2">{events.map(e=><li key={e.id} className="rounded-xl bg-white/70 p-3"><p className="font-semibold text-slate-900">{cleanSummary(e.summary)}</p><p className="mt-1 text-sm text-slate-600">{title==="Férias"&&e.end?`${formatDate(e.start)} a ${formatDate(e.end)}`:formatDate(e.start)}</p></li>)}</ul>:<p className="mt-3 text-sm text-slate-500">Nenhum registro informado.</p>}</article>}
 
 export default async function ColaboradoresPage(){
- const session=await auth();const email=session?.user?.email??"";const normalized=email.trim().toLowerCase();const panelStore=getPanelStore(email,session?.portalUser);const isCica=normalized==="mcrodini@gmail.com";const isManagement=["mcrodini@gmail.com","mrodini@gmail.com"].includes(normalized);const canConfirmRead=!isManagement;const now=new Date();let events:CalendarEventDTO[]=[];
- if(session?.accessToken&&session.error!=="RefreshAccessTokenError"){try{const min=new Date(now);min.setDate(min.getDate()-45);const max=new Date(now);max.setFullYear(max.getFullYear()+1);events=(await listEventsInRange(session.accessToken,{timeMin:min.toISOString(),timeMax:max.toISOString(),maxResults:500})).filter(e=>e.calendarKey==="timoni")}catch{events=[]}}
+ const session=await auth();const email=session?.user?.email??"";const normalized=email.trim().toLowerCase();const panelStore=getPanelStore(email,session?.portalUser);const isCica=normalized==="mcrodini@gmail.com";const isManagement=["mcrodini@gmail.com","mrodini@gmail.com"].includes(normalized);const canConfirmRead=!isManagement;const now=new Date();const eventWindow=getPanelDateWindow(now);let events:CalendarEventDTO[]=[];
+ if(session?.accessToken&&session.error!=="RefreshAccessTokenError"){try{events=await listEventsInRange(session.accessToken,{timeMin:eventWindow.timeMin,timeMax:eventWindow.timeMax,maxResults:500},["timoni"])}catch{events=[]}}
  const araras=meetings(now,"araras"),rioClaro=meetings(now,"rio claro");
  const collaborators=await getEffectiveCollaborators(session?.accessToken);
- const birthdays=unique([...fixedBirthdays,...events.filter(isBirthday).filter(e=>parseEventDate(e.start)>=now).map(panelItem)]);
- const vacations=unique([...fixedVacations,...events.filter(e=>isVacation(e)&&parseEventDate(e.end)>now).map(panelItem)]);
+ const birthdays=unique(events.filter(e=>isBirthday(e)&&eventStartsInPanelWindow(e,eventWindow)).map(panelItem));
+ const vacations=unique(events.filter(e=>isVacation(e)&&eventOverlapsPanelWindow(e,eventWindow)).map(panelItem));
  return <div className="pb-10"><header className="mb-6"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Comunicação interna</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Painel Timoni</h1></header>
  {isManagement&&<ModuleArrivalSummary module="avisos"/>}
  {panelStore==="geral"?<section className="grid grid-cols-2 items-stretch gap-2 sm:gap-4 lg:grid-cols-2"><AnnouncementCard store="rio claro" isAdmin={isCica} canConfirmRead={canConfirmRead} collaborators={collaborators}/><AnnouncementCard store="araras" isAdmin={isCica} canConfirmRead={canConfirmRead} collaborators={collaborators}/><MeetingSummaryCard title="Rio Claro" list={rioClaro}/><MeetingSummaryCard title="Araras" list={araras}/><EventCard title="Aniversários" tone="pink" events={birthdays}/><EventCard title="Férias" tone="amber" events={vacations}/></section>:<section className="grid grid-cols-2 items-stretch gap-2 sm:gap-4 lg:grid-cols-2"><AnnouncementCard store={panelStore} isAdmin={isCica} canConfirmRead={canConfirmRead} collaborators={collaborators}/><MeetingSummaryCard title={panelStore==="araras"?"Araras":"Rio Claro"} list={panelStore==="araras"?araras:rioClaro}/><EventCard title="Aniversários" tone="pink" events={birthdays}/><EventCard title="Férias" tone="amber" events={vacations}/></section>}

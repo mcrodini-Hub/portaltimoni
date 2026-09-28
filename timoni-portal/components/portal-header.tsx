@@ -40,9 +40,12 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
     }));
   const byLabel = (a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label, "pt-BR", { sensitivity: "base" });
   const sortedAllowedItems = [...allowedItems].sort(byLabel);
-  const desktopItems = sortedAllowedItems;
+  const equipeItems = sortedAllowedItems.filter((item) => item.href === "/espaco-equipe");
+  const otherItems = sortedAllowedItems.filter((item) => item.href !== "/espaco-equipe");
+  const desktopItems = [...otherItems, ...equipeItems];
   const mobileItems = [
-    ...sortedAllowedItems.filter((item) => mobileVisible(item.module)),
+    ...otherItems.filter((item) => mobileVisible(item.module)),
+    ...equipeItems.filter((item) => mobileVisible(item.module)),
     ...(isManagement ? [{ href: "/configuracoes", targetHref: "/configuracoes", label: "Configurações", module: "painel" as PortalModule, updateModule: undefined, icon: "settings" as PortalIconName, color: "text-slate-800" }] : []),
   ];
   const startHref = "/dashboard";

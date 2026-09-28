@@ -15,7 +15,7 @@ const MODULES: Array<{ id: PortalModule; label: string }> = [
   { id: "compras", label: "Compras" },
   { id: "conferencia", label: "Conferência" },
   { id: "estoque", label: "Estoque" },
-  { id: "estoque-rotativo", label: "Rotativo" },
+  { id: "estoque-rotativo", label: "Estoque Rotativo" },
   { id: "motorista", label: "Motorista" },
   { id: "reunioes", label: "Reuniões" },
   { id: "leads", label: "Leads" },

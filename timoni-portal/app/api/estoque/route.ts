@@ -65,6 +65,7 @@ type TrelloCard = {
 };
 
 const fixedSellers: Seller[] = [
+  { nome: "João", unidade: "rio_claro" },
   { nome: "Ciça", unidade: "araras" },
   { nome: "Marcelo", unidade: "araras" },
 ];

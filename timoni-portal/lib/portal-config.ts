@@ -389,6 +389,22 @@ export async function ensurePortalConfiguration(accessToken: string) {
   const defaultsById = new Map(defaultCollaborators().map((member) => [member.id, member]));
   let collaboratorsChanged = false;
 
+  // João utiliza o acesso compartilhado Vendedores Rio Claro e deve permanecer
+  // disponível na lista de colaboradores mesmo se a linha dinâmica for removida.
+  if (!collaborators.some((member) => member.id === "rio-claro-joao")) {
+    const joao = defaultsById.get("rio-claro-joao");
+    if (joao) {
+      collaborators.push({
+        ...joao,
+        accessEmail: "balcaotimoni@gmail.com",
+        active: true,
+        chatEnabled: true,
+        updatedAt: new Date().toISOString(),
+      });
+      collaboratorsChanged = true;
+    }
+  }
+
   const preferredChatAccess = (member: ConfiguredCollaborator) => {
     const key = `${member.unit}::${member.name}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
     const named: Record<string, string> = {

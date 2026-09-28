@@ -24,8 +24,12 @@ export async function GET(request: NextRequest) {
   const timeMin = searchParams.get("timeMin") ?? defaultWeek.start.toISOString();
   const timeMax = searchParams.get("timeMax") ?? defaultWeek.end.toISOString();
   const requestedCalendarKey = searchParams.get("calendarKey");
-  if (requestedCalendarKey && !isCalendarKey(requestedCalendarKey)) {
-    return NextResponse.json({ error: "Agenda inválida." }, { status: 400 });
+  let calendarKey: CalendarKey | undefined;
+  if (requestedCalendarKey) {
+    if (!isCalendarKey(requestedCalendarKey)) {
+      return NextResponse.json({ error: "Agenda inválida." }, { status: 400 });
+    }
+    calendarKey = requestedCalendarKey;
   }
   try {
     const events = await listEventsInRange(
@@ -35,7 +39,7 @@ export async function GET(request: NextRequest) {
         timeMax,
         maxResults: 500,
       },
-      requestedCalendarKey ? [requestedCalendarKey] : undefined
+      calendarKey ? [calendarKey] : undefined
     );
     return NextResponse.json({ events });
   } catch (error) {

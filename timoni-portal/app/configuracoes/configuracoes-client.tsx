@@ -164,6 +164,43 @@ export default function ConfiguracoesClient() {
     finally { setSaving(false); }
   }
 
+  async function removeAccess(user: PortalUser) {
+    if (user.email === "mcrodini@gmail.com") return;
+    if (!window.confirm(`Excluir o acesso ${user.accessLabel || user.name} (${user.email})? Os colaboradores serão apenas desvinculados.`)) return;
+    const key = `delete-user:${user.email}`;
+    setSavingKey(key); setError(""); setFeedback("");
+    try {
+      const response = await fetch("/api/configuracoes", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "user", email: user.email }) });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Não foi possível excluir o acesso.");
+      setData((current) => ({
+        ...current,
+        users: current.users.filter((item) => item.email !== user.email),
+        collaborators: current.collaborators.map((member) => member.accessEmail === user.email ? { ...member, accessEmail: "" } : member),
+      }));
+      setFeedback("Acesso excluído. Colaboradores desvinculados.");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Não foi possível excluir o acesso.");
+    } finally { setSavingKey(""); }
+  }
+
+  async function renameAccess(user: PortalUser) {
+    const currentName = user.accessLabel || user.name;
+    const name = window.prompt("Novo nome do acesso:", currentName)?.trim();
+    if (!name || name === currentName) return;
+    await saveDirect("user", { ...user, accessLabel: name }, `rename:${user.email}`);
+  }
+
+  async function unlinkCollaborator(member: ConfiguredCollaborator) {
+    await saveDirect("collaborator", { ...member, accessEmail: "" }, `unlink:${member.id}`);
+  }
+
+  async function linkCollaborator(memberId: string, accessEmail: string) {
+    const member = data.collaborators.find((item) => item.id === memberId);
+    if (!member) return;
+    await saveDirect("collaborator", { ...member, accessEmail }, `link:${member.id}`);
+  }
+
   async function downloadBackup(prefix = "portal-timoni-backup") {
     const response = await fetch("/api/configuracoes/backup", { cache: "no-store" });
     if (!response.ok) throw new Error("Não foi possível gerar o backup.");
@@ -226,7 +263,7 @@ export default function ConfiguracoesClient() {
       <header className="mb-6">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Acesso da gestão</p>
         <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Configurações</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Clique em um módulo e libere ou bloqueie os acessos diretamente. Chat e Avisos mostram também os colaboradores vinculados ao login.</p>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Abra um módulo para gerenciar os acessos e os colaboradores vinculados em um único lugar.</p>
       </header>
 
       <section className="grid gap-3 sm:grid-cols-3">
@@ -273,6 +310,10 @@ export default function ConfiguracoesClient() {
                               <div className="min-w-0">
                                 <p className="truncate text-sm font-semibold text-slate-900">{user.accessLabel || user.name}</p>
                                 <p className="truncate text-xs text-slate-500">{user.email} · {user.unit}</p>
+                                <div className="mt-2 flex flex-wrap gap-1">
+                                  <button type="button" onClick={() => void renameAccess(user)} className="rounded-md border border-blue-200 bg-white px-2 py-1 text-[11px] font-semibold text-blue-800">Renomear</button>
+                                  {user.email !== "mcrodini@gmail.com" && <button type="button" onClick={() => void removeAccess(user)} className="rounded-md border border-red-200 bg-white px-2 py-1 text-[11px] font-semibold text-red-700">Excluir acesso</button>}
+                                </div>
                               </div>
                               <label className="inline-flex shrink-0 cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
                                 <input
@@ -286,35 +327,37 @@ export default function ConfiguracoesClient() {
                               </label>
                             </div>
 
-                            {members.length > 0 && (
-                              <div className="mt-3 border-t border-slate-200 pt-2">
-                                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-slate-500">Colaboradores deste acesso</p>
-                                <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-                                  {members.map((member) => {
-                                    const memberKey = `member:${module.id}:${member.id}`;
-                                    if (module.id === "chat") {
-                                      const checked = enabled && member.chatEnabled !== false;
-                                      return (
-                                        <label key={member.id} className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-sm ${checked ? "border-blue-200 bg-blue-50" : "border-slate-200 bg-white"}`}>
-                                          <span className="truncate">{member.name}</span>
-                                          <input type="checkbox" checked={checked} disabled={!enabled || savingKey === memberKey} onChange={(event) => void saveDirect("collaborator", { ...member, chatEnabled: event.target.checked }, memberKey)} className="h-4 w-4 accent-blue-800" />
-                                        </label>
-                                      );
-                                    }
-                                    if (module.id === "painel") {
-                                      const checked = enabled && member.noticeRequired;
-                                      return (
-                                        <label key={member.id} className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-2 text-sm ${checked ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-white"}`}>
-                                          <span className="truncate">{member.name}</span>
-                                          <span className="flex items-center gap-2 text-xs text-slate-500">Ciência<input type="checkbox" checked={checked} disabled={!enabled || savingKey === memberKey} onChange={(event) => void saveDirect("collaborator", { ...member, noticeRequired: event.target.checked }, memberKey)} className="h-4 w-4 accent-blue-800" /></span>
-                                        </label>
-                                      );
-                                    }
-                                    return <div key={member.id} className="rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm text-slate-700">{member.name}<span className="ml-2 text-xs text-slate-400">segue o acesso</span></div>;
-                                  })}
-                                </div>
+                            <div className="mt-3 border-t border-slate-200 pt-2">
+                              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Colaboradores vinculados</p>
+                                <select
+                                  defaultValue=""
+                                  onChange={(event) => {
+                                    const id = event.target.value;
+                                    event.currentTarget.value = "";
+                                    if (id) void linkCollaborator(id, user.email);
+                                  }}
+                                  className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
+                                >
+                                  <option value="">+ Vincular colaborador</option>
+                                  {data.collaborators
+                                    .filter((member) => member.active && member.accessEmail !== user.email)
+                                    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
+                                    .map((member) => <option key={member.id} value={member.id}>{member.name} · {member.unit}{member.accessEmail ? " · mover" : ""}</option>)}
+                                </select>
                               </div>
-                            )}
+                              <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+                                {members.length ? members.map((member) => (
+                                  <div key={member.id} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm">
+                                    <span className="min-w-0 truncate">{member.name}</span>
+                                    <div className="flex shrink-0 gap-1">
+                                      <button type="button" disabled={savingKey === `unlink:${member.id}`} onClick={() => void unlinkCollaborator(member)} className="rounded-md border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600">Desvincular</button>
+                                      <button type="button" disabled={saving} onClick={() => void removeCollaborator(member)} className="rounded-md border border-red-200 px-2 py-1 text-[11px] font-semibold text-red-700">Excluir</button>
+                                    </div>
+                                  </div>
+                                )) : <p className="text-xs text-slate-500">Nenhum colaborador vinculado.</p>}
+                              </div>
+                            </div>
                           </div>
                         );
                       })}

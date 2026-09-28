@@ -60,6 +60,13 @@ export function AgendaCTClient() {
           </div>
         </div>
 
+        <p className="mb-3 px-1 text-sm text-slate-600">
+          Se o Google pedir acesso no celular,{" "}
+          <a href={embedUrl} target="_blank" rel="noopener noreferrer" className="font-semibold text-blue-800 underline">
+            abra a Agenda CT diretamente no Google
+          </a>.
+        </p>
+
         <div className="h-[72vh] min-h-[560px] w-full overflow-hidden rounded-xl border border-slate-200">
           <iframe
             key={viewMode}

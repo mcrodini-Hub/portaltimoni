@@ -12,6 +12,7 @@ const USERS_SHEET = "PortalUsuarios";
 const COLLABORATORS_SHEET = "PortalColaboradores";
 const HISTORY_SHEET = "PortalHistorico";
 const ROTATING_STOCK_MIGRATION = "Permissões Estoque Rotativo v1";
+const NOTICE_BY_ACCESS_MIGRATION = "Confirmação de leitura por acesso v1";
 const REQUIRED_SHEETS = [USERS_SHEET, COLLABORATORS_SHEET, HISTORY_SHEET];
 export const CICA_EMAIL = "mcrodini@gmail.com";
 export const DASHBOARD_BOX_MODULES: PortalModule[] = ["painel", "agenda", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads"];
@@ -386,7 +387,7 @@ export async function ensurePortalConfiguration(accessToken: string) {
   }
 
   if (users.some((user) => !user.accessLabel)) {
-    const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:M500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
+    const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:N500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
     const data = (response.values || []).flatMap((row, index) => {
       const email = normalizeEmail(row[0]);
       if (!email || row[12]) return [];
@@ -401,88 +402,31 @@ export async function ensurePortalConfiguration(accessToken: string) {
     }
   }
 
-  // O vínculo com um acesso é apenas pelo e-mail. Nome, unidade e status do
-  // colaborador são dados próprios e nunca devem ser sobrescritos pelo acesso.
-  const defaultsById = new Map(defaultCollaborators().map((member) => [member.id, member]));
-  let collaboratorsChanged = false;
+  // Vínculos são manuais: um colaborador pode permanecer sem acesso até a gestão vinculá-lo.
+  // Não recriar, renomear nem relinkar colaboradores automaticamente.
 
-  // João utiliza o acesso compartilhado Vendedores Rio Claro e deve permanecer
-  // disponível na lista de colaboradores mesmo se a linha dinâmica for removida.
-  if (!collaborators.some((member) => member.id === "rio-claro-joao")) {
-    const joao = defaultsById.get("rio-claro-joao");
-    if (joao) {
-      collaborators.push({
-        ...joao,
-        accessEmail: "balcaotimoni@gmail.com",
-        active: true,
-        chatEnabled: true,
-        updatedAt: new Date().toISOString(),
-      });
-      collaboratorsChanged = true;
-    }
-  }
-
-  const preferredChatAccess = (member: ConfiguredCollaborator) => {
-    const key = `${member.unit}::${member.name}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
-    const named: Record<string, string> = {
-      "rio claro::lucas": "estoquetimoni@gmail.com",
-      "rio claro::jaqueline": "marketplacerc.mcr@gmail.com",
-      "rio claro::jeovana": "comercialrc@casatimoni.com.br",
-      "rio claro::carolina": "carolina@casatimoni.com.br",
-      "araras::reginaldo": "reginaldo@casatimoni.com.br",
-      "araras::maria carolina": "comercialara@casatimoni.com.br",
-    };
-    return named[key] || (member.unit === "Araras" ? "fotoscasatimoni@gmail.com" : "balcaotimoni@gmail.com");
-  };
-
-  const validAccessEmails = new Set(users.filter((user) => user.active !== false).map((user) => normalizeEmail(user.email)));
-  collaborators = collaborators.map((member) => {
-    if (member.accessEmail || !member.active) return member;
-    const accessEmail = preferredChatAccess(member);
-    if (!validAccessEmails.has(accessEmail)) return member;
-    collaboratorsChanged = true;
-    return { ...member, accessEmail, chatEnabled: member.chatEnabled !== false, updatedAt: new Date().toISOString() };
-  });
-
-  collaborators = collaborators.map((member) => {
-    const original = defaultsById.get(member.id);
-    if (!original) return member;
-
-    // A substituição de Thais por Bruna foi uma troca real de colaboradora.
-    if (member.id === "rio-claro-thais" && member.name.trim().toLowerCase() === "bruna") {
-      return member;
-    }
-
-    if (member.name !== original.name || member.unit !== original.unit) {
-      collaboratorsChanged = true;
-      return {
-        ...member,
-        name: original.name,
-        unit: original.unit,
-        updatedAt: new Date().toISOString(),
-      };
-    }
-    return member;
-  });
-
-  const defaultIds = new Set(defaultsById.keys());
-  const emailDerivedDuplicates = new Set(
-    collaborators
-      .filter((member) => defaultIds.has(member.id) && member.accessEmail)
-      .map((member) => member.accessEmail.replace(/[^a-z0-9]+/g, "-")),
+  const migrationRows = await sheetsRequest<{ values?: string[][] }>(
+    accessToken,
+    sheetsUrl(`/values/${encodeURIComponent(`${HISTORY_SHEET}!B2:B2000`)}`, { valueRenderOption: "FORMATTED_VALUE" }),
   );
-  const dedupedCollaborators = collaborators.filter((member) => {
-    if (defaultIds.has(member.id)) return true;
-    if (!member.accessEmail) return true;
-    const generatedId = member.accessEmail.replace(/[^a-z0-9]+/g, "-");
-    const remove = member.id === generatedId && emailDerivedDuplicates.has(generatedId);
-    if (remove) collaboratorsChanged = true;
-    return !remove;
-  });
-
-  if (collaboratorsChanged) {
-    collaborators = dedupedCollaborators;
-    await writeCollaborators(accessToken, collaborators);
+  if (!(migrationRows.values || []).some((row) => row[0] === NOTICE_BY_ACCESS_MIGRATION)) {
+    const accessEmailsWithLegacyConfirmation = new Set(
+      collaborators
+        .filter((member) => member.active && member.noticeRequired && member.accessEmail)
+        .map((member) => normalizeEmail(member.accessEmail)),
+    );
+    const changedUsers = users.filter((user) => accessEmailsWithLegacyConfirmation.has(normalizeEmail(user.email)) && !user.noticeRequired);
+    for (const user of changedUsers) {
+      const updated = { ...user, noticeRequired: true };
+      await upsertPortalUser(accessToken, updated);
+      users = users.map((item) => item.email === updated.email ? updated : item);
+    }
+    await appendAudit(
+      accessToken,
+      NOTICE_BY_ACCESS_MIGRATION,
+      "Confirmação de leitura migrada dos colaboradores para o respectivo acesso.",
+      CICA_EMAIL,
+    );
   }
 
   return { users, collaborators };

@@ -422,7 +422,7 @@ export function CalendarView({
           <p className="capitalize text-sm text-slate-400">{rangeLabel}</p>
         </div>
         <Button
-          className="inline-flex shrink-0 items-center justify-center whitespace-nowrap"
+          className="inline-flex shrink-0 items-center justify-center whitespace-nowrap text-[15px] sm:text-sm"
           onClick={() => {
             setEditingEvent(null);
             setFormOpen(true);
@@ -436,7 +436,7 @@ export function CalendarView({
         {(["week", "month", "year"] as ViewMode[]).map((mode) => (
           <Button
             key={mode}
-            className="inline-flex min-w-0 items-center justify-center whitespace-nowrap px-2"
+            className="inline-flex min-w-0 items-center justify-center whitespace-nowrap px-2 text-[15px] sm:text-sm"
             variant={view === mode ? "primary" : "secondary"}
             onClick={() => changeView(mode)}
           >
@@ -475,7 +475,7 @@ export function CalendarView({
           <button
             type="button"
             onClick={() => setSearchQuery("")}
-            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-xs font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-800"
+            className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md px-2 py-1 text-[13px] font-semibold sm:text-xs text-slate-500 hover:bg-slate-100 hover:text-slate-800"
           >
             Limpar
           </button>
@@ -484,6 +484,7 @@ export function CalendarView({
 
       <div className="mt-3 grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 sm:flex sm:flex-wrap">
         <Button
+          className="text-[15px] sm:text-sm"
           variant="secondary"
           disabled={view === "week" && !hasPreviousWeekPage}
           onClick={() => setPeriodOffset((offset) => offset - 1)}
@@ -491,10 +492,11 @@ export function CalendarView({
           <span className="sm:hidden">← Anteriores</span>
           <span className="hidden sm:inline">{previousLabel}</span>
         </Button>
-        <Button variant="secondary" onClick={() => setPeriodOffset(0)}>
+        <Button className="text-[15px] sm:text-sm" variant="secondary" onClick={() => setPeriodOffset(0)}>
           Hoje
         </Button>
         <Button
+          className="text-[15px] sm:text-sm"
           variant="secondary"
           disabled={view === "week" && !hasNextWeekPage}
           onClick={() => setPeriodOffset((offset) => offset + 1)}
@@ -581,7 +583,7 @@ export function CalendarView({
                     type="button"
                     onClick={() => openMonthDate(day)}
                     className={clsx(
-                      "flex min-h-20 flex-col items-center border-b border-r border-slate-200 px-1 py-2 text-sm transition hover:bg-blue-50",
+                      "flex min-h-20 flex-col items-center border-b border-r border-slate-200 px-1 py-2 text-[15px] transition sm:text-sm hover:bg-blue-50",
                       !day.inMonth && "bg-slate-50 text-slate-300",
                       day.inMonth && "text-slate-700",
                       isSelected && "bg-blue-100",
@@ -639,7 +641,7 @@ export function CalendarView({
                       type="button"
                       onClick={() => openYearDate(monthParts.year, month, day)}
                       className={clsx(
-                        "flex aspect-square flex-col items-center justify-center rounded text-[10px] text-slate-600 hover:bg-blue-50",
+                        "flex aspect-square flex-col items-center justify-center rounded text-[11px] text-slate-600 hover:bg-blue-50 sm:text-[10px]",
                         day.key === todayKey && "bg-blue-600 font-bold text-white"
                       )}
                     >

@@ -52,7 +52,7 @@ function resolveAllowedUnits(email: string, isManager: boolean, portalUser?: Por
 export default async function EstoquePage() {
   const session = await auth();
   const email = session?.user?.email?.trim().toLowerCase() ?? "";
-  const isManager = session?.portalUser ? session.portalUser.readOnly !== true : ESTOQUE_GESTAO_EMAILS.has(email);
+  const isManager = ESTOQUE_GESTAO_EMAILS.has(email);
   const defaultUnit = resolveDefaultUnit(email, session?.portalUser);
   const allowedUnits = resolveAllowedUnits(email, isManager, session?.portalUser);
   const canDelete = email === "mcrodini@gmail.com";

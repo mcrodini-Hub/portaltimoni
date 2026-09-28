@@ -63,6 +63,7 @@ export default function ConfiguracoesClient() {
   const [userForm, setUserForm] = useState<PortalUser | null>(null);
   const [collaboratorForm, setCollaboratorForm] = useState<ConfiguredCollaborator | null>(null);
   const [chatScope, setChatScope] = useState<"geral" | "rio claro" | "araras">("geral");
+  const [selectedChatEmails, setSelectedChatEmails] = useState<string[]>([]);
 
   async function load() {
     setLoading(true);
@@ -86,6 +87,7 @@ export default function ConfiguracoesClient() {
 
   const activeUsers = data.users.filter((user) => user.active !== false).length;
   const activeCollaborators = data.collaborators.filter((member) => member.active).length;
+  const chatCandidates = data.users.filter((user) => user.active !== false && !["mcrodini@gmail.com", "mrodini@gmail.com"].includes(user.email.toLowerCase()) && (chatScope === "geral" || user.unit?.toLowerCase() === chatScope));
 
   function toggleModule(module: PortalModule, checked: boolean) {
     setUserForm((current) => current ? {
@@ -121,12 +123,18 @@ export default function ConfiguracoesClient() {
   }
 
   async function updateChatScope(enabled: boolean) {
+    const selected = chatCandidates.filter((user) => selectedChatEmails.includes(user.email));
+    if (!selected.length) {
+      setError("Selecione ao menos um acesso.");
+      return;
+    }
+    if (!window.confirm(`${enabled ? "Habilitar" : "Desabilitar"} Chat para ${selected.length} acesso(s) selecionado(s)?\n\n${selected.map((user) => `${user.name} · ${user.email}`).join("\n")}`)) return;
     setSaving(true); setError(""); setFeedback("");
     try {
       const response = await fetch("/api/configuracoes", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ section: "chat-unit", scope: chatScope, enabled }),
+        body: JSON.stringify({ section: "chat-unit", scope: chatScope, enabled, emails: selected.map((user) => user.email) }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Não foi possível atualizar o Chat.");
@@ -135,9 +143,11 @@ export default function ConfiguracoesClient() {
         ...current,
         users: current.users.map((user) => updated.find((item) => item.email === user.email) || user),
       }));
-      const label = chatScope === "geral" ? "Geral" : chatScope === "araras" ? "Araras" : "Rio Claro";
-      setFeedback(`Chat ${enabled ? "habilitado" : "desabilitado"} para ${label}.`);
+      setUserForm(null);
+      setSelectedChatEmails([]);
+      setFeedback(`Chat ${enabled ? "habilitado" : "desabilitado"} para ${updated.length} acesso(s) selecionado(s).`);
     } catch (cause) {
+      await load();
       setError(cause instanceof Error ? cause.message : "Não foi possível atualizar o Chat.");
     } finally {
       setSaving(false);
@@ -249,7 +259,7 @@ export default function ConfiguracoesClient() {
                 Chat por cidade
                 <select
                   value={chatScope}
-                  onChange={(event) => setChatScope(event.target.value as "geral" | "rio claro" | "araras")}
+                  onChange={(event) => { setChatScope(event.target.value as "geral" | "rio claro" | "araras"); setSelectedChatEmails([]); }}
                   className="mt-1 w-full rounded-xl border border-blue-200 bg-white px-3 py-2.5"
                 >
                   <option value="geral">Geral</option>
@@ -257,10 +267,23 @@ export default function ConfiguracoesClient() {
                   <option value="araras">Araras</option>
                 </select>
               </label>
-              <button type="button" disabled={saving} onClick={() => void updateChatScope(true)} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Habilitar Chat</button>
-              <button type="button" disabled={saving} onClick={() => void updateChatScope(false)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50">Desabilitar Chat</button>
+              <button type="button" disabled={saving || selectedChatEmails.length === 0} onClick={() => void updateChatScope(true)} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50">Habilitar Chat</button>
+              <button type="button" disabled={saving || selectedChatEmails.length === 0} onClick={() => void updateChatScope(false)} className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 disabled:opacity-50">Desabilitar Chat</button>
             </div>
-            <p className="mt-2 text-xs text-slate-600">Geral aplica a todos os acessos ativos. Rio Claro e Araras aplicam somente aos acessos ativos daquela cidade.</p>
+            <p className="mt-2 text-xs text-slate-600">Selecione os acessos que deseja alterar. Ciça e Marcelo mantêm suas permissões individuais.</p>
+            <div className="mt-3 flex items-center gap-3">
+              <button type="button" disabled={saving || !chatCandidates.length} onClick={() => setSelectedChatEmails(chatCandidates.map((user) => user.email))} className="text-xs font-semibold text-blue-800 disabled:opacity-50">Selecionar todos deste grupo</button>
+              <button type="button" disabled={saving || !selectedChatEmails.length} onClick={() => setSelectedChatEmails([])} className="text-xs font-semibold text-slate-600 disabled:opacity-50">Limpar seleção</button>
+            </div>
+            <div className="mt-3 grid gap-2 sm:grid-cols-2">
+              {chatCandidates.map((user) => (
+                <label key={user.email} className="flex items-center gap-2 rounded-lg border border-blue-100 bg-white px-3 py-2 text-sm text-slate-800">
+                  <input type="checkbox" disabled={saving} checked={selectedChatEmails.includes(user.email)} onChange={(event) => setSelectedChatEmails((current) => event.target.checked ? [...current, user.email] : current.filter((email) => email !== user.email))} className="h-4 w-4 accent-blue-700" />
+                  <span>{user.name} · {user.email} · Chat {user.modules.includes("chat") ? "habilitado" : "desabilitado"}</span>
+                </label>
+              ))}
+              {!chatCandidates.length && <p className="text-sm text-slate-600">Nenhum acesso ativo neste grupo.</p>}
+            </div>
           </div>
 
           <div className="grid items-start gap-3 lg:grid-cols-2">

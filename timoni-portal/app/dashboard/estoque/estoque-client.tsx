@@ -52,7 +52,7 @@ function findByCode(list: Product[], term: string) {
   const q = norm(term);
   if (!q) return [];
   return list
-    .filter((product) => norm(product.codigo).startsWith(q))
+    .filter((product) => norm(product.codigo).includes(q))
     .sort((a, b) => a.codigo.localeCompare(b.codigo, "pt-BR"))
     .slice(0, 10);
 }

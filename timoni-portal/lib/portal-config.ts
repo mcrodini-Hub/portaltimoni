@@ -162,7 +162,7 @@ async function ensureSheets(accessToken: string) {
 }
 
 async function readUsers(accessToken: string): Promise<PortalUser[]> {
-  const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:M500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
+  const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:N500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
   return (response.values || []).map((row) => ({
     email: normalizeEmail(row[0]),
     name: row[1] || "",
@@ -176,6 +176,7 @@ async function readUsers(accessToken: string): Promise<PortalUser[]> {
     lastAccess: row[9] || "",
     mobileModules: row[11] ? row[11] === "nenhum" ? [] : csvModules(row[11]) : undefined,
     accessLabel: row[12] || "",
+    noticeRequired: yes(row[13]),
   })).filter((user) => user.email && user.name);
 }
 
@@ -235,7 +236,7 @@ export async function writeUsers(accessToken: string, users: PortalUser[]) {
     active: true,
     readOnly: false,
   };
-  await replaceRange(accessToken, `${USERS_SHEET}!A2:M500`, normalized.map((user) => [
+  await replaceRange(accessToken, `${USERS_SHEET}!A2:N500`, normalized.map((user) => [
     user.email,
     user.name,
     user.unit || defaultUnit(user.email) || "Rio Claro",
@@ -249,6 +250,7 @@ export async function writeUsers(accessToken: string, users: PortalUser[]) {
     now,
     user.mobileModules === undefined ? "" : user.mobileModules.join(",") || "nenhum",
     user.accessLabel || user.name,
+    user.noticeRequired ? "Sim" : "Não",
   ]));
 }
 
@@ -267,6 +269,7 @@ function userRow(user: PortalUser, now = new Date().toISOString()) {
     now,
     user.mobileModules === undefined ? "" : user.mobileModules.join(",") || "nenhum",
     user.accessLabel || user.name,
+    user.noticeRequired ? "Sim" : "Não",
   ];
 }
 
@@ -280,12 +283,12 @@ export async function upsertPortalUser(accessToken: string, input: PortalUser) {
   const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:A500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
   const index = (response.values || []).findIndex((row) => normalizeEmail(row[0]) === user.email);
   if (index >= 0) {
-    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A${index + 2}:M${index + 2}`)}`, { valueInputOption: "RAW" }), {
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A${index + 2}:N${index + 2}`)}`, { valueInputOption: "RAW" }), {
       method: "PUT",
       body: JSON.stringify({ values: [userRow(user)] }),
     });
   } else {
-    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A:M`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), {
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A:N`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), {
       method: "POST",
       body: JSON.stringify({ values: [userRow(user)] }),
     });

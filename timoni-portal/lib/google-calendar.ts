@@ -74,10 +74,13 @@ function toDTO(
 
 export async function listEventsInRange(
   accessToken: string,
-  opts: { timeMin: string; timeMax?: string; maxResults?: number }
+  opts: { timeMin: string; timeMax?: string; maxResults?: number },
+  onlyCalendarKeys?: CalendarKey[]
 ): Promise<CalendarEventDTO[]> {
   const calendar = getCalendarClient(accessToken);
-  const calendarKeys = Object.keys(CALENDARS) as CalendarKey[];
+  const calendarKeys = onlyCalendarKeys?.length
+    ? onlyCalendarKeys
+    : (Object.keys(CALENDARS) as CalendarKey[]);
   const [results, calendarColors] = await Promise.all([
     Promise.all(
       calendarKeys.map((key) =>

@@ -291,24 +291,14 @@ export default function EstoqueRotativoClient() {
     setSourceStartRow(String(item.source_start_row || ""));
   }
 
-  const allowedNames = useMemo(
-    () => new Set(trelloSuppliers.map((supplier) => supplier.name.trim().toLocaleLowerCase("pt-BR"))),
-    [trelloSuppliers],
-  );
   const visibleUpdates = useMemo(
-    () => (data?.updates || []).filter(
-      (item) => item.status === "atualizado" || allowedNames.has(item.supplier_name.trim().toLocaleLowerCase("pt-BR")),
-    ),
-    [data?.updates, allowedNames],
+    () => data?.updates || [],
+    [data?.updates],
   );
 
   async function filterItems() {
     setError("");
     setFeedback("");
-    if (!supplierName.trim()) {
-      setError("Selecione um card do fornecedor.");
-      return;
-    }
     if (!spreadsheetReference.trim()) {
       setError("Cole o link da planilha do fornecedor.");
       return;
@@ -353,7 +343,7 @@ export default function EstoqueRotativoClient() {
     setEditingId(id);
     const compared = await post({ action: "conferir", id });
     if (!compared) return;
-    setFeedback("Itens filtrados. Confira as divergências antes de atualizar o Estoque Rotativo.");
+    setFeedback("Itens filtrados. Confira as divergências antes de atualizar o Rotativo.");
     setSpreadsheetReference("");
     setSourceSheetName("");
     setSourceCodeColumn("");
@@ -491,7 +481,7 @@ export default function EstoqueRotativoClient() {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Módulo operacional</p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Estoque Rotativo</h1>
+            <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Rotativo</h1>
           </div>
         </div>
       </section>
@@ -716,10 +706,16 @@ export default function EstoqueRotativoClient() {
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">3. Itens do estoque</p>
             <h2 className="mt-2 text-xl font-semibold text-slate-950">Planilha do fornecedor</h2>
             <label className="mt-4 block text-sm font-semibold text-slate-800">
-              Fornecedor / grupo
-              <div className="mt-2 min-h-12 rounded-xl border border-slate-300 bg-slate-50 px-4 py-3 text-sm">
-                {supplierName || "Selecione um card ao lado"}
-              </div>
+              Fornecedor / grupo · opcional
+              <input
+                value={supplierName}
+                onChange={(event) => {
+                  setSupplierName(event.target.value);
+                  if (trelloCardId) setTrelloCardId("");
+                }}
+                placeholder="Selecione um card ao lado ou digite"
+                className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 bg-white px-4 text-sm"
+              />
             </label>
 
             <label className="mt-4 block text-sm font-semibold text-slate-800">
@@ -793,7 +789,7 @@ export default function EstoqueRotativoClient() {
             <button
               type="button"
               onClick={() => void filterItems()}
-              disabled={busy || !supplierName}
+              disabled={busy}
               className="mt-4 min-h-12 rounded-xl bg-blue-700 px-6 text-sm font-semibold text-white hover:bg-blue-800 disabled:bg-slate-300"
             >
               {busy ? "Filtrando..." : "Filtrar itens do estoque"}
@@ -929,7 +925,7 @@ export default function EstoqueRotativoClient() {
       {activeId && data ? (
         <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">4. Finalizar</p>
-          <h2 className="mt-2 text-xl font-semibold text-slate-950">Atualizar Estoque Rotativo</h2>
+          <h2 className="mt-2 text-xl font-semibold text-slate-950">Atualizar Rotativo</h2>
 
           {(data.items || []).some((item) => item.situation === "nao_encontrado") ? (
             <p className="mt-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-900">
@@ -994,11 +990,12 @@ export default function EstoqueRotativoClient() {
         </section>
       ) : null}
 
+      <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
       {data ? (
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="order-2 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Estoque Rotativo</p>
-            <h2 className="mt-1 text-xl font-semibold text-slate-950">Planilhas atualizadas</h2>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Rotativo</p>
+            <h2 className="mt-1 text-xl font-semibold text-slate-950">Estoque atualizado</h2>
           </div>
           <div className="mt-3 space-y-2">
             {visibleUpdates.length ? visibleUpdates.map((item) => (
@@ -1143,10 +1140,10 @@ export default function EstoqueRotativoClient() {
         </section>
       ) : null}
       {data?.permissions.canManage ? (
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
+        <section className="order-1 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Planilhas de fornecedores</p>
-            <h2 className="mt-1 text-xl font-semibold text-slate-950">Planilhas atualizadas</h2>
+            <h2 className="mt-1 text-xl font-semibold text-slate-950">Planilha padronizada</h2>
           </div>
           <div className="mt-3 space-y-2">
             {(data.supplierStandardizations || []).filter((item) => item.status === "atualizada").length ? (
@@ -1182,6 +1179,7 @@ export default function EstoqueRotativoClient() {
           </div>
         </section>
       ) : null}
+      </div>
 
     </div>
   );

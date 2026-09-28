@@ -3,7 +3,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { PointerEvent as ReactPointerEvent } from "react";
 
+type Identity = { id: string; name: string; email: string; unit?: string };
 type Contact = {
+  id: string;
   name: string;
   email: string;
   unread: number;
@@ -11,7 +13,7 @@ type Contact = {
   lastMessagePreview: string;
 };
 type Message = { id: string; sender_user_id: string; recipient_user_id: string; body: string; created_at: string; read_at: string | null; edited_at: string | null };
-type Overview = { currentUser?: { email: string; name: string }; contacts: Contact[]; totalUnread: number };
+type Overview = { currentAccessEmail?: string; identities?: Identity[]; currentUser?: { id: string; email: string; name: string }; contacts: Contact[]; totalUnread: number };
 
 function formatActivity(value: string | null) {
   if (!value) return "Sem mensagens";
@@ -25,6 +27,9 @@ function formatActivity(value: string | null) {
 
 export default function InternalChatPanel({ open, onClose, onUnreadChange }: { open: boolean; onClose: () => void; onUnreadChange?: (count: number) => void }) {
   const [overview, setOverview] = useState<Overview>({ contacts: [], totalUnread: 0 });
+  const [identities, setIdentities] = useState<Identity[]>([]);
+  const [actorId, setActorId] = useState("");
+  const [identityLoaded, setIdentityLoaded] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [currentUserId, setCurrentUserId] = useState("");
@@ -55,30 +60,58 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
   }, [open, minimized, onClose]);
 
   const loadOverview = useCallback(async () => {
-    const response = await fetch("/api/internal-chat", { cache: "no-store" });
+    const url = actorId ? `/api/internal-chat?actor=${encodeURIComponent(actorId)}` : "/api/internal-chat";
+    const response = await fetch(url, { cache: "no-store" });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Não foi possível carregar o chat.");
+    const available = (data.identities || []) as Identity[];
+    setIdentities(available);
+    setIdentityLoaded(true);
+
+    if (!actorId) {
+      setOverview({ contacts: [], totalUnread: Number(data.totalUnread || 0), identities: available, currentAccessEmail: data.currentAccessEmail });
+      onUnreadChange?.(Number(data.totalUnread || 0));
+      if (available.length === 1) {
+        setActorId(available[0].id);
+      } else if (available.length > 1 && typeof window !== "undefined") {
+        const stored = window.localStorage.getItem(`portal-chat-identity:${data.currentAccessEmail || "portal"}`) || "";
+        if (available.some((item) => item.id === stored)) setActorId(stored);
+      }
+      return;
+    }
+
+    if (!available.some((item) => item.id === actorId)) {
+      setActorId("");
+      setSelected(null);
+      setMessages([]);
+      return;
+    }
+
     const overviewData = data as Overview;
     setOverview(overviewData);
     onUnreadChange?.(overviewData.totalUnread || 0);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(`portal-chat-identity:${overviewData.currentAccessEmail || "portal"}`, actorId);
+    }
     setSelected((value) => {
       if (value) return value;
-      if (typeof window !== "undefined" && window.innerWidth >= 640) return overviewData.contacts[0]?.email || null;
+      if (typeof window !== "undefined" && window.innerWidth >= 640) return overviewData.contacts[0]?.id || null;
       return null;
     });
-  }, [onUnreadChange]);
+  }, [actorId, onUnreadChange]);
 
   const loadMessages = useCallback(async (peer: string, markRead: boolean) => {
-    const response = await fetch(`/api/internal-chat?peer=${encodeURIComponent(peer)}`, { cache: "no-store" });
+    if (!actorId) return;
+    const response = await fetch(`/api/internal-chat?actor=${encodeURIComponent(actorId)}&peer=${encodeURIComponent(peer)}`, { cache: "no-store" });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Não foi possível carregar esta conversa.");
     setMessages(data.messages || []);
     setCurrentUserId(data.currentUserId || "");
     if (markRead) {
-      await fetch("/api/internal-chat", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ peer }) });
+      await fetch("/api/internal-chat", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actor: actorId, peer }) });
       await loadOverview();
     }
-  }, [loadOverview]);
+  }, [actorId, loadOverview]);
 
   const refresh = useCallback(async () => {
     try {
@@ -105,10 +138,10 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
   }, [open, refresh]);
 
   useEffect(() => {
-    if (!open || !selected) return;
+    if (!open || !actorId || !selected) return;
     setError("");
     void loadMessages(selected, true).catch(() => setError("Não foi possível carregar esta conversa."));
-  }, [open, selected, loadMessages]);
+  }, [open, actorId, selected, loadMessages]);
 
   useEffect(() => {
     if (open && !minimized) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });
@@ -140,7 +173,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
 
   async function sendMessage() {
     const message = draft.trim();
-    if (!selected || !message || sending) return;
+    if (!actorId || !selected || !message || sending) return;
     setSending(true);
     setError("");
     try {
@@ -148,12 +181,12 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
         ? await fetch("/api/internal-chat", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ peer: selected, action: "edit", messageId: editingMessage.id, message }),
+            body: JSON.stringify({ actor: actorId, peer: selected, action: "edit", messageId: editingMessage.id, message }),
           })
         : await fetch("/api/internal-chat", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ peer: selected, message }),
+            body: JSON.stringify({ actor: actorId, peer: selected, message }),
           });
       if (!response.ok) throw new Error();
       setDraft("");
@@ -182,7 +215,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
       const response = await fetch("/api/internal-chat", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ peer: selected, action: "message", messageId: message.id }),
+        body: JSON.stringify({ actor: actorId, peer: selected, action: "message", messageId: message.id }),
       });
       if (!response.ok) throw new Error();
       if (editingMessage?.id === message.id) {
@@ -206,7 +239,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
       const response = await fetch("/api/internal-chat", {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ peer: selected, action: "conversation" }),
+        body: JSON.stringify({ actor: actorId, peer: selected, action: "conversation" }),
       });
       if (!response.ok) throw new Error();
       setMessages([]);
@@ -248,7 +281,29 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
   }
 
   if (!open) return null;
-  const contact = overview.contacts.find((item) => item.email === selected) ?? null;
+  const contact = overview.contacts.find((item) => item.id === selected) ?? null;
+
+  if (identityLoaded && !actorId) {
+    return (
+      <div id="internal-chat-dialog" className="fixed inset-x-0 bottom-0 top-16 z-[80] flex items-start justify-end bg-slate-950/20 pt-2 sm:z-[100] sm:pt-0" role="dialog" aria-modal="true">
+        <button type="button" className="absolute inset-0" onClick={onClose} aria-label="Fechar chat" />
+        <section ref={panelRef} className="relative w-[92%] max-w-[390px] rounded-tl-xl border border-slate-200 bg-white p-4 shadow-2xl sm:h-full sm:w-[420px] sm:max-w-[420px] sm:rounded-none">
+          <div className="flex items-center justify-between gap-3 border-b border-slate-200 pb-3">
+            <div><p className="text-[11px] font-semibold uppercase tracking-[.14em] text-blue-700">Casa Timoni</p><h2 className="mt-1 text-base font-semibold text-slate-950">Identificação do Chat</h2></div>
+            <button type="button" onClick={onClose} className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100">Fechar</button>
+          </div>
+          {identities.length ? (
+            <div className="mt-4">
+              <p className="text-sm text-slate-600">Selecione quem está usando este acesso. Apenas colaboradores com Chat liberado em Configurações aparecem aqui.</p>
+              <div className="mt-3 space-y-2">
+                {identities.map((identity) => <button key={identity.id} type="button" onClick={() => { setActorId(identity.id); setSelected(null); setMessages([]); }} className="flex w-full items-center justify-between rounded-xl border border-blue-200 px-3 py-3 text-left text-sm font-semibold text-[#0F2D8F] hover:bg-blue-50"><span>{identity.name}</span><span className="text-xs font-normal text-slate-500">{identity.unit || ""}</span></button>)}
+              </div>
+            </div>
+          ) : <p className="mt-6 rounded-xl bg-slate-50 px-4 py-5 text-sm text-slate-600">Chat não liberado para nenhum colaborador vinculado a este acesso.</p>}
+        </section>
+      </div>
+    );
+  }
 
   if (minimized) {
     return (
@@ -285,7 +340,7 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
         <aside className={`${selected ? "hidden sm:flex" : "flex"} w-full flex-col border-r border-slate-200 bg-slate-50 sm:w-[210px] sm:shrink-0`}>
           <div className="border-b border-slate-200 px-3.5 py-3">
             <p className="text-[11px] font-semibold uppercase tracking-[.14em] text-blue-700">Casa Timoni</p>
-            <h2 className="mt-1 text-[15px] font-semibold text-slate-950">Chat interno</h2>
+            <div className="mt-1 flex items-center justify-between gap-2"><h2 className="text-[15px] font-semibold text-slate-950">Chat interno</h2>{identities.length > 1 ? <button type="button" onClick={() => { setActorId(""); setSelected(null); setMessages([]); }} className="text-[10px] font-semibold text-blue-700 hover:underline">Trocar usuário</button> : null}</div>
             <div className="mt-2.5 rounded-xl border border-slate-200 bg-white px-3 py-2">
               <input
                 value={search}
@@ -300,12 +355,12 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
             {filteredContacts.length === 0 ? <p className="px-3 py-8 text-center text-sm text-slate-500">Nenhuma conversa encontrada.</p> : null}
             {filteredContacts.map((item) => {
               const hasUnread = item.unread > 0;
-              const isSelected = item.email === selected;
+              const isSelected = item.id === selected;
               return (
                 <button
-                  key={item.email}
+                  key={item.id}
                   type="button"
-                  onClick={() => setSelected(item.email)}
+                  onClick={() => setSelected(item.id)}
                   className={`mb-1 flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left transition ${isSelected ? "bg-[#E4F2FD] text-[#0F2D8F] ring-1 ring-[#2296E8]/40" : hasUnread ? "bg-blue-50 ring-1 ring-blue-100 hover:bg-blue-100" : "text-slate-800 hover:bg-white"}`}
                 >
                   <span className="min-w-0 flex-1">

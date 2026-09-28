@@ -111,7 +111,7 @@ export async function GET() {
       try {
         recipientOptions = (await listConfiguredPortalUsers(context.accessToken))
           .filter((user) => user.active !== false && user.modules.includes("painel"))
-          .map((user) => ({ email: user.email, name: user.name, unit: user.unit }));
+          .map((user) => ({ email: user.email, name: user.accessLabel || user.name, unit: user.unit }));
       } catch { recipientOptionsError = true; }
     }
     return NextResponse.json({ ok: true, items: isAdmin ? items : items.filter((item) => canViewComunicado(item, context.email, unit)), activeCount, isAdmin, recipientOptions, recipientOptionsError });

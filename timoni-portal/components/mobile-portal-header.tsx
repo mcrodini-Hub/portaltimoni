@@ -3,37 +3,17 @@
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { signOut } from "next-auth/react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import PortalIcon, { type PortalIconName } from "@/components/portal-icon";
 import ChatButton from "@/components/chat-button";
 import type { UpdateModule } from "@/lib/module-updates";
+import { useModuleUpdates } from "@/components/module-updates-store";
 
 type MobileNavItem = { href: string; targetHref?: string; label: string; updateModule?: UpdateModule; icon: PortalIconName; color: string; external?: boolean };
-type PendingUpdate = { module: UpdateModule; count: number; latestAt: string };
 
 export default function MobilePortalHeader({ items, showUpdates, showGuide, showChat, initials }: { items: MobileNavItem[]; showUpdates: boolean; showGuide: boolean; showChat: boolean; initials: string }) {
   const [open, setOpen] = useState(false);
-  const [updates, setUpdates] = useState<Record<string, PendingUpdate>>({});
-
-  const load = useCallback(async () => {
-    if (!showUpdates) return;
-    try {
-      const response = await fetch("/api/module-updates", { cache: "no-store" });
-      const data = await response.json();
-      if (!response.ok) return;
-      const next: Record<string, PendingUpdate> = {};
-      for (const item of data.updates || []) next[item.module] = item;
-      setUpdates(next);
-    } catch {
-      // A navegação permanece disponível mesmo se a atualização falhar.
-    }
-  }, [showUpdates]);
-
-  useEffect(() => {
-    void load();
-    const interval = window.setInterval(load, 10_000);
-    return () => window.clearInterval(interval);
-  }, [load]);
+  const { updates, reload, markRead } = useModuleUpdates(showUpdates);
 
   useEffect(() => {
     if (!open) return;
@@ -50,20 +30,10 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, show
     setOpen(false);
     const pending = item.updateModule ? updates[item.updateModule] : undefined;
     if (!pending) return;
-    setUpdates((current) => {
-      const next = { ...current };
-      delete next[pending.module];
-      return next;
-    });
     try {
-      await fetch("/api/module-updates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ module: pending.module, through: pending.latestAt }),
-        keepalive: true,
-      });
+      await markRead(pending.module);
     } catch {
-      void load();
+      void reload();
     }
   }
 

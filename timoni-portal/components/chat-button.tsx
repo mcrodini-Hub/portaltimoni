@@ -1,7 +1,9 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useCallback, useEffect, useState } from "react";
-import InternalChatPanel from "@/components/internal-chat-panel";
+
+const InternalChatPanel = dynamic(() => import("@/components/internal-chat-panel"), { ssr: false });
 
 function InternalChatMark({ className = "h-6 w-6" }: { className?: string }) {
   return (
@@ -30,9 +32,16 @@ export default function ChatButton({ mobile = false, mobileHeader = false, onOpe
   }, []);
 
   useEffect(() => {
-    void loadUnread();
-    const interval = window.setInterval(loadUnread, 30000);
-    return () => window.clearInterval(interval);
+    const refreshWhenVisible = () => {
+      if (!document.hidden) void loadUnread();
+    };
+    refreshWhenVisible();
+    const interval = window.setInterval(refreshWhenVisible, 30_000);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [loadUnread]);
 
   const badge = unread > 0 ? <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[.65rem] font-bold text-white ring-2 ring-white">{unread > 99 ? "99+" : unread}</span> : null;
@@ -54,7 +63,7 @@ export default function ChatButton({ mobile = false, mobileHeader = false, onOpe
           <InternalChatMark className="h-9 w-9" />{badge}
         </button>
       )}
-      <InternalChatPanel open={open} onClose={() => setOpen(false)} onUnreadChange={setUnread} />
+      {open ? <InternalChatPanel open onClose={() => setOpen(false)} onUnreadChange={setUnread} /> : null}
     </>
   );
 }

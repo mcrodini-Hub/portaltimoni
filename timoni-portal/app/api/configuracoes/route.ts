@@ -12,7 +12,7 @@ import {
 } from "@/lib/portal-config";
 
 const VALID_MODULES = new Set<PortalModule>([
-  "painel", "agenda", "chat", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads", "marketing", "financeiro",
+  "painel", "agenda", "agenda-ct", "chat", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads", "marketing", "financeiro",
 ]);
 const VALID_BOXES = new Set<PortalBox>([
   "painel", "agenda", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads", "espaco-equipe",
@@ -57,10 +57,12 @@ function cleanUser(value: Record<string, unknown>): PortalUser {
   const name = String(value.name || "").trim();
   if (!email.includes("@") || name.length < 2) throw new Error("Informe nome e e-mail válidos.");
   const modules = cleanModules(value.modules);
+  if (!modules.includes("chat")) modules.push("chat");
   const boxes = cleanBoxes(value.boxes).filter((box) => box === "espaco-equipe" ? modules.includes("painel") : modules.includes(box));
   return {
     email,
     name,
+    accessLabel: String(value.accessLabel || name).trim().slice(0, 80) || name,
     unit: ["Geral", "Araras", "Rio Claro"].includes(String(value.unit)) ? value.unit as PortalUser["unit"] : "Rio Claro",
     modules,
     boxes,
@@ -88,6 +90,7 @@ function cleanCollaborator(value: Record<string, unknown>, users: PortalUser[]):
     unit,
     active: value.active !== false,
     noticeRequired: value.noticeRequired !== false,
+    chatEnabled: value.chatEnabled !== false,
     updatedAt: new Date().toISOString(),
   };
 }
@@ -110,11 +113,29 @@ export async function PUT(request: Request) {
     const body = await request.json();
     if (body.section === "user") {
       const item = cleanUser(body.item || {});
-      await Promise.all([
-        upsertPortalUser(current.accessToken, item),
-        appendAudit(current.accessToken, "Acesso atualizado", `${item.name} · ${item.email}`, current.email),
-      ]);
-      return NextResponse.json({ ok: true, item });
+      const configuration = await loadPortalConfiguration(current.accessToken);
+      const isNew = !configuration.users.some((user) => user.email === item.email);
+      await upsertPortalUser(current.accessToken, item);
+      // Um novo email tem um único colaborador inicial. A identificação individual
+      // de Avisos em acessos compartilhados continua preservada na lista existente.
+      let collaborator: ConfiguredCollaborator | undefined;
+      const managedMemberId = `acesso-${item.email.replace(/[^a-z0-9]+/g, "-")}`;
+      const managedMember = configuration.collaborators.find((member) => member.id === managedMemberId);
+      if (item.unit !== "Geral" && (managedMember || (isNew && !configuration.collaborators.some((member) => member.accessEmail === item.email)))) {
+        collaborator = {
+          id: managedMemberId,
+          accessEmail: item.email,
+          name: item.name,
+          unit: item.unit || "Rio Claro",
+          active: item.active !== false,
+          noticeRequired: managedMember?.noticeRequired ?? true,
+          chatEnabled: managedMember?.chatEnabled ?? true,
+          updatedAt: new Date().toISOString(),
+        };
+        await upsertCollaborator(current.accessToken, collaborator);
+      }
+      await appendAudit(current.accessToken, "Acesso atualizado", `${item.name} · ${item.email}`, current.email);
+      return NextResponse.json({ ok: true, item, collaborator });
     } else if (body.section === "collaborator") {
       const configuration = await loadPortalConfiguration(current.accessToken);
       const item = cleanCollaborator(body.item || {}, configuration.users);
@@ -128,43 +149,38 @@ export async function PUT(request: Request) {
       if (!["geral", "rio claro", "araras"].includes(scope) || typeof body.enabled !== "boolean") {
         return NextResponse.json({ error: "Seleção inválida para o Chat." }, { status: 400 });
       }
-      if (!Array.isArray(body.emails) || !body.emails.length || body.emails.some((email: unknown) => typeof email !== "string")) {
-        return NextResponse.json({ error: "Selecione ao menos um acesso." }, { status: 400 });
+      if (!Array.isArray(body.memberIds) || !body.memberIds.length || body.memberIds.some((id: unknown) => typeof id !== "string")) {
+        return NextResponse.json({ error: "Selecione ao menos um colaborador." }, { status: 400 });
       }
-      const emails = body.emails.map((email: string) => normalizeEmail(email));
-      if (new Set(emails).size !== emails.length) {
-        return NextResponse.json({ error: "Há acessos repetidos na seleção." }, { status: 400 });
+      const memberIds = body.memberIds as string[];
+      if (new Set(memberIds).size !== memberIds.length) {
+        return NextResponse.json({ error: "Há colaboradores repetidos na seleção." }, { status: 400 });
       }
       const configuration = await loadPortalConfiguration(current.accessToken);
-      const targets = emails.map((email: string) => configuration.users.find((user) => user.email === email));
-      if (targets.some((user) =>
-        !user || user.active === false || MANAGEMENT_EMAILS.has(user.email) ||
-        (scope !== "geral" && user.unit?.toLowerCase() !== scope)
-      )) {
-        return NextResponse.json({ error: "A seleção contém um acesso fora da cidade ou indisponível." }, { status: 400 });
+      const targets = memberIds.map((id) => configuration.collaborators.find((member) => member.id === id));
+      if (targets.some((member) => {
+        if (!member || !member.active || MANAGEMENT_EMAILS.has(normalizeEmail(member.accessEmail)) ||
+            (scope !== "geral" && member.unit.toLowerCase() !== scope)) return true;
+        const user = configuration.users.find((item) => item.email === normalizeEmail(member.accessEmail));
+        return !user || user.active === false;
+      })) {
+        return NextResponse.json({ error: "A seleção contém um colaborador fora da unidade ou sem acesso ativo." }, { status: 400 });
       }
-      const updatedUsers = targets.map((user) => {
-        const access = user as PortalUser;
-        const modules = body.enabled
-          ? [...new Set([...access.modules, "chat" as PortalModule])]
-          : access.modules.filter((module) => module !== "chat");
-        const mobileModules = access.mobileModules === undefined
-          ? undefined
-          : body.enabled
-            ? [...new Set([...access.mobileModules, "chat" as PortalModule])]
-            : access.mobileModules.filter((module) => module !== "chat");
-        return { ...access, modules, mobileModules };
-      });
-      for (const user of updatedUsers) {
-        await upsertPortalUser(current.accessToken, user);
+      const updated = targets.map((member) => ({
+        ...(member as ConfiguredCollaborator),
+        chatEnabled: body.enabled as boolean,
+        updatedAt: new Date().toISOString(),
+      }));
+      for (const member of updated) {
+        await upsertCollaborator(current.accessToken, member);
       }
       await appendAudit(
         current.accessToken,
-        body.enabled ? "Chat habilitado para acessos selecionados" : "Chat desabilitado para acessos selecionados",
-        `${scope === "geral" ? "Geral" : scope === "araras" ? "Araras" : "Rio Claro"} · ${emails.join(", ")}`,
+        body.enabled ? "Chat habilitado para colaboradores selecionados" : "Chat desabilitado para colaboradores selecionados",
+        `${scope === "geral" ? "Geral" : scope === "araras" ? "Araras" : "Rio Claro"} · ${updated.map((member) => member.name).join(", ")}`,
         current.email,
       );
-      return NextResponse.json({ ok: true, users: updatedUsers });
+      return NextResponse.json({ ok: true, collaborators: updated });
     } else {
       return NextResponse.json({ error: "Alteração inválida." }, { status: 400 });
     }

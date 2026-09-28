@@ -3,64 +3,28 @@
 import Link from "next/link";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { UpdateModule } from "@/lib/module-updates";
+import { useModuleUpdates } from "@/components/module-updates-store";
 
 type ModuleItem = { module: string; name: string; href: string; icon: string; accent: string };
 type Props = { modules: ModuleItem[]; motoristaControle: boolean; espacoEquipeControle: boolean; isManagement: boolean; isCica: boolean };
-type NotificationItem = { type?: string };
-type StockOrder = { situacao?: string };
-type MeetingItem = { status?: string; date?: string; secondDate?: string };
-type CalendarEvent = { id: string; summary: string; start: string; location?: string; completed?: boolean; allDay?: boolean };
-type Snapshot = { compras: number | null; estoque: number | null; estoqueRotativo: number | null; solicitacoes: number | null; agenda: number | null; motorista: number | null; equipe: number | null; leads: number | null; reunioes: number | null; events: CalendarEvent[] };
-type PendingUpdate = { module: UpdateModule; count: number; latestAt: string };
+type Snapshot = { compras: number | null; estoqueRotativo: number | null; solicitacoes: number | null; agenda: number | null; motorista: number | null; equipe: number | null; leads: number | null };
 
-const empty: Snapshot = { compras: null, estoque: null, estoqueRotativo: null, solicitacoes: null, agenda: null, motorista: null, equipe: null, leads: null, reunioes: null, events: [] };
+const empty: Snapshot = { compras: null, estoqueRotativo: null, solicitacoes: null, agenda: null, motorista: null, equipe: null, leads: null };
 const localDate = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; };
 
 export default function DashboardOverviewClient({ modules, motoristaControle, espacoEquipeControle, isManagement }: Props) {
   const [snapshot, setSnapshot] = useState<Snapshot>(empty);
-  const [updates, setUpdates] = useState<Record<string, PendingUpdate>>({});
+  const { updates, reload: reloadUpdates, markRead: markModuleRead } = useModuleUpdates(isManagement);
   const allowed = useMemo(() => new Set(modules.map((item) => item.module)), [modules]);
-
-  const loadUpdates = useCallback(async () => {
-    if (!isManagement) return;
-    try {
-      const response = await fetch("/api/module-updates", { cache: "no-store" });
-      const data = await response.json();
-      if (!response.ok) return;
-      const next: Record<string, PendingUpdate> = {};
-      for (const item of data.updates || []) next[item.module] = item;
-      setUpdates(next);
-    } catch {
-      // Falhas temporárias não devem impedir o uso dos módulos.
-    }
-  }, [isManagement]);
-
-  useEffect(() => {
-    void loadUpdates();
-    const interval = window.setInterval(loadUpdates, 10_000);
-    return () => window.clearInterval(interval);
-  }, [loadUpdates]);
 
   const markRead = useCallback(async (module?: UpdateModule) => {
     if (!module || !updates[module]) return;
-    const pending = updates[module];
-    setUpdates((current) => {
-      const next = { ...current };
-      delete next[module];
-      return next;
-    });
     try {
-      const response = await fetch("/api/module-updates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ module, through: pending.latestAt }),
-        keepalive: true,
-      });
-      if (!response.ok) throw new Error("Falha ao confirmar leitura.");
+      await markModuleRead(module);
     } catch {
-      void loadUpdates();
+      void reloadUpdates();
     }
-  }, [loadUpdates, updates]);
+  }, [markModuleRead, reloadUpdates, updates]);
 
   useEffect(() => {
     let cancelled = false;
@@ -69,63 +33,51 @@ export default function DashboardOverviewClient({ modules, motoristaControle, es
       start.setHours(0, 0, 0, 0);
       const end = new Date(start);
       end.setHours(23, 59, 59, 999);
-      const today = localDate();
-      const requests = [
-        allowed.has("compras") ? fetch("/api/compras", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
-        allowed.has("estoque") ? fetch("/api/painel-notifications", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
-        allowed.has("agenda") ? fetch(`/api/events?timeMin=${encodeURIComponent(start.toISOString())}&timeMax=${encodeURIComponent(end.toISOString())}`, { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
-        allowed.has("estoque") ? fetch("/api/estoque", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
-        allowed.has("motorista") ? fetch(`/api/motorista-leitura?action=dia&data=${today}`, { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
-        espacoEquipeControle ? fetch("/api/espaco-equipe", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
-        allowed.has("leads") ? fetch("/api/leads", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
-        allowed.has("reunioes") ? fetch("/api/reunioes", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()) : null,
-        allowed.has("estoque-rotativo") ? Promise.all([fetch("/api/estoque-rotativo", { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject()), fetch("/api/estoque-rotativo/fornecedores?refresh=" + Date.now(), { cache: "no-store" }).then((r) => r.ok ? r.json() : Promise.reject())]) : null,
-      ];
-      const results = await Promise.allSettled(requests);
-      if (cancelled) return;
-      const next = { ...empty };
-      if (results[0].status === "fulfilled" && results[0].value) next.compras = results[0].value.summary?.pedidosParaFazer ?? 0;
-      if (results[1].status === "fulfilled" && results[1].value) next.solicitacoes = (results[1].value.items ?? []).filter((item: NotificationItem) => item.type === "estoque").length;
-      if (results[2].status === "fulfilled" && results[2].value) {
-        next.events = (results[2].value.events ?? []).filter((event: CalendarEvent) => !event.completed);
-        next.agenda = next.events.length;
+      const params = new URLSearchParams({
+        modules: Array.from(allowed).join(","),
+        equipe: espacoEquipeControle ? "1" : "0",
+        timeMin: start.toISOString(),
+        timeMax: end.toISOString(),
+        today: localDate(),
+      });
+      try {
+        const response = await fetch(`/api/painel-resumo?${params.toString()}`, { cache: "no-store" });
+        if (!response.ok) return;
+        const data = await response.json();
+        if (!cancelled && data?.summary) setSnapshot({ ...empty, ...data.summary });
+      } catch {
+        // O Painel continua navegável mesmo se um resumo temporariamente falhar.
       }
-      if (results[3].status === "fulfilled" && results[3].value) next.estoque = (results[3].value.pedidosEnviados ?? []).filter((item: StockOrder) => item.situacao === "enviado").length;
-      if (results[4].status === "fulfilled" && results[4].value) next.motorista = (results[4].value.viagens ?? []).length;
-      if (results[5].status === "fulfilled" && results[5].value) next.equipe = results[5].value.pending ?? 0;
-      if (results[6].status === "fulfilled" && results[6].value) next.leads = results[6].value.summary?.pendentes ?? 0;
-      if (results[7].status === "fulfilled" && results[7].value) {
-        next.reunioes = (results[7].value.items ?? []).filter((item: MeetingItem) => item.status !== "concluida").reduce((total: number, item: MeetingItem) => total + (item.date && item.date >= today ? 1 : 0) + (item.secondDate && item.secondDate >= today ? 1 : 0), 0);
-      }
-      if (results[8].status === "fulfilled" && results[8].value) {
-        const [rotatingData, trelloData] = results[8].value;
-        const trelloCount = (trelloData.suppliers ?? []).length;
-        const registeredCount = (rotatingData.updates ?? []).filter((item: { status?: string }) => item.status === "aguardando_conferencia" || item.status === "aguardando_mapeamento").length;
-        next.estoqueRotativo = trelloCount || registeredCount;
-      }
-      setSnapshot(next);
     }
-    void load();
-    const interval = window.setInterval(load, 60_000);
-    return () => { cancelled = true; window.clearInterval(interval); };
+    const refreshWhenVisible = () => {
+      if (!document.hidden) void load();
+    };
+    refreshWhenVisible();
+    const interval = window.setInterval(refreshWhenVisible, 120_000);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [allowed, espacoEquipeControle]);
 
   const desktopCards = [
     ...(allowed.has("agenda") ? [["Agenda", "/agenda", "📅", snapshot.agenda] as const] : []),
     ...(allowed.has("compras") ? [["Compras", "/dashboard/compras", "🛒", snapshot.compras] as const] : []),
     ...(allowed.has("estoque") ? [["Estoque", "/dashboard/estoque", "📦", snapshot.solicitacoes] as const] : []),
-    ...(allowed.has("estoque-rotativo") ? [["Estoque Rotativo", "/dashboard/estoque-rotativo", "🔄", snapshot.estoqueRotativo] as const] : []),
+    ...(allowed.has("estoque-rotativo") ? [["Rotativo", "/dashboard/estoque-rotativo", "🔄", snapshot.estoqueRotativo] as const] : []),
     ...(allowed.has("leads") ? [["Leads", "/dashboard/leads", "🎯", snapshot.leads] as const] : []),
     ...(allowed.has("motorista") ? [["Motorista", motoristaControle ? "/dashboard/motorista" : "/dashboard/motorista-leitura", "🚚", snapshot.motorista] as const] : []),
   ];
 
   const mobileCards = [
     ...desktopCards,
-    ...(espacoEquipeControle ? [["Espaço Equipe", "/espaco-equipe", "👥", snapshot.equipe] as const] : []),
+    ...(espacoEquipeControle ? [["Equipe", "/espaco-equipe", "👥", snapshot.equipe] as const] : []),
   ];
 
   const renderCards = (cards: typeof mobileCards, mobile = false) => cards.map(([name, href, _icon, count]) => {
-    const updateModule = ({ Compras: "compras", Leads: "leads", Estoque: "estoque", "Estoque Rotativo": "estoque-rotativo" } as const)[name as "Compras" | "Leads" | "Estoque" | "Estoque Rotativo"];
+    const updateModule = ({ Compras: "compras", Leads: "leads", Estoque: "estoque", "Rotativo": "estoque-rotativo" } as const)[name as "Compras" | "Leads" | "Estoque" | "Rotativo"];
     const pending = updateModule ? updates[updateModule] : undefined;
     return <Link key={name} href={href} onClick={() => void markRead(updateModule)} className={mobile
       ? "relative flex min-h-16 min-w-0 flex-col justify-between rounded-lg border border-blue-200 bg-blue-50 px-2.5 py-2 shadow-sm transition active:bg-blue-100"

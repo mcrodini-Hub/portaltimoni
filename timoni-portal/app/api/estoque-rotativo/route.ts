@@ -17,6 +17,7 @@ import {
   deleteSupplierStandardization,
   finishConference,
   getRotatingStockUpdate,
+  getRotatingStockPendingUpdateCount,
   listConferenceItems,
   listExpiredHighlights,
   listRotatingStockData,
@@ -605,7 +606,7 @@ function fingerprint(sourceRows: unknown[][], targetRows: unknown[][]) {
 async function context() {
   const session = await auth();
   const email = normalizeEmail(session?.user?.email);
-  if (!email || !hasModuleAccess(email, "estoque-rotativo", session?.portalUser)) throw new Error("Acesso não autorizado ao Estoque Rotativo.");
+  if (!email || !hasModuleAccess(email, "estoque-rotativo", session?.portalUser)) throw new Error("Acesso não autorizado ao Rotativo.");
   if (!session?.accessToken || session.error === "RefreshAccessTokenError") throw new Error("Sessão expirada. Saia e entre novamente no Portal.");
   const oauth = new google.auth.OAuth2();
   oauth.setCredentials({ access_token: session.accessToken });
@@ -899,13 +900,17 @@ async function standardizeSupplierSpreadsheet(
   const preservedRotatingStockUpdated = formulas[1]?.[2] ?? "";
   const preservedManualDate = formulas[3]?.[4] ?? "";
 
-  topRows[0][0] = "Fornecedor 1:";
-  topRows[0][1] = file.name;
-  topRows[0][2] = `Padronizada em ${standardizedAt}`;
+  topRows[0] = [file.name, `Padronizada em ${standardizedAt}`];
   topRows[1] = [];
   topRows[1][2] = preservedRotatingStockUpdated;
 
+  // A3:E3 may be standardized, but preserve row 3 content from column F onward.
+  const preservedRow3Tail = [...(metadataRows[2] || [])].slice(5);
+  topRows[2] = [];
   topRows[2][4] = "LUCAS";
+  preservedRow3Tail.forEach((value, index) => {
+    topRows[2][index + 5] = value;
+  });
   topRows[3] = [];
   topRows[3][4] = preservedManualDate;
 
@@ -913,7 +918,6 @@ async function standardizeSupplierSpreadsheet(
     "COD-VENDA",
     "COD-COMPRA",
     "DESCRIÇÃO",
-    "MÍNIMO",
     "ESTOQUE",
     ...extraColumns.map((column) => normalizeHistoryHeader(sourceHeader[column])),
   ];
@@ -927,14 +931,12 @@ async function standardizeSupplierSpreadsheet(
       ? ""
       : (formattedRow[detection.purchaseCodeColumn] ?? formulaRow[detection.purchaseCodeColumn] ?? "");
     const description = formattedRow[detection.descriptionColumn!] ?? formulaRow[detection.descriptionColumn!] ?? "";
-    const minValue = detection.minColumn === null ? "" : (formulaRow[detection.minColumn] ?? "");
     const stockValue = formulaRow[detection.stockColumn!] ?? "";
     if ([saleValue, purchaseValue, description, stockValue].every((value) => value === "" || value === undefined || value === null)) continue;
     productRows.push([
       String(saleValue ?? "").trim(),
       String(purchaseValue ?? "").trim(),
       description,
-      minValue,
       stockValue,
       ...extraColumns.map((column) => formulaRow[column] ?? ""),
     ]);
@@ -945,10 +947,10 @@ async function standardizeSupplierSpreadsheet(
   );
 
   const output = [...topRows, standardizedHeaders, ...productRows];
-  const outputWidth = Math.max(...output.map((row) => row.length), 5);
+  const outputWidth = Math.max(...output.map((row) => row.length), 4);
   for (const row of output) while (row.length < outputWidth) row.push("");
   const lastProductRow = 5 + productRows.length;
-  for (let column = 5; column < outputWidth; column += 1) {
+  for (let column = 4; column < outputWidth; column += 1) {
     output[3][column] = `=COUNTA(${columnLetter(column)}6:${columnLetter(column)}${lastProductRow})`;
   }
 
@@ -1046,6 +1048,13 @@ async function standardizeSupplierSpreadsheet(
     },
     {
       repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: 5, startColumnIndex: 5, endColumnIndex: outputWidth },
+        cell: { userEnteredFormat: { numberFormat: { type: "DATE", pattern: "mmm/yy" } } },
+        fields: "userEnteredFormat.numberFormat",
+      },
+    },
+    {
+      repeatCell: {
         range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: output.length, startColumnIndex: 0, endColumnIndex: 2 },
         cell: { userEnteredFormat: { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } },
         fields: "userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment",
@@ -1118,8 +1127,17 @@ async function standardizeSupplierSpreadsheet(
       },
     },
     {
-      autoResizeDimensions: {
-        dimensions: { sheetId: selected.sheetId, dimension: "COLUMNS", startIndex: 3, endIndex: 4 },
+      updateDimensionProperties: {
+        range: { sheetId: selected.sheetId, dimension: "COLUMNS", startIndex: 2, endIndex: 3 },
+        properties: { pixelSize: 700 },
+        fields: "pixelSize",
+      },
+    },
+    {
+      updateDimensionProperties: {
+        range: { sheetId: selected.sheetId, dimension: "COLUMNS", startIndex: 3, endIndex: 4 },
+        properties: { pixelSize: 100 },
+        fields: "pixelSize",
       },
     },
     {
@@ -1212,7 +1230,7 @@ async function markSupplierRotatingStockUpdated(
     spreadsheetId,
     range: `'${sheetName.replace(/'/g, "''")}'!C2`,
     valueInputOption: "RAW",
-    requestBody: { values: [[`Estoque Rotativo atualizado em ${date}`]] },
+    requestBody: { values: [[`Rotativo atualizado em ${date}`]] },
   });
 
   await sheets.spreadsheets.batchUpdate({
@@ -1555,9 +1573,10 @@ function apiError(error: unknown) {
 
 export async function GET(request: Request) {
   try {
-    const { email, sheets } = await context();
-    await clearExpiredHighlights(sheets);
     const searchParams = new URL(request.url).searchParams;
+    const summaryOnly = searchParams.get("summary") === "1";
+    const { email, sheets } = await context();
+    if (!summaryOnly) await clearExpiredHighlights(sheets);
     const openUpdateId = searchParams.get("openUpdateId")?.trim() || "";
     if (openUpdateId) {
       const update = await getRotatingStockUpdate(openUpdateId);
@@ -1581,6 +1600,13 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: true, sheetNames, singleSheetName: sheetNames.length === 1 ? sheetNames[0] : null }, { headers: { "Cache-Control": "no-store" } });
     }
     const id = searchParams.get("id");
+    if (summaryOnly) {
+      const pending = await getRotatingStockPendingUpdateCount();
+      return NextResponse.json(
+        { ok: true, pending },
+        { headers: { "Cache-Control": "no-store" } },
+      );
+    }
     const data = await listRotatingStockData();
     const supplierFiles = [...SUPPLIER_SPREADSHEETS]
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base", numeric: true }));
@@ -1667,10 +1693,10 @@ export async function POST(request: Request) {
         name: prepared.supplier_name,
         spreadsheetId,
         sheetName: prepared.sheet_name,
-        dataRange: "B6:F100000",
+        dataRange: "A6:D100000",
         codeColumn: 0,
         descriptionColumn: 2,
-        stockColumn: 4,
+        stockColumn: 3,
         actor: email,
       });
       await attachSupplierToWaitingUpdates(mappingId, spreadsheetId, prepared.supplier_name);
@@ -1689,7 +1715,7 @@ export async function POST(request: Request) {
 
     if (action === "registrar") {
       requireRole(email, "report");
-      const supplierName = String(body.supplierName || "").trim();
+      let supplierName = String(body.supplierName || "").trim();
       const spreadsheetReference = String(body.spreadsheetReference || "").trim();
       const note = String(body.note || "").trim();
       const sourceSheetName = String(body.sourceSheetName || "").trim();
@@ -1699,9 +1725,16 @@ export async function POST(request: Request) {
       const sourceStockColumn = String(body.sourceStockColumn || "").trim().toUpperCase();
       const sourceStartRow = Number(body.sourceStartRow);
       const trelloCardId = String(body.trelloCardId || "").trim();
-      if (supplierName.length < 2) throw new Error("Informe o fornecedor ou grupo.");
       if (!spreadsheetReference) throw new Error("Informe o link da planilha.");
-      if (!extractSpreadsheetId(spreadsheetReference)) throw new Error("Link da planilha inválido.");
+      const sourceSpreadsheetId = extractSpreadsheetId(spreadsheetReference);
+      if (!sourceSpreadsheetId) throw new Error("Link da planilha inválido.");
+      if (!supplierName) {
+        const sourceMetadata = await sheets.spreadsheets.get({
+          spreadsheetId: sourceSpreadsheetId,
+          fields: "properties.title",
+        });
+        supplierName = String(sourceMetadata.data.properties?.title || "").trim() || "Planilha sem fornecedor";
+      }
       if (!sourceSheetName) throw new Error("Informe a aba da planilha.");
       for (const column of [sourceCodeColumn, sourceDescriptionColumn, sourceStockColumn]) {
         if (!/^[A-Z]+$/.test(column)) throw new Error("Informe colunas válidas para COD-VENDA, descrição e estoque.");
@@ -1729,7 +1762,7 @@ export async function POST(request: Request) {
       const date = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(new Date());
       const conversation = await ensureConversation(ROTATING_STOCK_EMAILS.lucas, ROTATING_STOCK_EMAILS.carolina);
       await createChatMessage(conversation.id, ROTATING_STOCK_EMAILS.lucas, ROTATING_STOCK_EMAILS.carolina,
-        `[Mensagem automática] ESTOQUE ROTATIVO\n\nNova relação de produtos disponível para atualização.\n\nPlanilha: ${spreadsheetReference}\nFornecedor: ${supplierName}\nInformado por: Lucas\nData: ${date}\n\nStatus: Aguardando conferência.\n\nPor favor, verificar no módulo Estoque Rotativo.`);
+        `[Mensagem automática] ESTOQUE ROTATIVO\n\nNova relação de produtos disponível para atualização.\n\nPlanilha: ${spreadsheetReference}\nFornecedor: ${supplierName}\nInformado por: Lucas\nData: ${date}\n\nStatus: Aguardando conferência.\n\nPor favor, verificar no módulo Rotativo.`);
       await recordModuleUpdateSafely("estoque-rotativo", email, `Nova relação: ${supplierName}.`, `estoque-rotativo:${id}`);
       return NextResponse.json({ ok: true, id, needsMapping: false });
     }
@@ -1817,7 +1850,7 @@ export async function POST(request: Request) {
     if (action === "editar_registro") {
       requireRole(email, "report");
       const id = String(body.id || "");
-      const supplierName = String(body.supplierName || "").trim();
+      const supplierNameInput = String(body.supplierName || "").trim();
       const spreadsheetReference = String(body.spreadsheetReference || "").trim();
       const sourceSheetName = String(body.sourceSheetName || "").trim();
       const sourceCodeColumn = String(body.sourceCodeColumn || "").trim().toUpperCase();
@@ -1827,7 +1860,10 @@ export async function POST(request: Request) {
       const sourceStartRow = Number(body.sourceStartRow);
       const note = String(body.note || "").trim();
       const trelloCardId = String(body.trelloCardId || "").trim();
-      if (!id || !supplierName || !extractSpreadsheetId(spreadsheetReference) || !sourceSheetName) throw new Error("Complete todos os campos obrigatórios.");
+      if (!id || !extractSpreadsheetId(spreadsheetReference) || !sourceSheetName) throw new Error("Complete os campos obrigatórios.");
+      const currentUpdate = await getRotatingStockUpdate(id);
+      if (!currentUpdate) throw new Error("Atualização não encontrada.");
+      const supplierName = supplierNameInput || currentUpdate.supplier_name;
       if (![sourceCodeColumn, sourceDescriptionColumn, sourceStockColumn].every((column) => /^[A-Z]+$/.test(column))) throw new Error("Revise as colunas.");
       if (sourcePurchaseCodeColumn && !/^[A-Z]+$/.test(sourcePurchaseCodeColumn)) throw new Error("Revise a coluna COD-COMPRA.");
       if (!Number.isInteger(sourceStartRow) || sourceStartRow < 1) throw new Error("Revise a linha inicial.");
@@ -1924,7 +1960,7 @@ export async function POST(request: Request) {
       if (update.status !== "em_conferencia" || update.locked_by !== email) throw new Error("Reabra a conferência antes de atualizar.");
       const storedItems = await listConferenceItems(id);
       const unresolved = storedItems.filter((item) => item.situation === "nao_encontrado");
-      if (unresolved.length) throw new Error(`Corrija os ${unresolved.length} item(ns) sem COD-VENDA confirmado antes de atualizar o Estoque Rotativo.`);
+      if (unresolved.length) throw new Error(`Corrija os ${unresolved.length} item(ns) sem COD-VENDA confirmado antes de atualizar o Rotativo.`);
       const matched = storedItems.filter((item) => item.situation !== "nao_encontrado" && item.target_row);
       const selected = storedItems.filter((item) => item.situation === "encontrado" && item.target_row);
       const { sourceRows, targetRows } = await readComparedRows(sheets, sourceSpreadsheetId, update.source_sheet_name, update.source_start_row, maxSourceColumn);
@@ -1989,7 +2025,7 @@ export async function POST(request: Request) {
       await recordModuleUpdateSafely(
         "estoque-rotativo",
         email,
-        "Atualização do Estoque Rotativo removida.",
+        "Atualização do Rotativo removida.",
         `estoque-rotativo:delete:${id}`,
       );
       return NextResponse.json({ ok: true });

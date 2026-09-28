@@ -159,15 +159,26 @@ function dedupeOrders(orders: SentOrder[]) {
   return [...unique.values()];
 }
 
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+function isWithinLast30Days(value: string) {
+  if (!value) return false;
+  const time = new Date(value).getTime();
+  if (Number.isNaN(time)) return false;
+  return time >= Date.now() - THIRTY_DAYS_MS;
+}
+
 function sortOrders(orders: SentOrder[]) {
-  return dedupeOrders(orders).sort((a, b) => {
+  return dedupeOrders(orders)
+    .filter((order) => isWithinLast30Days(order.enviadoEm))
+    .sort((a, b) => {
     const aTime = new Date(a.enviadoEm || a.recebidoEm || "").getTime();
     const bTime = new Date(b.enviadoEm || b.recebidoEm || "").getTime();
     const safeATime = Number.isNaN(aTime) ? 0 : aTime;
     const safeBTime = Number.isNaN(bTime) ? 0 : bTime;
-    if (safeATime !== safeBTime) return safeBTime - safeATime;
-    return a.nome.localeCompare(b.nome, "pt-BR");
-  });
+      if (safeATime !== safeBTime) return safeBTime - safeATime;
+      return a.nome.localeCompare(b.nome, "pt-BR");
+    });
 }
 
 async function readSentOrders(): Promise<SentOrder[]> {

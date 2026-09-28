@@ -17,6 +17,7 @@ export type PortalBox = PortalModule | "espaco-equipe";
 
 export type PortalUser = {
   name: string;
+  accessLabel?: string;
   email: string;
   modules: PortalModule[];
   boxes?: PortalBox[];
@@ -43,7 +44,7 @@ const allModules: PortalModule[] = [
 ];
 
 const modulesWithoutCicaAgenda = allModules.filter((module) => module !== "agenda");
-const operationalModules: PortalModule[] = ["painel", "estoque", "motorista"];
+const operationalModules: PortalModule[] = ["painel", "chat", "estoque", "motorista"];
 const CICA_EMAIL = "mcrodini@gmail.com";
 const MARCELO_EMAIL = "mrodini@gmail.com";
 const ESTOQUE_TIMONI_EMAIL = "estoquetimoni@gmail.com";
@@ -93,12 +94,12 @@ function operationalUser(name: string, email: string): PortalUser {
 }
 
 export const portalUsers: Record<string, PortalUser> = {
-  "mcrodini@gmail.com": { name: "Ciça Rodini", email: "mcrodini@gmail.com", modules: allModules, requiresPassword: true },
+  "mcrodini@gmail.com": { name: "Ciça Rodini", email: "mcrodini@gmail.com", modules: [...allModules, "agenda-ct"], requiresPassword: true },
   "mrodini@gmail.com": { name: "Marcelo Rodini", email: "mrodini@gmail.com", modules: modulesWithoutCicaAgenda, requiresPassword: true },
   "margareth@casatimoni.com.br": { name: "Margareth", email: "margareth@casatimoni.com.br", modules: allModules, requiresPassword: true },
   "fotoscasatimoni@gmail.com": operationalUser("Lucas e Vendedores - Araras", "fotoscasatimoni@gmail.com"),
   "balcaotimoni@gmail.com": operationalUser("Vendedores - Rio Claro", "balcaotimoni@gmail.com"),
-  "caixarctimoni@gmail.com": { name: "Bruna - Rio Claro", email: "caixarctimoni@gmail.com", modules: ["painel", "motorista"], requiresPassword: false, readOnly: true, active: true },
+  "caixarctimoni@gmail.com": { name: "Bruna - Rio Claro", email: "caixarctimoni@gmail.com", modules: ["painel", "chat", "motorista"], requiresPassword: false, readOnly: true, active: true },
   "estoquetimoni@gmail.com": operationalUser("Lucas - Estoque Rio Claro", "estoquetimoni@gmail.com"),
   "marketplacerc.mcr@gmail.com": operationalUser("Jaqueline - Marketplace Rio Claro", "marketplacerc.mcr@gmail.com"),
   "comercialara@casatimoni.com.br": operationalUser("Carolina - Vendas Araras", "comercialara@casatimoni.com.br"),
@@ -116,9 +117,7 @@ export function getPortalUser(email?: string | null, configured?: PortalUser | n
   if (configured && normalizeEmail(configured.email) === normalized) {
     if (configured.active === false) return null;
     if (normalized === MARCELO_EMAIL) {
-      const modules = configured.modules.filter((module) => module !== "agenda");
-      if (!modules.includes("chat")) modules.push("chat");
-      return { ...configured, modules };
+      return { ...configured, modules: configured.modules.filter((module) => module !== "agenda") };
     }
     return configured;
   }

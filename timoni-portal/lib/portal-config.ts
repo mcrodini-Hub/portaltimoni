@@ -12,6 +12,7 @@ const USERS_SHEET = "PortalUsuarios";
 const COLLABORATORS_SHEET = "PortalColaboradores";
 const HISTORY_SHEET = "PortalHistorico";
 const ROTATING_STOCK_MIGRATION = "Permissões Estoque Rotativo v1";
+const CHAT_ALL_ACCESS_MIGRATION = "Chat disponível em todos os acessos v1";
 const REQUIRED_SHEETS = [USERS_SHEET, COLLABORATORS_SHEET, HISTORY_SHEET];
 export const CICA_EMAIL = "mcrodini@gmail.com";
 export const DASHBOARD_BOX_MODULES: PortalModule[] = ["painel", "agenda", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads"];
@@ -21,6 +22,7 @@ export type ConfiguredCollaborator = TeamMember & {
   accessEmail: string;
   active: boolean;
   noticeRequired: boolean;
+  chatEnabled: boolean;
   updatedAt: string;
 };
 
@@ -77,6 +79,27 @@ function csvModules(value: string | undefined): PortalModule[] {
   return (value || "").split(",").map((item) => item.trim()).filter(Boolean) as PortalModule[];
 }
 
+const EXISTING_ACCESS_LABELS: Record<string, string> = {
+  "mcrodini@gmail.com": "Ciça",
+  "mrodini@gmail.com": "Marcelo",
+  "balcaotimoni@gmail.com": "Vendedores Rio Claro",
+  "fotoscasatimoni@gmail.com": "Vendedores Araras",
+  "caixarctimoni@gmail.com": "Caixa Rio Claro",
+  "estoquetimoni@gmail.com": "Estoque Rio Claro",
+  "estoqueararascasatimoni@gmail.com": "Estoque Araras",
+  "marketplacerc.mcr@gmail.com": "Marketplace Rio Claro",
+  "comercialrc@casatimoni.com.br": "Comercial Rio Claro",
+  "comercialara@casatimoni.com.br": "Comercial Araras",
+  "casatimoniararas@gmail.com": "Casa Timoni Araras",
+  "carolina@casatimoni.com.br": "Vendas Rio Claro",
+  "reginaldo@casatimoni.com.br": "Vendas Araras",
+  "margareth@casatimoni.com.br": "Gestão",
+};
+
+function defaultAccessLabel(email: string) {
+  return EXISTING_ACCESS_LABELS[normalizeEmail(email)] || `Acesso ${defaultUnit(email)}`;
+}
+
 function defaultUnit(email: string): PortalUser["unit"] {
   const normalized = normalizeEmail(email);
   if ([CICA_EMAIL, "mrodini@gmail.com"].includes(normalized)) return "Geral";
@@ -94,6 +117,7 @@ export function defaultPortalUsers(): PortalUser[] {
   return Object.values(portalUsers).map((user) => ({
     ...user,
     unit: defaultUnit(user.email),
+    accessLabel: defaultAccessLabel(user.email),
     active: user.active !== false,
     directPainel: entersDirectlyInPainelTimoni(user.email),
     boxes: DASHBOARD_BOX_MODULES.filter((module) => user.modules.includes(module)),
@@ -109,6 +133,7 @@ export function defaultCollaborators(): ConfiguredCollaborator[] {
     accessEmail: "",
     active: true,
     noticeRequired: noticeKeys.has(`${member.unit}::${member.name}`),
+    chatEnabled: true,
     updatedAt: "",
   }));
 }
@@ -138,7 +163,7 @@ async function ensureSheets(accessToken: string) {
 }
 
 async function readUsers(accessToken: string): Promise<PortalUser[]> {
-  const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:L500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
+  const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:M500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
   return (response.values || []).map((row) => ({
     email: normalizeEmail(row[0]),
     name: row[1] || "",
@@ -151,6 +176,7 @@ async function readUsers(accessToken: string): Promise<PortalUser[]> {
     directPainel: yes(row[8]),
     lastAccess: row[9] || "",
     mobileModules: row[11] ? row[11] === "nenhum" ? [] : csvModules(row[11]) : undefined,
+    accessLabel: row[12] || "",
   })).filter((user) => user.email && user.name);
 }
 
@@ -159,7 +185,7 @@ export async function listConfiguredPortalUsers(accessToken: string) {
 }
 
 async function readCollaborators(accessToken: string): Promise<ConfiguredCollaborator[]> {
-  const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A2:G500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
+  const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A2:H500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
   return (response.values || []).map((row) => ({
     id: row[0] || "",
     name: row[1] || "",
@@ -168,6 +194,7 @@ async function readCollaborators(accessToken: string): Promise<ConfiguredCollabo
     noticeRequired: yes(row[4], true),
     updatedAt: row[5] || "",
     accessEmail: normalizeEmail(row[6] || ""),
+    chatEnabled: yes(row[7], true),
   })).filter((member) => member.id && member.name);
 }
 
@@ -209,7 +236,7 @@ export async function writeUsers(accessToken: string, users: PortalUser[]) {
     active: true,
     readOnly: false,
   };
-  await replaceRange(accessToken, `${USERS_SHEET}!A2:L500`, normalized.map((user) => [
+  await replaceRange(accessToken, `${USERS_SHEET}!A2:M500`, normalized.map((user) => [
     user.email,
     user.name,
     user.unit || defaultUnit(user.email) || "Rio Claro",
@@ -222,6 +249,7 @@ export async function writeUsers(accessToken: string, users: PortalUser[]) {
     user.lastAccess || "",
     now,
     user.mobileModules === undefined ? "" : user.mobileModules.join(",") || "nenhum",
+    user.accessLabel || user.name,
   ]));
 }
 
@@ -239,6 +267,7 @@ function userRow(user: PortalUser, now = new Date().toISOString()) {
     user.lastAccess || "",
     now,
     user.mobileModules === undefined ? "" : user.mobileModules.join(",") || "nenhum",
+    user.accessLabel || user.name,
   ];
 }
 
@@ -252,12 +281,12 @@ export async function upsertPortalUser(accessToken: string, input: PortalUser) {
   const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:A500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
   const index = (response.values || []).findIndex((row) => normalizeEmail(row[0]) === user.email);
   if (index >= 0) {
-    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A${index + 2}:L${index + 2}`)}`, { valueInputOption: "RAW" }), {
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A${index + 2}:M${index + 2}`)}`, { valueInputOption: "RAW" }), {
       method: "PUT",
       body: JSON.stringify({ values: [userRow(user)] }),
     });
   } else {
-    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A:L`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), {
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A:M`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), {
       method: "POST",
       body: JSON.stringify({ values: [userRow(user)] }),
     });
@@ -267,7 +296,7 @@ export async function upsertPortalUser(accessToken: string, input: PortalUser) {
 
 export async function writeCollaborators(accessToken: string, collaborators: ConfiguredCollaborator[]) {
   const now = new Date().toISOString();
-  await replaceRange(accessToken, `${COLLABORATORS_SHEET}!A2:G500`, collaborators.map((member) => [
+  await replaceRange(accessToken, `${COLLABORATORS_SHEET}!A2:H500`, collaborators.map((member) => [
     member.id,
     member.name,
     member.unit,
@@ -275,6 +304,7 @@ export async function writeCollaborators(accessToken: string, collaborators: Con
     member.noticeRequired ? "Sim" : "Não",
     member.updatedAt || now,
     normalizeEmail(member.accessEmail || ""),
+    member.chatEnabled === false ? "Não" : "Sim",
   ]));
 }
 
@@ -282,11 +312,11 @@ export async function upsertCollaborator(accessToken: string, member: Configured
   await ensureSheets(accessToken);
   const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A2:A500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
   const index = (response.values || []).findIndex((row) => row[0] === member.id);
-  const values = [[member.id, member.name, member.unit, member.active ? "Sim" : "Não", member.noticeRequired ? "Sim" : "Não", member.updatedAt || new Date().toISOString(), normalizeEmail(member.accessEmail || "")]];
+  const values = [[member.id, member.name, member.unit, member.active ? "Sim" : "Não", member.noticeRequired ? "Sim" : "Não", member.updatedAt || new Date().toISOString(), normalizeEmail(member.accessEmail || ""), member.chatEnabled === false ? "Não" : "Sim"]];
   if (index >= 0) {
-    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A${index + 2}:G${index + 2}`)}`, { valueInputOption: "RAW" }), { method: "PUT", body: JSON.stringify({ values }) });
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A${index + 2}:H${index + 2}`)}`, { valueInputOption: "RAW" }), { method: "PUT", body: JSON.stringify({ values }) });
   } else {
-    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A:G`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), { method: "POST", body: JSON.stringify({ values }) });
+    await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A:H`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), { method: "POST", body: JSON.stringify({ values }) });
   }
   return member;
 }
@@ -296,7 +326,7 @@ export async function deleteCollaborator(accessToken: string, id: string) {
   const index = (response.values || []).findIndex((row) => row[0] === id);
   if (index < 0) return false;
   const row = index + 2;
-  await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A${row}:G${row}`)}:clear`), { method: "POST", body: "{}" });
+  await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A${row}:H${row}`)}:clear`), { method: "POST", body: "{}" });
   return true;
 }
 
@@ -322,10 +352,64 @@ export async function ensurePortalConfiguration(accessToken: string) {
     await writeCollaborators(accessToken, collaborators);
   }
 
+  // Importação única dos rótulos antigos. Depois disso, PortalUsuarios!M
+  // é a fonte para Configurações e para os destinatários dos Avisos.
+  const cicaUser = users.find((user) => user.email === CICA_EMAIL);
+  if (cicaUser && !cicaUser.modules.includes("agenda-ct")) {
+    const updatedCica = {
+      ...cicaUser,
+      modules: [...cicaUser.modules, "agenda-ct" as PortalModule],
+      mobileModules: cicaUser.mobileModules === undefined
+        ? undefined
+        : [...new Set([...cicaUser.mobileModules, "agenda-ct" as PortalModule])],
+    };
+    await upsertPortalUser(accessToken, updatedCica);
+    users = users.map((user) => user.email === CICA_EMAIL ? updatedCica : user);
+    await appendAudit(accessToken, "Agenda CT liberada", "Agenda CT habilitada para o acesso da Ciça.", CICA_EMAIL);
+  }
+
+  if (users.some((user) => !user.accessLabel)) {
+    const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:M500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
+    const data = (response.values || []).flatMap((row, index) => {
+      const email = normalizeEmail(row[0]);
+      if (!email || row[12]) return [];
+      return [{ range: `${USERS_SHEET}!M${index + 2}`, values: [[defaultAccessLabel(email)]] }];
+    });
+    if (data.length) {
+      await sheetsRequest(accessToken, sheetsUrl("/values:batchUpdate"), {
+        method: "POST",
+        body: JSON.stringify({ valueInputOption: "RAW", data }),
+      });
+      users = await readUsers(accessToken);
+    }
+  }
+
   // O vínculo com um acesso é apenas pelo e-mail. Nome, unidade e status do
   // colaborador são dados próprios e nunca devem ser sobrescritos pelo acesso.
   const defaultsById = new Map(defaultCollaborators().map((member) => [member.id, member]));
   let collaboratorsChanged = false;
+
+  const preferredChatAccess = (member: ConfiguredCollaborator) => {
+    const key = `${member.unit}::${member.name}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    const named: Record<string, string> = {
+      "rio claro::lucas": "estoquetimoni@gmail.com",
+      "rio claro::jaqueline": "marketplacerc.mcr@gmail.com",
+      "rio claro::jeovana": "comercialrc@casatimoni.com.br",
+      "rio claro::carolina": "carolina@casatimoni.com.br",
+      "araras::reginaldo": "reginaldo@casatimoni.com.br",
+      "araras::maria carolina": "comercialara@casatimoni.com.br",
+    };
+    return named[key] || (member.unit === "Araras" ? "fotoscasatimoni@gmail.com" : "balcaotimoni@gmail.com");
+  };
+
+  const validAccessEmails = new Set(users.filter((user) => user.active !== false).map((user) => normalizeEmail(user.email)));
+  collaborators = collaborators.map((member) => {
+    if (member.accessEmail || !member.active) return member;
+    const accessEmail = preferredChatAccess(member);
+    if (!validAccessEmails.has(accessEmail)) return member;
+    collaboratorsChanged = true;
+    return { ...member, accessEmail, chatEnabled: member.chatEnabled !== false, updatedAt: new Date().toISOString() };
+  });
 
   collaborators = collaborators.map((member) => {
     const original = defaultsById.get(member.id);
@@ -371,6 +455,28 @@ export async function ensurePortalConfiguration(accessToken: string) {
   return { users, collaborators };
 }
 
+let chatAllAccessMigration: Promise<void> | null = null;
+
+async function ensureChatAllAccess(accessToken: string) {
+  if (!chatAllAccessMigration) chatAllAccessMigration = (async () => {
+    const { users } = await ensurePortalConfiguration(accessToken);
+    const migrationRows = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${HISTORY_SHEET}!B2:B2000`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
+    if ((migrationRows.values || []).some((row) => row[0] === CHAT_ALL_ACCESS_MIGRATION)) return;
+    for (const user of users.filter((item) => item.active !== false && !item.modules.includes("chat"))) {
+      await upsertPortalUser(accessToken, {
+        ...user,
+        modules: [...user.modules, "chat"],
+        mobileModules: user.mobileModules === undefined ? undefined : [...new Set([...user.mobileModules, "chat" as PortalModule])],
+      });
+    }
+    await appendAudit(accessToken, CHAT_ALL_ACCESS_MIGRATION, "Chat disponibilizado para todos os acessos ativos; liberação individual controlada por colaborador.", CICA_EMAIL);
+  })().catch((error) => {
+    chatAllAccessMigration = null;
+    throw error;
+  });
+  await chatAllAccessMigration;
+}
+
 let rotatingStockMigration: Promise<void> | null = null;
 
 async function ensureRotatingStockPermissions(accessToken: string) {
@@ -407,6 +513,7 @@ export async function getEffectivePortalUser(accessToken: string | undefined, em
   if (!accessToken) return portalUsers[normalized] || null;
   try {
     await ensureRotatingStockPermissions(accessToken);
+    await ensureChatAllAccess(accessToken);
     const users = await readUsers(accessToken);
     if (!users.length) return portalUsers[normalized] || null;
     return users.find((user) => user.email === normalized) || null;

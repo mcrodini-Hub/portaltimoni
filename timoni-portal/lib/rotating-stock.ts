@@ -302,6 +302,18 @@ function normalizeDate<T>(row: T): T {
   return result as T;
 }
 
+export async function getRotatingStockPendingUpdateCount() {
+  await ensureRotatingStockSchema();
+  const sql = getDatabase();
+  const rows = await sql`
+    SELECT COUNT(*)::INTEGER AS count
+    FROM portal_rotating_stock_updates
+    WHERE deleted_at IS NULL
+      AND status IN ('aguardando_conferencia', 'aguardando_mapeamento')
+  ` as unknown as Array<{ count?: number }>;
+  return Number(rows[0]?.count || 0);
+}
+
 export async function listRotatingStockData() {
   await ensureRotatingStockSchema();
   const sql = getDatabase();

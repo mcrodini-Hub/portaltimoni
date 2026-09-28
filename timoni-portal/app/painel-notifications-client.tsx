@@ -14,7 +14,7 @@ type NotificationResponse = { ok: boolean; items?: NotificationItem[] };
 
 const SEEN_PREFIX = "portalTimoniNotificationSeen:v3";
 const HISTORY_PREFIX = "portalTimoniNotificationHistory:v1";
-const POLL_INTERVAL_MS = 45_000;
+const POLL_INTERVAL_MS = 60_000;
 const HISTORY_LIMIT = 100;
 
 function normalizedEmail(email: string) {
@@ -120,9 +120,16 @@ export default function PainelNotificationsClient({ email }: { email: string }) 
 
   useEffect(() => {
     setItems(readHistory(savedHistoryKey));
-    check();
-    const interval = window.setInterval(check, POLL_INTERVAL_MS);
-    return () => window.clearInterval(interval);
+    const refreshWhenVisible = () => {
+      if (!document.hidden) void check();
+    };
+    refreshWhenVisible();
+    const interval = window.setInterval(refreshWhenVisible, POLL_INTERVAL_MS);
+    document.addEventListener("visibilitychange", refreshWhenVisible);
+    return () => {
+      window.clearInterval(interval);
+      document.removeEventListener("visibilitychange", refreshWhenVisible);
+    };
   }, [check, savedHistoryKey]);
 
   function markAllRead() {

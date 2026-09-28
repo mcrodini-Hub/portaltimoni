@@ -14,11 +14,11 @@ const navItems: Array<{ href: string; label: string; module: PortalModule; updat
   { href: "/dashboard/compras", label: "Compras", module: "compras", updateModule: "compras", icon: "cart", color: "text-orange-700" },
   { href: "/dashboard/conferencia-pedidos", label: "Conferência", module: "conferencia", updateModule: "conferencia", icon: "document", color: "text-rose-700" },
   { href: "/dashboard/estoque", label: "Estoque", module: "estoque", updateModule: "estoque", icon: "stock", color: "text-amber-700" },
-  { href: "/dashboard/estoque-rotativo", label: "Estoque Rotativo", module: "estoque-rotativo", updateModule: "estoque-rotativo", icon: "stock", color: "text-yellow-700" },
+  { href: "/dashboard/estoque-rotativo", label: "Rotativo", module: "estoque-rotativo", updateModule: "estoque-rotativo", icon: "stock", color: "text-yellow-700" },
   { href: "/dashboard/motorista-leitura", label: "Motorista", module: "motorista", updateModule: "motorista", icon: "truck", color: "text-blue-600" },
   { href: "/dashboard/reunioes", label: "Reuniões", module: "reunioes", updateModule: "reunioes", icon: "meetings", color: "text-indigo-800" },
   { href: "/dashboard/leads", label: "Leads", module: "leads", updateModule: "leads", icon: "leads", color: "text-cyan-800" },
-  { href: "/espaco-equipe", label: "Espaço Equipe", module: "painel", updateModule: "espaco-equipe", icon: "team", color: "text-indigo-800" },
+  { href: "/espaco-equipe", label: "Equipe", module: "painel", updateModule: "espaco-equipe", icon: "team", color: "text-indigo-800" },
   { href: "/dashboard/marketing", label: "Marketing", module: "marketing", updateModule: "marketing", icon: "leads", color: "text-cyan-800" },
   { href: "/dashboard/financeiro", label: "Financeiro", module: "financeiro", updateModule: "financeiro", icon: "document", color: "text-emerald-700" },
 ];
@@ -40,15 +40,12 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
     }));
   const byLabel = (a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label, "pt-BR", { sensitivity: "base" });
   const sortedAllowedItems = [...allowedItems].sort(byLabel);
-  const desktopItems = [
-    ...sortedAllowedItems,
-    ...(isManagement ? [{ href: "/configuracoes", targetHref: "/configuracoes", label: "Configurações", updateModule: undefined }] : []),
-  ];
+  const desktopItems = sortedAllowedItems;
   const mobileItems = [
     ...sortedAllowedItems.filter((item) => mobileVisible(item.module)),
     ...(isManagement ? [{ href: "/configuracoes", targetHref: "/configuracoes", label: "Configurações", module: "painel" as PortalModule, updateModule: undefined, icon: "settings" as PortalIconName, color: "text-slate-800" }] : []),
   ];
-  const startHref = sortedAllowedItems[0]?.targetHref || (isManagement ? "/configuracoes" : "/login");
+  const startHref = "/dashboard";
   const initials = email.trim().toLowerCase() === "mcrodini@gmail.com" ? "CR" : email.trim().toLowerCase() === "mrodini@gmail.com" ? "MR" : "CT";
 
   return (
@@ -65,11 +62,13 @@ export default function PortalHeader({ email, portalUser }: { email: string; por
         </Link>
 
         <nav
-          className="order-3 -mx-1 flex w-[calc(100%+0.5rem)] min-w-0 flex-none items-center gap-0.5 overflow-hidden border-t border-white/10 px-1 py-2 sm:order-none sm:mx-0 sm:w-auto sm:flex-1 sm:border-0 sm:px-0"
+          className="order-3 -mx-1 flex w-[calc(100%+0.5rem)] min-w-0 flex-none items-center gap-0.5 overflow-x-auto border-t border-white/10 px-1 py-2 sm:order-none sm:mx-0 sm:w-auto sm:flex-1 sm:border-0 sm:px-0"
           aria-label="Menu principal"
         >
           <ModuleUpdatesNav items={desktopItems} canViewUpdates={canViewUpdates} linkClass={linkClass} />
         </nav>
+
+        {isManagement ? <Link href="/configuracoes" className={linkClass}>Configurações</Link> : null}
 
         {canUseChat ? <ChatButton /> : null}
 

@@ -47,6 +47,6 @@ export function EventForm({event,onClose,onSaved}:{event?:CalendarEventDTO|null;
   <div><label className={labelClass}>Local (opcional)</label><input value={location} onChange={e=>setLocation(e.target.value)} className={inputClass}/></div>
   <div><label className={labelClass}>Descrição (opcional)</label><textarea value={description} onChange={e=>setDescription(e.target.value)} rows={2} className={`${inputClass} resize-none sm:min-h-[76px]`}/></div>
   {error&&<p className="rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-700 sm:py-2 sm:text-sm">{error}</p>}
-  <div className="sticky bottom-0 -mx-1 flex justify-end gap-2 bg-white px-1 pb-0.5 pt-1 sm:pb-1 sm:pt-2"><Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit" disabled={saving}>{saving?"Salvando…":"Salvar"}</Button></div>
+  <div className="sticky bottom-0 -mx-1 flex justify-end gap-2 bg-white px-1 pb-0.5 pt-1 sm:pb-1 sm:pt-2"><Button type="button" className="text-[15px] sm:text-sm" variant="secondary" onClick={onClose}>Cancelar</Button><Button type="submit" className="text-[15px] sm:text-sm" disabled={saving}>{saving?"Salvando…":"Salvar"}</Button></div>
  </form></Modal>;
 }

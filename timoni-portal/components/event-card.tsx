@@ -77,7 +77,7 @@ export function EventCard({
               {event.calendarLabel}
             </span>
           </div>
-          <p className={clsx("mt-2 break-words text-[17px] font-medium sm:text-base", event.completed && "text-slate-500 line-through")}>
+          <p className={clsx("mt-2 break-words font-medium", event.completed && "text-slate-500 line-through")}>
             {event.summary}
           </p>
           {event.location && <p className="mt-1 break-words text-sm text-slate-500">{event.location}</p>}
@@ -87,7 +87,7 @@ export function EventCard({
             type="button"
             onClick={() => onComplete(event)}
             className={clsx(
-              "inline-flex min-h-9 min-w-0 items-center justify-center rounded-lg px-2 py-2 text-xs font-medium transition sm:px-3 sm:text-sm",
+              "inline-flex min-h-9 min-w-0 items-center justify-center rounded-lg px-2 py-2 text-[13px] font-medium transition sm:px-3 sm:text-sm",
               event.completed
                 ? "bg-green-600 text-white hover:bg-green-700"
                 : "bg-green-50 text-green-700 hover:bg-green-100"
@@ -95,10 +95,10 @@ export function EventCard({
           >
             ✓ {event.completed ? "Concluído" : "Concluir"}
           </button>
-          <Button className="inline-flex min-h-9 min-w-0 items-center justify-center px-2 text-xs sm:px-3 sm:text-sm" variant="secondary" onClick={() => onEdit(event)}>
+          <Button className="inline-flex min-h-9 min-w-0 items-center justify-center px-2 text-[13px] sm:px-3 sm:text-sm" variant="secondary" onClick={() => onEdit(event)}>
             Editar
           </Button>
-          <Button className="inline-flex min-h-9 min-w-0 items-center justify-center px-2 text-xs sm:px-3 sm:text-sm" variant="danger" onClick={() => onDelete(event)}>
+          <Button className="inline-flex min-h-9 min-w-0 items-center justify-center px-2 text-[13px] sm:px-3 sm:text-sm" variant="danger" onClick={() => onDelete(event)}>
             Cancelar
           </Button>
         </div>

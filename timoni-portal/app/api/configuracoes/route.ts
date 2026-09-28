@@ -5,6 +5,7 @@ import {
   appendAudit,
   CICA_EMAIL,
   deleteCollaborator,
+  deletePortalUser,
   loadPortalConfiguration,
   upsertCollaborator,
   upsertPortalUser,
@@ -30,8 +31,20 @@ export async function DELETE(request: Request) {
   const current = await adminContext();
   if (!current) return NextResponse.json({ error: "Acesso exclusivo da gestão." }, { status: 403 });
   try {
-    const { id } = await request.json();
-    if (typeof id !== "string" || !id.trim()) return NextResponse.json({ error: "Colaborador inválido." }, { status: 400 });
+    const body = await request.json();
+    if (body.kind === "user") {
+      const email = normalizeEmail(String(body.email || ""));
+      if (!email || email === CICA_EMAIL) return NextResponse.json({ error: "Este acesso não pode ser excluído." }, { status: 400 });
+      const configuration = await loadPortalConfiguration(current.accessToken);
+      const user = configuration.users.find((item) => item.email === email);
+      if (!user) return NextResponse.json({ error: "Acesso não encontrado." }, { status: 404 });
+      await deletePortalUser(current.accessToken, email);
+      await appendAudit(current.accessToken, "Acesso excluído", `${user.accessLabel || user.name} · ${email}`, current.email);
+      return NextResponse.json({ ok: true });
+    }
+
+    const id = String(body.id || "");
+    if (!id.trim()) return NextResponse.json({ error: "Colaborador inválido." }, { status: 400 });
     const configuration = await loadPortalConfiguration(current.accessToken);
     const member = configuration.collaborators.find((item) => item.id === id);
     if (!member) return NextResponse.json({ error: "Colaborador não encontrado." }, { status: 404 });
@@ -40,7 +53,7 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[configuracoes][DELETE]", error);
-    return NextResponse.json({ error: "Não foi possível excluir o colaborador." }, { status: 500 });
+    return NextResponse.json({ error: "Não foi possível concluir a exclusão." }, { status: 500 });
   }
 }
 
@@ -76,8 +89,8 @@ function cleanUser(value: Record<string, unknown>): PortalUser {
 
 function cleanCollaborator(value: Record<string, unknown>, users: PortalUser[]): ConfiguredCollaborator {
   const accessEmail = normalizeEmail(String(value.accessEmail || ""));
-  const access = users.find((user) => user.email === accessEmail);
-  if (!access) throw new Error("Selecione um acesso válido para este colaborador.");
+  const access = accessEmail ? users.find((user) => user.email === accessEmail) : null;
+  if (accessEmail && !access) throw new Error("Selecione um acesso válido para este colaborador.");
   const name = String(value.name || "").trim();
   const unit = String(value.unit) === "Araras" ? "Araras" : String(value.unit) === "Rio Claro" ? "Rio Claro" : null;
   if (name.length < 2 || !unit) throw new Error("Informe nome e unidade válidos para o colaborador.");

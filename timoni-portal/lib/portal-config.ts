@@ -293,6 +293,21 @@ export async function upsertPortalUser(accessToken: string, input: PortalUser) {
   return user;
 }
 
+export async function deletePortalUser(accessToken: string, email: string) {
+  const normalized = normalizeEmail(email);
+  if (!normalized || normalized === CICA_EMAIL) return false;
+  const users = await readUsers(accessToken);
+  const kept = users.filter((user) => normalizeEmail(user.email) !== normalized);
+  if (kept.length === users.length) return false;
+  await writeUsers(accessToken, kept);
+  const collaborators = await readCollaborators(accessToken);
+  const updated = collaborators.map((member) => normalizeEmail(member.accessEmail) === normalized
+    ? { ...member, accessEmail: "", updatedAt: new Date().toISOString() }
+    : member);
+  await writeCollaborators(accessToken, updated);
+  return true;
+}
+
 export async function writeCollaborators(accessToken: string, collaborators: ConfiguredCollaborator[]) {
   const now = new Date().toISOString();
   await replaceRange(accessToken, `${COLLABORATORS_SHEET}!A2:H500`, collaborators.map((member) => [

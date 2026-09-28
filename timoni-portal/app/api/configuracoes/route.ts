@@ -12,7 +12,7 @@ import {
 } from "@/lib/portal-config";
 
 const VALID_MODULES = new Set<PortalModule>([
-  "painel", "agenda", "agenda-ct", "chat", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads", "marketing", "financeiro",
+  "painel", "agenda", "agenda-ct", "chat", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads",
 ]);
 const VALID_BOXES = new Set<PortalBox>([
   "painel", "agenda", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads", "espaco-equipe",
@@ -57,7 +57,6 @@ function cleanUser(value: Record<string, unknown>): PortalUser {
   const name = String(value.name || "").trim();
   if (!email.includes("@") || name.length < 2) throw new Error("Informe nome e e-mail válidos.");
   const modules = cleanModules(value.modules);
-  if (!modules.includes("chat")) modules.push("chat");
   const boxes = cleanBoxes(value.boxes).filter((box) => box === "espaco-equipe" ? modules.includes("painel") : modules.includes(box));
   return {
     email,

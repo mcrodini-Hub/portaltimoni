@@ -656,8 +656,13 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
     const data = dateFromString(selecionado);
     const diaSemana = data.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
     const linhas = itens.map((v, index) => {
-      const endereco = [separarEndereco(v.endereco).texto, v.numero, v.complemento].filter(Boolean).join(" - ");
-      return `<div class="item"><p><strong>${index + 1}. ${v.tipoHorario || "Entrega"} ${lojaLabel(v.loja)} | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}${v.vendedor ? ` | Vendedor: ${v.vendedor}` : ""}</strong></p><p>${v.clienteFornecedor || ""}${v.numeroPedido ? ` · ${v.numeroPedido}` : ""}${v.volumes ? ` · Volume: ${formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade)}` : ""}</p><p>${endereco}</p><p>Contato: ${v.contatoNome || ""}${v.contatoWhats ? ` - ${v.contatoWhats}` : ""}</p>${v.info ? `<p style="white-space: pre-line;">Observação:<br>${String(v.info).replace(/^[\r\n]+/, "")}</p>` : ""}${v.preenchidoPor ? `<p class="preenchido">Preenchido por: ${v.preenchidoPor}</p>` : ""}</div>`;
+      const endereco = formatarEnderecoExibicao(v.endereco, v.numero, v.complemento);
+      const bloqueio = v.tipoHorario === "Bloqueio";
+      const horario = v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : "";
+      const primeiraLinha = `${index + 1}. ${lerOperacao(v.notasJson)} | ${lojaLabel(v.loja)}${v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}${horario}${bloqueio ? " | Bloqueio" : ""}`;
+      const empresa = [v.clienteFornecedor || "", pedidoTexto(v.numeroPedido) ? `NF/Pedido: ${pedidoTexto(v.numeroPedido)}` : ""].filter(Boolean).join(" | ");
+      const volume = v.volumes ? formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade) : "";
+      return `<div class="item"><p><strong>${primeiraLinha}</strong></p>${empresa ? `<p>Empresa: <strong>${empresa}</strong></p>` : ""}${endereco ? `<p>End.: ${endereco}</p>` : ""}${v.contatoNome ? `<p>Falar com: ${v.contatoNome}</p>` : ""}${volume ? `<p>Volume: ${volume}</p>` : ""}${v.info ? `<p style="white-space: pre-line;">Observação: ${String(v.info).replace(/^[\r\n]+/, "")}</p>` : ""}${v.preenchidoPor ? `<p class="preenchido">Preenchido por: ${v.preenchidoPor}</p>` : ""}</div>`;
     }).join("");
 
     const popup = window.open("", "_blank", "width=850,height=900");
@@ -730,17 +735,13 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                   <div className="mt-3 space-y-2">
                     {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itens.length === 0 ? <p className="text-sm text-slate-400">Sem viagens.</p> : itens.map((v, index) => (
                       <article key={v.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
-                        {v.tipoHorario === "Bloqueio" && (v.clienteFornecedor || pedidoTexto(v.numeroPedido)) && <p className="mt-2 text-sm font-medium text-slate-900">Empresa: <strong>{v.clienteFornecedor || ""}{v.clienteFornecedor && pedidoTexto(v.numeroPedido) ? " | " : ""}{pedidoTexto(v.numeroPedido) ? `NF/Pedido: ${pedidoTexto(v.numeroPedido)}` : ""}</strong></p>}
-                        {v.tipoHorario === "Bloqueio" && v.endereco && <p className="mt-1 text-sm text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
-                        {v.tipoHorario === "Bloqueio" && separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Abrir no Google Maps</a>}
-                        {v.tipoHorario !== "Bloqueio" && <>
-                          <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade)}` : ""}</p>
-                          {v.endereco && <p className="mt-1 text-sm text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
-                          {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}
-                          {v.contatoNome && <p className="mt-2 text-sm text-slate-700">Falar com: {v.contatoNome}</p>}
-                        </>}
-                        {v.info && <p className="mt-2 text-sm text-slate-600"><span className="block">Observação:</span><span className="block whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
+                        <p className="text-sm font-semibold text-slate-950">{index + 1}. {lerOperacao(v.notasJson)} | {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}{v.tipoHorario === "Bloqueio" ? " | Bloqueio" : ""}</p>
+                        {(v.clienteFornecedor || pedidoTexto(v.numeroPedido)) && <p className="mt-2 text-sm text-slate-900">Empresa: <strong>{v.clienteFornecedor || ""}{v.clienteFornecedor && pedidoTexto(v.numeroPedido) ? " | " : ""}{pedidoTexto(v.numeroPedido) ? `NF/Pedido: ${pedidoTexto(v.numeroPedido)}` : ""}</strong></p>}
+                        {v.endereco && <p className="mt-1 text-sm text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
+                        {v.contatoNome && <p className="mt-1 text-sm text-slate-700">Falar com: {v.contatoNome}</p>}
+                        {v.volumes && <p className="mt-1 text-sm text-slate-700">Volume: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade)}</p>}
+                        {v.info && <p className="mt-1 text-sm text-slate-600">Observação: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
+                        {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}
                         {v.preenchidoPor && <p className="mt-2 text-xs text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
                         <div className="mt-2 flex flex-wrap gap-2">
                           {lerRetirada(v.notasJson) ? <span className="rounded-lg bg-amber-100 px-3 py-1.5 text-xs font-semibold text-amber-800">Retirado</span> : <>
@@ -764,17 +765,13 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
               <article key={v.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="font-[Arial] text-[11pt] leading-[1.35]">
-                    <p className="font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
-                    {v.tipoHorario === "Bloqueio" && (v.clienteFornecedor || pedidoTexto(v.numeroPedido)) && <p className="mt-3 text-slate-900">Empresa: <strong>{v.clienteFornecedor || ""}{v.clienteFornecedor && pedidoTexto(v.numeroPedido) ? " | " : ""}{pedidoTexto(v.numeroPedido) ? `NF/Pedido: ${pedidoTexto(v.numeroPedido)}` : ""}</strong></p>}
-                    {v.tipoHorario === "Bloqueio" && v.endereco && <p className="mt-3 text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
-                    {v.tipoHorario === "Bloqueio" && separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}
-                    {v.tipoHorario !== "Bloqueio" && <>
-                      <p className="mt-3 text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade)}` : ""}</p>
-                      {v.endereco && <p className="mt-3 text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
-                      {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}
-                      {v.contatoNome && <p className="mt-3 text-slate-700">Falar com: {v.contatoNome}</p>}
-                    </>}
-                    {v.info && <p className="mt-3 text-slate-600"><span className="block">Observação:</span><span className="block whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
+                    <p className="font-semibold text-slate-950">{index + 1}. {lerOperacao(v.notasJson)} | {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}{v.tipoHorario === "Bloqueio" ? " | Bloqueio" : ""}</p>
+                    {(v.clienteFornecedor || pedidoTexto(v.numeroPedido)) && <p className="mt-3 text-slate-900">Empresa: <strong>{v.clienteFornecedor || ""}{v.clienteFornecedor && pedidoTexto(v.numeroPedido) ? " | " : ""}{pedidoTexto(v.numeroPedido) ? `NF/Pedido: ${pedidoTexto(v.numeroPedido)}` : ""}</strong></p>}
+                    {v.endereco && <p className="mt-3 text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
+                    {v.contatoNome && <p className="mt-3 text-slate-700">Falar com: {v.contatoNome}</p>}
+                    {v.volumes && <p className="mt-3 text-slate-700">Volume: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade)}</p>}
+                    {v.info && <p className="mt-3 text-slate-600">Observação: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
+                    {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}
                     {v.preenchidoPor && <p className="mt-3 font-[Arial] text-[10pt] text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
                   </div>
                   {!readOnly && <div className="flex flex-wrap gap-2">

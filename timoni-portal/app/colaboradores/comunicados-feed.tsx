@@ -16,24 +16,7 @@ type Comunicado = {
   expiresAt: string;
   recipientEmails?: string[] | null;
 };
-type AvisoLeitura = {
-  avisoId: string;
-  employee: string;
-  unit: string;
-  portalEmail: string;
-  readAt: string;
-  title: string;
-};
 type ReadFeedback = { id: string; message: string; success: boolean } | null;
-
-function memberKey(unit: string, name: string) {
-  return `${unit}::${name}`
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLowerCase()
-    .replace(/\s+/g, " ")
-    .trim();
-}
 
 function formatDate(value: string) {
   if (!value) return "";
@@ -69,7 +52,7 @@ function isWithinDisplayEndDate(value: string, now = Date.now()) {
 
 export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead = false, members = [] }: { store: PanelStore; isAdmin?: boolean; canConfirmRead?: boolean; members?: TeamMember[] }) {
   const [items, setItems] = useState<Comunicado[]>([]);
-  const [reads, setReads] = useState<AvisoLeitura[]>([]);
+  const [completedAvisoIds, setCompletedAvisoIds] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
   const [readingId, setReadingId] = useState("");
@@ -86,11 +69,13 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
       setItems(noticesResponse.ok ? ((noticesData.items || []) as Comunicado[]) : []);
       if (readsResponse?.ok) {
         const readsData = await readsResponse.json();
-        setReads((readsData.reads || []) as AvisoLeitura[]);
+        setCompletedAvisoIds(Array.isArray(readsData.completedAvisoIds) ? readsData.completedAvisoIds : []);
+      } else {
+        setCompletedAvisoIds([]);
       }
     } catch {
       setItems([]);
-      setReads([]);
+      setCompletedAvisoIds([]);
     }
   }, [canConfirmRead, isAdmin]);
 
@@ -166,7 +151,7 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
       if (!response.ok) throw new Error(data?.error || "Não foi possível registrar a leitura.");
       setReadFeedback({
         id: item.id,
-        message: data.alreadyRegistered ? `A leitura de ${selected.name} já estava registrada.` : `Leitura registrada para ${selected.name}.`,
+        message: data.alreadyRegistered ? "Sua leitura já estava registrada." : "Leitura registrada.",
         success: true,
       });
       setReadingId("");
@@ -196,25 +181,14 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
     <section className="space-y-4">
       {error && <p className="text-sm font-medium text-red-700">{error}</p>}
       {visible.map((item) => {
-        const targeted = Array.isArray(item.recipientEmails);
-        const currentMemberKeys = new Set(members.map((member) => memberKey(member.unit, member.name)));
-        const itemReadsByMember = new Map<string, AvisoLeitura>();
-        for (const read of reads) {
-          const key = memberKey(read.unit, read.employee);
-          if (read.avisoId === item.id && currentMemberKeys.has(key) && !itemReadsByMember.has(key)) {
-            itemReadsByMember.set(key, read);
-          }
-        }
-        const itemReads = Array.from(itemReadsByMember.values());
-        const readNames = new Set(itemReadsByMember.keys());
-        const pendingMembers = members.filter((member) => !readNames.has(memberKey(member.unit, member.name)));
+        const isReadByEveryone = completedAvisoIds.includes(item.id);
         return (
-        <article key={item.id} className="border-l-4 border-l-amber-400 border-t border-t-blue-200 pl-3 pt-4 first:border-t-0 first:pt-0">
+        <article key={item.id} className="border-l-4 border-l-amber-400 border-t border-t-blue-200 pl-3 pt-3 first:border-t-0 first:pt-0">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              {canConfirmRead && members.length > 0 && (
-                <span className={`mb-2 inline-flex rounded-full px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide ${pendingMembers.length > 0 ? "bg-amber-100 text-amber-800" : "bg-emerald-100 text-emerald-800"}`}>
-                  {targeted ? "Confirme sua leitura" : pendingMembers.length > 0 ? "Aviso não lido" : "Leitura concluída"}
+              {isAdmin && isReadByEveryone && (
+                <span className="mb-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                  Lido
                 </span>
               )}
               <h3 className="text-base font-bold text-slate-950 sm:text-lg">{item.title}</h3>
@@ -227,31 +201,6 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
             <summary className="cursor-pointer text-sm font-semibold text-blue-800">Ver aviso completo →</summary>
             <p className="mt-3 whitespace-pre-wrap border-t border-blue-100 pt-3 text-sm leading-6 text-slate-700">{item.message}</p>
           </details>
-          {isAdmin && members.length > 0 && (
-            <details className="mt-3 rounded-xl border border-blue-200 bg-white/70 px-3 py-2">
-              <summary className="cursor-pointer text-sm font-semibold text-blue-800">
-                {targeted ? `Leituras: ${itemReads.length} · Ver quem leu` : `Leituras: ${itemReads.length} de ${members.length} · Ver quem leu`}
-              </summary>
-              <div className="mt-3 grid gap-3 border-t border-blue-100 pt-3 text-xs sm:grid-cols-2">
-                <div>
-                  <p className="font-bold text-emerald-800">✓ Leram</p>
-                  {itemReads.length === 0 ? <p className="mt-1 text-slate-500">Nenhuma confirmação.</p> : (
-                    <ul className="mt-1 space-y-1 text-slate-700">
-                      {itemReads.map((read) => <li key={`${read.avisoId}-${read.unit}-${read.employee}`}>{read.employee} · {formatDate(read.readAt)}</li>)}
-                    </ul>
-                  )}
-                </div>
-                {!targeted && <div>
-                  <p className="font-bold text-amber-800">Ainda não leram</p>
-                  {pendingMembers.length === 0 ? <p className="mt-1 text-slate-500">Todos confirmaram.</p> : (
-                    <ul className="mt-1 space-y-1 text-slate-700">
-                      {pendingMembers.map((member) => <li key={`${member.unit}-${member.name}`}>{member.name}</li>)}
-                    </ul>
-                  )}
-                </div>}
-              </div>
-            </details>
-          )}
           {canConfirmRead && members.length > 0 && (
             <div className="mt-3">
               {readingId !== item.id ? (
@@ -277,29 +226,7 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
                 </div>
               )}
               {readFeedback?.id === item.id && <p className={`mt-2 text-sm font-medium ${readFeedback.success ? "text-emerald-700" : "text-red-700"}`}>{readFeedback.message}</p>}
-              <details className="mt-3 rounded-xl border border-blue-100 bg-white/70 px-3 py-2">
-                <summary className="cursor-pointer text-xs font-semibold text-slate-700">
-                  Leituras: {itemReads.length} confirmada{itemReads.length === 1 ? "" : "s"}{targeted ? "" : ` · ${pendingMembers.length} pendente${pendingMembers.length === 1 ? "" : "s"}`}
-                </summary>
-                <div className="mt-3 grid gap-3 text-xs sm:grid-cols-2">
-                  <div>
-                    <p className="font-bold text-emerald-800">Leram</p>
-                    {itemReads.length === 0 ? <p className="mt-1 text-slate-500">Nenhuma confirmação.</p> : (
-                      <ul className="mt-1 space-y-1 text-slate-700">
-                        {itemReads.map((read) => <li key={`${read.avisoId}-${read.unit}-${read.employee}`}>{read.employee} · {formatDate(read.readAt)}</li>)}
-                      </ul>
-                    )}
-                  </div>
-                  {!targeted && <div>
-                    <p className="font-bold text-amber-800">Ainda não leram</p>
-                    {pendingMembers.length === 0 ? <p className="mt-1 text-slate-500">Todos confirmaram.</p> : (
-                      <ul className="mt-1 space-y-1 text-slate-700">
-                        {pendingMembers.map((member) => <li key={`${member.unit}-${member.name}`}>{member.name}</li>)}
-                      </ul>
-                    )}
-                  </div>}
-                </div>
-              </details>
+    </details>
             </div>
           )}
           {isAdmin && (

@@ -24,7 +24,7 @@ function normalizeEmail(value?: string | null) {
 }
 
 function normalizeReadIdentity(value: string) {
-  return value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLowerCase().replace(/\\s+/g, " ").trim();
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 function readMemberKey(unit: string, name: string) {

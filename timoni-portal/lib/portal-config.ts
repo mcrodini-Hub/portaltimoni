@@ -477,6 +477,28 @@ export async function getEffectivePortalUser(accessToken: string | undefined, em
   }
 }
 
+export async function getEffectivePanelData(accessToken: string | undefined, email: string | null | undefined) {
+  const normalized = normalizeEmail(email);
+  const fallbackUser = normalized ? portalUsers[normalized] || null : null;
+  const fallbackCollaborators = defaultCollaborators().filter((member) => member.active);
+
+  if (!accessToken) return { user: fallbackUser, collaborators: fallbackCollaborators };
+  try {
+    await ensureRotatingStockPermissions(accessToken);
+    const [users, collaborators] = await Promise.all([
+      readUsers(accessToken),
+      readCollaborators(accessToken),
+    ]);
+    return {
+      user: users.length ? users.find((user) => user.email === normalized) || null : fallbackUser,
+      collaborators: collaborators.filter((member) => member.active),
+    };
+  } catch (error) {
+    console.warn("[portal-config] Não foi possível carregar o painel; usando base segura.", error);
+    return { user: fallbackUser, collaborators: fallbackCollaborators };
+  }
+}
+
 export async function getEffectiveCollaborators(accessToken?: string) {
   if (!accessToken) return defaultCollaborators();
   try {

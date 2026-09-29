@@ -44,9 +44,9 @@ function compactMobileSummaryGrids(root:ParentNode){
       grid.style.gridTemplateColumns="repeat(2,minmax(0,1fr))";
       grid.style.gap=".5rem";
       cards.forEach(card=>{
-        card.style.padding=".75rem";
+        card.style.padding=".85rem";
         const first=card.querySelector<HTMLElement>("p");
-        if(first&&/^\d+|…|—$/.test(normalizeText(first.textContent||"")))first.style.fontSize="1.5rem";
+        if(first&&/^\d+|…|—$/.test(normalizeText(first.textContent||"")))first.style.fontSize="1.35rem";
       });
     }else{
       grid.style.removeProperty("grid-template-columns");
@@ -61,7 +61,7 @@ function compactMobileSummaryGrids(root:ParentNode){
 function compactMobileContainers(root:ParentNode){
   const mobile=window.innerWidth<640;
   root.querySelectorAll<HTMLElement>("section.rounded-3xl,article.rounded-3xl").forEach(box=>{
-    if(mobile)box.style.padding="1rem";
+    if(mobile)box.style.padding=".85rem";
     else box.style.removeProperty("padding");
   });
 }

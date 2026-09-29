@@ -58,7 +58,7 @@ section.border-blue-100.bg-blue-50 { display:none; }
   .portal-mobile-header a > span { font-size: 18px; }
   #portal-mobile-menu button { min-height: 32px; min-width: 32px; }
   #portal-mobile-menu a[aria-label] > span { font-size: 13px; }
-  #portal-mobile-menu nav a, #portal-mobile-menu nav button { min-height: 32px; font-size: 12px; }
+  #portal-mobile-menu nav a, #portal-mobile-menu nav button { min-height: 34px; font-size: 13px; }
 }
 
 
@@ -163,7 +163,7 @@ main table {
 
 @media (max-width: 640px) {
   main {
-    padding: .8rem !important;
+    padding: .7rem !important;
   }
 
   main > div.space-y-5,
@@ -173,7 +173,7 @@ main table {
 
   main section.rounded-3xl,
   main article.rounded-3xl {
-    padding: 1rem !important;
+    padding: .85rem !important;
   }
 
   main h1 {
@@ -219,8 +219,8 @@ main table {
   }
 
   main .grid {
-    column-gap: .65rem;
-    row-gap: .65rem;
+    column-gap: .55rem;
+    row-gap: .55rem;
   }
 
   .portal-dashboard section > a {
@@ -267,10 +267,10 @@ body { font-weight: var(--ct-font-weight-regular); }
 
 @media (max-width: 640px) {
   :root {
-    --ct-font-body: 14px;
-    --ct-font-page-title: 20px;
-    --ct-font-section-title: 16px;
-    --ct-font-subtitle: 14px;
+    --ct-font-body: 13px;
+    --ct-font-page-title: 19px;
+    --ct-font-section-title: 15px;
+    --ct-font-subtitle: 13px;
   }
 
   main { font-size: var(--ct-font-body); }
@@ -290,7 +290,7 @@ body { font-weight: var(--ct-font-weight-regular); }
   }
 
   main [class~="text-sm"] { font-size: var(--ct-font-body) !important; }
-  main [class~="text-base"] { font-size: 16px !important; }
+  main [class~="text-base"] { font-size: 15px !important; }
 
   main input, main select, main textarea,
   main button, main a[role="button"], main a.inline-flex {

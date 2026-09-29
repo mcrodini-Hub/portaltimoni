@@ -51,9 +51,6 @@ export async function GET() {
       listConfiguredPortalUsers(current.accessToken),
     ]);
     const confirmationAccesses = new Set(users.filter((user) => user.active !== false && user.noticeRequired).map((user) => normalizeEmail(user.email)));
-    const employees = collaborators
-      .filter((member) => member.active && confirmationAccesses.has(normalizeEmail(member.accessEmail)))
-      .map((member) => ({ employee: member.name, unit: member.unit, pinConfigured: true }));
     const unit = allowedUnit(current.email, current.portalUser);
     const currentUnit = unit === "Araras" ? "araras" : unit === "Rio Claro" ? "rio claro" : "geral";
     const visibleNotices = notices.filter((item) => MANAGEMENT_EMAILS.has(current.email) || canViewComunicado(item, current.email, currentUnit));
@@ -73,12 +70,7 @@ export async function GET() {
       );
       return audience.every((member) => readMembers.has(`${member.unit}::${member.name}`));
     }).map((notice) => notice.id);
-    return NextResponse.json({
-      ok: true,
-      completedAvisoIds,
-      reads: reads.filter((read) => visibleNotices.some((notice) => notice.id === read.avisoId) && (unit === "geral" || read.unit === unit)),
-      employees: unit === "geral" ? employees : employees.filter((employee) => employee.unit === unit),
-    });
+    return NextResponse.json({ ok: true, completedAvisoIds });
   } catch (error) {
     console.error("[avisos-leituras][GET]", error);
     return NextResponse.json({ error: "Não foi possível carregar as leituras." }, { status: 500 });

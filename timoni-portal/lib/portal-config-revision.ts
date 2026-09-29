@@ -46,12 +46,12 @@ export async function getPortalConfigurationRevision(): Promise<string> {
   return rows[0]?.revision ?? "1";
 }
 
-export async function getPortalConfigurationRevisionSafely(): Promise<string> {
+export async function getPortalConfigurationRevisionSafely(): Promise<string | null> {
   try {
     return await getPortalConfigurationRevision();
   } catch (error) {
     console.error("[portal-config-revision] Falha ao ler a versão.", error);
-    return "0";
+    return null;
   }
 }
 

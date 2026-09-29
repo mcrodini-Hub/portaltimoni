@@ -662,7 +662,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
       const primeiraLinha = `${index + 1}. ${lerOperacao(v.notasJson)} | ${lojaLabel(v.loja)}${v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}${horario}${bloqueio ? " | Bloqueio" : ""}`;
       const empresa = [v.clienteFornecedor || "", pedidoTexto(v.numeroPedido) ? `NF/Pedido: ${pedidoTexto(v.numeroPedido)}` : ""].filter(Boolean).join(" | ");
       const volume = v.volumes ? formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade) : "";
-      return `<div class="item"><p><strong>${primeiraLinha}</strong></p>${empresa ? `<p>Empresa: <strong>${empresa}</strong></p>` : ""}${endereco ? `<p>End.: ${endereco}</p>` : ""}${v.contatoNome ? `<p>Falar com: ${v.contatoNome}</p>` : ""}${volume ? `<p>Volume: ${volume}</p>` : ""}${v.info ? `<p style="white-space: pre-line;">Observação: ${String(v.info).replace(/^[\r\n]+/, "")}</p>` : ""}${v.preenchidoPor ? `<p class="preenchido">Preenchido por: ${v.preenchidoPor}</p>` : ""}</div>`;
+      return `<div class="item"><p><strong>${primeiraLinha}</strong></p>${empresa ? `<p>Empresa: <strong>${empresa}</strong></p>` : ""}${endereco ? `<p>End.: ${endereco}</p>` : ""}${v.contatoNome ? `<p>Aos cuidados de: ${v.contatoNome}</p>` : ""}${volume ? `<p>Volume: ${volume}</p>` : ""}${v.info ? `<p style="white-space: pre-line;">Observação: ${String(v.info).replace(/^[\r\n]+/, "")}</p>` : ""}${v.preenchidoPor ? `<p class="preenchido">Preenchido por: ${v.preenchidoPor}</p>` : ""}</div>`;
     }).join("");
 
     const popup = window.open("", "_blank", "width=850,height=900");
@@ -738,7 +738,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                         <p className="text-sm font-semibold text-slate-950">{index + 1}. {lerOperacao(v.notasJson)} | {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}{v.tipoHorario === "Bloqueio" ? " | Bloqueio" : ""}</p>
                         {(v.clienteFornecedor || pedidoTexto(v.numeroPedido)) && <p className="mt-2 text-sm text-slate-900">Empresa: <strong>{v.clienteFornecedor || ""}{v.clienteFornecedor && pedidoTexto(v.numeroPedido) ? " | " : ""}{pedidoTexto(v.numeroPedido) ? `NF/Pedido: ${pedidoTexto(v.numeroPedido)}` : ""}</strong></p>}
                         {v.endereco && <p className="mt-1 text-sm text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
-                        {v.contatoNome && <p className="mt-1 text-sm text-slate-700">Falar com: {v.contatoNome}</p>}
+                        {v.contatoNome && <p className="mt-1 text-sm text-slate-700">Aos cuidados de: {v.contatoNome}</p>}
                         {v.volumes && <p className="mt-1 text-sm text-slate-700">Volume: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade)}</p>}
                         {v.info && <p className="mt-1 text-sm text-slate-600">Observação: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
                         {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex text-xs font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}
@@ -768,7 +768,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                     <p className="font-semibold text-slate-950">{index + 1}. {lerOperacao(v.notasJson)} | {lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}{v.tipoHorario === "Bloqueio" ? " | Bloqueio" : ""}</p>
                     {(v.clienteFornecedor || pedidoTexto(v.numeroPedido)) && <p className="mt-3 text-slate-900">Empresa: <strong>{v.clienteFornecedor || ""}{v.clienteFornecedor && pedidoTexto(v.numeroPedido) ? " | " : ""}{pedidoTexto(v.numeroPedido) ? `NF/Pedido: ${pedidoTexto(v.numeroPedido)}` : ""}</strong></p>}
                     {v.endereco && <p className="mt-3 text-slate-700">End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</p>}
-                    {v.contatoNome && <p className="mt-3 text-slate-700">Falar com: {v.contatoNome}</p>}
+                    {v.contatoNome && <p className="mt-3 text-slate-700">Aos cuidados de: {v.contatoNome}</p>}
                     {v.volumes && <p className="mt-3 text-slate-700">Volume: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade)}</p>}
                     {v.info && <p className="mt-3 text-slate-600">Observação: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
                     {separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="mt-2 inline-flex font-semibold text-blue-800 underline underline-offset-2">Abrir no Google Maps</a>}
@@ -827,7 +827,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
               <label className="text-sm font-medium text-slate-700">* NF/PEDIDO<input value={form.numeroPedido} onChange={(e) => set("numeroPedido", e.target.value)} className={fieldClass("numeroPedido")} /></label>
               <label className="text-sm font-medium text-slate-700">* CLIENTE/FORNECEDOR<input value={form.clienteFornecedor} onChange={(e) => set("clienteFornecedor", e.target.value)} className={fieldClass("clienteFornecedor")} /></label>
               <div className="grid gap-4 sm:grid-cols-3"><label className="text-sm font-medium text-slate-700">* Volume<input value={form.volumes} onChange={(e) => set("volumes", e.target.value)} placeholder="Ex.: 10" className={fieldClass("volumes")} /></label><label className="text-sm font-medium text-slate-700">Unidade<input value={form.unidadeVolume} onChange={(e) => set("unidadeVolume", e.target.value)} placeholder="Ex.: saco" className={fieldClass("unidadeVolume")} /></label><label className="text-sm font-medium text-slate-700">Quantidade<input value={form.quantidadeVolume} onChange={(e) => set("quantidadeVolume", e.target.value)} placeholder="Ex.: 30 Kg" className={fieldClass("quantidadeVolume")} /></label></div>
-              <label className="text-sm font-medium text-slate-700">Falar com<input value={form.contatoNome} onChange={(e) => set("contatoNome", e.target.value)} className={fieldClass("contatoNome")} /></label>
+              <label className="text-sm font-medium text-slate-700">Aos cuidados de<input value={form.contatoNome} onChange={(e) => set("contatoNome", e.target.value)} className={fieldClass("contatoNome")} /></label>
             </div>
 
             <div className="mt-4 grid gap-4">

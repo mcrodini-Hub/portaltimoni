@@ -5,6 +5,8 @@ import { usePathname, useRouter } from "next/navigation";
 
 const CHANGE_CHECK_MS = 60_000;
 
+type RevisionResponse = { revision?: string; sessionRevision?: string };
+
 export default function PortalPermissionsSync() {
   const router = useRouter();
   const pathname = usePathname();
@@ -13,7 +15,7 @@ export default function PortalPermissionsSync() {
     if (pathname === "/login") return;
 
     let checking = false;
-    let refreshRequested = false;
+    let lastSeenRevision: string | null = null;
 
     const checkForChanges = async () => {
       if (checking || document.visibilityState !== "visible") return;
@@ -21,13 +23,15 @@ export default function PortalPermissionsSync() {
       try {
         const response = await fetch("/api/configuracoes/version", { cache: "no-store" });
         if (!response.ok) return;
-        const result = await response.json() as { changed?: boolean };
-        if (result.changed && !refreshRequested) {
-          refreshRequested = true;
-          router.refresh();
-        } else if (!result.changed) {
-          refreshRequested = false;
-        }
+        const result = await response.json() as RevisionResponse;
+        if (!result.revision) return;
+
+        const changed = lastSeenRevision === null
+          ? result.sessionRevision !== result.revision
+          : lastSeenRevision !== result.revision;
+        lastSeenRevision = result.revision;
+
+        if (changed) router.refresh();
       } catch {
         // A falha temporária na checagem não deve interromper o uso do Portal.
       } finally {

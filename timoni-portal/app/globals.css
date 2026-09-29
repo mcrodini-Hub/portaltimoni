@@ -297,3 +297,11 @@ body { font-weight: var(--ct-font-weight-regular); }
     min-height: 40px;
   }
 }
+
+
+/* No celular, os cards do Painel Timoni ocupam a largura disponível. */
+@media (max-width: 640px) {
+  main section.portal-comms-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}

@@ -58,7 +58,7 @@ section.border-blue-100.bg-blue-50 { display:none; }
   .portal-mobile-header a > span { font-size: 18px; }
   #portal-mobile-menu button { min-height: 32px; min-width: 32px; }
   #portal-mobile-menu a[aria-label] > span { font-size: 13px; }
-  #portal-mobile-menu nav a, #portal-mobile-menu nav button { min-height: 34px; font-size: 13px; }
+  #portal-mobile-menu nav a, #portal-mobile-menu nav button { min-height: 34px; font-size: 14px; }
 }
 
 

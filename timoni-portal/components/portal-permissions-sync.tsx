@@ -3,7 +3,9 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-const PERMISSION_REFRESH_MS = 20_000;
+// Keep permissions reasonably fresh without reloading the whole Portal every few seconds.
+const PERMISSION_REFRESH_MS = 120_000;
+const REFRESH_COOLDOWN_MS = 5_000;
 
 export default function PortalPermissionsSync() {
   const router = useRouter();
@@ -12,8 +14,13 @@ export default function PortalPermissionsSync() {
   useEffect(() => {
     if (pathname === "/login") return;
 
+    let lastRefreshAt = 0;
     const refreshPermissions = () => {
-      if (document.visibilityState === "visible") router.refresh();
+      if (document.visibilityState !== "visible") return;
+      const now = Date.now();
+      if (now - lastRefreshAt < REFRESH_COOLDOWN_MS) return;
+      lastRefreshAt = now;
+      router.refresh();
     };
 
     const interval = window.setInterval(refreshPermissions, PERMISSION_REFRESH_MS);

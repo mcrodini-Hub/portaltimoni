@@ -51,17 +51,26 @@ export async function GET() {
       listConfiguredPortalUsers(current.accessToken),
     ]);
     const confirmationAccesses = new Set(users.filter((user) => user.active !== false && user.noticeRequired).map((user) => normalizeEmail(user.email)));
-    const employees = collaborators
-      .filter((member) => member.active && confirmationAccesses.has(normalizeEmail(member.accessEmail)))
-      .map((member) => ({ employee: member.name, unit: member.unit, pinConfigured: true }));
     const unit = allowedUnit(current.email, current.portalUser);
     const currentUnit = unit === "Araras" ? "araras" : unit === "Rio Claro" ? "rio claro" : "geral";
-    const visibleIds = new Set(notices.filter((item) => MANAGEMENT_EMAILS.has(current.email) || canViewComunicado(item, current.email, currentUnit)).map((item) => item.id));
-    return NextResponse.json({
-      ok: true,
-      reads: reads.filter((read) => visibleIds.has(read.avisoId) && (unit === "geral" || read.unit === unit)),
-      employees: unit === "geral" ? employees : employees.filter((employee) => employee.unit === unit),
-    });
+    const visibleNotices = notices.filter((item) => MANAGEMENT_EMAILS.has(current.email) || canViewComunicado(item, current.email, currentUnit));
+    const completedAvisoIds = visibleNotices.filter((notice) => {
+      const targetedAccesses = Array.isArray(notice.recipientEmails)
+        ? new Set(notice.recipientEmails.map(normalizeEmail))
+        : null;
+      const audience = collaborators.filter((member) => {
+        if (!member.active || !confirmationAccesses.has(normalizeEmail(member.accessEmail))) return false;
+        if (targetedAccesses) return targetedAccesses.has(normalizeEmail(member.accessEmail));
+        if (notice.unit === "geral") return true;
+        return notice.unit === "araras" ? member.unit === "Araras" : member.unit === "Rio Claro";
+      });
+      if (audience.length === 0) return false;
+      const readMembers = new Set(
+        reads.filter((read) => read.avisoId === notice.id).map((read) => `${read.unit}::${read.employee}`),
+      );
+      return audience.every((member) => readMembers.has(`${member.unit}::${member.name}`));
+    }).map((notice) => notice.id);
+    return NextResponse.json({ ok: true, completedAvisoIds });
   } catch (error) {
     console.error("[avisos-leituras][GET]", error);
     return NextResponse.json({ error: "Não foi possível carregar as leituras." }, { status: 500 });

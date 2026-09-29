@@ -226,7 +226,6 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
                 </div>
               )}
               {readFeedback?.id === item.id && <p className={`mt-2 text-sm font-medium ${readFeedback.success ? "text-emerald-700" : "text-red-700"}`}>{readFeedback.message}</p>}
-    </details>
             </div>
           )}
           {isAdmin && (

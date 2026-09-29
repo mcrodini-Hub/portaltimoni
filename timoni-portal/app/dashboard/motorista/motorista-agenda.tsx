@@ -653,7 +653,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
       const documento = documentoTexto(v.numeroPedido);
       const linha2 = [documento, empresa ? `${v.contatoNome ? "CLIENTE " : ""}${empresa}` : "", v.contatoNome ? `A/C: ${v.contatoNome.toUpperCase()}` : "", !v.contatoNome && v.volumes ? `VOLUME: ${String(v.volumes).toUpperCase()}` : ""].filter(Boolean).join(" | ");
       const volume = v.contatoNome && v.volumes ? `<p><strong>VOLUME: ${String(v.volumes).toUpperCase()}</strong></p>` : "";
-      const detalhe = v.info ? `<p>${tipo === "Retirada" ? "Discriminação" : "Observação"}: ${String(v.info).replace(/^[\r\n]+/, "")}</p>` : "";
+      const detalhe = v.info ? `<p>${"Observação"}: ${String(v.info).replace(/^[\r\n]+/, "")}</p>` : "";
       const maps = link ? ` | <a href="${link}" target="_blank"><strong>Google Maps</strong></a>` : "";
       return `<div class="item"><p><strong>${linha1}</strong></p><p><strong>${linha2}</strong></p>${endereco ? `<p>End.: ${endereco}${maps}</p>` : ""}${volume}${detalhe}<p><strong>Preenchido por:</strong>${v.preenchidoPor ? ` ${v.preenchidoPor}` : ""}</p></div>`;
     }).join("");
@@ -739,7 +739,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                         </p>
                         {v.contatoNome && v.volumes && <p className="mt-1 text-sm font-bold uppercase text-slate-900">VOLUME: {String(v.volumes).toUpperCase()}</p>}
                         {v.endereco && <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-slate-700"><span>End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</span>{separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="font-semibold text-blue-800 underline underline-offset-2">Google Maps</a>}</p>}
-                        {v.info && <p className="mt-1 text-sm text-slate-600">{lerMetaMotorista(v.notasJson).tipo === "Retirada" ? "Discriminação" : "Observação"}: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
+                        {v.info && <p className="mt-1 text-sm text-slate-600">{lerMetaMotorista(v.notasJson)."Observação"}: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
                         <p className="mt-1 text-xs text-slate-500"><strong>Preenchido por:</strong>{v.preenchidoPor ? ` ${v.preenchidoPor}` : ""}</p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           {lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">Concluído</span> : <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">Concluir</button>}
@@ -771,7 +771,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                     </p>
                     {v.contatoNome && v.volumes && <p className="mt-1 font-bold uppercase text-slate-900">VOLUME: {String(v.volumes).toUpperCase()}</p>}
                     {v.endereco && <p className="mt-1 flex flex-wrap items-center gap-x-2 text-slate-700"><span>End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</span>{separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="font-semibold text-blue-800 underline underline-offset-2">Google Maps</a>}</p>}
-                    {v.info && <p className="mt-1 text-slate-600">{lerMetaMotorista(v.notasJson).tipo === "Retirada" ? "Discriminação" : "Observação"}: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
+                    {v.info && <p className="mt-1 text-slate-600">{lerMetaMotorista(v.notasJson)."Observação"}: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
                     <p className="mt-1 font-[Arial] text-[10pt] text-slate-500"><strong>Preenchido por:</strong>{v.preenchidoPor ? ` ${v.preenchidoPor}` : ""}</p>
                   </div>
                   {!readOnly && <div className="flex flex-wrap gap-2">

@@ -261,7 +261,7 @@ export default function MotoristaLeitura() {
                                 <p className="mt-2 text-sm text-slate-900">Empresa: <strong>{v.clienteFornecedor || ""}{v.clienteFornecedor && pedidoTexto(v.numeroPedido) ? " | " : ""}{pedidoTexto(v.numeroPedido) ? `NF/Pedido: ${pedidoTexto(v.numeroPedido)}` : ""}</strong></p>
                               )}
                               {endereco && <p className="mt-1 text-sm text-slate-700">End.: {endereco}</p>}
-                              {v.contatoNome && <p className="mt-1 text-sm text-slate-700">Falar com: {v.contatoNome}</p>}
+                              {v.contatoNome && <p className="mt-1 text-sm text-slate-700">Aos cuidados de: {v.contatoNome}</p>}
                               {v.volumes && <p className="mt-1 text-sm text-slate-700">Volume: {formatarVolume(v.volumes)}</p>}
                               {v.info && <p className="mt-1 text-sm text-slate-600">Observação: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
                               {enderecoInfo.link && <a href={enderecoInfo.link} target="_blank" rel="noreferrer" className="mt-2 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Google Maps</a>}

@@ -116,7 +116,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           error: undefined,
           portalUser: configured,
           portalConfigAt: Date.now(),
-          portalConfigRevision,
+          portalConfigRevision: portalConfigRevision ?? undefined,
         };
       }
 
@@ -125,21 +125,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         current = await refreshAccessToken(token);
       }
 
-      if (
-        current.accessToken &&
-        (
-          !current.portalConfigAt ||
-          !current.portalConfigRevision ||
-          Date.now() - current.portalConfigAt > PORTAL_CONFIG_REFRESH_MS
-        )
-      ) {
-        const portalConfigRevision = await getPortalConfigurationRevisionSafely();
-        current = {
-          ...current,
-          portalUser: await getEffectivePortalUser(current.accessToken, current.email),
-          portalConfigAt: Date.now(),
-          portalConfigRevision,
-        };
+      if (current.accessToken) {
+        const currentRevision = await getPortalConfigurationRevisionSafely();
+        const changed = currentRevision !== null && currentRevision !== current.portalConfigRevision;
+        const revisionCheckUnavailable = currentRevision === null &&
+          (!current.portalConfigAt || Date.now() - current.portalConfigAt > PORTAL_CONFIG_REFRESH_MS);
+
+        if (changed || revisionCheckUnavailable) {
+          const portalUser = await getEffectivePortalUser(current.accessToken, current.email);
+          current = {
+            ...current,
+            portalUser,
+            portalConfigAt: Date.now(),
+            portalConfigRevision: currentRevision ?? current.portalConfigRevision,
+          };
+        }
       }
 
       return current;

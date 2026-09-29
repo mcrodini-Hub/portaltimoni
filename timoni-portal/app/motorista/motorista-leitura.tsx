@@ -80,6 +80,33 @@ function pedidoTexto(valor?: string) {
   return String(valor ?? "").replace(/\s*\/\s*/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function documentoTexto(valor?: string) {
+  const texto = pedidoTexto(valor).trim();
+  if (!texto) return "";
+  if (/^ped\b/i.test(texto)) return texto.replace(/^ped\s*/i, "PED ");
+  if (/^nf\b/i.test(texto)) return texto.replace(/^nf\s*/i, "NF ");
+  return `NF ${texto}`;
+}
+
+function lerTipo(notasJson?: string): "Entrega" | "Retirada" {
+  try {
+    const parsed = JSON.parse(String(notasJson || "[]"));
+    return parsed && !Array.isArray(parsed) && parsed.tipo === "Retirada" ? "Retirada" : "Entrega";
+  } catch {
+    return "Entrega";
+  }
+}
+
+function linhaPrincipal(v: Viagem, index: number) {
+  return [
+    `${index + 1}. ${lerTipo(v.notasJson)}`,
+    v.tipoHorario === "Bloqueio" ? "Bloqueio" : "",
+    lojaLabel(v.loja),
+    v.vendedor ? `Vend.: ${v.vendedor}` : "",
+    v.horario ? `${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : "",
+  ].filter(Boolean).join(" | ");
+}
+
 function finalizada(v: Viagem) {
   try {
     const parsed = JSON.parse(String(v.notasJson || "[]"));
@@ -216,26 +243,21 @@ export default function MotoristaLeitura() {
                             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow-sm">{index + 1}</span>
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-semibold text-slate-950">
-                                  {bloqueio ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}
-                                </p>
+                                <p className="text-sm font-semibold text-slate-950">{linhaPrincipal(v, index)}</p>
                                 {!bloqueio && concluida(v.notasJson) && <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">Concluído</span>}
                               </div>
-                              {bloqueio && (v.clienteFornecedor || pedidoTexto(v.numeroPedido)) && (
-                                <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor ? `Empresa: ${v.clienteFornecedor}` : ""}{v.clienteFornecedor && pedidoTexto(v.numeroPedido) ? " | " : ""}{pedidoTexto(v.numeroPedido) ? `NF/Pedido: ${pedidoTexto(v.numeroPedido)}` : ""}</p>
-                              )}
-                              {bloqueio && endereco && <p className="mt-1 text-sm text-slate-700">End.: {endereco}</p>}
-                              {bloqueio && enderecoInfo.link && <a href={enderecoInfo.link} target="_blank" rel="noreferrer" className="mt-2 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Google Maps</a>}
-                              {!bloqueio && (
-                                <>
-                                  <p className="mt-2 text-sm font-medium text-slate-900">{v.clienteFornecedor || ""}{pedidoTexto(v.numeroPedido) ? ` | ${pedidoTexto(v.numeroPedido)}` : ""}{v.volumes ? ` | Volume: ${v.volumes}` : ""}</p>
-                                  {endereco && <p className="mt-1 text-sm text-slate-700">End.: {endereco}</p>}
-                                  {enderecoInfo.link && <a href={enderecoInfo.link} target="_blank" rel="noreferrer" className="mt-2 inline-flex rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800">Google Maps</a>}
-                                  {(v.contatoNome || v.contatoWhats) && <p className="mt-1 text-sm text-slate-700">Contato: {[v.contatoNome, v.contatoWhats].filter(Boolean).join(" - ")}</p>}
-                                </>
-                              )}
-                              {v.info && <p className="mt-2 text-sm text-slate-600"><span className="block">Observação:</span><span className="block whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
-                              {v.preenchidoPor && <p className="mt-3 font-[Arial] text-[9px] text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
+                              <p className="mt-2 text-sm font-bold uppercase text-slate-900">
+                                {documentoTexto(v.numeroPedido)}
+                                {documentoTexto(v.numeroPedido) && v.clienteFornecedor ? " | " : ""}
+                                {v.clienteFornecedor ? <>{v.contatoNome ? "CLIENTE " : ""}{v.clienteFornecedor.toUpperCase()}</> : null}
+                                {(documentoTexto(v.numeroPedido) || v.clienteFornecedor) && v.contatoNome ? " | " : ""}
+                                {v.contatoNome ? <>A/C: {v.contatoNome.toUpperCase()}</> : null}
+                                {!v.contatoNome && v.volumes ? <> | VOLUME: {String(v.volumes).toUpperCase()}</> : null}
+                              </p>
+                              {v.contatoNome && v.volumes && <p className="mt-1 text-sm font-bold uppercase text-slate-900">VOLUME: {String(v.volumes).toUpperCase()}</p>}
+                              {endereco && <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-slate-700"><span>End.: {endereco}</span>{enderecoInfo.link && <a href={enderecoInfo.link} target="_blank" rel="noreferrer" className="font-semibold text-blue-800 underline underline-offset-2">Google Maps</a>}</p>}
+                              {v.info && <p className="mt-1 text-sm text-slate-600">Observação: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
+                              <p className="mt-1 font-[Arial] text-[9px] text-slate-500"><strong>Preenchido por:</strong>{v.preenchidoPor ? ` ${v.preenchidoPor}` : ""}</p>
                             </div>
                           </div>
                         </article>

@@ -262,6 +262,26 @@ function pedidoTexto(valor?: string) {
   return String(valor ?? "").replace(/\s*\/\s*/g, " ").replace(/\s+/g, " ").trim();
 }
 
+function documentoTexto(valor?: string) {
+  const texto = pedidoTexto(valor).trim();
+  if (!texto) return "";
+  if (/^ped\b/i.test(texto)) return texto.replace(/^ped\s*/i, "PED ");
+  if (/^nf\b/i.test(texto)) return texto.replace(/^nf\s*/i, "NF ");
+  return `NF ${texto}`;
+}
+
+function linhaPrincipalRelatorio(v: Viagem, index: number) {
+  const tipo = lerMetaMotorista(v.notasJson).tipo;
+  const partes = [
+    `${index + 1}. ${tipo}`,
+    v.tipoHorario === "Bloqueio" ? "Bloqueio" : "",
+    lojaLabel(v.loja),
+    v.vendedor ? `Vend.: ${v.vendedor}` : "",
+    v.horario ? `${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : "",
+  ].filter(Boolean);
+  return partes.join(" | ");
+}
+
 function separarVolume(valor?: string) {
   const texto = String(valor ?? "").trim();
   const unidadeMarcador = " | Unidade: ";
@@ -625,8 +645,17 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
     const data = dateFromString(selecionado);
     const diaSemana = data.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
     const linhas = itens.map((v, index) => {
-      const endereco = [separarEndereco(v.endereco).texto, v.numero, v.complemento].filter(Boolean).join(" - ");
-      return `<div class="item"><p><strong>${index + 1}. ${v.tipoHorario || "Entrega"} ${lojaLabel(v.loja)} | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}${v.vendedor ? ` | Vendedor: ${v.vendedor}` : ""}</strong></p><p>${v.clienteFornecedor || ""}${v.numeroPedido ? ` · ${v.numeroPedido}` : ""}${v.volumes ? ` · Volume: ${formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade)}` : ""}</p><p>${endereco}</p><p>Contato: ${v.contatoNome || ""}${v.contatoWhats ? ` - ${v.contatoWhats}` : ""}</p>${v.info ? `<p style="white-space: pre-line;">Observação:<br>${String(v.info).replace(/^[\r\n]+/, "")}</p>` : ""}${v.preenchidoPor ? `<p class="preenchido">Preenchido por: ${v.preenchidoPor}</p>` : ""}</div>`;
+      const tipo = lerMetaMotorista(v.notasJson).tipo;
+      const endereco = formatarEnderecoExibicao(v.endereco, v.numero, v.complemento);
+      const link = separarEndereco(v.endereco).link;
+      const linha1 = linhaPrincipalRelatorio(v, index);
+      const empresa = (v.clienteFornecedor || "").toUpperCase();
+      const documento = documentoTexto(v.numeroPedido);
+      const linha2 = [documento, empresa ? `${v.contatoNome ? "CLIENTE " : ""}${empresa}` : "", v.contatoNome ? `A/C: ${v.contatoNome.toUpperCase()}` : "", !v.contatoNome && v.volumes ? `VOLUME: ${String(v.volumes).toUpperCase()}` : ""].filter(Boolean).join(" | ");
+      const volume = v.contatoNome && v.volumes ? `<p><strong>VOLUME: ${String(v.volumes).toUpperCase()}</strong></p>` : "";
+      const detalhe = v.info ? `<p>${"Observação"}: ${String(v.info).replace(/^[\r\n]+/, "")}</p>` : "";
+      const maps = link ? ` | <a href="${link}" target="_blank"><strong>Google Maps</strong></a>` : "";
+      return `<div class="item"><p><strong>${linha1}</strong></p><p><strong>${linha2}</strong></p>${endereco ? `<p>End.: ${endereco}${maps}</p>` : ""}${volume}${detalhe}<p><strong>Preenchido por:</strong>${v.preenchidoPor ? ` ${v.preenchidoPor}` : ""}</p></div>`;
     }).join("");
 
     const popup = window.open("", "_blank", "width=850,height=900");
@@ -699,18 +728,19 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                   <div className="mt-3 space-y-2">
                     {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itens.length === 0 ? <p className="text-sm text-slate-400">Sem viagens.</p> : itens.map((v, index) => (
                       <article key={v.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
+                        <p className="text-sm font-semibold text-slate-950">{linhaPrincipalRelatorio(v, index)}</p>
                         <p className="mt-2 text-sm font-bold uppercase text-slate-900">
-                          {lerMetaMotorista(v.notasJson).tipo === "Retirada" ? (
-                            <>PED {pedidoTexto(v.numeroPedido)} | FORNECEDOR {(v.clienteFornecedor || "").toUpperCase()}{v.volumes ? <> | VOLUME: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade).toUpperCase()}</> : null}</>
-                          ) : (
-                            <>NF {pedidoTexto(v.numeroPedido)} | CLIENTE {(v.clienteFornecedor || "").toUpperCase()}{v.volumes ? <> | VOLUME: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade).toUpperCase()}</> : null}</>
-                          )}
+                          {documentoTexto(v.numeroPedido)}
+                          {documentoTexto(v.numeroPedido) && v.clienteFornecedor ? " | " : ""}
+                          {v.clienteFornecedor ? <>{v.contatoNome ? "CLIENTE " : ""}{v.clienteFornecedor.toUpperCase()}</> : null}
+                          {(documentoTexto(v.numeroPedido) || v.clienteFornecedor) && v.contatoNome ? " | " : ""}
+                          {v.contatoNome ? <>A/C: {v.contatoNome.toUpperCase()}</> : null}
+                          {!v.contatoNome && v.volumes ? <> | VOLUME: {String(v.volumes).toUpperCase()}</> : null}
                         </p>
-                        {v.contatoNome && <p className="mt-1 text-sm text-slate-700">A/C: {v.contatoNome}</p>}
+                        {v.contatoNome && v.volumes && <p className="mt-1 text-sm font-bold uppercase text-slate-900">VOLUME: {String(v.volumes).toUpperCase()}</p>}
                         {v.endereco && <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-slate-700"><span>End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</span>{separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="font-semibold text-blue-800 underline underline-offset-2">Google Maps</a>}</p>}
                         {v.info && <p className="mt-1 text-sm text-slate-600">Observação: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
-                        {v.preenchidoPor && <p className="mt-2 text-xs text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
+                        <p className="mt-1 text-xs text-slate-500"><strong>Preenchido por:</strong>{v.preenchidoPor ? ` ${v.preenchidoPor}` : ""}</p>
                         <div className="mt-2 flex flex-wrap gap-2">
                           {lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">Concluído</span> : <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">Concluir</button>}
                           <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50">Editar</button><button type="button" onClick={() => duplicarViagem(v)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Duplicar</button>
@@ -730,18 +760,19 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
               <article key={v.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="font-[Arial] text-[11pt] leading-[1.35]">
-                    <p className="font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
+                    <p className="font-semibold text-slate-950">{linhaPrincipalRelatorio(v, index)}</p>
                     <p className="mt-2 font-bold uppercase text-slate-900">
-                      {lerMetaMotorista(v.notasJson).tipo === "Retirada" ? (
-                        <>PED {pedidoTexto(v.numeroPedido)} | FORNECEDOR {(v.clienteFornecedor || "").toUpperCase()}{v.volumes ? <> | VOLUME: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade).toUpperCase()}</> : null}</>
-                      ) : (
-                        <>NF {pedidoTexto(v.numeroPedido)} | CLIENTE {(v.clienteFornecedor || "").toUpperCase()}{v.volumes ? <> | VOLUME: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade).toUpperCase()}</> : null}</>
-                      )}
+                      {documentoTexto(v.numeroPedido)}
+                      {documentoTexto(v.numeroPedido) && v.clienteFornecedor ? " | " : ""}
+                      {v.clienteFornecedor ? <>{v.contatoNome ? "CLIENTE " : ""}{v.clienteFornecedor.toUpperCase()}</> : null}
+                      {(documentoTexto(v.numeroPedido) || v.clienteFornecedor) && v.contatoNome ? " | " : ""}
+                      {v.contatoNome ? <>A/C: {v.contatoNome.toUpperCase()}</> : null}
+                      {!v.contatoNome && v.volumes ? <> | VOLUME: {String(v.volumes).toUpperCase()}</> : null}
                     </p>
-                    {v.contatoNome && <p className="mt-1 text-slate-700">A/C: {v.contatoNome}</p>}
+                    {v.contatoNome && v.volumes && <p className="mt-1 font-bold uppercase text-slate-900">VOLUME: {String(v.volumes).toUpperCase()}</p>}
                     {v.endereco && <p className="mt-1 flex flex-wrap items-center gap-x-2 text-slate-700"><span>End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</span>{separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="font-semibold text-blue-800 underline underline-offset-2">Google Maps</a>}</p>}
                     {v.info && <p className="mt-1 text-slate-600">Observação: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
-                    {v.preenchidoPor && <p className="mt-3 font-[Arial] text-[10pt] text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
+                    <p className="mt-1 font-[Arial] text-[10pt] text-slate-500"><strong>Preenchido por:</strong>{v.preenchidoPor ? ` ${v.preenchidoPor}` : ""}</p>
                   </div>
                   {!readOnly && <div className="flex flex-wrap gap-2">
                     {lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-2 text-sm font-semibold text-emerald-800">Concluído</span> : <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Concluir</button>}
@@ -815,6 +846,10 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
             <div className="mt-4 grid gap-4 md:grid-cols-[180px_1fr]">
               <label className="text-sm font-medium text-slate-700">* Volume<input value={form.volumes} onChange={(e) => set("volumes", e.target.value)} placeholder="Ex.: 15" className={fieldClass("volumes")} /></label>
               <label className="text-sm font-medium text-slate-700">Discriminação<textarea value={form.discriminacao} onChange={(e) => set("discriminacao", e.target.value)} rows={4} placeholder={"Ex.:\n10 rolos de bolha\n5 sacos de Polifloc"} className={fieldClass("discriminacao")} /></label>
+            </div>
+
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-slate-700">Preenchido por:<input value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} placeholder="Digite o nome" className={fieldClass("preenchidoPor")} /></label>
             </div>
 
             {aviso && <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{aviso}</p>}

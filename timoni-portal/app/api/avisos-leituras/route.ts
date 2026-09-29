@@ -56,10 +56,27 @@ export async function GET() {
       .map((member) => ({ employee: member.name, unit: member.unit, pinConfigured: true }));
     const unit = allowedUnit(current.email, current.portalUser);
     const currentUnit = unit === "Araras" ? "araras" : unit === "Rio Claro" ? "rio claro" : "geral";
-    const visibleIds = new Set(notices.filter((item) => MANAGEMENT_EMAILS.has(current.email) || canViewComunicado(item, current.email, currentUnit)).map((item) => item.id));
+    const visibleNotices = notices.filter((item) => MANAGEMENT_EMAILS.has(current.email) || canViewComunicado(item, current.email, currentUnit));
+    const completedAvisoIds = visibleNotices.filter((notice) => {
+      const targetedAccesses = Array.isArray(notice.recipientEmails)
+        ? new Set(notice.recipientEmails.map(normalizeEmail))
+        : null;
+      const audience = collaborators.filter((member) => {
+        if (!member.active || !confirmationAccesses.has(normalizeEmail(member.accessEmail))) return false;
+        if (targetedAccesses) return targetedAccesses.has(normalizeEmail(member.accessEmail));
+        if (notice.unit === "geral") return true;
+        return notice.unit === "araras" ? member.unit === "Araras" : member.unit === "Rio Claro";
+      });
+      if (audience.length === 0) return false;
+      const readMembers = new Set(
+        reads.filter((read) => read.avisoId === notice.id).map((read) => `${read.unit}::${read.employee}`),
+      );
+      return audience.every((member) => readMembers.has(`${member.unit}::${member.name}`));
+    }).map((notice) => notice.id);
     return NextResponse.json({
       ok: true,
-      reads: reads.filter((read) => visibleIds.has(read.avisoId) && (unit === "geral" || read.unit === unit)),
+      completedAvisoIds,
+      reads: reads.filter((read) => visibleNotices.some((notice) => notice.id === read.avisoId) && (unit === "geral" || read.unit === unit)),
       employees: unit === "geral" ? employees : employees.filter((employee) => employee.unit === unit),
     });
   } catch (error) {

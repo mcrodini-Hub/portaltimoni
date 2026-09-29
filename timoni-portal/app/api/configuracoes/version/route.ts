@@ -20,7 +20,7 @@ export async function GET(request: Request) {
     const currentRevision = await getPortalConfigurationRevision();
     const sessionRevision = String(token.portalConfigRevision || "");
     return NextResponse.json(
-      { changed: Boolean(sessionRevision) && sessionRevision !== currentRevision },
+      { revision: currentRevision, sessionRevision },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {

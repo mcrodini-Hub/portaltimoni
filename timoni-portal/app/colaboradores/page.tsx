@@ -5,7 +5,7 @@ import ComunicadosFeed from "@/app/colaboradores/comunicados-feed";
 import ComunicadosAdmin from "@/app/colaboradores/comunicados-admin";
 import type { PortalUser } from "@/lib/access-control";
 import type { ConfiguredCollaborator } from "@/lib/portal-config";
-import { getEffectiveCollaborators, getEffectivePortalUser } from "@/lib/portal-config";
+import { getEffectivePanelData } from "@/lib/portal-config";
 import ModuleArrivalSummary from "@/components/module-arrival-summary";
 
 export const dynamic = "force-dynamic";
@@ -58,10 +58,15 @@ function MeetingSummaryCard({title,list}:{title:string;list:FixedMeeting[]}){ret
 function EventCard({title,tone,events}:{title:string;tone:"pink"|"amber";events:PanelDateItem[]}){const cls=tone==="pink"?"border-pink-200 bg-pink-50":"border-amber-200 bg-amber-50";return <article className={`h-full min-w-0 rounded-3xl border p-5 shadow-sm ${cls}`}><p className="text-xs font-semibold uppercase tracking-wider text-slate-700">{title}</p>{events.length?<ul className="mt-3 space-y-2">{events.map(e=><li key={e.id} className="rounded-xl bg-white/70 p-3"><p className="font-semibold text-slate-900">{cleanSummary(e.summary)}</p><p className="mt-1 text-sm text-slate-600">{title==="Férias"&&e.end?`${formatDate(e.start)} a ${formatDate(e.end)}`:formatDate(e.start)}</p></li>)}</ul>:<p className="mt-3 text-sm text-slate-500">Nenhum registro informado.</p>}</article>}
 
 export default async function ColaboradoresPage(){
- const session=await auth();const email=session?.user?.email??"";const normalized=email.trim().toLowerCase();const effectiveUser=await getEffectivePortalUser(session?.accessToken,normalized);const panelStore=getPanelStore(email,effectiveUser??session?.portalUser);const isCica=normalized==="mcrodini@gmail.com";const isManagement=["mcrodini@gmail.com","mrodini@gmail.com"].includes(normalized);const canConfirmRead=!isManagement&&Boolean(effectiveUser?.noticeRequired);const now=new Date();const eventWindow=getPanelDateWindow(now);let events:CalendarEventDTO[]=[];
- if(session?.accessToken&&session.error!=="RefreshAccessTokenError"){try{events=await listEventsInRange(session.accessToken,{timeMin:eventWindow.timeMin,timeMax:eventWindow.timeMax,maxResults:500},["timoni"])}catch{events=[]}}
+ const session=await auth();const email=session?.user?.email??"";const normalized=email.trim().toLowerCase();const now=new Date();const eventWindow=getPanelDateWindow(now);
+ const [panelData,events]=await Promise.all([
+  getEffectivePanelData(session?.accessToken,normalized),
+  session?.accessToken&&session.error!=="RefreshAccessTokenError"
+   ?listEventsInRange(session.accessToken,{timeMin:eventWindow.timeMin,timeMax:eventWindow.timeMax,maxResults:500},["timoni"]).catch(()=>[] as CalendarEventDTO[])
+   :Promise.resolve([] as CalendarEventDTO[])
+ ]);
+ const effectiveUser=panelData.user;const collaborators=panelData.collaborators;const panelStore=getPanelStore(email,effectiveUser??session?.portalUser);const isCica=normalized==="mcrodini@gmail.com";const isManagement=["mcrodini@gmail.com","mrodini@gmail.com"].includes(normalized);const canConfirmRead=!isManagement&&Boolean(effectiveUser?.noticeRequired);
  const araras=meetings(now,"araras"),rioClaro=meetings(now,"rio claro");
- const collaborators=await getEffectiveCollaborators(session?.accessToken);
  const birthdays=unique(events.filter(e=>isBirthday(e)&&eventStartsInPanelWindow(e,eventWindow)).map(panelItem));
  const vacations=unique(events.filter(e=>isVacation(e)&&eventOverlapsPanelWindow(e,eventWindow)).map(panelItem));
  return <div className="pb-10"><header className="mb-6"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Comunicação interna</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Painel Timoni</h1></header>

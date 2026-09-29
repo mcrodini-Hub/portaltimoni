@@ -700,14 +700,14 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                     {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itens.length === 0 ? <p className="text-sm text-slate-400">Sem viagens.</p> : itens.map((v, index) => (
                       <article key={v.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                         <p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
-                        <p className="mt-2 text-sm text-slate-900">
-                          {pedidoTexto(v.numeroPedido) && <>Nota Fiscal/Pedido: {pedidoTexto(v.numeroPedido)}</>}
-                          {pedidoTexto(v.numeroPedido) && v.clienteFornecedor ? " | " : ""}
-                          {v.clienteFornecedor && <strong>Cliente/Fornecedor: {v.clienteFornecedor.toUpperCase()}</strong>}
-                          {(pedidoTexto(v.numeroPedido) || v.clienteFornecedor) && v.contatoNome ? " | " : ""}
-                          {v.contatoNome && <>A/C: {v.contatoNome}</>}
-                          {v.volumes ? <> | Volume: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade)}</> : null}
+                        <p className="mt-2 text-sm font-bold uppercase text-slate-900">
+                          {lerMetaMotorista(v.notasJson).tipo === "Retirada" ? (
+                            <>PED {pedidoTexto(v.numeroPedido)} | FORNECEDOR {(v.clienteFornecedor || "").toUpperCase()}{v.volumes ? <> | VOLUME: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade).toUpperCase()}</> : null}</>
+                          ) : (
+                            <>NF {pedidoTexto(v.numeroPedido)} | CLIENTE {(v.clienteFornecedor || "").toUpperCase()}{v.volumes ? <> | VOLUME: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade).toUpperCase()}</> : null}</>
+                          )}
                         </p>
+                        {v.contatoNome && <p className="mt-1 text-sm text-slate-700">A/C: {v.contatoNome}</p>}
                         {v.endereco && <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-slate-700"><span>End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</span>{separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="font-semibold text-blue-800 underline underline-offset-2">Google Maps</a>}</p>}
                         {v.info && <p className="mt-1 text-sm text-slate-600">Observação: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
                         {v.preenchidoPor && <p className="mt-2 text-xs text-slate-500">Preenchido por: {v.preenchidoPor}</p>}
@@ -731,14 +731,14 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="font-[Arial] text-[11pt] leading-[1.35]">
                     <p className="font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
-                    <p className="mt-2 text-slate-900">
-                      {pedidoTexto(v.numeroPedido) && <>Nota Fiscal/Pedido: {pedidoTexto(v.numeroPedido)}</>}
-                      {pedidoTexto(v.numeroPedido) && v.clienteFornecedor ? " | " : ""}
-                      {v.clienteFornecedor && <strong>Cliente/Fornecedor: {v.clienteFornecedor.toUpperCase()}</strong>}
-                      {(pedidoTexto(v.numeroPedido) || v.clienteFornecedor) && v.contatoNome ? " | " : ""}
-                      {v.contatoNome && <>A/C: {v.contatoNome}</>}
-                      {v.volumes ? <> | Volume: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade)}</> : null}
+                    <p className="mt-2 font-bold uppercase text-slate-900">
+                      {lerMetaMotorista(v.notasJson).tipo === "Retirada" ? (
+                        <>PED {pedidoTexto(v.numeroPedido)} | FORNECEDOR {(v.clienteFornecedor || "").toUpperCase()}{v.volumes ? <> | VOLUME: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade).toUpperCase()}</> : null}</>
+                      ) : (
+                        <>NF {pedidoTexto(v.numeroPedido)} | CLIENTE {(v.clienteFornecedor || "").toUpperCase()}{v.volumes ? <> | VOLUME: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade).toUpperCase()}</> : null}</>
+                      )}
                     </p>
+                    {v.contatoNome && <p className="mt-1 text-slate-700">A/C: {v.contatoNome}</p>}
                     {v.endereco && <p className="mt-1 flex flex-wrap items-center gap-x-2 text-slate-700"><span>End.: {formatarEnderecoExibicao(v.endereco, v.numero, v.complemento)}</span>{separarEndereco(v.endereco).link && <a href={separarEndereco(v.endereco).link} target="_blank" rel="noreferrer" className="font-semibold text-blue-800 underline underline-offset-2">Google Maps</a>}</p>}
                     {v.info && <p className="mt-1 text-slate-600">Observação: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
                     {v.preenchidoPor && <p className="mt-3 font-[Arial] text-[10pt] text-slate-500">Preenchido por: {v.preenchidoPor}</p>}

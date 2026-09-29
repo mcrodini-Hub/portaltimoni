@@ -11,6 +11,7 @@ import {
   upsertPortalUser,
   type ConfiguredCollaborator,
 } from "@/lib/portal-config";
+import { bumpPortalConfigurationRevisionSafely } from "@/lib/portal-config-revision";
 
 const VALID_MODULES = new Set<PortalModule>([
   "painel", "agenda", "agenda-ct", "chat", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads",
@@ -39,6 +40,7 @@ export async function DELETE(request: Request) {
       const user = configuration.users.find((item) => item.email === email);
       if (!user) return NextResponse.json({ error: "Acesso não encontrado." }, { status: 404 });
       await deletePortalUser(current.accessToken, email);
+      await bumpPortalConfigurationRevisionSafely();
       await appendAudit(current.accessToken, "Acesso excluído", `${user.accessLabel || user.name} · ${email}`, current.email);
       return NextResponse.json({ ok: true });
     }
@@ -49,6 +51,7 @@ export async function DELETE(request: Request) {
     const member = configuration.collaborators.find((item) => item.id === id);
     if (!member) return NextResponse.json({ error: "Colaborador não encontrado." }, { status: 404 });
     await deleteCollaborator(current.accessToken, id);
+    await bumpPortalConfigurationRevisionSafely();
     await appendAudit(current.accessToken, "Colaborador excluído", `${member.name} · ${member.unit}`, current.email);
     return NextResponse.json({ ok: true });
   } catch (error) {
@@ -127,15 +130,15 @@ export async function PUT(request: Request) {
     if (body.section === "user") {
       const item = cleanUser(body.item || {});
       await upsertPortalUser(current.accessToken, item);
+      await bumpPortalConfigurationRevisionSafely();
       await appendAudit(current.accessToken, "Acesso atualizado", `${item.accessLabel || item.name} · ${item.email}`, current.email);
       return NextResponse.json({ ok: true, item });
     } else if (body.section === "collaborator") {
       const configuration = await loadPortalConfiguration(current.accessToken);
       const item = cleanCollaborator(body.item || {}, configuration.users);
-      await Promise.all([
-        upsertCollaborator(current.accessToken, item),
-        appendAudit(current.accessToken, "Colaborador atualizado", `${item.name} · ${item.unit} · ${item.accessEmail}`, current.email),
-      ]);
+      await upsertCollaborator(current.accessToken, item);
+      await bumpPortalConfigurationRevisionSafely();
+      await appendAudit(current.accessToken, "Colaborador atualizado", `${item.name} · ${item.unit} · ${item.accessEmail}`, current.email);
       return NextResponse.json({ ok: true, item });
     } else {
       return NextResponse.json({ error: "Alteração inválida." }, { status: 400 });

@@ -238,3 +238,62 @@ main table {
     margin-top: .35rem !important;
   }
 }
+
+
+/* Escala tipográfica padronizada — Roboto em todos os módulos. */
+:root {
+  --ct-font-body: 15px;
+  --ct-font-page-title: 30px;
+  --ct-font-section-title: 20px;
+  --ct-font-subtitle: 16px;
+  --ct-font-caption: 12px;
+  --ct-font-weight-regular: 400;
+  --ct-font-weight-medium: 500;
+  --ct-font-weight-strong: 600;
+}
+
+body { font-weight: var(--ct-font-weight-regular); }
+.font-normal { font-weight: var(--ct-font-weight-regular) !important; }
+.font-medium { font-weight: var(--ct-font-weight-medium) !important; }
+.font-semibold { font-weight: var(--ct-font-weight-strong) !important; }
+.font-bold, .font-extrabold, strong, b { font-weight: var(--ct-font-weight-strong) !important; }
+
+@media (min-width: 641px) {
+  main { font-size: var(--ct-font-body); }
+  main h1 { font-size: var(--ct-font-page-title) !important; }
+  main h2 { font-size: var(--ct-font-section-title) !important; }
+  main h3 { font-size: var(--ct-font-subtitle) !important; }
+}
+
+@media (max-width: 640px) {
+  :root {
+    --ct-font-body: 14px;
+    --ct-font-page-title: 20px;
+    --ct-font-section-title: 16px;
+    --ct-font-subtitle: 14px;
+  }
+
+  main { font-size: var(--ct-font-body); }
+  main h1 { font-size: var(--ct-font-page-title) !important; }
+  main h2 { font-size: var(--ct-font-section-title) !important; }
+  main h3 { font-size: var(--ct-font-subtitle) !important; }
+
+  main p, main label, main li, main td, main th,
+  main input, main select, main textarea, main button, main a {
+    font-size: var(--ct-font-body);
+  }
+
+  main table, main [class~="text-xs"],
+  main [class~="text-[9px]"], main [class~="text-[10px]"],
+  main [class~="text-[11px]"] {
+    font-size: var(--ct-font-caption) !important;
+  }
+
+  main [class~="text-sm"] { font-size: var(--ct-font-body) !important; }
+  main [class~="text-base"] { font-size: 16px !important; }
+
+  main input, main select, main textarea,
+  main button, main a[role="button"], main a.inline-flex {
+    min-height: 40px;
+  }
+}

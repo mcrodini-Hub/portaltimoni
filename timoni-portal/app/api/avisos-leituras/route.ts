@@ -23,6 +23,14 @@ function normalizeEmail(value?: string | null) {
   return value?.trim().toLowerCase() ?? "";
 }
 
+function normalizeReadIdentity(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function readMemberKey(unit: string, name: string) {
+  return `${normalizeReadIdentity(unit)}::${normalizeReadIdentity(name)}`;
+}
+
 function allowedUnit(email: string, portalUser?: PortalUser | null) {
   // Ciça e Marcelo são sempre gestão geral. Essa regra vem antes da unidade
   // salva na configuração para evitar que um valor antigo de sessão/planilha
@@ -66,9 +74,9 @@ export async function GET() {
       });
       if (audience.length === 0) return false;
       const readMembers = new Set(
-        reads.filter((read) => read.avisoId === notice.id).map((read) => `${read.unit}::${read.employee}`),
+        reads.filter((read) => read.avisoId === notice.id).map((read) => readMemberKey(read.unit, read.employee)),
       );
-      return audience.every((member) => readMembers.has(`${member.unit}::${member.name}`));
+      return audience.every((member) => readMembers.has(readMemberKey(member.unit, member.name)));
     }).map((notice) => notice.id);
     return NextResponse.json({ ok: true, completedAvisoIds });
   } catch (error) {

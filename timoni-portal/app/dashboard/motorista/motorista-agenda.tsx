@@ -1,6 +1,6 @@
 "use client";
 
-// MOTORISTA EQUIPE: manter Dia, Semana e Mês. A rota /motorista é leitura e não deve ser alterada por mudanças deste módulo.
+// MOTORISTA DASHBOARD: manter Dia, Semana e Mês. A rota /motorista (relatório/leitura) não deve ser alterada nesta reestruturação.
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { BrazilianDateInput } from "@/components/ui/brazilian-date-input";
@@ -27,6 +27,7 @@ type Viagem = {
 };
 
 type FormState = {
+  tipo: "Entrega" | "Retirada";
   loja: string;
   vendedor: string;
   data: string;
@@ -45,27 +46,25 @@ type FormState = {
   endereco: string;
   numeroEndereco: string;
   bairro: string;
+  cidade: string;
+  referencia: string;
   linkEndereco: string;
-  observacao: string;
+  discriminacao: string;
   preenchidoPor: string;
   notasJson: string;
 };
 
 type Modo = "dia" | "semana" | "mes";
-type Seller = { nome: string; unidade: string };
-type Responsible = { email: string; name: string; unit: string };
-
 
 const REQUIRED: Array<keyof FormState> = [
+  "tipo",
   "loja",
-  "vendedor",
   "data",
   "numeroPedido",
   "clienteFornecedor",
   "volumes",
   "endereco",
   "numeroEndereco",
-  "preenchidoPor",
 ];
 
 function localDateString(d = new Date()) {
@@ -100,6 +99,7 @@ function weekDays(value: string) {
 
 function emptyForm(data = localDateString()): FormState {
   return {
+    tipo: "Entrega",
     loja: "",
     vendedor: "",
     data,
@@ -118,11 +118,44 @@ function emptyForm(data = localDateString()): FormState {
     endereco: "",
     numeroEndereco: "",
     bairro: "",
+    cidade: "",
+    referencia: "",
     linkEndereco: "",
-    observacao: "",
+    discriminacao: "",
     preenchidoPor: "",
     notasJson: "[]",
   };
+}
+
+function lerMetaMotorista(notasJson?: string) {
+  try {
+    const parsed = JSON.parse(String(notasJson || "[]"));
+    if (parsed && !Array.isArray(parsed) && typeof parsed === "object") {
+      return {
+        tipo: parsed.tipo === "Retirada" ? "Retirada" as const : "Entrega" as const,
+        cidade: String(parsed.cidade || ""),
+        referencia: String(parsed.referencia || ""),
+      };
+    }
+  } catch {}
+  return { tipo: "Entrega" as const, cidade: "", referencia: "" };
+}
+
+function notasComMetaMotorista(
+  notasJson: string | undefined,
+  meta: { tipo: "Entrega" | "Retirada"; cidade: string; referencia: string },
+) {
+  let base: Record<string, unknown> = {};
+  try {
+    const parsed = JSON.parse(String(notasJson || "[]"));
+    base = Array.isArray(parsed) ? { legado: parsed } : parsed && typeof parsed === "object" ? parsed : {};
+  } catch {}
+  return JSON.stringify({
+    ...base,
+    tipo: meta.tipo,
+    cidade: meta.cidade.trim(),
+    referencia: meta.referencia.trim(),
+  });
 }
 
 function formFromViagem(v: Viagem): FormState {
@@ -132,32 +165,37 @@ function formFromViagem(v: Viagem): FormState {
   const enderecoSemLink = enderecoCompleto.replace(/\nLink:\s*https?:\/\/\S+/i, "").trim();
   const partesEndereco = enderecoSemLink.split(/\s+-\s+/).map((parte) => parte.trim()).filter(Boolean);
   const temCidadeUf = partesEndereco.length >= 3 && /\/[A-Z]{2}$/i.test(partesEndereco[partesEndereco.length - 1]);
-  const bairro = temCidadeUf ? partesEndereco[partesEndereco.length - 2] : "";
+  const meta = lerMetaMotorista(v.notasJson);
+  const cidadeLegada = temCidadeUf ? partesEndereco[partesEndereco.length - 1] : "";
+  const bairroLegado = temCidadeUf ? partesEndereco[partesEndereco.length - 2] : "";
   const enderecoEditavel = temCidadeUf
-    ? [...partesEndereco.slice(0, -2), partesEndereco[partesEndereco.length - 1]].join(" - ")
-    : enderecoSemLink;
+    ? partesEndereco.slice(0, -2).join(" - ")
+    : (partesEndereco[0] || enderecoSemLink);
   const volumeInfo = separarVolume(v.volumes);
   return {
+    tipo: meta.tipo,
     loja: v.loja || "",
     vendedor: v.vendedor || "",
     data: v.data,
-    hora: bloqueio ? "" : (v.horario || "").slice(0, 5),
+    hora: "",
     bloquear: bloqueio,
     bloqueioInicio: bloqueio ? (v.horario || "").slice(0, 5) : "",
     bloqueioFim: bloqueio ? (v.horarioFim || "").slice(0, 5) : "",
     numeroPedido: v.numeroPedido || "",
     clienteFornecedor: v.clienteFornecedor || "",
     volumes: volumeInfo.volume,
-    unidadeVolume: volumeInfo.unidade,
-    quantidadeVolume: volumeInfo.quantidade,
+    unidadeVolume: "",
+    quantidadeVolume: "",
     contatoNome: v.contatoNome || "",
-    contatoWhats: v.contatoWhats || "",
+    contatoWhats: "",
     cep: "",
     endereco: enderecoEditavel,
     numeroEndereco: v.numero || "",
-    bairro,
+    bairro: bairroLegado,
+    cidade: meta.cidade || cidadeLegada,
+    referencia: meta.referencia || v.complemento || "",
     linkEndereco: match?.[1] || "",
-    observacao: v.info || "",
+    discriminacao: v.info || "",
     preenchidoPor: v.preenchidoPor || "",
     notasJson: v.notasJson || "[]",
   };
@@ -300,16 +338,6 @@ function formatarCep(value: string) {
   return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
 }
 
-function formatarTelefone(value: string) {
-  const digits = value.replace(/\D/g, "").slice(0, 11);
-  if (digits.length <= 2) return digits;
-  const ddd = digits.slice(0, 2);
-  const numero = digits.slice(2);
-  if (numero.length <= 4) return `${ddd} ${numero}`;
-  if (numero.length <= 8) return `${ddd} ${numero.slice(0, 4)}-${numero.slice(4)}`;
-  return `${ddd} ${numero.slice(0, 5)}-${numero.slice(5)}`;
-}
-
 export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boolean }) {
   const hoje = localDateString();
   const [modo, setModo] = useState<Modo>("semana");
@@ -324,31 +352,15 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
   const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());
-  const [sellers, setSellers] = useState<Seller[]>([]);
-  const [responsibles, setResponsibles] = useState<Responsible[]>([]);
 
   const diasMes = useMemo(() => monthDays(mesBase), [mesBase]);
   const diasSemana = useMemo(() => weekDays(selecionado), [selecionado]);
-  const sellerOptions = useMemo(() => {
-    const unidade = form.loja === "rio_claro" ? "rio_claro" : form.loja === "araras" ? "araras" : "";
-    return unidade ? sellers.filter((seller) => seller.unidade === unidade) : sellers;
-  }, [sellers, form.loja]);
-
-  useEffect(() => {
-    let ativo = true;
-    void (async () => {
-      try {
-        const response = await fetch("/api/agenda-motorista-vendedores", { cache: "no-store" });
-        const payload = await response.json().catch(() => null);
-        if (ativo && response.ok && payload?.ok) {
-          if (Array.isArray(payload.vendedores)) setSellers(payload.vendedores);
-          if (Array.isArray(payload.responsaveis)) setResponsibles(payload.responsaveis);
-        }
-      } catch {}
-    })();
-    return () => { ativo = false; };
-  }, []);
-
+  const linkMapsFormulario = useMemo(() => {
+    if (form.linkEndereco) return form.linkEndereco;
+    if (!form.numeroEndereco.trim()) return "";
+    const destino = [form.endereco.trim(), form.numeroEndereco.trim(), form.bairro.trim(), form.cidade.trim()].filter(Boolean).join(", ");
+    return destino ? `https://maps.google.com/?q=${encodeURIComponent(destino)}` : "";
+  }, [form.linkEndereco, form.endereco, form.numeroEndereco, form.bairro, form.cidade]);
   async function carregarDia(data = selecionado) {
     setLoading(true);
     setErro("");
@@ -470,12 +482,12 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
       if (!response.ok || !data?.ok) throw new Error(data?.erro || "CEP não encontrado.");
       const resultado = data.endereco || {};
       const cidadeUf = [resultado.cidade, resultado.uf].filter(Boolean).join("/");
-      const endereco = [resultado.logradouro, cidadeUf].filter(Boolean).join(" - ");
-      set("endereco", endereco);
+      set("endereco", resultado.logradouro || "");
       set("bairro", resultado.bairro || "");
+      set("cidade", cidadeUf);
       set("numeroEndereco", "");
       set("linkEndereco", "");
-      setAviso("CEP localizado. Confirme o número do endereço para gerar o link do Google Maps.");
+      setAviso("CEP localizado. Confirme o número para gerar o link do Google Maps.");
     } catch (e) {
       setAviso("");
       setErro(e instanceof Error ? e.message : "Não foi possível buscar o CEP.");
@@ -501,32 +513,36 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
     setSaving(true);
     setErro("");
     try {
-      const enderecoComBairro = montarEnderecoComBairro(form.endereco, form.bairro);
-      const enderecoCompleto = [enderecoComBairro, form.numeroEndereco].filter(Boolean).join(", ");
-      const linkMaps = form.linkEndereco || `https://maps.google.com/?q=${encodeURIComponent(enderecoCompleto)}`;
-      const detalhesEndereco = `${enderecoComBairro}\nLink: ${linkMaps}`;
+      const enderecoBase = [form.endereco.trim(), form.bairro.trim(), form.cidade.trim()].filter(Boolean).join(" - ");
+      const destinoMaps = [form.endereco.trim(), form.numeroEndereco.trim(), form.bairro.trim(), form.cidade.trim()].filter(Boolean).join(", ");
+      const linkMaps = linkMapsFormulario || `https://maps.google.com/?q=${encodeURIComponent(destinoMaps)}`;
+      const detalhesEndereco = `${enderecoBase}\nLink: ${linkMaps}`;
       const payload = new URLSearchParams({
         action: editandoId ? "atualizar" : "criar",
         ...(editandoId ? { id: editandoId } : {}),
         data: form.data,
         loja: form.loja,
         tipoHorario: form.bloquear ? "Bloqueio" : "Entrega",
-        horario: form.bloquear ? form.bloqueioInicio : form.hora,
+        horario: form.bloquear ? form.bloqueioInicio : "",
         horarioFim: form.bloquear ? form.bloqueioFim : "",
         vendedor: form.vendedor,
         clienteFornecedor: form.clienteFornecedor,
         numeroPedido: form.numeroPedido,
-        volumes: serializarVolume(form.volumes, form.unidadeVolume, form.quantidadeVolume),
+        volumes: form.volumes.trim(),
         contatoNome: form.contatoNome,
-        contatoWhats: form.contatoWhats,
+        contatoWhats: "",
         endereco: detalhesEndereco,
         numero: form.numeroEndereco,
-        complemento: "",
+        complemento: form.referencia,
         itens: "",
-        info: form.observacao,
+        info: form.discriminacao,
         preenchidoPor: form.preenchidoPor,
         dividir: "0",
-        notasJson: form.notasJson || "[]",
+        notasJson: notasComMetaMotorista(form.notasJson, {
+          tipo: form.tipo,
+          cidade: form.cidade,
+          referencia: form.referencia,
+        }),
       });
       const response = await fetch("/api/agenda-motorista", {
         method: "POST",
@@ -793,32 +809,43 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
               <button type="button" onClick={() => setModal(false)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600">Fechar</button>
             </div>
 
-            <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              <label className="text-sm font-medium text-slate-700">* Loja<select value={form.loja} onChange={(e) => set("loja", e.target.value)} className={fieldClass("loja")}><option value="">Selecione</option><option value="araras">Araras</option><option value="rio_claro">Rio Claro</option></select></label>
-              <label className="text-sm font-medium text-slate-700">* Vendedor<select value={form.vendedor} onChange={(e) => set("vendedor", e.target.value)} className={fieldClass("vendedor")}><option value="">Selecione</option>{form.vendedor && !sellerOptions.some((seller) => seller.nome === form.vendedor) && <option value={form.vendedor}>{form.vendedor}</option>}{sellerOptions.map((seller) => <option key={`${seller.nome}-${seller.unidade}`} value={seller.nome}>{seller.nome}</option>)}</select></label>
+            <div className="mt-5 grid gap-4 md:grid-cols-3">
+              <label className="text-sm font-medium text-slate-700">* Tipo<select value={form.tipo} onChange={(e) => set("tipo", e.target.value as "Entrega" | "Retirada")} className={fieldClass("tipo")}><option value="Entrega">Entrega</option><option value="Retirada">Retirada</option></select></label>
+              <label className="text-sm font-medium text-slate-700">* Loja<select value={form.loja} onChange={(e) => set("loja", e.target.value)} className={fieldClass("loja")}><option value="">Selecione</option><option value="Casa Timoni">Casa Timoni</option><option value="MCR">MCR</option><option value="Rodini">Rodini</option></select></label>
               <label className="text-sm font-medium text-slate-700">* Data<BrazilianDateInput value={form.data} onChange={(value) => set("data", value)} className={fieldClass("data")} required /></label>
-              <label className="text-sm font-medium text-slate-700">Hora<input type="time" value={form.hora} onChange={(e) => set("hora", e.target.value)} disabled={form.bloquear} className={`${fieldClass("hora")} disabled:bg-slate-100`} /></label>
             </div>
 
             <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-              <label className="flex items-center gap-2 text-sm font-semibold text-slate-800"><input type="checkbox" checked={form.bloquear} onChange={(e) => set("bloquear", e.target.checked)} />Bloquear horário</label>
-              {form.bloquear && <div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm text-slate-700">De<input type="time" value={form.bloqueioInicio} onChange={(e) => set("bloqueioInicio", e.target.value)} className={fieldClass("bloqueioInicio")} /></label><label className="text-sm text-slate-700">Até<input type="time" value={form.bloqueioFim} onChange={(e) => set("bloqueioFim", e.target.value)} className={fieldClass("bloqueioFim")} /></label></div>}
+              <label className="flex items-center gap-2 text-sm font-semibold text-slate-800"><input type="checkbox" checked={form.bloquear} onChange={(e) => set("bloquear", e.target.checked)} />Bloqueio</label>
+              {form.bloquear && <div className="mt-3 grid gap-3 sm:grid-cols-2"><label className="text-sm text-slate-700">Início<input type="time" value={form.bloqueioInicio} onChange={(e) => set("bloqueioInicio", e.target.value)} className={fieldClass("bloqueioInicio")} /></label><label className="text-sm text-slate-700">Fim<input type="time" value={form.bloqueioFim} onChange={(e) => set("bloqueioFim", e.target.value)} className={fieldClass("bloqueioFim")} /></label></div>}
             </div>
 
-            <div className="mt-4 grid gap-4 sm:grid-cols-2">
-              <label className="text-sm font-medium text-slate-700">* NF/PEDIDO<input value={form.numeroPedido} onChange={(e) => set("numeroPedido", e.target.value)} className={fieldClass("numeroPedido")} /></label>
-              <label className="text-sm font-medium text-slate-700">* CLIENTE/FORNECEDOR<input value={form.clienteFornecedor} onChange={(e) => set("clienteFornecedor", e.target.value)} className={fieldClass("clienteFornecedor")} /></label>
-              <div className="grid gap-4 sm:grid-cols-3"><label className="text-sm font-medium text-slate-700">* Volume<input value={form.volumes} onChange={(e) => set("volumes", e.target.value)} placeholder="Ex.: 10" className={fieldClass("volumes")} /></label><label className="text-sm font-medium text-slate-700">Unidade<input value={form.unidadeVolume} onChange={(e) => set("unidadeVolume", e.target.value)} placeholder="Ex.: saco" className={fieldClass("unidadeVolume")} /></label><label className="text-sm font-medium text-slate-700">Quantidade<input value={form.quantidadeVolume} onChange={(e) => set("quantidadeVolume", e.target.value)} placeholder="Ex.: 30 Kg" className={fieldClass("quantidadeVolume")} /></label></div>
-              <label className="text-sm font-medium text-slate-700">Falar com<input value={form.contatoNome} onChange={(e) => set("contatoNome", e.target.value)} className={fieldClass("contatoNome")} /></label>
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <label className="text-sm font-medium text-slate-700">* Nota Fiscal/Pedido<input value={form.numeroPedido} onChange={(e) => set("numeroPedido", e.target.value)} className={fieldClass("numeroPedido")} /></label>
+              <label className="text-sm font-medium text-slate-700">* Cliente/Fornecedor<input value={form.clienteFornecedor} onChange={(e) => set("clienteFornecedor", e.target.value)} className={fieldClass("clienteFornecedor")} /></label>
+              <label className="text-sm font-medium text-slate-700">A/C<input value={form.contatoNome} onChange={(e) => set("contatoNome", e.target.value)} className={fieldClass("contatoNome")} /></label>
             </div>
 
-            <div className="mt-4 grid gap-4">
-              <div className="grid gap-2 sm:grid-cols-[220px_auto] sm:items-end"><label className="text-sm font-medium text-slate-700">CEP<input value={form.cep} onChange={(e) => set("cep", formatarCep(e.target.value))} inputMode="numeric" placeholder="00000-000" className={fieldClass("cep")} /></label><button type="button" onClick={buscarCep} className="h-[42px] rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">Buscar CEP</button></div>
-              <label className="text-sm font-medium text-slate-700">* Endereço<input value={form.endereco} onChange={(e) => set("endereco", e.target.value)} className={fieldClass("endereco")} /></label>
-              <div className="grid gap-4 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">* Número<input value={form.numeroEndereco} onChange={(e) => { const numero = e.target.value; set("numeroEndereco", numero); const destino = [montarEnderecoComBairro(form.endereco, form.bairro), numero].filter(Boolean).join(", "); set("linkEndereco", destino ? `https://maps.google.com/?q=${encodeURIComponent(destino)}` : ""); }} placeholder="Confirme o número" className={fieldClass("numeroEndereco")} /></label><label className="text-sm font-medium text-slate-700">Bairro<input value={form.bairro} onChange={(e) => set("bairro", e.target.value)} placeholder="Preenchido pelo CEP" className={fieldClass("bairro")} /></label></div>
-              <label className="text-sm font-medium text-slate-700">Link endereço<input type="url" value={form.linkEndereco} onChange={(e) => set("linkEndereco", e.target.value)} placeholder="Gerado após informar o número" className={fieldClass("linkEndereco")} /></label>
-              <label className="text-sm font-medium text-slate-700">Observação<textarea value={form.observacao} onChange={(e) => set("observacao", e.target.value)} rows={3} className={fieldClass("observacao")} /></label>
-              <label className="text-sm font-medium text-slate-700">* Preenchido por<select value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} className={fieldClass("preenchidoPor")}><option value="">Selecione</option>{form.preenchidoPor && !responsibles.some((item) => item.name === form.preenchidoPor) && <option value={form.preenchidoPor}>{form.preenchidoPor}</option>}{responsibles.map((item) => <option key={item.email} value={item.name}>{item.name}</option>)}</select></label>
+            <div className="mt-4 grid gap-4 md:grid-cols-[220px_160px_1fr] md:items-end">
+              <label className="text-sm font-medium text-slate-700">CEP<input value={form.cep} onChange={(e) => set("cep", formatarCep(e.target.value))} inputMode="numeric" placeholder="00000-000" className={fieldClass("cep")} /></label>
+              <button type="button" onClick={buscarCep} className="h-[42px] rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">Buscar CEP</button>
+              <div className="text-sm font-medium text-slate-700">Link do endereço<div className="mt-1 flex h-[42px] items-center">{linkMapsFormulario ? <a href={linkMapsFormulario} target="_blank" rel="noreferrer" className="inline-flex rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-800">Google Maps</a> : <span className="text-sm text-slate-400">Gerado após informar o número</span>}</div></div>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-[1fr_180px]">
+              <label className="text-sm font-medium text-slate-700">* Endereço <span className="font-normal text-slate-400">(Rua / Av. / Rodovia)</span><input value={form.endereco} onChange={(e) => { set("endereco", e.target.value); set("linkEndereco", ""); }} className={fieldClass("endereco")} /></label>
+              <label className="text-sm font-medium text-slate-700">* Número<input value={form.numeroEndereco} onChange={(e) => { const numero = e.target.value; set("numeroEndereco", numero); const destino = [form.endereco, numero, form.bairro, form.cidade].filter(Boolean).join(", "); set("linkEndereco", destino ? `https://maps.google.com/?q=${encodeURIComponent(destino)}` : ""); }} className={fieldClass("numeroEndereco")} /></label>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-3">
+              <label className="text-sm font-medium text-slate-700">Bairro<input value={form.bairro} onChange={(e) => { set("bairro", e.target.value); set("linkEndereco", ""); }} className={fieldClass("bairro")} /></label>
+              <label className="text-sm font-medium text-slate-700">Cidade<input value={form.cidade} onChange={(e) => { set("cidade", e.target.value); set("linkEndereco", ""); }} className={fieldClass("cidade")} /></label>
+              <label className="text-sm font-medium text-slate-700">Referência<input value={form.referencia} onChange={(e) => set("referencia", e.target.value)} placeholder="Ex.: portão lateral" className={fieldClass("referencia")} /></label>
+            </div>
+
+            <div className="mt-4 grid gap-4 md:grid-cols-[180px_1fr]">
+              <label className="text-sm font-medium text-slate-700">* Volume<input value={form.volumes} onChange={(e) => set("volumes", e.target.value)} placeholder="Ex.: 15" className={fieldClass("volumes")} /></label>
+              <label className="text-sm font-medium text-slate-700">Discriminação<textarea value={form.discriminacao} onChange={(e) => set("discriminacao", e.target.value)} rows={4} placeholder={"Ex.:\n10 rolos de bolha\n5 sacos de Polifloc"} className={fieldClass("discriminacao")} /></label>
             </div>
 
             {aviso && <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{aviso}</p>}

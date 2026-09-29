@@ -702,9 +702,9 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                         <p className="text-sm font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
                         <p className="mt-2 text-sm font-bold uppercase text-slate-900">
                           {lerMetaMotorista(v.notasJson).tipo === "Retirada" ? (
-                            <>PED {pedidoTexto(v.numeroPedido)} | FORNECEDOR {(v.clienteFornecedor || "").toUpperCase()}{v.volumes ? <> | VOLUME: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade).toUpperCase()}</> : null}</>
+                            <>PED {pedidoTexto(v.numeroPedido)} | FORNECEDOR {(v.clienteFornecedor || "").toUpperCase()}{v.volumes ? <> | VOLUME: {separarVolume(v.volumes).volume.toUpperCase()}</> : null}</>
                           ) : (
-                            <>NF {pedidoTexto(v.numeroPedido)} | CLIENTE {(v.clienteFornecedor || "").toUpperCase()}{v.volumes ? <> | VOLUME: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade).toUpperCase()}</> : null}</>
+                            <>NF {pedidoTexto(v.numeroPedido)} | CLIENTE {(v.clienteFornecedor || "").toUpperCase()}{v.volumes ? <> | VOLUME: {separarVolume(v.volumes).volume.toUpperCase()}</> : null}</>
                           )}
                         </p>
                         {v.contatoNome && <p className="mt-1 text-sm text-slate-700">A/C: {v.contatoNome}</p>}
@@ -733,9 +733,9 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                     <p className="font-semibold text-slate-950">{index + 1}. {v.tipoHorario === "Bloqueio" ? "Bloqueio | " : ""}{lojaLabel(v.loja)}{v.vendedor ? ` | Vend.: ${v.vendedor}` : ""}{v.horario ? ` | ${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : ""}</p>
                     <p className="mt-2 font-bold uppercase text-slate-900">
                       {lerMetaMotorista(v.notasJson).tipo === "Retirada" ? (
-                        <>PED {pedidoTexto(v.numeroPedido)} | FORNECEDOR {(v.clienteFornecedor || "").toUpperCase()}{v.volumes ? <> | VOLUME: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade).toUpperCase()}</> : null}</>
+                        <>PED {pedidoTexto(v.numeroPedido)} | FORNECEDOR {(v.clienteFornecedor || "").toUpperCase()}{v.volumes ? <> | VOLUME: {separarVolume(v.volumes).volume.toUpperCase()}</> : null}</>
                       ) : (
-                        <>NF {pedidoTexto(v.numeroPedido)} | CLIENTE {(v.clienteFornecedor || "").toUpperCase()}{v.volumes ? <> | VOLUME: {formatarVolume(separarVolume(v.volumes).volume, separarVolume(v.volumes).unidade, separarVolume(v.volumes).quantidade).toUpperCase()}</> : null}</>
+                        <>NF {pedidoTexto(v.numeroPedido)} | CLIENTE {(v.clienteFornecedor || "").toUpperCase()}{v.volumes ? <> | VOLUME: {separarVolume(v.volumes).volume.toUpperCase()}</> : null}</>
                       )}
                     </p>
                     {v.contatoNome && <p className="mt-1 text-slate-700">A/C: {v.contatoNome}</p>}

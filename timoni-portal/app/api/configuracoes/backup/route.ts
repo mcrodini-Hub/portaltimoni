@@ -13,6 +13,7 @@ import {
   writeUsers,
   type ConfiguredCollaborator,
 } from "@/lib/portal-config";
+import { bumpPortalConfigurationRevisionSafely } from "@/lib/portal-config-revision";
 
 export const runtime = "nodejs";
 const SCHEMA_VERSION = 1;
@@ -107,6 +108,7 @@ export async function POST(request: Request) {
     const users = backup.users.some((user) => normalizeEmail(user.email) === CICA_EMAIL) ? backup.users : [...backup.users, cicaDefault];
     await writeUsers(current.accessToken, users);
     await writeCollaborators(current.accessToken, backup.collaborators);
+    await bumpPortalConfigurationRevisionSafely();
     await replaceComunicados(current.accessToken, backup.notices);
     await replaceAvisoLeituras(current.accessToken, backup.noticeReads);
     await replaceTeamMessages(current.accessToken, backup.teamMessages);

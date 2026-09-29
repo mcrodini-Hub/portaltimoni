@@ -401,11 +401,99 @@ export default function ConfiguracoesClient() {
       )}
 
       {!loading && tab === "cadastros" && (
-        <section className="mt-5 space-y-5 rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3"><div><h2 className="text-xl font-semibold text-slate-950">Colaboradores</h2><p className="mt-1 text-sm text-slate-600">Cadastre cada colaborador uma única vez e vincule-o a um único acesso. As permissões, Chat e confirmação de leitura pertencem ao acesso.</p></div><button type="button" onClick={() => setCollaboratorForm({ ...EMPTY_COLLABORATOR })} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white">+ Vincular colaborador</button></div>
-          {collaboratorForm && !collaboratorForm.id && <div className="rounded-3xl border border-blue-200 bg-white p-5 shadow-sm"><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">Nome<input value={collaboratorForm.name} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, name: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label><label className="text-sm font-medium text-slate-700">Unidade<select value={collaboratorForm.unit} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, unit: e.target.value as ConfiguredCollaborator["unit"] })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option>Rio Claro</option><option>Araras</option></select></label></div><label className="mt-3 block text-sm font-medium text-slate-700">E-mail de acesso<select value={collaboratorForm.accessEmail} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, accessEmail: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="">Selecione o acesso</option>{data.users.filter((user) => user.unit !== "Geral").sort((a, b) => (a.accessLabel || a.name).localeCompare(b.accessLabel || b.name)).map((user) => <option key={user.email} value={user.email}>{user.accessLabel || user.name} · {user.email}</option>)}</select></label><div className="mt-4"><Checkbox label="Colaborador ativo" checked={collaboratorForm.active} onChange={(checked) => setCollaboratorForm({ ...collaboratorForm, active: checked })} /></div><div className="mt-5 flex justify-end gap-2"><button type="button" onClick={() => setCollaboratorForm(null)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancelar</button><button type="button" disabled={saving || !collaboratorForm.accessEmail || !collaboratorForm.name.trim()} onClick={() => void save("collaborator", collaboratorForm)} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">Salvar</button></div></div>}
-          <div className="grid items-start gap-3 sm:grid-cols-2 lg:grid-cols-3">{[...data.collaborators].sort((a, b) => a.name.localeCompare(b.name)).map((member) => <article key={member.id} className={`rounded-2xl border border-slate-200 bg-white p-4 ${member.active ? "" : "opacity-60"} ${collaboratorForm?.id === member.id ? "sm:col-span-2 lg:col-span-3" : ""}`}><div className="flex items-start justify-between gap-3"><div><p className="font-semibold text-slate-950">{member.name}</p><p className="mt-1 text-sm text-slate-600">{member.unit}</p>{member.accessEmail && <p className="mt-1 text-xs text-slate-500">{member.accessEmail}</p>}</div><div className="flex flex-col items-end gap-1.5"><span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${member.active ? "bg-emerald-100 text-emerald-800" : "bg-slate-100 text-slate-600"}`}>{member.active ? "Ativo" : "Desativado"}</span></div></div>{collaboratorForm?.id === member.id ? <div className="mt-4 rounded-xl border-t border-blue-100 pt-4"><div className="grid gap-3 sm:grid-cols-2"><label className="text-sm font-medium text-slate-700">Nome<input value={collaboratorForm.name} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, name: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label><label className="text-sm font-medium text-slate-700">Unidade<select value={collaboratorForm.unit} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, unit: e.target.value as ConfiguredCollaborator["unit"] })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option>Rio Claro</option><option>Araras</option></select></label></div><label className="mt-3 block text-sm font-medium text-slate-700">E-mail de acesso<select value={collaboratorForm.accessEmail} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, accessEmail: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="">Selecione o acesso</option>{data.users.filter((user) => user.unit !== "Geral").sort((a, b) => a.name.localeCompare(b.name)).map((user) => <option key={user.email} value={user.email}>{user.name} · {user.email}</option>)}</select></label><p className="mt-3 text-sm text-slate-600">O e-mail do acesso não altera o nome nem a unidade do colaborador.</p><div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-semibold text-slate-900">Módulos que pode ver</p><p className="mt-1 text-xs text-slate-500">Os módulos pertencem ao acesso selecionado. Alterar aqui atualiza esse mesmo acesso.</p></div></div>{(() => { const access = data.users.find((user) => user.email === collaboratorForm.accessEmail); if (!access) return <p className="mt-3 text-sm text-slate-500">Selecione um acesso para visualizar os módulos.</p>; return <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">{MODULES.map((module) => { const enabled = access.modules.includes(module.id); const key = `collaborator-module:${member.id}:${module.id}`; return <Checkbox key={module.id} label={module.label} checked={enabled} disabled={savingKey === key || access.active === false} onChange={(checked) => void saveDirect("user", userWithModule(access, module.id, checked), key)} />; })}</div>; })()}</div><div className="mt-4"><Checkbox label="Colaborador ativo" checked={collaboratorForm.active} onChange={(checked) => setCollaboratorForm({ ...collaboratorForm, active: checked })} /></div><div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" disabled={saving} onClick={() => void removeCollaborator(member)} className="mr-auto rounded-xl border border-red-300 px-4 py-2.5 text-sm font-semibold text-red-700">Excluir colaborador</button><button type="button" onClick={() => setCollaboratorForm(null)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold">Cancelar</button><button type="button" disabled={saving} onClick={() => void save("collaborator", collaboratorForm)} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white">Salvar</button></div></div> : <button type="button" onClick={() => setCollaboratorForm({ ...member })} className="mt-4 rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-800">Editar</button>}</article>)}</div>
+        <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-semibold text-slate-950">Colaboradores</h2>
+              <p className="mt-1 text-sm text-slate-600">Visualize cadastro, acesso e módulos em uma única lista. Clique em Editar para abrir a janela completa do colaborador.</p>
+            </div>
+            <button type="button" onClick={() => setCollaboratorForm({ ...EMPTY_COLLABORATOR })} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white">+ Novo colaborador</button>
+          </div>
+
+          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
+            <div className="hidden grid-cols-[minmax(180px,1.2fr)_minmax(220px,1.3fr)_minmax(260px,2fr)_90px] gap-3 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 md:grid">
+              <span>Cadastro</span><span>Acesso</span><span>Módulos</span><span></span>
+            </div>
+            <div className="divide-y divide-slate-200">
+              {[...data.collaborators].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")).map((member) => {
+                const access = data.users.find((user) => user.email === member.accessEmail);
+                const enabledModules = access ? MODULES.filter((module) => access.modules.includes(module.id)).map((module) => module.label) : [];
+                return (
+                  <article key={member.id} className={`grid gap-3 px-4 py-3 md:grid-cols-[minmax(180px,1.2fr)_minmax(220px,1.3fr)_minmax(260px,2fr)_90px] md:items-center ${member.active ? "" : "opacity-60"}`}>
+                    <div>
+                      <p className="font-semibold text-slate-950">{member.name}</p>
+                      <p className="mt-0.5 text-xs text-slate-500">{member.unit} · {member.active ? "Ativo" : "Desativado"}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-slate-800">{access ? (access.accessLabel || access.name) : "Sem acesso vinculado"}</p>
+                      {member.accessEmail && <p className="mt-0.5 text-xs text-slate-500">{member.accessEmail}</p>}
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {enabledModules.length ? enabledModules.map((label) => <span key={label} className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-800">{label}</span>) : <span className="text-sm text-slate-400">Nenhum módulo</span>}
+                    </div>
+                    <div className="md:text-right">
+                      <button type="button" onClick={() => setCollaboratorForm({ ...member })} className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-800">Editar</button>
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
         </section>
+      )}
+
+      {collaboratorForm && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/45 p-4 pt-8 sm:pt-12" onMouseDown={(event) => { if (event.target === event.currentTarget) setCollaboratorForm(null); }}>
+          <div className="w-full max-w-4xl rounded-3xl bg-white shadow-2xl">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Configurações do colaborador</p>
+                <h3 className="mt-1 text-xl font-semibold text-slate-950">{collaboratorForm.id ? collaboratorForm.name : "Novo colaborador"}</h3>
+              </div>
+              <button type="button" onClick={() => setCollaboratorForm(null)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600">Fechar</button>
+            </div>
+
+            <div className="space-y-5 p-5 sm:p-6">
+              <section className="rounded-2xl border border-slate-200 p-4">
+                <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Cadastro</h4>
+                <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                  <label className="text-sm font-medium text-slate-700">Nome<input value={collaboratorForm.name} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, name: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
+                  <label className="text-sm font-medium text-slate-700">Unidade<select value={collaboratorForm.unit} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, unit: e.target.value as ConfiguredCollaborator["unit"] })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option>Rio Claro</option><option>Araras</option></select></label>
+                </div>
+                <div className="mt-3"><Checkbox label="Colaborador ativo" checked={collaboratorForm.active} onChange={(checked) => setCollaboratorForm({ ...collaboratorForm, active: checked })} /></div>
+              </section>
+
+              <section className="rounded-2xl border border-slate-200 p-4">
+                <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Acesso</h4>
+                <label className="mt-3 block text-sm font-medium text-slate-700">Acesso vinculado<select value={collaboratorForm.accessEmail} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, accessEmail: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="">Selecione o acesso</option>{[...data.users].sort((a, b) => (a.accessLabel || a.name).localeCompare(b.accessLabel || b.name, "pt-BR")).map((user) => <option key={user.email} value={user.email}>{user.accessLabel || user.name} · {user.email}</option>)}</select></label>
+                <p className="mt-2 text-xs text-slate-500">As permissões continuam pertencendo ao acesso selecionado.</p>
+              </section>
+
+              <section className="rounded-2xl border border-slate-200 p-4">
+                <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Módulos</h4>
+                {(() => {
+                  const access = data.users.find((user) => user.email === collaboratorForm.accessEmail);
+                  if (!access) return <p className="mt-3 text-sm text-slate-500">Selecione um acesso para visualizar e editar os módulos.</p>;
+                  return <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">{MODULES.map((module) => {
+                    const enabled = access.modules.includes(module.id);
+                    const key = `collaborator-module:${collaboratorForm.id || "new"}:${module.id}`;
+                    return <Checkbox key={module.id} label={module.label} checked={enabled} disabled={savingKey === key || access.active === false} onChange={(checked) => void saveDirect("user", userWithModule(access, module.id, checked), key)} />;
+                  })}</div>;
+                })()}
+              </section>
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-5 py-4 sm:px-6">
+              <div>
+                {collaboratorForm.id && <button type="button" disabled={saving} onClick={() => void removeCollaborator(collaboratorForm)} className="rounded-xl border border-red-300 px-4 py-2.5 text-sm font-semibold text-red-700">Excluir colaborador</button>}
+              </div>
+              <div className="flex gap-2">
+                <button type="button" onClick={() => setCollaboratorForm(null)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancelar</button>
+                <button type="button" disabled={saving || !collaboratorForm.name.trim() || !collaboratorForm.accessEmail} onClick={() => void save("collaborator", collaboratorForm)} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? "Salvando..." : "Salvar"}</button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {!loading && tab === "backup" && <section className="mt-5 grid gap-4 lg:grid-cols-2"><div className="rounded-3xl border border-blue-200 bg-white p-6 shadow-sm"><h2 className="text-xl font-semibold text-slate-950">Fazer backup</h2><p className="mt-2 text-sm leading-6 text-slate-600">Baixa um arquivo ZIP importável com acessos, colaboradores, Avisos, leituras e mensagens do Equipe.</p><button type="button" onClick={() => void downloadBackup()} className="mt-5 rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white">Baixar backup agora</button></div><div className="rounded-3xl border border-amber-200 bg-amber-50 p-6"><h2 className="text-xl font-semibold text-amber-950">Restaurar backup</h2><p className="mt-2 text-sm leading-6 text-amber-800">Antes de restaurar, o Portal baixa automaticamente uma cópia do estado atual. Revise sempre o nome e a data do arquivo.</p><label className="mt-5 inline-flex cursor-pointer rounded-xl bg-amber-700 px-5 py-3 text-sm font-semibold text-white"><input type="file" accept=".zip" onChange={(event) => void restoreBackup(event)} className="sr-only" />Selecionar arquivo ZIP</label></div></section>}

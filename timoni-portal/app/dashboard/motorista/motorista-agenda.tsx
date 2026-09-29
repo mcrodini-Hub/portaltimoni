@@ -352,6 +352,15 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
   const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());
+
+  const diasMes = useMemo(() => monthDays(mesBase), [mesBase]);
+  const diasSemana = useMemo(() => weekDays(selecionado), [selecionado]);
+  const linkMapsFormulario = useMemo(() => {
+    if (form.linkEndereco) return form.linkEndereco;
+    if (!form.numeroEndereco.trim()) return "";
+    const destino = [form.endereco.trim(), form.numeroEndereco.trim(), form.bairro.trim(), form.cidade.trim()].filter(Boolean).join(", ");
+    return destino ? `https://maps.google.com/?q=${encodeURIComponent(destino)}` : "";
+  }, [form.linkEndereco, form.endereco, form.numeroEndereco, form.bairro, form.cidade]);
   async function carregarDia(data = selecionado) {
     setLoading(true);
     setErro("");
@@ -506,7 +515,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
     try {
       const enderecoBase = [form.endereco.trim(), form.bairro.trim(), form.cidade.trim()].filter(Boolean).join(" - ");
       const destinoMaps = [form.endereco.trim(), form.numeroEndereco.trim(), form.bairro.trim(), form.cidade.trim()].filter(Boolean).join(", ");
-      const linkMaps = form.linkEndereco || `https://maps.google.com/?q=${encodeURIComponent(destinoMaps)}`;
+      const linkMaps = linkMapsFormulario || `https://maps.google.com/?q=${encodeURIComponent(destinoMaps)}`;
       const detalhesEndereco = `${enderecoBase}\nLink: ${linkMaps}`;
       const payload = new URLSearchParams({
         action: editandoId ? "atualizar" : "criar",
@@ -820,7 +829,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
             <div className="mt-4 grid gap-4 md:grid-cols-[220px_160px_1fr] md:items-end">
               <label className="text-sm font-medium text-slate-700">CEP<input value={form.cep} onChange={(e) => set("cep", formatarCep(e.target.value))} inputMode="numeric" placeholder="00000-000" className={fieldClass("cep")} /></label>
               <button type="button" onClick={buscarCep} className="h-[42px] rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">Buscar CEP</button>
-              <div className="text-sm font-medium text-slate-700">Link do endereço<div className="mt-1 flex h-[42px] items-center">{form.linkEndereco ? <a href={form.linkEndereco} target="_blank" rel="noreferrer" className="inline-flex rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-800">Google Maps</a> : <span className="text-sm text-slate-400">Gerado após informar o número</span>}</div></div>
+              <div className="text-sm font-medium text-slate-700">Link do endereço<div className="mt-1 flex h-[42px] items-center">{linkMapsFormulario ? <a href={linkMapsFormulario} target="_blank" rel="noreferrer" className="inline-flex rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-800">Google Maps</a> : <span className="text-sm text-slate-400">Gerado após informar o número</span>}</div></div>
             </div>
 
             <div className="mt-4 grid gap-4 md:grid-cols-[1fr_180px]">

@@ -3,9 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
-// Keep permissions reasonably fresh without reloading the whole Portal every few seconds.
-const PERMISSION_REFRESH_MS = 120_000;
-const REFRESH_COOLDOWN_MS = 5_000;
+const CHANGE_CHECK_MS = 60_000;
 
 export default function PortalPermissionsSync() {
   const router = useRouter();
@@ -14,19 +12,34 @@ export default function PortalPermissionsSync() {
   useEffect(() => {
     if (pathname === "/login") return;
 
-    let lastRefreshAt = 0;
-    const refreshPermissions = () => {
-      if (document.visibilityState !== "visible") return;
-      const now = Date.now();
-      if (now - lastRefreshAt < REFRESH_COOLDOWN_MS) return;
-      lastRefreshAt = now;
-      router.refresh();
+    let checking = false;
+    let refreshRequested = false;
+
+    const checkForChanges = async () => {
+      if (checking || document.visibilityState !== "visible") return;
+      checking = true;
+      try {
+        const response = await fetch("/api/configuracoes/version", { cache: "no-store" });
+        if (!response.ok) return;
+        const result = await response.json() as { changed?: boolean };
+        if (result.changed && !refreshRequested) {
+          refreshRequested = true;
+          router.refresh();
+        } else if (!result.changed) {
+          refreshRequested = false;
+        }
+      } catch {
+        // A falha temporária na checagem não deve interromper o uso do Portal.
+      } finally {
+        checking = false;
+      }
     };
 
-    const interval = window.setInterval(refreshPermissions, PERMISSION_REFRESH_MS);
-    const onFocus = () => refreshPermissions();
+    void checkForChanges();
+    const interval = window.setInterval(() => void checkForChanges(), CHANGE_CHECK_MS);
+    const onFocus = () => void checkForChanges();
     const onVisibilityChange = () => {
-      if (document.visibilityState === "visible") refreshPermissions();
+      if (document.visibilityState === "visible") void checkForChanges();
     };
 
     window.addEventListener("focus", onFocus);

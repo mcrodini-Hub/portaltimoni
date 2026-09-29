@@ -73,10 +73,27 @@ export async function GET() {
         return notice.unit === "araras" ? member.unit === "Araras" : member.unit === "Rio Claro";
       });
       if (audience.length === 0) return false;
-      const readMembers = new Set(
-        reads.filter((read) => read.avisoId === notice.id).map((read) => readMemberKey(read.unit, read.employee)),
-      );
-      return audience.every((member) => readMembers.has(readMemberKey(member.unit, member.name)));
+      const noticeReads = reads.filter((read) => read.avisoId === notice.id);
+      const readMembers = new Set(noticeReads.map((read) => readMemberKey(read.unit, read.employee)));
+      if (audience.every((member) => readMembers.has(readMemberKey(member.unit, member.name)))) return true;
+
+      // Se o nome de um colaborador foi atualizado depois da confirmação,
+      // reconhece o total registrado por unidade sem expor a lista de nomes.
+      const audienceByUnit = new Map<string, Set<string>>();
+      for (const member of audience) {
+        const unitKey = normalizeReadIdentity(member.unit);
+        const keys = audienceByUnit.get(unitKey) ?? new Set<string>();
+        keys.add(normalizeReadIdentity(member.name));
+        audienceByUnit.set(unitKey, keys);
+      }
+      const readsByUnit = new Map<string, Set<string>>();
+      for (const read of noticeReads) {
+        const unitKey = normalizeReadIdentity(read.unit);
+        const names = readsByUnit.get(unitKey) ?? new Set<string>();
+        names.add(normalizeReadIdentity(read.employee));
+        readsByUnit.set(unitKey, names);
+      }
+      return [...audienceByUnit].every(([unit, members]) => readsByUnit.get(unit)?.size === members.size);
     }).map((notice) => notice.id);
     return NextResponse.json({ ok: true, completedAvisoIds });
   } catch (error) {

@@ -3,16 +3,18 @@ import type { JWT } from "next-auth/jwt";
 import Google from "next-auth/providers/google";
 import type { PortalUser } from "@/lib/access-control";
 import { getEffectivePortalUser, recordPortalAccess } from "@/lib/portal-config";
+import { getPortalConfigurationRevision } from "@/lib/portal-config-revision";
 
 const SESSION_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 const PORTAL_CONFIG_REFRESH_MS = 15_000;
-const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.GOOGLE_CLIENT_SECRET;
+export const AUTH_SECRET = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET || process.env.GOOGLE_CLIENT_SECRET;
 
 declare module "next-auth" {
   interface Session {
     accessToken?: string;
     error?: "RefreshAccessTokenError";
     portalUser?: PortalUser | null;
+    portalConfigRevision?: string;
   }
 }
 
@@ -24,6 +26,7 @@ declare module "next-auth/jwt" {
     error?: "RefreshAccessTokenError";
     portalUser?: PortalUser | null;
     portalConfigAt?: number;
+    portalConfigRevision?: string;
   }
 }
 
@@ -102,6 +105,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
     async jwt({ token, account }) {
       if (account) {
+        const portalConfigRevision = await getPortalConfigurationRevision();
         const configured = await getEffectivePortalUser(account.access_token, token.email);
         if (account.access_token && token.email) await recordPortalAccess(account.access_token, token.email);
         return {
@@ -112,6 +116,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           error: undefined,
           portalUser: configured,
           portalConfigAt: Date.now(),
+          portalConfigRevision,
         };
       }
 
@@ -120,11 +125,20 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         current = await refreshAccessToken(token);
       }
 
-      if (current.accessToken && (!current.portalConfigAt || Date.now() - current.portalConfigAt > PORTAL_CONFIG_REFRESH_MS)) {
+      if (
+        current.accessToken &&
+        (
+          !current.portalConfigAt ||
+          !current.portalConfigRevision ||
+          Date.now() - current.portalConfigAt > PORTAL_CONFIG_REFRESH_MS
+        )
+      ) {
+        const portalConfigRevision = await getPortalConfigurationRevision();
         current = {
           ...current,
           portalUser: await getEffectivePortalUser(current.accessToken, current.email),
           portalConfigAt: Date.now(),
+          portalConfigRevision,
         };
       }
 
@@ -134,6 +148,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       session.accessToken = token.accessToken;
       session.error = token.error;
       session.portalUser = token.portalUser;
+      session.portalConfigRevision = token.portalConfigRevision;
       return session;
     },
   },

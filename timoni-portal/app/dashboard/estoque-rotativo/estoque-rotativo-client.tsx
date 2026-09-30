@@ -206,7 +206,7 @@ export default function EstoqueRotativoClient() {
   const pendingSupplierFiles = useMemo(
     () => (data?.supplierFiles || [])
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" })),
-    [data?.supplierFiles, supplierUpdatedIds],
+    [data?.supplierFiles],
   );
   const selectedStandardizationSupplier = pendingSupplierFiles.find((item) => item.id === selectedStandardizationSupplierId) || null;
   const selectedPreparedSupplier = (data?.supplierStandardizations || []).find(
@@ -969,7 +969,7 @@ export default function EstoqueRotativoClient() {
             {visibleUpdates.length ? visibleUpdates.map((item) => (
               <article key={item.id} className="rounded-xl border border-slate-200 px-3 py-2.5 sm:px-4">
                 <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-                  <p className="min-w-0 shrink truncate text-sm font-semibold text-slate-950 sm:min-w-[150px]">{item.supplier_name} · {item.sheet_name}</p>
+                  <p className="min-w-0 shrink truncate text-sm font-semibold text-slate-950 sm:min-w-[150px]">{item.supplier_name}</p>
                   <p className="shrink-0 whitespace-nowrap text-xs text-slate-500">{formatDate(item.reported_at)}</p>
                   <p className="hidden min-w-0 flex-1 truncate text-xs text-slate-500 md:block">
                     {item.items_read} lidos · {item.found_count} divergências · {item.not_found_count} não encontrados · {item.unchanged_count} OK

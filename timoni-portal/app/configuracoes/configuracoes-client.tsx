@@ -307,6 +307,17 @@ export default function ConfiguracoesClient() {
         <button type="button" onClick={startNew} className="rounded-xl bg-[#13038D] px-4 py-2.5 text-sm font-semibold text-white">+ Colaborador</button>
       </header>
 
+      <section className="mb-3 grid grid-cols-2 gap-2">
+        <div className="rounded-2xl border border-blue-200 bg-blue-50 px-4 py-3">
+          <p className="text-2xl font-bold text-[#13038D]">{accessOptions.length}</p>
+          <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-blue-700">Acessos</p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white px-4 py-3">
+          <p className="text-2xl font-bold text-slate-950">{data.collaborators.filter((member) => member.active !== false).length}</p>
+          <p className="mt-0.5 text-xs font-semibold uppercase tracking-wide text-slate-500">Colaboradores</p>
+        </div>
+      </section>
+
       <section className="grid gap-2 rounded-2xl border border-slate-200 bg-white p-3 sm:grid-cols-3">
         <label className="text-xs font-semibold text-slate-600">
           Colaborador
@@ -332,9 +343,9 @@ export default function ConfiguracoesClient() {
       {error && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{error}</p>}
 
       {loading ? <p className="mt-5 text-sm text-slate-500">Carregando...</p> : (
-        <section className="mt-4 space-y-2">
+        <section className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
           {openId === "__new__" && draft && (
-            <article className="rounded-2xl border border-blue-200 bg-white shadow-sm">
+            <article className="rounded-2xl border border-blue-200 bg-white shadow-sm md:col-span-2 xl:col-span-4">
               <div className="px-4 py-3">
                 <p className="font-semibold text-slate-950">Novo colaborador</p>
               </div>
@@ -359,7 +370,7 @@ export default function ConfiguracoesClient() {
             const isEditing = editingId === key && draft;
             const labels = summaryModules(member);
             return (
-              <article key={key} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+              <article key={key} className={`overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm ${isOpen ? "md:col-span-2 xl:col-span-4" : ""}`}>
                 <button
                   type="button"
                   onClick={() => {
@@ -426,7 +437,7 @@ export default function ConfiguracoesClient() {
             );
           })}
 
-          {!visibleMembers.length && openId !== "__new__" && <p className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500">Nenhum colaborador encontrado.</p>}
+          {!visibleMembers.length && openId !== "__new__" && <p className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500 md:col-span-2 xl:col-span-4">Nenhum colaborador encontrado.</p>}
         </section>
       )}
     </div>

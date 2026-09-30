@@ -300,6 +300,22 @@ function documentoTexto(valor?: string) {
   return `NF ${texto}`;
 }
 
+function ordenarViagens(viagens: Viagem[]) {
+  return [...viagens].sort((a, b) =>
+    (a.horario || "").localeCompare(b.horario || "") ||
+    (a.loja || "").localeCompare(b.loja || "", "pt-BR") ||
+    a.id.localeCompare(b.id, "pt-BR"),
+  );
+}
+
+function estiloBoxViagem(v: Viagem) {
+  if (v.tipoHorario === "Bloqueio" || lerMetaMotorista(v.notasJson).tipo !== "Retirada") return undefined;
+  return {
+    backgroundColor: "rgba(246, 191, 38, 0.1)",
+    borderColor: "rgba(246, 191, 38, 0.42)",
+  };
+}
+
 function linhaPrincipalRelatorio(v: Viagem, index: number) {
   const tipo = lerMetaMotorista(v.notasJson).tipo;
   const partes = [
@@ -721,7 +737,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
     popup.document.close();
   }
 
-  const itensDia = (viagens[selecionado] || []).slice().sort((a, b) => (a.horario || "").localeCompare(b.horario || ""));
+  const itensDia = ordenarViagens(viagens[selecionado] || []);
   const dataSelecionada = dateFromString(selecionado);
 
   return (
@@ -775,7 +791,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
           <div className="mt-4 space-y-4">
             {diasSemana.map((d) => {
               const data = localDateString(d);
-              const itens = (viagens[data] || []).slice().sort((a, b) => (a.horario || "").localeCompare(b.horario || ""));
+              const itens = ordenarViagens(viagens[data] || []);
               return (
                 <section key={data} className={`rounded-2xl border bg-white p-4 ${data === hoje ? "border-blue-300 bg-blue-50/40" : "border-slate-200"}`}>
                   <button type="button" onClick={() => selecionarDia(data)} className="w-full text-left">
@@ -784,7 +800,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                   </button>
                   <div className="mt-3 space-y-2">
                     {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itens.length === 0 ? <p className="text-sm text-slate-400">Sem viagens.</p> : itens.map((v, index) => (
-                      <article key={v.id} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+                      <article key={v.id} style={estiloBoxViagem(v)} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
                         <p className="text-sm font-semibold text-slate-950">{linhaPrincipalRelatorio(v, index)}</p>
                         <p className="mt-2 text-sm font-bold uppercase text-slate-900">
                           {documentoTexto(v.numeroPedido)}
@@ -814,7 +830,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
         ) : modo === "dia" ? (
           <div className="mt-4 space-y-3">
             {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itensDia.length === 0 ? <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-400">Sem viagens neste dia.</p> : itensDia.map((v, index) => (
-              <article key={v.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+              <article key={v.id} style={estiloBoxViagem(v)} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="font-[Arial] text-[11pt] leading-[1.35]">
                     <p className="font-semibold text-slate-950">{linhaPrincipalRelatorio(v, index)}</p>

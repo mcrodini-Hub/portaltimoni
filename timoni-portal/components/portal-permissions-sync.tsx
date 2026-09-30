@@ -12,7 +12,7 @@ export default function PortalPermissionsSync() {
   const pathname = usePathname();
 
   useEffect(() => {
-    if (pathname === "/login") return;
+    if (pathname === "/login" || pathname === "/dashboard/estoque-rotativo") return;
 
     let checking = false;
     let lastSeenRevision: string | null = null;

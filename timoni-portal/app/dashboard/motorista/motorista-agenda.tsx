@@ -87,7 +87,17 @@ const REQUIRED: Array<keyof FormState> = [
   "numeroEndereco",
 ];
 
-function localDateString(d = new Date()) {
+function localDateString(d?: Date) {
+  if (!d) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+    const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  }
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -382,9 +392,9 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
   const hoje = localDateString();
   const [modo, setModo] = useState<Modo>("dia");
   const [selecionado, setSelecionado] = useState(hoje);
-  const [mesBase, setMesBase] = useState(() => new Date());
+  const [mesBase, setMesBase] = useState(() => dateFromString(hoje));
   const [viagens, setViagens] = useState<Record<string, Viagem[]>>({});
-  const [form, setForm] = useState<FormState>(() => emptyForm());
+  const [form, setForm] = useState<FormState>(() => emptyForm(hoje));
   const [modal, setModal] = useState(false);
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);

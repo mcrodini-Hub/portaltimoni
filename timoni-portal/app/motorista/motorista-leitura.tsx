@@ -23,11 +23,26 @@ type Viagem = {
   notasJson?: string;
 };
 
-function localDateString(d = new Date()) {
+function localDateString(d?: Date) {
+  if (!d) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: "America/Sao_Paulo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+    }).formatToParts(new Date());
+    const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+    return `${values.year}-${values.month}-${values.day}`;
+  }
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
+}
+
+function dateFromString(value: string) {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, month - 1, day);
 }
 
 function nextDays(start: Date) {
@@ -137,7 +152,7 @@ function concluida(notasJson?: string) {
 }
 
 export default function MotoristaLeitura() {
-  const [inicio, setInicio] = useState(() => new Date());
+  const [inicio, setInicio] = useState(() => dateFromString(localDateString()));
   const [viagens, setViagens] = useState<Record<string, Viagem[]>>({});
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
@@ -201,7 +216,7 @@ export default function MotoristaLeitura() {
             </div>
             <div className="flex gap-2">
               <button type="button" onClick={() => setInicio((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - 7))} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700">← 7 dias</button>
-              <button type="button" onClick={() => setInicio(new Date())} className="rounded-lg bg-blue-800 px-3 py-2 text-sm font-semibold text-white">Hoje</button>
+              <button type="button" onClick={() => setInicio(dateFromString(localDateString())) className="rounded-lg bg-blue-800 px-3 py-2 text-sm font-semibold text-white">Hoje</button>
               <button type="button" onClick={() => setInicio((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7))} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700">+ 7 dias</button>
             </div>
           </div>

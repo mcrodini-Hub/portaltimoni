@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Status = "aguardando_mapeamento" | "aguardando_conferencia" | "em_conferencia" | "atualizado";
 type Situation = "encontrado" | "nao_encontrado" | "sem_alteracao";
@@ -138,7 +138,10 @@ export default function EstoqueRotativoClient() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [standardizingSupplier, setStandardizingSupplier] = useState(false);
   const [selectedStandardizationSupplierId, setSelectedStandardizationSupplierId] = useState("");
-  const [showStandardizationSupplierSelector, setShowStandardizationSupplierSelector] = useState(false);
+  const [standardizationSheetNames, setStandardizationSheetNames] = useState<string[]>([]);
+  const [standardizationSheetName, setStandardizationSheetName] = useState("");
+  const [loadingStandardizationSheets, setLoadingStandardizationSheets] = useState(false);
+  const standardizationRequest = useRef(0);
 
   const load = useCallback(async (id?: string | null) => {
     setLoading(true); setError("");
@@ -194,21 +197,14 @@ export default function EstoqueRotativoClient() {
   );
   const pending = trelloSuppliers.length || registeredPendingNames.size;
   const stockUpdated = data?.updates.filter((item) => item.status === "atualizado").length || 0;
-  const supplierUpdatedIds = useMemo(
-    () => new Set((data?.supplierStandardizations || []).filter((item) => item.status === "atualizada").map((item) => item.spreadsheet_id)),
-    [data?.supplierStandardizations],
-  );
-  const supplierUpdated = supplierUpdatedIds.size;
-  const supplierPending = Math.max(0, (data?.supplierFiles?.length || 0) - supplierUpdated);
   const pendingSupplierFiles = useMemo(
     () => (data?.supplierFiles || [])
-      .filter((item) => !supplierUpdatedIds.has(item.id))
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" })),
-    [data?.supplierFiles, supplierUpdatedIds],
+    [data?.supplierFiles],
   );
   const selectedStandardizationSupplier = pendingSupplierFiles.find((item) => item.id === selectedStandardizationSupplierId) || null;
   const selectedPreparedSupplier = (data?.supplierStandardizations || []).find(
-    (item) => item.spreadsheet_id === selectedStandardizationSupplierId && item.status === "preparada",
+    (item) => item.spreadsheet_id === selectedStandardizationSupplierId && item.sheet_name === standardizationSheetName && item.status === "preparada",
   ) || null;
 
   async function post(body: Record<string, unknown>) {
@@ -224,12 +220,46 @@ export default function EstoqueRotativoClient() {
     } finally { setBusy(false); }
   }
 
+  async function selectStandardizationSupplier(spreadsheetId: string) {
+    const requestId = ++standardizationRequest.current;
+    setSelectedStandardizationSupplierId(spreadsheetId);
+    setStandardizationSheetName("");
+    setStandardizationSheetNames([]);
+    if (!spreadsheetId) { setLoadingStandardizationSheets(false); return; }
+    setLoadingStandardizationSheets(true);
+    try {
+      const response = await fetch(`/api/estoque-rotativo?spreadsheetReference=${encodeURIComponent(spreadsheetId)}`, { cache: "no-store" });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Não foi possível listar as abas.");
+      if (requestId !== standardizationRequest.current) return;
+      const names: string[] = (result.sheetNames || []).filter((name: string) => !name.toLowerCase().includes("bkp"));
+      setStandardizationSheetNames(names);
+      if (names.length === 1) setStandardizationSheetName(names[0]);
+    } catch (cause) {
+      if (requestId === standardizationRequest.current) setError(cause instanceof Error ? cause.message : "Não foi possível listar as abas.");
+    } finally {
+      if (requestId === standardizationRequest.current) setLoadingStandardizationSheets(false);
+    }
+  }
+
+  function selectSourceSheetName(sheetName: string) {
+    setSourceSheetName(sheetName);
+    const mapping = data?.suppliers.find((item) => spreadsheetReference.includes(item.spreadsheet_id) && item.sheet_name === sheetName);
+    if (!mapping) return;
+    setSourceCodeColumn(columnLetterFromIndex(mapping.code_column));
+    setSourceDescriptionColumn(columnLetterFromIndex(mapping.description_column));
+    setSourceStockColumn(columnLetterFromIndex(mapping.stock_column));
+    setSourceStartRow(startRowFromRange(mapping.data_range));
+    if (data?.supplierStandardizations.some((item) => item.spreadsheet_id === mapping.spreadsheet_id && item.sheet_name === sheetName && item.status === "atualizada")) setSourcePurchaseCodeColumn("B");
+  }
+
   async function standardizeNextSupplier(spreadsheetId?: string) {
     setStandardizingSupplier(true);
     const verificationWindow = window.open("about:blank", "_blank");
     const result = await post({
       action: "padronizar_proxima_planilha",
       spreadsheetId: spreadsheetId || undefined,
+      sheetName: standardizationSheetName,
     });
     setStandardizingSupplier(false);
     if (!result) {
@@ -251,7 +281,7 @@ export default function EstoqueRotativoClient() {
     setFeedback(`Planilha ${result.supplierName} pronta para conferência. Confira a planilha aberta e depois marque como atualizada.`);
     if (result.spreadsheetId) {
       setSelectedStandardizationSupplierId(String(result.spreadsheetId));
-      setShowStandardizationSupplierSelector(true);
+      setStandardizationSheetName(String(result.sheetName || ""));
     }
     await load();
   }
@@ -261,6 +291,7 @@ export default function EstoqueRotativoClient() {
     const result = await post({
       action: "confirmar_planilha_fornecedor",
       spreadsheetId: selectedPreparedSupplier.spreadsheet_id,
+      sheetName: selectedPreparedSupplier.sheet_name,
     });
     if (!result) return;
     setFeedback(`${result.supplierName} aprovada. O destaque amarelo de revisão foi removido.`);
@@ -269,8 +300,8 @@ export default function EstoqueRotativoClient() {
 
   async function removeSupplierStandardization(item: SupplierStandardization) {
     if (!data?.permissions.canManage || item.status !== "atualizada") return;
-    if (!window.confirm(`Excluir ${item.supplier_name} dos fornecedores padronizados para refazer o teste?`)) return;
-    const result = await post({ action: "excluir_fornecedor_padronizado", spreadsheetId: item.spreadsheet_id });
+    if (!window.confirm(`Excluir o padrão de ${item.supplier_name} · ${item.sheet_name}?`)) return;
+    const result = await post({ action: "excluir_fornecedor_padronizado", spreadsheetId: item.spreadsheet_id, sheetName: item.sheet_name });
     if (!result) return;
     setFeedback(`${item.supplier_name} voltou para Padronizar fornecedor.`);
     await load();
@@ -486,10 +517,8 @@ export default function EstoqueRotativoClient() {
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-2 sm:gap-3 xl:grid-cols-4">
+      <section className="grid grid-cols-2 gap-2 sm:gap-3">
         {[
-          ["Padronizar fornecedor", supplierPending],
-          ["Fornecedor padronizado", supplierUpdated],
           ["Estoque atual pendente", pending],
           ["Estoque atual atualizado", stockUpdated],
         ].map(([label, value]) => (
@@ -511,111 +540,80 @@ export default function EstoqueRotativoClient() {
       ) : null}
 
       {data?.permissions.canManage ? (
-        <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">1. Padronizar fornecedores</p>
-              <h2 className="mt-2 text-xl font-semibold text-slate-950">Uma planilha por vez</h2>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                onClick={() => void load()}
-                disabled={loading || busy || standardizingSupplier}
-                className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50"
-              >
-                {loading ? "Atualizando..." : "Atualizar"}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setShowStandardizationSupplierSelector((value) => !value);
-                  setSelectedStandardizationSupplierId("");
-                }}
-                disabled={busy || standardizingSupplier}
-                className="rounded-xl border border-blue-200 px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50"
-              >
-                Selecionar empresa
-              </button>
-            </div>
+        <details onToggle={(event) => {
+          if (!event.currentTarget.open || selectedStandardizationSupplierId) return;
+          const supplier = pendingSupplierFiles.find((item) => spreadsheetReference.includes(item.id) || item.name.toLocaleLowerCase("pt-BR") === supplierName.trim().toLocaleLowerCase("pt-BR"));
+          if (supplier) void selectStandardizationSupplier(supplier.id);
+        }} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
+          <summary className="cursor-pointer text-base font-semibold text-[#13038D]">Padronização das planilhas</summary>
+          <p className="mt-3 text-sm text-slate-600">Selecione a aba. O Portal identifica as colunas e guarda o padrão por fornecedor e aba.</p>
+          <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
+            <label className="min-w-0 text-sm font-semibold text-slate-800">Fornecedor
+              <select value={selectedStandardizationSupplierId} onChange={(event) => void selectStandardizationSupplier(event.target.value)} disabled={busy || standardizingSupplier} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">
+                <option value="">Selecione...</option>
+                {pendingSupplierFiles.map((supplier) => <option key={supplier.id} value={supplier.id}>{supplier.name}</option>)}
+              </select>
+            </label>
+            <label className="min-w-0 text-sm font-semibold text-slate-800">Aba da planilha
+              <select value={standardizationSheetName} onChange={(event) => setStandardizationSheetName(event.target.value)} disabled={busy || standardizingSupplier || loadingStandardizationSheets || !selectedStandardizationSupplierId} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm disabled:bg-slate-100">
+                <option value="">{loadingStandardizationSheets ? "Carregando abas..." : "Selecione a aba..."}</option>
+                {standardizationSheetNames.map((name) => <option key={name} value={name}>{name}{data.supplierStandardizations.some((item) => item.spreadsheet_id === selectedStandardizationSupplierId && item.sheet_name === name && item.status === "atualizada") ? " — Padronizada ✓" : ""}</option>)}
+              </select>
+            </label>
           </div>
-
-          {showStandardizationSupplierSelector && pendingSupplierFiles.length ? (
-            <div className="mt-3 rounded-2xl border border-slate-200 p-3 sm:mt-4 sm:p-5">
-              <label className="block text-sm font-semibold text-slate-800">
-                Empresa
-                <select
-                  value={selectedStandardizationSupplierId}
-                  onChange={(event) => setSelectedStandardizationSupplierId(event.target.value)}
-                  disabled={busy || standardizingSupplier}
-                  className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm disabled:bg-slate-100"
-                >
-                  <option value="">Selecione...</option>
-                  {pendingSupplierFiles.map((supplier) => (
-                    <option key={supplier.id} value={supplier.id}>{supplier.name}</option>
-                  ))}
-                </select>
-              </label>
-              {selectedStandardizationSupplier ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {selectedPreparedSupplier ? (
-                    <>
+          {selectedStandardizationSupplier && standardizationSheetName ? (
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {data.supplierStandardizations.some((item) => item.spreadsheet_id === selectedStandardizationSupplierId && item.sheet_name === standardizationSheetName && item.status === "atualizada") ? (
+                <span className="text-sm font-semibold text-emerald-700">Padronizada ✓</span>
+              ) : selectedPreparedSupplier ? (
+                <>
+                  <a href={selectedPreparedSupplier.spreadsheet_url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-[#13038D] underline">Abrir aba para conferir</a>
+                  <button type="button" onClick={() => void confirmSupplierSheet()} disabled={busy} className="min-h-11 rounded-xl bg-[#13038D] px-4 text-sm font-semibold text-white disabled:opacity-50">Salvar padronização</button>
+                </>
+              ) : (
+                <button type="button" onClick={() => void standardizeNextSupplier(selectedStandardizationSupplier.id)} disabled={busy || standardizingSupplier} className="min-h-11 rounded-xl bg-[#13038D] px-4 text-sm font-semibold text-white disabled:opacity-50">{standardizingSupplier ? "Padronizando..." : "Padronizar e conferir"}</button>
+              )}
+            </div>
+          ) : null}
+        <div className="mt-5 border-t border-slate-200 pt-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Planilhas de fornecedores</p>
+            <h2 className="mt-1 text-xl font-semibold text-slate-950">Abas padronizadas</h2>
+          </div>
+          <div className="mt-3 space-y-2">
+            {(data.supplierStandardizations || []).filter((item) => item.status === "atualizada").length ? (
+              (data.supplierStandardizations || [])
+                .filter((item) => item.status === "atualizada")
+                .map((item) => (
+                  <div key={`${item.spreadsheet_id}:${item.sheet_name}`} className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 sm:px-4">
+                    <p className="min-w-0 shrink truncate text-sm font-semibold text-slate-950 sm:min-w-[150px]">{item.supplier_name} · {item.sheet_name}</p>
+                    <p className="shrink-0 whitespace-nowrap text-xs text-slate-500">{item.confirmed_at ? formatDate(item.confirmed_at) : ""}</p>
+                    <div className="ml-auto flex shrink-0 items-center gap-2">
                       <a
-                        href={selectedPreparedSupplier.spreadsheet_url}
+                        href={item.spreadsheet_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex min-h-9 items-center rounded-lg bg-blue-800 px-3 text-sm font-semibold text-white"
-                      >
-                        Abrir planilha para verificar
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => void standardizeNextSupplier(selectedStandardizationSupplier.id)}
-                        disabled={busy || standardizingSupplier}
-                        className="min-h-11 rounded-xl border border-blue-200 px-4 text-sm font-semibold text-blue-800 disabled:opacity-50"
-                      >
-                        {standardizingSupplier ? "Padronizando..." : "Padronizar novamente"}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void confirmSupplierSheet()}
-                        disabled={busy}
-                        className="min-h-11 rounded-xl bg-emerald-700 px-4 text-sm font-semibold text-white disabled:opacity-50"
-                      >
-                        Marcar planilha como atualizada
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <a
-                        href={selectedStandardizationSupplier.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex min-h-11 items-center rounded-xl border border-blue-200 px-4 text-sm font-semibold text-blue-800"
+                        className="whitespace-nowrap text-sm font-semibold text-blue-800 underline"
                       >
                         Abrir planilha
                       </a>
                       <button
                         type="button"
-                        onClick={() => void standardizeNextSupplier(selectedStandardizationSupplier.id)}
-                        disabled={busy || standardizingSupplier}
-                        className="min-h-11 rounded-xl bg-blue-800 px-5 text-sm font-semibold text-white disabled:bg-slate-300"
+                        onClick={() => void removeSupplierStandardization(item)}
+                        disabled={busy}
+                        className="min-h-9 rounded-lg border border-red-200 px-2.5 text-sm font-semibold text-red-700 disabled:opacity-50"
                       >
-                        {standardizingSupplier ? "Padronizando..." : "Padronizar e abrir"}
+                        Excluir
                       </button>
-                    </>
-                  )}
-                </div>
-              ) : null}
-            </div>
-          ) : null}
-
-          {!pendingSupplierFiles.length ? (
-            <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800 sm:p-5">
-              Todas as planilhas de fornecedores estão atualizadas.
-            </p>
-          ) : null}
-        </section>
+                    </div>
+                  </div>
+                ))
+            ) : (
+              <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">Nenhuma planilha padronizada e confirmada ainda.</p>
+            )}
+          </div>
+        </div>
+        </details>
       ) : null}
 
       {data?.permissions.canReport ? (
@@ -734,7 +732,7 @@ export default function EstoqueRotativoClient() {
                 <span className="block h-5 whitespace-nowrap">Aba</span>
                 <input
                   value={sourceSheetName}
-                  onChange={(event) => setSourceSheetName(event.target.value)}
+                  onChange={(event) => selectSourceSheetName(event.target.value)}
                   placeholder={detectingSheet ? "Identificando..." : "Preencha somente se houver mais de uma aba"}
                   className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
                 />
@@ -1081,7 +1079,7 @@ export default function EstoqueRotativoClient() {
                         Aba
                         <input
                           value={sourceSheetName}
-                          onChange={(event) => setSourceSheetName(event.target.value)}
+                          onChange={(event) => selectSourceSheetName(event.target.value)}
                           className="mt-1 min-h-9 w-full rounded-lg border border-slate-300 bg-white px-2.5 py-1.5 text-sm"
                         />
                       </label>
@@ -1139,46 +1137,7 @@ export default function EstoqueRotativoClient() {
           </div>
         </section>
       ) : null}
-      {data?.permissions.canManage ? (
-        <section className="order-1 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">Planilhas de fornecedores</p>
-            <h2 className="mt-1 text-xl font-semibold text-slate-950">Planilha padronizada</h2>
-          </div>
-          <div className="mt-3 space-y-2">
-            {(data.supplierStandardizations || []).filter((item) => item.status === "atualizada").length ? (
-              (data.supplierStandardizations || [])
-                .filter((item) => item.status === "atualizada")
-                .map((item) => (
-                  <div key={item.spreadsheet_id} className="flex min-w-0 items-center gap-2 rounded-xl border border-slate-200 px-3 py-2.5 sm:px-4">
-                    <p className="min-w-0 shrink truncate text-sm font-semibold text-slate-950 sm:min-w-[150px]">{item.supplier_name}</p>
-                    <p className="shrink-0 whitespace-nowrap text-xs text-slate-500">{item.confirmed_at ? formatDate(item.confirmed_at) : ""}</p>
-                    <div className="ml-auto flex shrink-0 items-center gap-2">
-                      <a
-                        href={item.spreadsheet_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="whitespace-nowrap text-sm font-semibold text-blue-800 underline"
-                      >
-                        Abrir planilha
-                      </a>
-                      <button
-                        type="button"
-                        onClick={() => void removeSupplierStandardization(item)}
-                        disabled={busy}
-                        className="min-h-9 rounded-lg border border-red-200 px-2.5 text-sm font-semibold text-red-700 disabled:opacity-50"
-                      >
-                        Excluir
-                      </button>
-                    </div>
-                  </div>
-                ))
-            ) : (
-              <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-500">Nenhuma planilha padronizada e confirmada ainda.</p>
-            )}
-          </div>
-        </section>
-      ) : null}
+
       </div>
 
     </div>

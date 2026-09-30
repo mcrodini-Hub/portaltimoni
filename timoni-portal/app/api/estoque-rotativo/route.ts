@@ -779,6 +779,7 @@ function appendPreservedValue(row: SheetValue[], value: SheetValue, startAt = 5)
 async function standardizeSupplierSpreadsheet(
   sheets: sheets_v4.Sheets,
   file: { id: string; name: string; url: string },
+  requestedSheetName: string,
 ) {
   const metadata = await sheets.spreadsheets.get({
     spreadsheetId: file.id,
@@ -787,7 +788,8 @@ async function standardizeSupplierSpreadsheet(
   const candidates = (metadata.data.sheets || [])
     .sort((a, b) => (a.properties?.index || 0) - (b.properties?.index || 0))
     .filter((sheet) => sheet.properties?.title && sheet.properties?.sheetId !== undefined)
-    .filter((sheet) => !normalizeHeader(sheet.properties!.title!).includes("bkp"));
+    .filter((sheet) => !normalizeHeader(sheet.properties!.title!).includes("bkp"))
+    .filter((sheet) => sheet.properties!.title === requestedSheetName);
   if (!candidates.length) throw new Error(`${file.name}: nenhuma aba principal disponível para padronização.`);
 
   let selected: {
@@ -802,7 +804,7 @@ async function standardizeSupplierSpreadsheet(
     conditionalFormatCount: number;
   } | null = null;
 
-  for (const sheet of candidates.slice(0, 8)) {
+  for (const sheet of candidates) {
     const title = sheet.properties!.title!;
     const rowCount = Math.max(1, sheet.properties?.gridProperties?.rowCount || 1000);
     const columnCount = Math.max(5, sheet.properties?.gridProperties?.columnCount || 26);
@@ -1637,36 +1639,20 @@ export async function POST(request: Request) {
       requireRole(email, "manage");
       const snapshot = await listRotatingStockData();
       const requestedSpreadsheetId = String(body.spreadsheetId || "").trim();
-      const prepared = snapshot.supplierStandardizations.find(
-        (item) => item.status === "preparada" && (!requestedSpreadsheetId || item.spreadsheet_id === requestedSpreadsheetId),
+      const requestedSheetName = String(body.sheetName || "").trim();
+      if (!requestedSheetName) throw new Error("Selecione a aba da planilha.");
+      const next = SUPPLIER_SPREADSHEETS.find((item) => item.id === requestedSpreadsheetId);
+      if (!next) throw new Error("Fornecedor não identificado.");
+      const existing = snapshot.supplierStandardizations.find(
+        (item) => item.spreadsheet_id === next.id && item.sheet_name === requestedSheetName,
       );
-      // Sem seleção explícita, mantém o fluxo atual e reabre a planilha já preparada.
-      // Com fornecedor selecionado, executa novamente a padronização sobre a própria aba principal.
-      if (prepared && !requestedSpreadsheetId) {
-        return NextResponse.json({
-          ok: true,
-          awaitingReview: true,
-          spreadsheetId: prepared.spreadsheet_id,
-          supplierName: prepared.supplier_name,
-          spreadsheetUrl: prepared.spreadsheet_url,
-          sheetName: prepared.sheet_name,
-        });
+      if (existing?.status === "atualizada") throw new Error("Esta aba já está padronizada.");
+      if (existing?.status === "preparada") {
+        return NextResponse.json({ ok: true, awaitingReview: true,
+          spreadsheetId: existing.spreadsheet_id, supplierName: existing.supplier_name,
+          spreadsheetUrl: existing.spreadsheet_url, sheetName: existing.sheet_name });
       }
-      const updatedIds = new Set(
-        snapshot.supplierStandardizations
-          .filter((item) => item.status === "atualizada")
-          .map((item) => item.spreadsheet_id),
-      );
-      const pendingFiles = [...SUPPLIER_SPREADSHEETS]
-        .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base", numeric: true }))
-        .filter((item) => !updatedIds.has(item.id));
-      const next = requestedSpreadsheetId
-        ? pendingFiles.find((item) => item.id === requestedSpreadsheetId)
-        : pendingFiles[0];
-      if (requestedSpreadsheetId && !next) throw new Error("Fornecedor selecionado não está pendente de padronização.");
-      if (!next) return NextResponse.json({ ok: true, complete: true });
-
-      const standardized = await standardizeSupplierSpreadsheet(sheets, next);
+      const standardized = await standardizeSupplierSpreadsheet(sheets, next, requestedSheetName);
       await prepareSupplierStandardization({
         spreadsheetId: standardized.spreadsheetId,
         supplierName: standardized.supplierName,
@@ -1683,10 +1669,10 @@ export async function POST(request: Request) {
       if (!spreadsheetId) throw new Error("Planilha não identificada.");
       const snapshot = await listRotatingStockData();
       const prepared = snapshot.supplierStandardizations.find(
-        (item) => item.spreadsheet_id === spreadsheetId && item.status === "preparada",
+        (item) => item.spreadsheet_id === spreadsheetId && item.sheet_name === String(body.sheetName || "").trim() && item.status === "preparada",
       );
       if (!prepared) throw new Error("Esta planilha não está aguardando conferência.");
-      if (!(await confirmSupplierStandardization(spreadsheetId, email))) throw new Error("Não foi possível confirmar a planilha.");
+      if (!(await confirmSupplierStandardization(spreadsheetId, email, prepared.sheet_name))) throw new Error("Não foi possível confirmar a planilha.");
       await clearSupplierReviewHighlight(sheets, spreadsheetId, prepared.sheet_name);
 
       const mappingId = await saveSupplierMapping({
@@ -1699,7 +1685,7 @@ export async function POST(request: Request) {
         stockColumn: 3,
         actor: email,
       });
-      await attachSupplierToWaitingUpdates(mappingId, spreadsheetId, prepared.supplier_name);
+      await attachSupplierToWaitingUpdates(mappingId, spreadsheetId, prepared.supplier_name, prepared.sheet_name);
       return NextResponse.json({ ok: true, supplierName: prepared.supplier_name });
     }
 
@@ -1707,7 +1693,7 @@ export async function POST(request: Request) {
       requireRole(email, "manage");
       const spreadsheetId = String(body.spreadsheetId || "").trim();
       if (!spreadsheetId) throw new Error("Planilha não identificada.");
-      if (!(await deleteSupplierStandardization(spreadsheetId))) {
+      if (!(await deleteSupplierStandardization(spreadsheetId, String(body.sheetName || "").trim()))) {
         throw new Error("Fornecedor padronizado não encontrado.");
       }
       return NextResponse.json({ ok: true });

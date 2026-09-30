@@ -235,6 +235,23 @@ export async function ensureRotatingStockSchema() {
         )
       `;
       await sql`
+        DO $$
+        BEGIN
+          PERFORM pg_advisory_xact_lock(1790793101);
+          IF EXISTS (
+            SELECT 1 FROM pg_constraint
+            WHERE conrelid = 'portal_rotating_stock_supplier_standardizations'::regclass
+              AND conname = 'portal_rotating_stock_supplier_standardizations_pkey'
+              AND array_length(conkey, 1) = 1
+          ) THEN
+            ALTER TABLE portal_rotating_stock_supplier_standardizations
+              DROP CONSTRAINT portal_rotating_stock_supplier_standardizations_pkey;
+            ALTER TABLE portal_rotating_stock_supplier_standardizations
+              ADD PRIMARY KEY (spreadsheet_id, sheet_name);
+          END IF;
+        END $$
+      `;
+      await sql`
         CREATE TABLE IF NOT EXISTS portal_rotating_stock_migrations (
           key TEXT PRIMARY KEY,
           applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -437,12 +454,13 @@ export async function saveSupplierMapping(input: {
   return String((rows[0] as { id: string }).id);
 }
 
-export async function attachSupplierToWaitingUpdates(supplierId: string, spreadsheetId: string, supplierName: string) {
+export async function attachSupplierToWaitingUpdates(supplierId: string, spreadsheetId: string, supplierName: string, sheetName?: string) {
   const sql = getDatabase();
   await sql`
     UPDATE portal_rotating_stock_updates
     SET supplier_id = ${supplierId}::BIGINT, status = 'aguardando_conferencia'
     WHERE status = 'aguardando_mapeamento'
+      AND (${sheetName || ""} = '' OR source_sheet_name = ${sheetName || ""})
       AND (LOWER(supplier_name) = LOWER(${supplierName}) OR spreadsheet_link LIKE ${`%${spreadsheetId}%`})
   `;
 }
@@ -682,7 +700,7 @@ export async function prepareSupplierStandardization(input: {
     VALUES
       (${input.spreadsheetId}, ${input.supplierName}, ${input.spreadsheetUrl}, ${input.sheetName},
        'preparada', NOW(), ${input.actor}, NULL, NULL)
-    ON CONFLICT (spreadsheet_id) DO UPDATE SET
+    ON CONFLICT (spreadsheet_id, sheet_name) DO UPDATE SET
       supplier_name = EXCLUDED.supplier_name,
       spreadsheet_url = EXCLUDED.spreadsheet_url,
       sheet_name = EXCLUDED.sheet_name,
@@ -694,13 +712,13 @@ export async function prepareSupplierStandardization(input: {
   `;
 }
 
-export async function confirmSupplierStandardization(spreadsheetId: string, actor: string) {
+export async function confirmSupplierStandardization(spreadsheetId: string, actor: string, sheetName: string) {
   await ensureRotatingStockSchema();
   const sql = getDatabase();
   const rows = await sql`
     UPDATE portal_rotating_stock_supplier_standardizations
     SET status = 'atualizada', confirmed_at = NOW(), confirmed_by = ${actor}
-    WHERE spreadsheet_id = ${spreadsheetId}
+    WHERE spreadsheet_id = ${spreadsheetId} AND sheet_name = ${sheetName}
       AND status = 'preparada'
     RETURNING spreadsheet_id
   ` as unknown as Array<{ spreadsheet_id: string }>;
@@ -708,13 +726,13 @@ export async function confirmSupplierStandardization(spreadsheetId: string, acto
 }
 
 
-export async function deleteSupplierStandardization(spreadsheetId: string) {
+export async function deleteSupplierStandardization(spreadsheetId: string, sheetName: string) {
   await ensureRotatingStockSchema();
   const sql = getDatabase();
   const existing = await sql`
     SELECT spreadsheet_id
     FROM portal_rotating_stock_supplier_standardizations
-    WHERE spreadsheet_id = ${spreadsheetId}
+    WHERE spreadsheet_id = ${spreadsheetId} AND sheet_name = ${sheetName}
       AND status = 'atualizada'
     LIMIT 1
   ` as unknown as Array<{ spreadsheet_id: string }>;
@@ -724,11 +742,11 @@ export async function deleteSupplierStandardization(spreadsheetId: string) {
     UPDATE portal_rotating_stock_updates
     SET supplier_id = NULL
     WHERE supplier_id IN (
-      SELECT id FROM portal_rotating_stock_suppliers WHERE spreadsheet_id = ${spreadsheetId}
+      SELECT id FROM portal_rotating_stock_suppliers WHERE spreadsheet_id = ${spreadsheetId} AND sheet_name = ${sheetName}
     )
   `;
-  await sql`DELETE FROM portal_rotating_stock_suppliers WHERE spreadsheet_id = ${spreadsheetId}`;
-  await sql`DELETE FROM portal_rotating_stock_supplier_standardizations WHERE spreadsheet_id = ${spreadsheetId} AND status = 'atualizada'`;
+  await sql`DELETE FROM portal_rotating_stock_suppliers WHERE spreadsheet_id = ${spreadsheetId} AND sheet_name = ${sheetName}`;
+  await sql`DELETE FROM portal_rotating_stock_supplier_standardizations WHERE spreadsheet_id = ${spreadsheetId} AND sheet_name = ${sheetName} AND status = 'atualizada'`;
   return true;
 }
 

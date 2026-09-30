@@ -57,25 +57,23 @@ type FormState = {
 type Modo = "dia" | "semana" | "mes";
 
 type VendedorOption = { nome: string; unidade: string };
-type ResponsavelOption = { email: string; name: string; unit: string };
-
-const RESPONSAVEIS_RIO_CLARO = [
-  { value: "Ciça", label: "Ciça" },
-  { value: "Jaqueline", label: "Jaqueline" },
-  { value: "Jeovana", label: "Jeovana" },
-  { value: "Marcelo", label: "Marcelo" },
-  { value: "Vendedores - Rio Claro", label: "Vendedores - Rio Claro" },
+const RESPONSAVEIS_RIO_CLARO: string[] = [
+  "Ciça",
+  "Bruna",
+  "Jeovana",
+  "Jaqueline",
+  "Marcelo",
 ];
 
-const ARARAS_EMAILS_EXCLUIDOS = new Set([
-  "fotoscasatimoni@gmail.com",
-  "estoqueararascasatimoni@gmail.com",
-  "margareth@casatimoni.com.br",
-]);
-
-function normalizarUnidade(value: string) {
-  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
-}
+const RESPONSAVEIS_ARARAS: string[] = [
+  "Reginaldo",
+  "Margareth",
+  "Reinaldo",
+  "Paulo",
+  "Carol",
+  "Lyra",
+  "Yan",
+];
 
 const REQUIRED: Array<keyof FormState> = [
   "tipo",
@@ -395,7 +393,6 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
   const [aviso, setAviso] = useState("");
   const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());
   const [opcoesVendedores, setOpcoesVendedores] = useState<VendedorOption[]>([]);
-  const [responsaveis, setResponsaveis] = useState<ResponsavelOption[]>([]);
 
   const diasMes = useMemo(() => monthDays(mesBase), [mesBase]);
   const diasSemana = useMemo(() => weekDays(selecionado), [selecionado]);
@@ -416,33 +413,6 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
     return [...nomes.values()].sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
   }, [opcoesVendedores]);
 
-  const responsaveisAraras = useMemo(() => {
-    const emailsAraras = new Set([
-      "comercialara@casatimoni.com.br",
-      "reginaldo@casatimoni.com.br",
-      "estoqueararascasatimoni@gmail.com",
-      "casatimoniararas@gmail.com",
-      "fotoscasatimoni@gmail.com",
-    ]);
-    return responsaveis
-      .filter((pessoa) => {
-        const email = String(pessoa.email || "").trim().toLowerCase();
-        const identidade = `${email} ${pessoa.name || ""}`.toLowerCase();
-        const unidade = normalizarUnidade(String(pessoa.unit || ""));
-        const pertenceAraras =
-          unidade === "araras" ||
-          normalizarUnidade(String(pessoa.name || "")).includes("araras") ||
-          emailsAraras.has(email);
-        const excluido =
-          /lucas|margareth/i.test(identidade) ||
-          ARARAS_EMAILS_EXCLUIDOS.has(email);
-        return pertenceAraras && !excluido;
-      })
-      .map((pessoa) => String(pessoa.name || "").trim())
-      .filter((nome, index, nomes) => Boolean(nome) && nomes.findIndex((item) => item.toLocaleLowerCase("pt-BR") === nome.toLocaleLowerCase("pt-BR")) === index)
-      .sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
-  }, [responsaveis]);
-
   useEffect(() => {
     let ativo = true;
     void fetch("/api/agenda-motorista-vendedores", { cache: "no-store" })
@@ -450,7 +420,6 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
       .then((body) => {
         if (!ativo) return;
         setOpcoesVendedores(Array.isArray(body.vendedores) ? body.vendedores : []);
-        setResponsaveis(Array.isArray(body.responsaveis) ? body.responsaveis : []);
       })
       .catch(() => {
         // A agenda continua disponível; a rota já entrega listas de contingência quando a planilha falha.
@@ -928,7 +897,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
             </div>
 
             <div className="mt-4">
-              <label className="block text-sm font-medium text-slate-700">Preenchido por:<select value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} className={fieldClass("preenchidoPor")}><option value="">Selecione</option>{form.preenchidoPor && ![...RESPONSAVEIS_RIO_CLARO.map((pessoa) => pessoa.value), ...responsaveisAraras].includes(form.preenchidoPor) && <option value={form.preenchidoPor} disabled>{form.preenchidoPor} (já registrado)</option>}<optgroup label="Rio Claro">{RESPONSAVEIS_RIO_CLARO.map((pessoa) => <option key={pessoa.value} value={pessoa.value}>{pessoa.label}</option>)}</optgroup><optgroup label="Araras">{responsaveisAraras.length ? responsaveisAraras.map((nome) => <option key={nome} value={nome}>{nome}</option>) : <option value="" disabled>Nenhum acesso ativo encontrado</option>}</optgroup></select></label>
+              <label className="block text-sm font-medium text-slate-700">Preenchido por:<select value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} className={fieldClass("preenchidoPor")}><option value="">Selecione</option>{form.preenchidoPor && ![...RESPONSAVEIS_RIO_CLARO, ...RESPONSAVEIS_ARARAS].includes(form.preenchidoPor) && <option value={form.preenchidoPor} disabled>{form.preenchidoPor} (já registrado)</option>}<optgroup label="Rio Claro">{RESPONSAVEIS_RIO_CLARO.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</optgroup><optgroup label="Araras">{RESPONSAVEIS_ARARAS.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</optgroup></select></label>
             </div>
 
             {aviso && <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{aviso}</p>}

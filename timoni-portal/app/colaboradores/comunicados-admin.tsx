@@ -142,6 +142,22 @@ export default function ComunicadosAdmin() {
     window.dispatchEvent(new Event("comunicados:changed"));
   }
 
+  async function toggleStatus(item: Comunicado) {
+    setError("");
+    const response = await fetch("/api/comunicados", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: item.id, action: item.status === "ativo" ? "archive" : "activate" }),
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      setError(data?.error || "Não foi possível alterar o status.");
+      return;
+    }
+    await load();
+    window.dispatchEvent(new Event("comunicados:changed"));
+  }
+
   function edit(item: Comunicado) {
     setForm({ id: item.id, unit: item.unit, title: item.title, message: item.message, startsAt: toLocalInput(item.startsAt), expiresAt: toLocalInput(item.expiresAt), recipientEmails: item.recipientEmails ?? null });
     window.setTimeout(() => document.getElementById("novo-comunicado")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
@@ -162,7 +178,7 @@ export default function ComunicadosAdmin() {
           </div>
           <div className="min-w-28 rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-center">
             <p className="text-2xl font-bold text-slate-700">{archived.length}</p>
-            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Arquivados</p>
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Inativos</p>
           </div>
         </div>
       </div>
@@ -261,13 +277,17 @@ export default function ComunicadosAdmin() {
         <summary className="cursor-pointer text-sm font-semibold text-slate-700">Avisos desativados ({archived.length})</summary>
         <div className="mt-3 grid gap-3 xl:grid-cols-2">
           {archived.length === 0 ? (
-            <p className="text-sm text-slate-500">Nenhum aviso arquivado.</p>
+            <p className="text-sm text-slate-500">Nenhum aviso inativo.</p>
           ) : archived.map((item) => (
             <article key={item.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 opacity-80">
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{unitLabel(item.unit)} · {formatDate(item.createdAt)}</p>
               <h3 className="mt-1 font-semibold text-slate-900">{item.title}</h3>
               <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{item.message}</p>
-              <button type="button" onClick={() => remove(item.id)} className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">Excluir</button>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <button type="button" onClick={() => edit(item)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800">Editar</button>
+                <button type="button" onClick={() => toggleStatus(item)} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800">{item.status === "ativo" ? "Inativar" : "Ativar"}</button>
+                <button type="button" onClick={() => remove(item.id)} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">Excluir</button>
+              </div>
             </article>
           ))}
         </div>

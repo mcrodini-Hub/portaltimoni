@@ -56,6 +56,27 @@ type FormState = {
 
 type Modo = "dia" | "semana" | "mes";
 
+type VendedorOption = { nome: string; unidade: string };
+type ResponsavelOption = { email: string; name: string; unit: string };
+
+const RESPONSAVEIS_RIO_CLARO = [
+  { value: "Ciça", label: "Ciça" },
+  { value: "Jaqueline", label: "Jaqueline" },
+  { value: "Jeovana", label: "Jeovana" },
+  { value: "Marcelo", label: "Marcelo" },
+  { value: "Vendedores - Rio Claro", label: "Vendedores - Rio Claro" },
+];
+
+const ARARAS_EMAILS_EXCLUIDOS = new Set([
+  "fotoscasatimoni@gmail.com",
+  "estoqueararascasatimoni@gmail.com",
+  "margareth@casatimoni.com.br",
+]);
+
+function normalizarUnidade(value: string) {
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
+}
+
 const REQUIRED: Array<keyof FormState> = [
   "tipo",
   "loja",
@@ -372,6 +393,8 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
   const [erro, setErro] = useState("");
   const [aviso, setAviso] = useState("");
   const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());
+  const [opcoesVendedores, setOpcoesVendedores] = useState<VendedorOption[]>([]);
+  const [responsaveis, setResponsaveis] = useState<ResponsavelOption[]>([]);
 
   const diasMes = useMemo(() => monthDays(mesBase), [mesBase]);
   const diasSemana = useMemo(() => weekDays(selecionado), [selecionado]);
@@ -381,6 +404,60 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
     const destino = [form.endereco.trim(), form.numeroEndereco.trim(), form.bairro.trim(), form.cidade.trim()].filter(Boolean).join(", ");
     return destino ? `https://maps.google.com/?q=${encodeURIComponent(destino)}` : "";
   }, [form.linkEndereco, form.endereco, form.numeroEndereco, form.bairro, form.cidade]);
+
+  const vendedoresDisponiveis = useMemo(() => {
+    const nomes = new Map<string, string>();
+    for (const vendedor of opcoesVendedores) {
+      const nome = String(vendedor.nome || "").trim();
+      const chave = nome.toLocaleLowerCase("pt-BR");
+      if (nome && !nomes.has(chave)) nomes.set(chave, nome);
+    }
+    return [...nomes.values()].sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
+  }, [opcoesVendedores]);
+
+  const responsaveisAraras = useMemo(() => {
+    const emailsAraras = new Set([
+      "comercialara@casatimoni.com.br",
+      "reginaldo@casatimoni.com.br",
+      "estoqueararascasatimoni@gmail.com",
+      "casatimoniararas@gmail.com",
+      "fotoscasatimoni@gmail.com",
+    ]);
+    return responsaveis
+      .filter((pessoa) => {
+        const email = String(pessoa.email || "").trim().toLowerCase();
+        const identidade = `${email} ${pessoa.name || ""}`.toLowerCase();
+        const unidade = normalizarUnidade(String(pessoa.unit || ""));
+        const pertenceAraras =
+          unidade === "araras" ||
+          normalizarUnidade(String(pessoa.name || "")).includes("araras") ||
+          emailsAraras.has(email);
+        const excluido =
+          /lucas|margareth/i.test(identidade) ||
+          ARARAS_EMAILS_EXCLUIDOS.has(email);
+        return pertenceAraras && !excluido;
+      })
+      .map((pessoa) => String(pessoa.name || "").trim())
+      .filter((nome, index, nomes) => Boolean(nome) && nomes.findIndex((item) => item.toLocaleLowerCase("pt-BR") === nome.toLocaleLowerCase("pt-BR")) === index)
+      .sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
+  }, [responsaveis]);
+
+  useEffect(() => {
+    let ativo = true;
+    void fetch("/api/agenda-motorista-vendedores", { cache: "no-store" })
+      .then(parseResponse)
+      .then((body) => {
+        if (!ativo) return;
+        setOpcoesVendedores(Array.isArray(body.vendedores) ? body.vendedores : []);
+        setResponsaveis(Array.isArray(body.responsaveis) ? body.responsaveis : []);
+      })
+      .catch(() => {
+        // A agenda continua disponível; a rota já entrega listas de contingência quando a planilha falha.
+      });
+    return () => {
+      ativo = false;
+    };
+  }, []);
   async function carregarDia(data = selecionado) {
     setLoading(true);
     setErro("");
@@ -809,10 +886,11 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
               <button type="button" onClick={() => setModal(false)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600">Fechar</button>
             </div>
 
-            <div className="mt-5 grid gap-4 md:grid-cols-3">
+            <div className="mt-5 grid gap-4 md:grid-cols-4">
               <label className="text-sm font-medium text-slate-700">* Tipo<select value={form.tipo} onChange={(e) => set("tipo", e.target.value as "Entrega" | "Retirada")} className={fieldClass("tipo")}><option value="Entrega">Entrega</option><option value="Retirada">Retirada</option></select></label>
               <label className="text-sm font-medium text-slate-700">* Loja<select value={form.loja} onChange={(e) => set("loja", e.target.value)} className={fieldClass("loja")}><option value="">Selecione</option><option value="Casa Timoni">Casa Timoni</option><option value="MCR">MCR</option><option value="Rodini">Rodini</option></select></label>
               <label className="text-sm font-medium text-slate-700">* Data<BrazilianDateInput value={form.data} onChange={(value) => set("data", value)} className={fieldClass("data")} required /></label>
+              <label className="text-sm font-medium text-slate-700">Vendedor <span className="font-normal text-slate-400">(opcional)</span><select value={form.vendedor} onChange={(e) => set("vendedor", e.target.value)} className={fieldClass("vendedor")}><option value="">Selecione</option>{form.vendedor && !vendedoresDisponiveis.some((nome) => nome === form.vendedor) && <option value={form.vendedor}>{form.vendedor} (já registrado)</option>}{vendedoresDisponiveis.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>
             </div>
 
             <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
@@ -849,7 +927,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
             </div>
 
             <div className="mt-4">
-              <label className="block text-sm font-medium text-slate-700">Preenchido por:<input value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} placeholder="Digite o nome" className={fieldClass("preenchidoPor")} /></label>
+              <label className="block text-sm font-medium text-slate-700">Preenchido por:<select value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} className={fieldClass("preenchidoPor")}><option value="">Selecione</option>{form.preenchidoPor && ![...RESPONSAVEIS_RIO_CLARO.map((pessoa) => pessoa.value), ...responsaveisAraras].includes(form.preenchidoPor) && <option value={form.preenchidoPor} disabled>{form.preenchidoPor} (já registrado)</option>}<optgroup label="Rio Claro">{RESPONSAVEIS_RIO_CLARO.map((pessoa) => <option key={pessoa.value} value={pessoa.value}>{pessoa.label}</option>)}</optgroup><optgroup label="Araras">{responsaveisAraras.length ? responsaveisAraras.map((nome) => <option key={nome} value={nome}>{nome}</option>) : <option value="" disabled>Nenhum acesso ativo encontrado</option>}</optgroup></select></label>
             </div>
 
             {aviso && <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{aviso}</p>}

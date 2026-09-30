@@ -30,7 +30,7 @@ const fallbackSellers: Seller[] = [
   { nome: "João", unidade: "rio_claro" },
   { nome: "José Roberto", unidade: "rio_claro" },
   { nome: "Marcelo", unidade: "rio_claro" },
-  { nome: "Rafaela", unidade: "rio_claro" },
+  { nome: "Raffaela", unidade: "rio_claro" },
   { nome: "San", unidade: "rio_claro" },
   { nome: "Yan", unidade: "araras" },
   { nome: "Lyra", unidade: "araras" },

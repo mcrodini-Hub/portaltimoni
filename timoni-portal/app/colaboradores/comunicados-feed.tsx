@@ -88,20 +88,20 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
     };
   }, [load]);
 
-  async function archive(id: string) {
+  async function setActive(id: string, active: boolean) {
     setBusyId(id);
     setError("");
     try {
       const response = await fetch("/api/comunicados", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, action: "archive" }),
+        body: JSON.stringify({ id, action: active ? "activate" : "archive" }),
       });
       const data = await response.json();
-      if (!response.ok) throw new Error(data?.error || "Não foi possível concluir.");
+      if (!response.ok) throw new Error(data?.error || "Não foi possível alterar o status.");
       window.dispatchEvent(new Event("comunicados:changed"));
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Não foi possível concluir.");
+      setError(err instanceof Error ? err.message : "Não foi possível alterar o status.");
     } finally {
       setBusyId("");
     }
@@ -240,11 +240,11 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
               </button>
               <button
                 type="button"
-                onClick={() => archive(item.id)}
+                onClick={() => setActive(item.id, false)}
                 disabled={busyId === item.id}
                 className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 disabled:opacity-50"
               >
-                Concluir
+                Inativar
               </button>
               <button
                 type="button"

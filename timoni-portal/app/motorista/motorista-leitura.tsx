@@ -112,6 +112,22 @@ function lerTipo(notasJson?: string): "Entrega" | "Retirada" {
   }
 }
 
+function ordenarViagens(viagens: Viagem[]) {
+  return [...viagens].sort((a, b) =>
+    (a.horario || "").localeCompare(b.horario || "") ||
+    (a.loja || "").localeCompare(b.loja || "", "pt-BR") ||
+    a.id.localeCompare(b.id, "pt-BR"),
+  );
+}
+
+function estiloBoxViagem(v: Viagem) {
+  if (v.tipoHorario === "Bloqueio" || lerTipo(v.notasJson) !== "Retirada") return undefined;
+  return {
+    backgroundColor: "rgba(246, 191, 38, 0.1)",
+    borderColor: "rgba(246, 191, 38, 0.42)",
+  };
+}
+
 function linhaPrincipal(v: Viagem, index: number) {
   return [
     `${index + 1}. ${lerTipo(v.notasJson)}`,
@@ -227,10 +243,7 @@ export default function MotoristaLeitura() {
         <div className="space-y-4">
           {dias.map((d) => {
             const data = localDateString(d);
-            const itens = (viagens[data] || [])
-              .filter((v) => !finalizada(v))
-              .slice()
-              .sort((a, b) => (a.horario || "").localeCompare(b.horario || ""));
+            const itens = ordenarViagens((viagens[data] || []).filter((v) => !finalizada(v)));
             const hoje = data === localDateString();
             return (
               <section key={data} className={`rounded-2xl border bg-white p-4 shadow-sm ${hoje ? "border-blue-300" : "border-slate-200"}`}>
@@ -253,7 +266,7 @@ export default function MotoristaLeitura() {
                       const enderecoInfo = separarEndereco(v.endereco);
                       const endereco = formatarEnderecoExibicao(v.endereco, v.numero, v.complemento);
                       return (
-                        <article key={v.id} className={`rounded-xl border p-3 ${bloqueio ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
+                        <article key={v.id} style={estiloBoxViagem(v)} className={`rounded-xl border p-3 ${bloqueio ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
                           <div className="flex items-start gap-3">
                             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow-sm">{index + 1}</span>
                             <div className="min-w-0 flex-1">

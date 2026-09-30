@@ -1,11 +1,19 @@
 "use client";
 
-import { ChangeEvent, useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { PortalModule, PortalUser } from "@/lib/access-control";
-import type { ConfiguredCollaborator, PortalAuditEntry } from "@/lib/portal-config";
+import type { ConfiguredCollaborator } from "@/lib/portal-config";
 
-type Tab = "modulos" | "cadastros" | "backup" | "historico" | "guia";
-type ConfigurationResponse = { users: PortalUser[]; collaborators: ConfiguredCollaborator[]; history: PortalAuditEntry[] };
+type ConfigurationResponse = {
+  users: PortalUser[];
+  collaborators: ConfiguredCollaborator[];
+};
+
+type Draft = {
+  member: ConfiguredCollaborator;
+  modules: PortalModule[];
+  noticeRequired: boolean;
+};
 
 const MODULES: Array<{ id: PortalModule; label: string }> = [
   { id: "painel", label: "Avisos" },
@@ -20,535 +28,498 @@ const MODULES: Array<{ id: PortalModule; label: string }> = [
   { id: "reunioes", label: "Reuniões" },
   { id: "leads", label: "Leads" },
 ];
-const EMPTY_USER: PortalUser = { name: "", email: "", unit: "Rio Claro", modules: ["painel"], boxes: [], requiresPassword: false, readOnly: true, active: false, directPainel: true, noticeRequired: false };
-const EMPTY_COLLABORATOR: ConfiguredCollaborator = { id: "", accessEmail: "", name: "", unit: "Rio Claro", active: true, noticeRequired: true, chatEnabled: true, updatedAt: "" };
 
-function dateLabel(value?: string) {
-  if (!value) return "Ainda não registrado";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(date);
+const DASHBOARD_MODULES = new Set<PortalModule>([
+  "painel", "agenda", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads",
+]);
+
+function emptyMember(): ConfiguredCollaborator {
+  return {
+    id: "",
+    name: "",
+    role: "",
+    unit: "Rio Claro",
+    accessEmail: "",
+    active: true,
+    noticeRequired: true,
+    chatEnabled: true,
+    updatedAt: "",
+  };
 }
 
-function Checkbox({ checked, label, disabled, onChange }: { checked: boolean; label: string; disabled?: boolean; onChange: (checked: boolean) => void }) {
-  return (
-    <label className={`flex min-h-9 items-center gap-2 rounded-lg border px-2 py-1.5 text-xs sm:text-sm ${checked ? "border-blue-300 bg-blue-50 text-blue-950" : "border-slate-200 bg-white text-slate-700"} ${disabled ? "opacity-60" : "cursor-pointer"}`}>
-      <input type="checkbox" checked={checked} disabled={disabled} onChange={(event) => onChange(event.target.checked)} className="h-4 w-4 accent-blue-700" />
-      <span>{label}</span>
-    </label>
-  );
+function accessLabel(user?: PortalUser) {
+  if (!user) return "";
+  return user.accessLabel || user.name || user.email;
 }
 
-function GuideItem({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <details className="group rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 font-semibold text-slate-950">
-        <span>{title}</span>
-        <span className="text-lg text-blue-700 transition group-open:rotate-45">+</span>
-      </summary>
-      <div className="mt-3 border-t border-slate-100 pt-3 text-sm leading-6 text-slate-600">{children}</div>
-    </details>
-  );
+function memberKey(member: ConfiguredCollaborator) {
+  return member.id || `${member.unit}:${member.name}`;
+}
+
+function normalizeEmail(value: string) {
+  return value.trim().toLowerCase();
 }
 
 export default function ConfiguracoesClient() {
-  const [data, setData] = useState<ConfigurationResponse>({ users: [], collaborators: [], history: [] });
-  const [tab, setTab] = useState<Tab>("modulos");
+  const [data, setData] = useState<ConfigurationResponse>({ users: [], collaborators: [] });
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [feedback, setFeedback] = useState("");
+  const [openId, setOpenId] = useState("");
+  const [editingId, setEditingId] = useState("");
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [busy, setBusy] = useState("");
+  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
-  const [userForm, setUserForm] = useState<PortalUser | null>(null);
-  const [collaboratorForm, setCollaboratorForm] = useState<ConfiguredCollaborator | null>(null);
-  const [savingKey, setSavingKey] = useState("");
+  const [filterName, setFilterName] = useState("");
+  const [filterAccess, setFilterAccess] = useState("");
+  const [filterModule, setFilterModule] = useState("");
 
   async function load() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/configuracoes", { cache: "no-store" });
+      const response = await fetch(`/api/configuracoes?t=${Date.now()}`, { cache: "no-store" });
       const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Não foi possível carregar.");
-      setData({ users: result.users || [], collaborators: result.collaborators || [], history: result.history || [] });
+      if (!response.ok) throw new Error(result.error || "Não foi possível carregar as configurações.");
+      setData({ users: result.users || [], collaborators: result.collaborators || [] });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Não foi possível carregar.");
+      setError(cause instanceof Error ? cause.message : "Não foi possível carregar as configurações.");
     } finally {
       setLoading(false);
     }
   }
 
   useEffect(() => {
-    if (window.location.hash === "#guia") setTab("guia");
     void load();
   }, []);
 
-  const activeUsers = data.users.filter((user) => user.active !== false).length;
-  
+  const usersByEmail = useMemo(
+    () => new Map(data.users.map((user) => [normalizeEmail(user.email), user])),
+    [data.users],
+  );
+
+  const accessOptions = useMemo(
+    () => [...data.users]
+      .filter((user) => user.active !== false)
+      .sort((a, b) => accessLabel(a).localeCompare(accessLabel(b), "pt-BR")),
+    [data.users],
+  );
+
+  const visibleMembers = useMemo(() => {
+    const term = filterName.trim().toLocaleLowerCase("pt-BR");
+    return [...data.collaborators]
+      .filter((member) => member.active !== false)
+      .filter((member) => !term || member.name.toLocaleLowerCase("pt-BR").includes(term))
+      .filter((member) => !filterAccess || normalizeEmail(member.accessEmail) === filterAccess)
+      .filter((member) => {
+        if (!filterModule) return true;
+        const access = usersByEmail.get(normalizeEmail(member.accessEmail));
+        return Boolean(access?.modules.includes(filterModule as PortalModule));
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" }) || a.unit.localeCompare(b.unit, "pt-BR"));
+  }, [data.collaborators, filterName, filterAccess, filterModule, usersByEmail]);
+
+  function startEdit(member: ConfiguredCollaborator) {
+    const access = usersByEmail.get(normalizeEmail(member.accessEmail));
+    setOpenId(memberKey(member));
+    setEditingId(memberKey(member));
+    setDraft({
+      member: { ...member },
+      modules: access ? [...access.modules] : [],
+      noticeRequired: Boolean(access?.noticeRequired),
+    });
+    setError("");
+    setMessage("");
+  }
+
+  function startNew() {
+    const member = emptyMember();
+    setOpenId("__new__");
+    setEditingId("__new__");
+    setDraft({ member, modules: [], noticeRequired: false });
+    setError("");
+    setMessage("");
+  }
+
+  function updateAccessEmail(email: string) {
+    if (!draft) return;
+    const normalized = normalizeEmail(email);
+    const access = usersByEmail.get(normalized);
+    setDraft({
+      member: { ...draft.member, accessEmail: normalized },
+      modules: access ? [...access.modules] : [],
+      noticeRequired: Boolean(access?.noticeRequired),
+    });
+  }
 
   function toggleModule(module: PortalModule, checked: boolean) {
-    setUserForm((current) => current ? {
-      ...current,
-      modules: checked ? [...new Set([...current.modules, module])] : current.modules.filter((item) => item !== module),
-      mobileModules: !checked && current.mobileModules ? current.mobileModules.filter((item) => item !== module) : current.mobileModules,
-      boxes: checked ? current.boxes : (current.boxes || []).filter((item) => item !== module && !(module === "painel" && item === "espaco-equipe")),
-    } : current);
+    if (!draft) return;
+    setDraft({
+      ...draft,
+      modules: checked
+        ? [...new Set([...draft.modules, module])]
+        : draft.modules.filter((item) => item !== module),
+    });
   }
 
-  async function save(section: "user" | "collaborator", item: PortalUser | ConfiguredCollaborator) {
-    setSaving(true); setError(""); setFeedback("");
-    try {
-      const response = await fetch("/api/configuracoes", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ section, item }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Não foi possível salvar.");
-      if (section === "user") {
-        const updated = result.item as PortalUser;
-        setData((current) => ({ ...current, users: [...current.users.filter((user) => user.email !== updated.email), updated], collaborators: result.collaborator ? [...current.collaborators.filter((member) => member.id !== (result.collaborator as ConfiguredCollaborator).id), result.collaborator as ConfiguredCollaborator] : current.collaborators }));
-      } else {
-        const updated = result.item as ConfiguredCollaborator;
-        setData((current) => ({ ...current, collaborators: [...current.collaborators.filter((member) => member.id !== updated.id), updated] }));
-      }
-      setFeedback("Alteração salva com sucesso.");
-      setUserForm(section === "user" && !data.users.some((user) => user.email === (result.item as PortalUser).email) ? result.item as PortalUser : null);
-      setCollaboratorForm(null);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Não foi possível salvar.");
-    } finally { setSaving(false); }
+  async function putUser(user: PortalUser) {
+    const response = await fetch("/api/configuracoes", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+      body: JSON.stringify({ section: "user", item: user }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Não foi possível salvar o acesso.");
+    return result.item as PortalUser;
   }
 
-  async function saveDirect(section: "user" | "collaborator", item: PortalUser | ConfiguredCollaborator, key: string) {
-    setSavingKey(key); setError(""); setFeedback("");
+  async function putMember(member: ConfiguredCollaborator) {
+    const response = await fetch("/api/configuracoes", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+      body: JSON.stringify({ section: "collaborator", item: member }),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || "Não foi possível salvar o colaborador.");
+    return result.item as ConfiguredCollaborator;
+  }
+
+  async function saveDraft() {
+    if (!draft) return;
+    const member = {
+      ...draft.member,
+      name: draft.member.name.trim(),
+      role: draft.member.role.trim(),
+      accessEmail: normalizeEmail(draft.member.accessEmail),
+      active: true,
+    };
+    if (member.name.length < 2) {
+      setError("Informe o nome do colaborador.");
+      return;
+    }
+    if (member.accessEmail && !member.accessEmail.includes("@")) {
+      setError("Informe um e-mail de acesso válido.");
+      return;
+    }
+
+    const key = `save:${member.id || member.name}`;
+    setBusy(key);
+    setError("");
+    setMessage("");
     try {
-      const response = await fetch("/api/configuracoes", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ section, item }),
-      });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Não foi possível salvar.");
-      if (section === "user") {
-        const updated = result.item as PortalUser;
-        setData((current) => ({ ...current, users: current.users.map((user) => user.email === updated.email ? updated : user) }));
-      } else {
-        const updated = result.item as ConfiguredCollaborator;
-        setData((current) => ({ ...current, collaborators: current.collaborators.map((member) => member.id === updated.id ? updated : member) }));
+      let access = member.accessEmail ? usersByEmail.get(member.accessEmail) : undefined;
+
+      if (member.accessEmail) {
+        const boxes = draft.modules.filter((module) => DASHBOARD_MODULES.has(module));
+        if (access) {
+          access = await putUser({
+            ...access,
+            modules: [...draft.modules],
+            boxes,
+            mobileModules: access.mobileModules === undefined
+              ? undefined
+              : access.mobileModules.filter((module) => draft.modules.includes(module)),
+            noticeRequired: draft.noticeRequired,
+          });
+        } else {
+          access = await putUser({
+            name: member.accessEmail,
+            accessLabel: member.accessEmail,
+            email: member.accessEmail,
+            unit: member.unit === "Geral" ? "Geral" : member.unit,
+            modules: [...draft.modules],
+            boxes,
+            mobileModules: [...draft.modules],
+            requiresPassword: false,
+            readOnly: false,
+            active: true,
+            directPainel: false,
+            lastAccess: "",
+            noticeRequired: draft.noticeRequired,
+          });
+        }
       }
-      setFeedback("Permissão atualizada.");
+
+      const updatedMember = await putMember(member);
+      setData((current) => {
+        const users = access
+          ? current.users.some((item) => normalizeEmail(item.email) === normalizeEmail(access!.email))
+            ? current.users.map((item) => normalizeEmail(item.email) === normalizeEmail(access!.email) ? access! : item)
+            : [...current.users, access]
+          : current.users;
+        const collaborators = current.collaborators.some((item) => item.id === updatedMember.id)
+          ? current.collaborators.map((item) => item.id === updatedMember.id ? updatedMember : item)
+          : [...current.collaborators, updatedMember];
+        return { users, collaborators };
+      });
+      setEditingId("");
+      setDraft(null);
+      setOpenId("");
+      setMessage("Salvo.");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível salvar.");
     } finally {
-      setSavingKey("");
+      setBusy("");
     }
   }
 
-  function userWithModule(user: PortalUser, module: PortalModule, checked: boolean): PortalUser {
-    const modules = checked ? [...new Set([...user.modules, module])] : user.modules.filter((item) => item !== module);
-    const mobileModules = !checked && user.mobileModules ? user.mobileModules.filter((item) => item !== module) : user.mobileModules;
-    const boxes = checked ? user.boxes : (user.boxes || []).filter((item) => item !== module && !(module === "painel" && item === "espaco-equipe"));
-    return { ...user, modules, mobileModules, boxes };
-  }
-
-  async function removeCollaborator(member: ConfiguredCollaborator) {
-    if (!window.confirm(`Excluir ${member.name} (${member.unit}) da lista de colaboradores?`)) return;
-    setSaving(true); setError(""); setFeedback("");
+  async function deleteMember(member: ConfiguredCollaborator) {
+    if (!window.confirm(`Excluir ${member.name}?`)) return;
+    setBusy(`delete:${member.id}`);
+    setError("");
+    setMessage("");
     try {
-      const response = await fetch("/api/configuracoes", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: member.id }) });
+      const response = await fetch("/api/configuracoes", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json", "Cache-Control": "no-store" },
+        body: JSON.stringify({ id: member.id }),
+      });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "Não foi possível excluir.");
-      setData((current) => ({ ...current, collaborators: current.collaborators.filter((item) => item.id !== member.id) }));
-      setCollaboratorForm(null); setFeedback("Colaborador excluído.");
-    } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível excluir."); }
-    finally { setSaving(false); }
-  }
-
-  async function removeAccess(user: PortalUser) {
-    if (user.email === "mcrodini@gmail.com") return;
-    if (!window.confirm(`Excluir o acesso ${user.accessLabel || user.name} (${user.email})? Os colaboradores serão apenas desvinculados.`)) return;
-    const key = `delete-user:${user.email}`;
-    setSavingKey(key); setError(""); setFeedback("");
-    try {
-      const response = await fetch("/api/configuracoes", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ kind: "user", email: user.email }) });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Não foi possível excluir o acesso.");
       setData((current) => ({
         ...current,
-        users: current.users.filter((item) => item.email !== user.email),
-        collaborators: current.collaborators.map((member) => member.accessEmail === user.email ? { ...member, accessEmail: "" } : member),
+        collaborators: current.collaborators.filter((item) => item.id !== member.id),
       }));
-      setFeedback("Acesso excluído. Colaboradores desvinculados.");
+      setOpenId("");
+      setEditingId("");
+      setDraft(null);
+      setMessage("Colaborador excluído.");
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Não foi possível excluir o acesso.");
-    } finally { setSavingKey(""); }
+      setError(cause instanceof Error ? cause.message : "Não foi possível excluir.");
+    } finally {
+      setBusy("");
+    }
   }
 
-  async function renameAccess(user: PortalUser) {
-    const currentName = user.accessLabel || user.name;
-    const name = window.prompt("Novo nome do acesso:", currentName)?.trim();
-    if (!name || name === currentName) return;
-    await saveDirect("user", { ...user, accessLabel: name }, `rename:${user.email}`);
-  }
-
-  async function unlinkCollaborator(member: ConfiguredCollaborator) {
-    await saveDirect("collaborator", { ...member, accessEmail: "" }, `unlink:${member.id}`);
-  }
-
-  async function linkCollaborator(memberId: string, accessEmail: string) {
-    const member = data.collaborators.find((item) => item.id === memberId);
-    if (!member) return;
-    await saveDirect("collaborator", { ...member, accessEmail }, `link:${member.id}`);
-  }
-
-  async function downloadBackup(prefix = "portal-timoni-backup") {
-    const response = await fetch("/api/configuracoes/backup", { cache: "no-store" });
-    if (!response.ok) throw new Error("Não foi possível gerar o backup.");
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${prefix}-${new Date().toISOString().slice(0, 10)}.zip`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }
-
-  async function restoreBackup(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    event.target.value = "";
-    if (!file) return;
-    if (!window.confirm("Restaurar este backup? O Portal fará antes uma cópia automática do estado atual.")) return;
-    setSaving(true); setError(""); setFeedback("");
-    try {
-      await downloadBackup("antes-da-restauracao");
-      const formData = new FormData(); formData.append("backup", file);
-      const response = await fetch("/api/configuracoes/backup", { method: "POST", body: formData });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || "Não foi possível restaurar.");
-      setFeedback("Backup restaurado com sucesso.");
-      await load();
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Não foi possível restaurar.");
-    } finally { setSaving(false); }
-  }
-
-  const tabs: Array<[Tab, string]> = [["modulos", "Permissões"], ["cadastros", "Cadastros"], ["backup", "Backup"], ["historico", "Histórico"], ["guia", "Guia de uso"]];
-
-  function renderUserEditor(inline = false) {
-    if (!userForm) return null;
-    const isExisting = data.users.some((user) => user.email === userForm.email);
-    const isNew = !isExisting;
-    return (
-      <div className={inline ? "mt-3 border-t border-blue-100 pt-3" : "rounded-2xl border border-blue-200 bg-white p-3 shadow-sm sm:p-4"}>
-        <h3 className="text-base font-semibold text-slate-950 sm:text-lg">{isExisting ? "Editar acesso" : "Novo acesso"}</h3>
-        <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          <label className="text-sm font-medium text-slate-700">Nome do acesso<input value={userForm.accessLabel || userForm.name} onChange={(e) => setUserForm({ ...userForm, accessLabel: e.target.value, name: isExisting ? userForm.name : e.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-          <label className="text-sm font-medium text-slate-700">E-mail de acesso<input type="email" value={userForm.email} disabled={isExisting} onChange={(e) => setUserForm({ ...userForm, email: e.target.value.toLowerCase() })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5 disabled:bg-slate-100" /></label>
-          <label className="text-sm font-medium text-slate-700">Unidade<select value={userForm.unit} onChange={(e) => setUserForm({ ...userForm, unit: e.target.value as PortalUser["unit"] })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option>Geral</option><option>Araras</option><option>Rio Claro</option></select></label>
-        </div>
-        {isNew && <p className="mt-2 text-xs text-slate-600">Crie primeiro o acesso. Depois vincule os colaboradores na etapa 3.</p>}
-        
-        {isExisting && <details className="mt-2 rounded-lg border border-slate-200 p-2"><summary className="cursor-pointer text-sm font-semibold text-slate-900">Mostrar no menu mobile</summary><p className="mt-1 text-xs text-slate-600">Por padrão, mostra todos os módulos permitidos. Ocultar do menu não altera o acesso.</p><div className="mt-2 grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-4">{MODULES.filter((module) => userForm.modules.includes(module.id)).map((module) => <Checkbox key={module.id} label={module.label} checked={(userForm.mobileModules ?? userForm.modules).includes(module.id)} onChange={(checked) => setUserForm({ ...userForm, mobileModules: checked ? [...new Set([...(userForm.mobileModules ?? userForm.modules), module.id])] : (userForm.mobileModules ?? userForm.modules).filter((item) => item !== module.id) })} />)}</div></details>}
-        {isExisting && <div className="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
-          <Checkbox label="Acesso ativo" checked={userForm.active !== false} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => setUserForm({ ...userForm, active: checked })} />
-          <Checkbox label="Somente leitura" checked={Boolean(userForm.readOnly)} disabled={userForm.email === "mcrodini@gmail.com"} onChange={(checked) => setUserForm({ ...userForm, readOnly: checked })} />
-          <Checkbox label="Confirmação de leitura" checked={Boolean(userForm.noticeRequired)} onChange={(checked) => setUserForm({ ...userForm, noticeRequired: checked })} />
-        </div>}
-        <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setUserForm(null)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancelar</button><button type="button" disabled={saving} onClick={() => void save("user", userForm)} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? "Salvando..." : isNew ? "Criar acesso" : "Salvar acesso"}</button></div>
-      </div>
-    );
+  function summaryModules(member: ConfiguredCollaborator) {
+    const access = usersByEmail.get(normalizeEmail(member.accessEmail));
+    if (!access) return [];
+    return MODULES.filter((module) => access.modules.includes(module.id)).map((module) => module.label);
   }
 
   return (
     <div className="pb-10">
-      <header className="mb-6">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Acesso da gestão</p>
-        <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Configurações</h1>
-        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Abra um módulo para gerenciar os acessos e os colaboradores vinculados em um único lugar.</p>
+      <header className="mb-5 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[#13038D]">Configuração da equipe</p>
+          <h1 className="mt-1 text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">Colaboradores</h1>
+          <p className="mt-1 text-sm text-slate-600">Cadastro, acesso e permissões no mesmo box. A configuração só precisa ser alterada quando houver mudança na equipe.</p>
+        </div>
+        <button type="button" onClick={startNew} className="rounded-xl bg-[#13038D] px-4 py-2.5 text-sm font-semibold text-white">+ Colaborador</button>
       </header>
 
-      <section className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-blue-200 bg-blue-50 p-4"><p className="text-2xl font-bold text-blue-950">{activeUsers}</p><p className="mt-1 text-sm text-blue-700">Acessos ativos</p></div>
-        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4"><p className="text-2xl font-bold text-emerald-950">{data.collaborators.filter((member) => member.active).length}</p><p className="mt-1 text-sm text-emerald-700">Colaboradores ativos</p></div>
-        <div className="rounded-2xl border border-violet-200 bg-violet-50 p-4"><p className="text-sm font-semibold text-violet-950">Integrações</p><p className="mt-2 text-sm text-violet-700">Google e base do Portal conectados</p></div>
+      <section className="grid gap-2 rounded-2xl border border-slate-200 bg-white p-3 sm:grid-cols-3">
+        <label className="text-xs font-semibold text-slate-600">
+          Colaborador
+          <input value={filterName} onChange={(event) => setFilterName(event.target.value)} placeholder="Buscar nome" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm font-normal text-slate-900" />
+        </label>
+        <label className="text-xs font-semibold text-slate-600">
+          Acesso
+          <select value={filterAccess} onChange={(event) => setFilterAccess(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900">
+            <option value="">Todos</option>
+            {accessOptions.map((user) => <option key={user.email} value={normalizeEmail(user.email)}>{accessLabel(user)} · {user.email}</option>)}
+          </select>
+        </label>
+        <label className="text-xs font-semibold text-slate-600">
+          Módulo
+          <select value={filterModule} onChange={(event) => setFilterModule(event.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-900">
+            <option value="">Todos</option>
+            {MODULES.map((module) => <option key={module.id} value={module.id}>{module.label}</option>)}
+          </select>
+        </label>
       </section>
 
-      <nav className="mt-5 flex gap-2 overflow-x-auto pb-1" aria-label="Áreas das configurações">
-        {tabs.map(([id, label]) => <button key={id} type="button" onClick={() => setTab(id)} className={`whitespace-nowrap rounded-xl px-4 py-2.5 text-sm font-semibold ${tab === id ? "bg-[#0b1f5e] text-white" : "border border-slate-200 bg-white text-slate-700"}`}>{label}</button>)}
-      </nav>
+      {message && <p className="mt-3 rounded-xl bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-800">{message}</p>}
+      {error && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm font-medium text-red-700">{error}</p>}
 
-      {feedback && <p className="mt-4 rounded-xl bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-800">{feedback}</p>}
-      {error && <p className="mt-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">{error}</p>}
-      {loading ? <p className="mt-6 text-sm text-slate-500">Carregando configurações...</p> : null}
+      {loading ? <p className="mt-5 text-sm text-slate-500">Carregando...</p> : (
+        <section className="mt-4 space-y-2">
+          {openId === "__new__" && draft && (
+            <article className="rounded-2xl border border-blue-200 bg-white shadow-sm">
+              <div className="px-4 py-3">
+                <p className="font-semibold text-slate-950">Novo colaborador</p>
+              </div>
+              <Editor
+                draft={draft}
+                accessOptions={accessOptions}
+                busy={busy}
+                onMemberChange={(member) => setDraft({ ...draft, member })}
+                onAccessChange={updateAccessEmail}
+                onModuleChange={toggleModule}
+                onNoticeChange={(checked) => setDraft({ ...draft, noticeRequired: checked })}
+                onSave={() => void saveDraft()}
+                onCancel={() => { setOpenId(""); setEditingId(""); setDraft(null); }}
+              />
+            </article>
+          )}
 
-      {!loading && tab === "modulos" && (
-        <section className="mt-5">
-          <div className="mb-4">
-            <h2 className="text-xl font-semibold text-slate-950">Permissões por módulo</h2>
-            <p className="mt-1 text-sm text-slate-600">Clique no módulo. Os acessos abrem logo abaixo para você ligar ou desligar sem mudar de tela.</p>
-          </div>
-          <div className="space-y-3">
-            {MODULES.map((module) => {
-              const activeAccesses = data.users.filter((user) => user.active !== false && user.modules.includes(module.id)).length;
-              return (
-                <details key={module.id} className="group rounded-2xl border border-slate-200 bg-white shadow-sm">
-                  <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-4">
-                    <div>
-                      <p className="font-semibold text-slate-950">{module.label}</p>
-                      <p className="mt-1 text-sm text-slate-500">{activeAccesses} acesso{activeAccesses === 1 ? "" : "s"} liberado{activeAccesses === 1 ? "" : "s"}</p>
-                    </div>
-                    <span className="text-xl font-semibold text-blue-800 transition group-open:rotate-45">+</span>
-                  </summary>
-                  <div className="border-t border-slate-100 p-3 sm:p-4">
-                    <div className="space-y-2">
-                      {[...data.users].sort((a, b) => (a.accessLabel || a.name).localeCompare(b.accessLabel || b.name, "pt-BR")).map((user) => {
-                        const enabled = user.active !== false && user.modules.includes(module.id);
-                        const key = `user:${module.id}:${user.email}`;
-                        const members = data.collaborators.filter((member) => member.active && member.accessEmail === user.email).sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
-                        return (
-                          <div key={user.email} className="rounded-xl border border-slate-200 bg-slate-50/60 p-3">
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="min-w-0">
-                                <p className="truncate text-sm font-semibold text-slate-900">{user.accessLabel || user.name}</p>
-                                <p className="truncate text-xs text-slate-500">{user.email} · {user.unit}</p>
-                                <div className="mt-2 flex flex-wrap items-center gap-1">
-                                  <button type="button" onClick={() => void renameAccess(user)} className="rounded-md border border-blue-200 bg-white px-2 py-1 text-[11px] font-semibold text-blue-800">Renomear acesso</button>
-                                  <label className="inline-flex items-center gap-1 rounded-md border border-amber-200 bg-white px-2 py-1 text-[11px] font-semibold text-amber-800"><input type="checkbox" checked={Boolean(user.noticeRequired)} onChange={(event) => void saveDirect("user", { ...user, noticeRequired: event.target.checked }, `notice:${user.email}`)} className="h-3.5 w-3.5 accent-blue-800" />Confirma leitura</label>
-                                  {user.email !== "mcrodini@gmail.com" && <button type="button" onClick={() => void removeAccess(user)} className="rounded-md border border-red-200 bg-white px-2 py-1 text-[11px] font-semibold text-red-700">Excluir acesso</button>}
-                                </div>
-                              </div>
-                              <label className="inline-flex shrink-0 cursor-pointer items-center gap-2 text-sm font-semibold text-slate-700">
-                                <input
-                                  type="checkbox"
-                                  checked={enabled}
-                                  disabled={savingKey === key || user.active === false}
-                                  onChange={(event) => void saveDirect("user", userWithModule(user, module.id, event.target.checked), key)}
-                                  className="h-5 w-5 accent-blue-800"
-                                />
-                                {enabled ? "Liberado" : "Bloqueado"}
-                              </label>
-                            </div>
+          {visibleMembers.map((member) => {
+            const key = memberKey(member);
+            const access = usersByEmail.get(normalizeEmail(member.accessEmail));
+            const isOpen = openId === key;
+            const isEditing = editingId === key && draft;
+            const labels = summaryModules(member);
+            return (
+              <article key={key} className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isOpen) {
+                      setOpenId("");
+                      setEditingId("");
+                      setDraft(null);
+                    } else {
+                      setOpenId(key);
+                      setEditingId("");
+                      setDraft(null);
+                    }
+                  }}
+                  className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+                >
+                  <div className="min-w-0">
+                    <p className="truncate font-semibold text-slate-950">{member.name}</p>
+                    <p className="mt-0.5 truncate text-xs text-slate-500">{member.role || "Função não definida"} · {member.unit}</p>
+                  </div>
+                  <div className="min-w-0 text-right">
+                    <p className="truncate text-xs font-medium text-slate-700">{access ? accessLabel(access) : "Sem acesso"}</p>
+                    <p className="truncate text-[11px] text-slate-400">{member.accessEmail || "—"}</p>
+                  </div>
+                  <span className="shrink-0 text-lg font-semibold text-[#13038D]">{isOpen ? "−" : "+"}</span>
+                </button>
 
-                            <div className="mt-3 border-t border-slate-200 pt-2">
-                              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                                <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Colaboradores vinculados</p>
-                                <select
-                                  defaultValue=""
-                                  onChange={(event) => {
-                                    const id = event.target.value;
-                                    event.currentTarget.value = "";
-                                    if (id) void linkCollaborator(id, user.email);
-                                  }}
-                                  className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-xs text-slate-700"
-                                >
-                                  <option value="">+ Vincular colaborador</option>
-                                  {data.collaborators
-                                    .filter((member) => member.active && member.accessEmail !== user.email)
-                                    .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"))
-                                    .map((member) => <option key={member.id} value={member.id}>{member.name} · {member.unit}{member.accessEmail ? " · mover" : ""}</option>)}
-                                </select>
-                              </div>
-                              <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-                                {members.length ? members.map((member) => (
-                                  <div key={member.id} className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2.5 py-2 text-sm">
-                                    <span className="min-w-0 truncate">{member.name}</span>
-                                    <div className="flex shrink-0 gap-1">
-                                      <button type="button" disabled={savingKey === `unlink:${member.id}`} onClick={() => void unlinkCollaborator(member)} className="rounded-md border border-slate-200 px-2 py-1 text-[11px] font-semibold text-slate-600">Desvincular</button>
-                                      <button type="button" disabled={saving} onClick={() => void removeCollaborator(member)} className="rounded-md border border-red-200 px-2 py-1 text-[11px] font-semibold text-red-700">Excluir</button>
-                                    </div>
-                                  </div>
-                                )) : <p className="text-xs text-slate-500">Nenhum colaborador vinculado.</p>}
-                              </div>
-                            </div>
+                {isOpen && (
+                  <div className="border-t border-slate-100 p-4">
+                    {isEditing && draft ? (
+                      <Editor
+                        draft={draft}
+                        accessOptions={accessOptions}
+                        busy={busy}
+                        onMemberChange={(next) => setDraft({ ...draft, member: next })}
+                        onAccessChange={updateAccessEmail}
+                        onModuleChange={toggleModule}
+                        onNoticeChange={(checked) => setDraft({ ...draft, noticeRequired: checked })}
+                        onSave={() => void saveDraft()}
+                        onCancel={() => { setEditingId(""); setDraft(null); }}
+                        onDelete={() => void deleteMember(member)}
+                      />
+                    ) : (
+                      <div>
+                        <div className="grid gap-3 sm:grid-cols-3">
+                          <div><p className="text-[11px] font-semibold uppercase text-slate-400">Função</p><p className="mt-1 text-sm text-slate-800">{member.role || "Não definida"}</p></div>
+                          <div><p className="text-[11px] font-semibold uppercase text-slate-400">Acesso</p><p className="mt-1 text-sm text-slate-800">{member.accessEmail || "Não vinculado"}</p></div>
+                          <div><p className="text-[11px] font-semibold uppercase text-slate-400">Confirmação de leitura</p><p className="mt-1 text-sm text-slate-800">{access?.noticeRequired ? "Sim" : "Não"}</p></div>
+                        </div>
+                        <div className="mt-3">
+                          <p className="text-[11px] font-semibold uppercase text-slate-400">Módulos</p>
+                          <div className="mt-1 flex flex-wrap gap-1.5">
+                            {labels.length ? labels.map((label) => <span key={label} className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-[#13038D]">{label}</span>) : <span className="text-sm text-slate-500">Nenhum módulo</span>}
                           </div>
-                        );
-                      })}
-                    </div>
+                        </div>
+                        <div className="mt-4 flex justify-end gap-2">
+                          <button type="button" onClick={() => startEdit(member)} className="rounded-lg border border-blue-200 px-4 py-2 text-sm font-semibold text-[#13038D]">Editar</button>
+                          <button type="button" disabled={busy === `delete:${member.id}`} onClick={() => void deleteMember(member)} className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-[#D40C0D]">Excluir</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
-                </details>
-              );
-            })}
-          </div>
+                )}
+              </article>
+            );
+          })}
+
+          {!visibleMembers.length && openId !== "__new__" && <p className="rounded-xl border border-dashed border-slate-300 bg-white p-5 text-center text-sm text-slate-500">Nenhum colaborador encontrado.</p>}
         </section>
       )}
+    </div>
+  );
+}
 
-      {!loading && tab === "cadastros" && (
-        <section className="mt-5 space-y-5">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div><h2 className="text-xl font-semibold text-slate-950">Nomes dos acessos</h2><p className="mt-1 text-sm text-slate-600">Use esta área apenas para criar, renomear ou desativar logins. As permissões ficam na tela principal.</p></div>
-            <button type="button" onClick={() => setUserForm({ ...EMPTY_USER })} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white">+ Novo acesso</button>
-          </div>
+function Editor({
+  draft,
+  accessOptions,
+  busy,
+  onMemberChange,
+  onAccessChange,
+  onModuleChange,
+  onNoticeChange,
+  onSave,
+  onCancel,
+  onDelete,
+}: {
+  draft: Draft;
+  accessOptions: PortalUser[];
+  busy: string;
+  onMemberChange: (member: ConfiguredCollaborator) => void;
+  onAccessChange: (email: string) => void;
+  onModuleChange: (module: PortalModule, checked: boolean) => void;
+  onNoticeChange: (checked: boolean) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  onDelete?: () => void;
+}) {
+  const saving = busy.startsWith("save:");
+  return (
+    <div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <label className="text-xs font-semibold text-slate-600">
+          Nome
+          <input value={draft.member.name} onChange={(event) => onMemberChange({ ...draft.member, name: event.target.value })} className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-normal text-slate-900" />
+        </label>
+        <label className="text-xs font-semibold text-slate-600">
+          Função
+          <input value={draft.member.role} onChange={(event) => onMemberChange({ ...draft.member, role: event.target.value })} placeholder="Ex.: Vendedor" className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-normal text-slate-900" />
+        </label>
+        <label className="text-xs font-semibold text-slate-600">
+          Unidade
+          <select value={draft.member.unit} onChange={(event) => onMemberChange({ ...draft.member, unit: event.target.value as ConfiguredCollaborator["unit"] })} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm font-normal text-slate-900">
+            <option>Geral</option>
+            <option>Rio Claro</option>
+            <option>Araras</option>
+          </select>
+        </label>
+      </div>
 
-          {userForm && !data.users.some((user) => user.email === userForm.email) && renderUserEditor()}
+      <label className="mt-3 block text-xs font-semibold text-slate-600">
+        Acesso
+        <input
+          type="email"
+          list="portal-access-emails"
+          value={draft.member.accessEmail}
+          onChange={(event) => onAccessChange(event.target.value)}
+          placeholder="email@exemplo.com"
+          className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-normal text-slate-900"
+        />
+        <datalist id="portal-access-emails">
+          {accessOptions.map((user) => <option key={user.email} value={user.email}>{accessLabel(user)}</option>)}
+        </datalist>
+      </label>
 
-          <div className="grid items-start gap-3 lg:grid-cols-2">
-            {[...data.users].sort((a, b) => (a.accessLabel || a.name).localeCompare(b.accessLabel || b.name)).map((user) => {
-              const editing = userForm?.email === user.email;
-              return (
-                <article key={user.email} className={`rounded-2xl border bg-white p-4 ${editing ? "border-blue-300 shadow-sm lg:col-span-2" : "border-slate-200"} ${user.active === false && !editing ? "opacity-65" : ""}`}>
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div><p className="font-semibold text-slate-950">{user.accessLabel || user.name}</p><p className="mt-1 text-sm text-slate-600">{user.email}</p><p className="mt-1 text-xs text-slate-500">{user.unit} · Último acesso: {dateLabel(user.lastAccess)}</p></div>
-                    <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${user.active === false ? "bg-slate-100 text-slate-600" : "bg-emerald-100 text-emerald-800"}`}>{user.active === false ? "Desativado" : "Ativo"}</span>
-                  </div>
-                  <p className="mt-3 text-sm text-slate-700">{user.modules.length} módulos</p>
-                  {!editing && <div className="mt-4 flex flex-wrap gap-2"><button type="button" onClick={() => setUserForm({ ...user, boxes: [...(user.boxes || [])], modules: [...user.modules] })} className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-800">Editar acesso</button><button type="button" onClick={() => setUserForm({ ...user, email: "", name: `Cópia de ${user.name}`, lastAccess: "" })} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700">Duplicar permissões</button></div>}
-                  {editing && renderUserEditor(true)}
-                </article>
-              );
-            })}
-          </div>
-        </section>
-      )}
-
-      {!loading && tab === "cadastros" && (
-        <section className="mt-5 rounded-2xl border border-slate-200 bg-white p-4">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <h2 className="text-xl font-semibold text-slate-950">Colaboradores</h2>
-              <p className="mt-1 text-sm text-slate-600">Visualize cadastro, acesso e módulos em uma única lista. Clique em Editar para abrir a janela completa do colaborador.</p>
-            </div>
-            <button type="button" onClick={() => setCollaboratorForm({ ...EMPTY_COLLABORATOR })} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white">+ Novo colaborador</button>
-          </div>
-
-          <div className="mt-4 overflow-hidden rounded-2xl border border-slate-200">
-            <div className="hidden grid-cols-[minmax(180px,1.2fr)_minmax(220px,1.3fr)_minmax(260px,2fr)_90px] gap-3 bg-slate-50 px-4 py-3 text-xs font-semibold uppercase tracking-wide text-slate-500 md:grid">
-              <span>Cadastro</span><span>Acesso</span><span>Módulos</span><span></span>
-            </div>
-            <div className="divide-y divide-slate-200">
-              {[...data.collaborators].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")).map((member) => {
-                const access = data.users.find((user) => user.email === member.accessEmail);
-                const enabledModules = access ? MODULES.filter((module) => access.modules.includes(module.id)).map((module) => module.label) : [];
-                return (
-                  <article key={member.id} className={`grid gap-3 px-4 py-3 md:grid-cols-[minmax(180px,1.2fr)_minmax(220px,1.3fr)_minmax(260px,2fr)_90px] md:items-center ${member.active ? "" : "opacity-60"}`}>
-                    <div>
-                      <p className="font-semibold text-slate-950">{member.name}</p>
-                      <p className="mt-0.5 text-xs text-slate-500">{member.unit} · {member.active ? "Ativo" : "Desativado"}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-slate-800">{access ? (access.accessLabel || access.name) : "Sem acesso vinculado"}</p>
-                      {member.accessEmail && <p className="mt-0.5 text-xs text-slate-500">{member.accessEmail}</p>}
-                    </div>
-                    <div className="flex flex-wrap gap-1.5">
-                      {enabledModules.length ? enabledModules.map((label) => <span key={label} className="rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-800">{label}</span>) : <span className="text-sm text-slate-400">Nenhum módulo</span>}
-                    </div>
-                    <div className="md:text-right">
-                      <button type="button" onClick={() => setCollaboratorForm({ ...member })} className="rounded-lg border border-blue-200 px-3 py-2 text-xs font-semibold text-blue-800">Editar</button>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
-          </div>
-        </section>
-      )}
-
-      {collaboratorForm && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/45 p-4 pt-8 sm:pt-12" onMouseDown={(event) => { if (event.target === event.currentTarget) setCollaboratorForm(null); }}>
-          <div className="w-full max-w-4xl rounded-3xl bg-white shadow-2xl">
-            <div className="flex items-start justify-between gap-4 border-b border-slate-200 px-5 py-4 sm:px-6">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Configurações do colaborador</p>
-                <h3 className="mt-1 text-xl font-semibold text-slate-950">{collaboratorForm.id ? collaboratorForm.name : "Novo colaborador"}</h3>
-              </div>
-              <button type="button" onClick={() => setCollaboratorForm(null)} className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-semibold text-slate-600">Fechar</button>
-            </div>
-
-            <div className="space-y-5 p-5 sm:p-6">
-              <section className="rounded-2xl border border-slate-200 p-4">
-                <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Cadastro</h4>
-                <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                  <label className="text-sm font-medium text-slate-700">Nome<input value={collaboratorForm.name} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, name: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 px-3 py-2.5" /></label>
-                  <label className="text-sm font-medium text-slate-700">Unidade<select value={collaboratorForm.unit} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, unit: e.target.value as ConfiguredCollaborator["unit"] })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option>Rio Claro</option><option>Araras</option></select></label>
-                </div>
-                <div className="mt-3"><Checkbox label="Colaborador ativo" checked={collaboratorForm.active} onChange={(checked) => setCollaboratorForm({ ...collaboratorForm, active: checked })} /></div>
-              </section>
-
-              <section className="rounded-2xl border border-slate-200 p-4">
-                <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Acesso</h4>
-                <label className="mt-3 block text-sm font-medium text-slate-700">Acesso vinculado<select value={collaboratorForm.accessEmail} onChange={(e) => setCollaboratorForm({ ...collaboratorForm, accessEmail: e.target.value })} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5"><option value="">Selecione o acesso</option>{[...data.users].sort((a, b) => (a.accessLabel || a.name).localeCompare(b.accessLabel || b.name, "pt-BR")).map((user) => <option key={user.email} value={user.email}>{user.accessLabel || user.name} · {user.email}</option>)}</select></label>
-                <p className="mt-2 text-xs text-slate-500">As permissões continuam pertencendo ao acesso selecionado.</p>
-              </section>
-
-              <section className="rounded-2xl border border-slate-200 p-4">
-                <h4 className="text-sm font-semibold uppercase tracking-wide text-slate-700">Módulos</h4>
-                {(() => {
-                  const access = data.users.find((user) => user.email === collaboratorForm.accessEmail);
-                  if (!access) return <p className="mt-3 text-sm text-slate-500">Selecione um acesso para visualizar e editar os módulos.</p>;
-                  return <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">{MODULES.map((module) => {
-                    const enabled = access.modules.includes(module.id);
-                    const key = `collaborator-module:${collaboratorForm.id || "new"}:${module.id}`;
-                    return <Checkbox key={module.id} label={module.label} checked={enabled} disabled={savingKey === key || access.active === false} onChange={(checked) => void saveDirect("user", userWithModule(access, module.id, checked), key)} />;
-                  })}</div>;
-                })()}
-              </section>
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-slate-200 px-5 py-4 sm:px-6">
-              <div>
-                {collaboratorForm.id && <button type="button" disabled={saving} onClick={() => void removeCollaborator(collaboratorForm)} className="rounded-xl border border-red-300 px-4 py-2.5 text-sm font-semibold text-red-700">Excluir colaborador</button>}
-              </div>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => setCollaboratorForm(null)} className="rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700">Cancelar</button>
-                <button type="button" disabled={saving || !collaboratorForm.name.trim() || !collaboratorForm.accessEmail} onClick={() => void save("collaborator", collaboratorForm)} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-60">{saving ? "Salvando..." : "Salvar"}</button>
-              </div>
-            </div>
-          </div>
+      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-3">
+        <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Personalização</p>
+        <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+          {MODULES.map((module) => {
+            const checked = draft.modules.includes(module.id);
+            return (
+              <label key={module.id} className={`flex cursor-pointer items-center gap-2 rounded-lg border px-2.5 py-2 text-xs font-medium ${checked ? "border-blue-300 bg-blue-50 text-blue-950" : "border-slate-200 bg-white text-slate-700"}`}>
+                <input type="checkbox" checked={checked} disabled={!draft.member.accessEmail} onChange={(event) => onModuleChange(module.id, event.target.checked)} className="h-4 w-4 accent-[#13038D]" />
+                {module.label}
+              </label>
+            );
+          })}
         </div>
-      )}
+        <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
+          <input type="checkbox" checked={draft.noticeRequired} disabled={!draft.member.accessEmail} onChange={(event) => onNoticeChange(event.target.checked)} className="h-4 w-4 accent-[#13038D]" />
+          Exige confirmação de leitura
+        </label>
+        {draft.member.accessEmail && <p className="mt-2 text-[11px] text-slate-500">Permissões são do acesso. Colaboradores que usam o mesmo e-mail ficam sincronizados.</p>}
+      </div>
 
-      {!loading && tab === "backup" && <section className="mt-5 grid gap-4 lg:grid-cols-2"><div className="rounded-3xl border border-blue-200 bg-white p-6 shadow-sm"><h2 className="text-xl font-semibold text-slate-950">Fazer backup</h2><p className="mt-2 text-sm leading-6 text-slate-600">Baixa um arquivo ZIP importável com acessos, colaboradores, Avisos, leituras e mensagens do Equipe.</p><button type="button" onClick={() => void downloadBackup()} className="mt-5 rounded-xl bg-blue-700 px-5 py-3 text-sm font-semibold text-white">Baixar backup agora</button></div><div className="rounded-3xl border border-amber-200 bg-amber-50 p-6"><h2 className="text-xl font-semibold text-amber-950">Restaurar backup</h2><p className="mt-2 text-sm leading-6 text-amber-800">Antes de restaurar, o Portal baixa automaticamente uma cópia do estado atual. Revise sempre o nome e a data do arquivo.</p><label className="mt-5 inline-flex cursor-pointer rounded-xl bg-amber-700 px-5 py-3 text-sm font-semibold text-white"><input type="file" accept=".zip" onChange={(event) => void restoreBackup(event)} className="sr-only" />Selecionar arquivo ZIP</label></div></section>}
-
-      {!loading && tab === "historico" && <section className="mt-5"><h2 className="text-xl font-semibold text-slate-950">Histórico de alterações</h2><div className="mt-4 space-y-2">{data.history.length ? data.history.map((item, index) => <div key={`${item.date}-${index}`} className="rounded-2xl border border-slate-200 bg-white p-4"><div className="flex flex-wrap justify-between gap-2"><p className="font-semibold text-slate-900">{item.action}</p><p className="text-xs text-slate-500">{dateLabel(item.date)}</p></div><p className="mt-1 text-sm text-slate-600">{item.details}</p></div>) : <p className="text-sm text-slate-500">Nenhuma alteração registrada.</p>}</div></section>}
-
-      {!loading && tab === "guia" && (
-        <section className="mt-5">
-          <div className="rounded-3xl border border-blue-200 bg-blue-50 p-5 sm:p-6">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-blue-700">Portal Timoni</p>
-            <h2 className="mt-2 text-2xl font-semibold text-slate-950">Guia de uso</h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">Consulte abaixo o funcionamento dos principais módulos. Abra cada tópico para ver as orientações. O Portal mostra a cada usuário apenas os módulos liberados para o seu acesso.</p>
-          </div>
-          <div className="mt-4 grid gap-3">
-            <GuideItem title="1. Avisos">
-              <p>Avisos reúne os comunicados da unidade. Quando o colaborador vinculado ao acesso exigir confirmação, registre a ciência pelo botão disponível no card.</p>
-            </GuideItem>
-            <GuideItem title="2. Motorista">
-              <p>No Dashboard do Motorista, consulte viagens, bloqueios, endereços, observações e situação de cada serviço. Use os botões de ação somente quando necessário e confira data, empresa, NF/Pedido e endereço antes de alterar um registro. A tela pública do motorista recebe as atualizações do mesmo cadastro.</p>
-            </GuideItem>
-            <GuideItem title="3. Compras">
-              <p>Use Compras para acompanhar demandas, pedidos e informações enviadas ao processo de compra. Antes de atualizar um pedido, confira fornecedor, número do pedido, empresa, unidade e itens. Utilize Consulta quando a necessidade ainda não for um pedido efetivamente realizado.</p>
-            </GuideItem>
-            <GuideItem title="4. Estoque">
-              <p>O Estoque concentra consultas e solicitações de produtos e acompanha os pedidos integrados com Compras. Sempre confira a unidade correta, os itens e o status antes de responder ou dar andamento.</p>
-            </GuideItem>
-            <GuideItem title="5. Leads">
-              <p>Em Leads, acompanhe as listas FOLLOW UP e A PROSPECTAR. Registre contatos, próxima data e observações. Use STATUS para transferir o cliente entre as listas e consulte os indicadores para acompanhar realizado, pendente e evolução do trabalho comercial.</p>
-            </GuideItem>
-            <GuideItem title="6. Reuniões e demais módulos">
-              <p>Use cada módulo apenas para a finalidade indicada no Portal. Os conteúdos e botões disponíveis variam conforme a permissão do usuário. Quando um módulo não aparecer no cabeçalho, ele não está liberado para aquele acesso.</p>
-            </GuideItem>
-            <GuideItem title="7. Configurações — permissões">
-              <p>Configurações é uma área de gestão.</p>
-              <p><strong>Acesso dos administradores</strong></p>
-              <p>Os administradores do Portal têm acesso às seguintes funcionalidades:</p>
-              <ul className="list-disc space-y-1 pl-5">
-                <li>Gerenciar colaboradores e acessos.</li>
-                <li>Configurar módulos e permissões.</li>
-                <li>Realizar backups e restauração de dados.</li>
-                <li>Consultar o histórico de ações.</li>
-                <li>Acessar e editar o Guia de uso.</li>
-                <li>Acessar os módulos liberados para a gestão.</li>
-              </ul>
-              <p>Permissões são definidas pelo acesso: nome do acesso, e-mail, módulos e confirmação de leitura. Cada colaborador fica vinculado a um único acesso e herda as regras desse acesso.</p>
-            </GuideItem>
-            <GuideItem title="8. Backup e restauração">
-              <p>Faça backups periódicos pelo botão Baixar backup agora. Para restaurar, selecione um ZIP válido. Antes da restauração, o Portal gera automaticamente uma cópia do estado atual. Confirme sempre o arquivo e a data antes de prosseguir.</p>
-            </GuideItem>
-            <GuideItem title="9. Boas práticas de uso">
-              <p>Evite cadastros duplicados, confira unidade e datas antes de salvar e mantenha as observações objetivas. No celular, prefira os botões do próprio Portal e role horizontalmente os menus quando necessário. Se uma informação parecer desatualizada, atualize a página antes de repetir a operação.</p>
-            </GuideItem>
-          </div>
-        </section>
-      )}
+      <div className="mt-4 flex flex-wrap items-center justify-between gap-2">
+        <div>{onDelete && <button type="button" onClick={onDelete} className="rounded-lg border border-red-200 px-4 py-2 text-sm font-semibold text-[#D40C0D]">Excluir</button>}</div>
+        <div className="flex gap-2">
+          <button type="button" onClick={onCancel} className="rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700">Cancelar</button>
+          <button type="button" disabled={saving} onClick={onSave} className="rounded-lg bg-[#13038D] px-5 py-2 text-sm font-semibold text-white disabled:opacity-60">{saving ? "Salvando..." : "Salvar"}</button>
+        </div>
+      </div>
     </div>
   );
 }

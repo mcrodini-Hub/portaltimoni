@@ -1,4 +1,4 @@
-import { signOut } from "@/lib/auth";
+import { auth, signOut } from "@/lib/auth";
 import { hasModuleAccess, type PortalModule, type PortalUser } from "@/lib/access-control";
 import Link from "next/link";
 import ModuleUpdatesNav from "@/components/module-updates-nav";
@@ -6,6 +6,7 @@ import MobilePortalHeader from "@/components/mobile-portal-header";
 import ChatButton from "@/components/chat-button";
 import type { UpdateModule } from "@/lib/module-updates";
 import type { PortalIconName } from "@/components/portal-icon";
+import { getEffectivePortalUser } from "@/lib/portal-config";
 
 const navItems: Array<{ href: string; label: string; module: PortalModule; updateModule?: UpdateModule; icon: PortalIconName; color: string; external?: boolean }> = [
   { href: "/agenda", label: "Agenda Ciça", module: "agenda", updateModule: "agenda", icon: "star", color: "text-cyan-700" },
@@ -20,15 +21,17 @@ const navItems: Array<{ href: string; label: string; module: PortalModule; updat
   { href: "/espaco-equipe", label: "Equipe", module: "painel", updateModule: "espaco-equipe", icon: "team", color: "text-indigo-800" },
 ];
 
-export default function PortalHeader({ email, portalUser }: { email: string; portalUser?: PortalUser | null }) {
+export default async function PortalHeader({ email, portalUser }: { email: string; portalUser?: PortalUser | null }) {
+  const session = await auth();
+  const effectivePortalUser = await getEffectivePortalUser(session?.accessToken, email) ?? portalUser ?? null;
   const isManagement = ["mcrodini@gmail.com", "mrodini@gmail.com"].includes(email.trim().toLowerCase());
   const canViewUpdates = isManagement;
-  const canUseChat = hasModuleAccess(email, "chat", portalUser);
-  const mobileVisible = (module: PortalModule) => portalUser?.mobileModules === undefined || portalUser.mobileModules.includes(module);
+  const canUseChat = hasModuleAccess(email, "chat", effectivePortalUser);
+  const mobileVisible = (module: PortalModule) => effectivePortalUser?.mobileModules === undefined || effectivePortalUser.mobileModules.includes(module);
   const linkClass =
     "whitespace-nowrap rounded-lg px-2 py-2 text-[13px] font-medium text-white/90 transition hover:bg-white/10 hover:text-white";
   const allowedItems = navItems
-    .filter((item) => hasModuleAccess(email, item.module, portalUser))
+    .filter((item) => hasModuleAccess(email, item.module, effectivePortalUser))
     .map((item) => ({ ...item, targetHref: item.href }));
   const byLabel = (a: { label: string }, b: { label: string }) => a.label.localeCompare(b.label, "pt-BR", { sensitivity: "base" });
   const sortedAllowedItems = [...allowedItems].sort(byLabel);

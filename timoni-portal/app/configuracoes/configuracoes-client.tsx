@@ -12,6 +12,7 @@ type ConfigurationResponse = {
 type Draft = {
   member: ConfiguredCollaborator;
   modules: PortalModule[];
+  mobileModules: PortalModule[];
   noticeRequired: boolean;
 };
 
@@ -125,6 +126,7 @@ export default function ConfiguracoesClient() {
     setDraft({
       member: { ...member },
       modules: access ? [...access.modules] : [],
+      mobileModules: access ? [...(access.mobileModules ?? access.modules)] : [],
       noticeRequired: Boolean(access?.noticeRequired),
     });
     setError("");
@@ -135,7 +137,7 @@ export default function ConfiguracoesClient() {
     const member = emptyMember();
     setOpenId("__new__");
     setEditingId("__new__");
-    setDraft({ member, modules: [], noticeRequired: false });
+    setDraft({ member, modules: [], mobileModules: [], noticeRequired: false });
     setError("");
     setMessage("");
   }
@@ -147,6 +149,7 @@ export default function ConfiguracoesClient() {
     setDraft({
       member: { ...draft.member, accessEmail: normalized },
       modules: access ? [...access.modules] : [],
+      mobileModules: access ? [...(access.mobileModules ?? access.modules)] : [],
       noticeRequired: Boolean(access?.noticeRequired),
     });
   }
@@ -158,6 +161,19 @@ export default function ConfiguracoesClient() {
       modules: checked
         ? [...new Set([...draft.modules, module])]
         : draft.modules.filter((item) => item !== module),
+      mobileModules: checked
+        ? draft.mobileModules
+        : draft.mobileModules.filter((item) => item !== module),
+    });
+  }
+
+  function toggleMobileModule(module: PortalModule, checked: boolean) {
+    if (!draft || !draft.modules.includes(module)) return;
+    setDraft({
+      ...draft,
+      mobileModules: checked
+        ? [...new Set([...draft.mobileModules, module])]
+        : draft.mobileModules.filter((item) => item !== module),
     });
   }
 
@@ -215,9 +231,7 @@ export default function ConfiguracoesClient() {
             ...access,
             modules: [...draft.modules],
             boxes,
-            mobileModules: access.mobileModules === undefined
-              ? undefined
-              : access.mobileModules.filter((module) => draft.modules.includes(module)),
+            mobileModules: draft.mobileModules.filter((module) => draft.modules.includes(module)),
             noticeRequired: draft.noticeRequired,
           });
         } else {
@@ -228,7 +242,7 @@ export default function ConfiguracoesClient() {
             unit: member.unit === "Geral" ? "Geral" : member.unit,
             modules: [...draft.modules],
             boxes,
-            mobileModules: [...draft.modules],
+            mobileModules: draft.mobileModules.filter((module) => draft.modules.includes(module)),
             requiresPassword: false,
             readOnly: false,
             active: true,
@@ -356,6 +370,7 @@ export default function ConfiguracoesClient() {
                 onMemberChange={(member) => setDraft({ ...draft, member })}
                 onAccessChange={updateAccessEmail}
                 onModuleChange={toggleModule}
+                onMobileModuleChange={toggleMobileModule}
                 onNoticeChange={(checked) => setDraft({ ...draft, noticeRequired: checked })}
                 onSave={() => void saveDraft()}
                 onCancel={() => { setOpenId(""); setEditingId(""); setDraft(null); }}
@@ -407,6 +422,7 @@ export default function ConfiguracoesClient() {
                         onMemberChange={(next) => setDraft({ ...draft, member: next })}
                         onAccessChange={updateAccessEmail}
                         onModuleChange={toggleModule}
+                        onMobileModuleChange={toggleMobileModule}
                         onNoticeChange={(checked) => setDraft({ ...draft, noticeRequired: checked })}
                         onSave={() => void saveDraft()}
                         onCancel={() => { setEditingId(""); setDraft(null); }}
@@ -451,6 +467,7 @@ function Editor({
   onMemberChange,
   onAccessChange,
   onModuleChange,
+  onMobileModuleChange,
   onNoticeChange,
   onSave,
   onCancel,
@@ -462,6 +479,7 @@ function Editor({
   onMemberChange: (member: ConfiguredCollaborator) => void;
   onAccessChange: (email: string) => void;
   onModuleChange: (module: PortalModule, checked: boolean) => void;
+  onMobileModuleChange: (module: PortalModule, checked: boolean) => void;
   onNoticeChange: (checked: boolean) => void;
   onSave: () => void;
   onCancel: () => void;
@@ -517,6 +535,25 @@ function Editor({
             );
           })}
         </div>
+        <div className="mt-4 border-t border-slate-200 pt-3">
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Mobile</p>
+            <p className="text-[11px] text-slate-500">Escolha o que aparece no menu do celular.</p>
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4">
+            {MODULES.map((module) => {
+              const enabled = draft.modules.includes(module.id);
+              const checked = enabled && draft.mobileModules.includes(module.id);
+              return (
+                <label key={`mobile-${module.id}`} className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 text-xs font-medium ${checked ? "border-blue-300 bg-blue-50 text-blue-950" : "border-slate-200 bg-white text-slate-700"} ${enabled ? "cursor-pointer" : "cursor-not-allowed opacity-45"}`}>
+                  <input type="checkbox" checked={checked} disabled={!draft.member.accessEmail || !enabled} onChange={(event) => onMobileModuleChange(module.id, event.target.checked)} className="h-4 w-4 accent-[#13038D]" />
+                  {module.label}
+                </label>
+              );
+            })}
+          </div>
+        </div>
+
         <label className="mt-3 flex cursor-pointer items-center gap-2 text-sm font-medium text-slate-700">
           <input type="checkbox" checked={draft.noticeRequired} disabled={!draft.member.accessEmail} onChange={(event) => onNoticeChange(event.target.checked)} className="h-4 w-4 accent-[#13038D]" />
           Exige confirmação de leitura

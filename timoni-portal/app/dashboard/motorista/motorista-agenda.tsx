@@ -210,7 +210,7 @@ function formFromViagem(v: Viagem): FormState {
     contatoWhats: "",
     cep: "",
     endereco: enderecoEditavel,
-    numeroEndereco: v.numero || "",
+    numeroEndereco: String(v.numero ?? ""),
     bairro: bairroLegado,
     cidade: meta.cidade || cidadeLegada,
     referencia: meta.referencia || v.complemento || "",

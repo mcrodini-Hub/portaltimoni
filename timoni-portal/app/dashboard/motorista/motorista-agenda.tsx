@@ -380,7 +380,7 @@ function formatarCep(value: string) {
 
 export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boolean }) {
   const hoje = localDateString();
-  const [modo, setModo] = useState<Modo>("semana");
+  const [modo, setModo] = useState<Modo>("dia");
   const [selecionado, setSelecionado] = useState(hoje);
   const [mesBase, setMesBase] = useState(() => new Date());
   const [viagens, setViagens] = useState<Record<string, Viagem[]>>({});

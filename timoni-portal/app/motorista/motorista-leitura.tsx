@@ -216,7 +216,7 @@ export default function MotoristaLeitura() {
             </div>
             <div className="flex gap-2">
               <button type="button" onClick={() => setInicio((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - 7))} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700">← 7 dias</button>
-              <button type="button" onClick={() => setInicio(dateFromString(localDateString())) className="rounded-lg bg-blue-800 px-3 py-2 text-sm font-semibold text-white">Hoje</button>
+              <button type="button" onClick={() => setInicio(dateFromString(localDateString()))} className="rounded-lg bg-blue-800 px-3 py-2 text-sm font-semibold text-white">Hoje</button>
               <button type="button" onClick={() => setInicio((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7))} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700">+ 7 dias</button>
             </div>
           </div>

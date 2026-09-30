@@ -6,6 +6,9 @@ import { CICA_EMAIL } from "@/lib/portal-config";
 
 const MANAGEMENT_EMAILS = new Set([CICA_EMAIL, "mrodini@gmail.com"]);
 
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export default async function ConfiguracoesPage() {
   const session = await auth();
   const email = session?.user?.email?.trim().toLowerCase() || "";

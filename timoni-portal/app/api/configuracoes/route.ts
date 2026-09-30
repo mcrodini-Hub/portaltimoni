@@ -96,7 +96,8 @@ function cleanCollaborator(value: Record<string, unknown>, users: PortalUser[]):
   const access = accessEmail ? users.find((user) => user.email === accessEmail) : null;
   if (accessEmail && !access) throw new Error("Selecione um acesso válido para este colaborador.");
   const name = String(value.name || "").trim();
-  const unit = String(value.unit) === "Araras" ? "Araras" : String(value.unit) === "Rio Claro" ? "Rio Claro" : null;
+  const unitValue = String(value.unit);
+  const unit = unitValue === "Geral" ? "Geral" : unitValue === "Araras" ? "Araras" : unitValue === "Rio Claro" ? "Rio Claro" : null;
   if (name.length < 2 || !unit) throw new Error("Informe nome e unidade válidos para o colaborador.");
   const id = String(value.id || `${unit}-${name}`.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-"));
   return {
@@ -107,6 +108,7 @@ function cleanCollaborator(value: Record<string, unknown>, users: PortalUser[]):
     active: value.active !== false,
     noticeRequired: true,
     chatEnabled: true,
+    role: String(value.role || "").trim().slice(0, 80),
     updatedAt: new Date().toISOString(),
   };
 }
@@ -136,6 +138,12 @@ export async function PUT(request: Request) {
     } else if (body.section === "collaborator") {
       const configuration = await loadPortalConfiguration(current.accessToken);
       const item = cleanCollaborator(body.item || {}, configuration.users);
+      const duplicate = configuration.collaborators.find((member) =>
+        member.id !== item.id &&
+        member.unit === item.unit &&
+        member.name.localeCompare(item.name, "pt-BR", { sensitivity: "base" }) === 0
+      );
+      if (duplicate) throw new Error("Este colaborador já está cadastrado nesta unidade.");
       await upsertCollaborator(current.accessToken, item);
       await bumpPortalConfigurationRevisionSafely();
       await appendAudit(current.accessToken, "Colaborador atualizado", `${item.name} · ${item.unit} · ${item.accessEmail}`, current.email);

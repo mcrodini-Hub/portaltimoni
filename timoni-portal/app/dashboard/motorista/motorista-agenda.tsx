@@ -74,7 +74,7 @@ const ARARAS_EMAILS_EXCLUIDOS = new Set([
 ]);
 
 function normalizarUnidade(value: string) {
-  return value.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").trim().toLowerCase();
+  return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 }
 
 const REQUIRED: Array<keyof FormState> = [

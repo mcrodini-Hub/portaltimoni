@@ -142,6 +142,7 @@ export default function EstoqueRotativoClient() {
   const [standardizationSheetName, setStandardizationSheetName] = useState("");
   const [loadingStandardizationSheets, setLoadingStandardizationSheets] = useState(false);
   const standardizationRequest = useRef(0);
+  const trelloRequestInFlight = useRef(false);
 
   const load = useCallback(async (id?: string | null) => {
     setLoading(true); setError("");
@@ -158,17 +159,21 @@ export default function EstoqueRotativoClient() {
 
   useEffect(() => { void load(); }, [load]);
   const refreshTrello = useCallback(async (showFeedback = false) => {
+    if (trelloRequestInFlight.current) return;
+    trelloRequestInFlight.current = true;
     setRefreshingTrello(true);
     setError("");
     try {
       const response = await fetch("/api/estoque-rotativo/fornecedores?refresh=" + Date.now(), { cache: "no-store" });
       const result = await response.json() as ComprasData & { error?: string };
       if (!response.ok) throw new Error(result.error || "Não foi possível atualizar os cards do Trello.");
+      if (result.configured === false) throw new Error("A conexão com o Trello não está configurada. Revise a integração em Configurações.");
       setTrelloSuppliers(result.suppliers || []);
       if (showFeedback) setFeedback("Cards atualizados: " + (result.suppliers?.length || 0) + " pendente(s).");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível atualizar os cards do Trello.");
     } finally {
+      trelloRequestInFlight.current = false;
       setRefreshingTrello(false);
     }
   }, []);
@@ -191,11 +196,7 @@ export default function EstoqueRotativoClient() {
     return () => window.clearTimeout(timer);
   }, [spreadsheetReference]);
 
-  const registeredPendingNames = useMemo(
-    () => new Set((data?.updates || []).filter((item) => item.status === "aguardando_conferencia" || item.status === "aguardando_mapeamento").map((item) => item.supplier_name.trim().toLocaleLowerCase("pt-BR"))),
-    [data?.updates],
-  );
-  const pending = trelloSuppliers.length || registeredPendingNames.size;
+  const pending = trelloSuppliers.length;
   const stockUpdated = data?.updates.filter((item) => item.status === "atualizado").length || 0;
   const pendingSupplierFiles = useMemo(
     () => (data?.supplierFiles || [])
@@ -436,8 +437,10 @@ export default function EstoqueRotativoClient() {
     setFeedback(
       `${result.reviewed || 0} item(ns) conferido(s). ${result.updated || 0} estoque(s) alterado(s). Status gravado na planilha como "${result.status || "Atualizado"}". Card do Trello concluído.`,
     );
+    const completedCardId = data?.currentUpdate?.trello_card_id || data?.updates.find((item) => item.id === activeId)?.trello_card_id;
+    if (completedCardId) setTrelloSuppliers((cards) => cards.filter((card) => card.id !== completedCardId));
     setActiveId(null);
-    await Promise.all([load(), refreshTrello()]);
+    await load();
   }
 
   async function removeUpdate(item: Update) {

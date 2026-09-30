@@ -160,8 +160,8 @@ export async function PATCH(request: Request) {
     const action = String(body?.action ?? "edit");
     if (!id) return NextResponse.json({ error: "Comunicado inválido." }, { status: 400 });
 
-    if (action === "archive") {
-      await updateComunicado(context.accessToken, id, { status: "arquivado" });
+    if (action === "archive" || action === "activate") {
+      await updateComunicado(context.accessToken, id, { status: action === "activate" ? "ativo" : "arquivado" });
       return NextResponse.json({ ok: true });
     }
 

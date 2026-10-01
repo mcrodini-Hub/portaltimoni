@@ -129,14 +129,8 @@ function lerTipo(notasJson?: string): "Entrega" | "Retirada" {
 }
 
 function ordenarViagens(viagens: Viagem[]) {
-  return [...viagens].sort((a, b) => {
-    const horarioA = String(a.horario || "").trim();
-    const horarioB = String(b.horario || "").trim();
-    if (!horarioA && !horarioB) return 0;
-    if (!horarioA) return 1;
-    if (!horarioB) return -1;
-    return horarioA.localeCompare(horarioB);
-  });
+  // Preserva a sequência original de inclusão vinda da agenda, sem reordenar por horário.
+  return [...viagens];
 }
 
 function estiloBoxViagem(v: Viagem) {

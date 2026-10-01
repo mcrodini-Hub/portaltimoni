@@ -572,6 +572,12 @@ export default function EstoqueRotativoClient() {
             </div>
 
             <div className="mt-4 max-h-96 overflow-y-auto rounded-2xl border border-slate-200">
+              {trelloCompletedSuppliers.map((supplier) => (
+                <div key={supplier.id} className="flex w-full flex-wrap items-center justify-between gap-2 border-b border-slate-100 bg-emerald-50 px-4 py-3 text-sm text-slate-800">
+                  <span className="font-semibold">{supplier.name}</span>
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-800">Concluído no Trello</span>
+                </div>
+              ))}
               {trelloSuppliers.length ? trelloSuppliers.map((supplier) => {
                 const existing = (data.updates || []).find((item) =>
                   item.supplier_name.trim().toLocaleLowerCase("pt-BR") === supplier.name.trim().toLocaleLowerCase("pt-BR")
@@ -614,7 +620,7 @@ export default function EstoqueRotativoClient() {
                     </span>
                   </button>
                 );
-              }) : <p className="p-5 text-sm text-slate-500">Nenhum card pendente.</p>}
+              }) : !trelloCompletedSuppliers.length ? <p className="p-5 text-sm text-slate-500">Nenhum card na lista.</p> : null}
             </div>
 
             <div className="mt-4 flex flex-wrap gap-3">

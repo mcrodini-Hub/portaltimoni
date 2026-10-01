@@ -312,10 +312,10 @@ export default function MotoristaLeitura() {
                       return (
                         <article key={v.id} style={estiloBoxViagem(v)} className={`rounded-xl border p-3 ${bloqueio ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
                           <div className="flex items-start gap-3">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow-sm">{index + 1}</span>
+                            
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-semibold text-slate-950">{linhaPrincipal(v)}</p>
+                                <p className="text-sm font-semibold text-slate-950">{index + 1}. {linhaPrincipal(v)}</p>
                                 {!bloqueio && concluida(v.notasJson) && <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">Concluído</span>}
                               </div>
                               <p className="mt-2 text-sm font-bold uppercase text-slate-900">

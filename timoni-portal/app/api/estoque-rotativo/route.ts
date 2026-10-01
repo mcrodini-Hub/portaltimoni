@@ -679,9 +679,9 @@ function normalizeHeader(value: unknown) {
 }
 
 const HEADER_ALIASES = {
-  saleCode: ["cod venda", "codigo venda", "codvenda", "codigo de venda"],
+  saleCode: ["venda", "cod venda", "codigo venda", "codvenda", "codigo de venda"],
   genericCode: ["codigo", "cod", "cod produto", "codigo produto", "referencia", "ref", "sku"],
-  purchaseCode: ["cod compra", "codigo compra", "codcompra", "codigo de compra", "cod fornecedor", "codigo fornecedor", "cod forn"],
+  purchaseCode: ["compra", "cod compra", "codigo compra", "codcompra", "codigo de compra", "cod fornecedor", "codigo fornecedor", "cod forn"],
   description: ["descricao", "produto", "nome produto", "item produto", "mercadoria"],
   min: ["min", "minimo", "estoque min", "estoque minimo", "est min"],
   max: ["max", "maximo", "estoque max", "estoque maximo", "est max"],

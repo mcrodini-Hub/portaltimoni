@@ -150,7 +150,7 @@ function lojaAgenda(loja?: string) {
   const chave = valor.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR");
   if (chave === "mcr") return "MCR";
   if (chave === "rodini") return "Rodini";
-  if (chave === "ct" || chave === "casa timoni") return "CT";
+  if (chave === "ct" || (chave.includes("casa") && chave.includes("timoni"))) return "CT";
   if (chave === "rio_claro" || chave === "araras" || chave === "rio claro") return "";
   return valor;
 }

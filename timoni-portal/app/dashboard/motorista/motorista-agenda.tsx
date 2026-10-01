@@ -766,16 +766,8 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
 
           <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
             <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Filtros da agenda</p>
-            <div role="group" aria-label="Filtrar por unidade" className="mb-3 flex flex-wrap gap-2">
-              {([
-                ["todas", "Todas"],
-                ["rio_claro", "Rio Claro"],
-                ["araras", "Araras"],
-              ] as const).map(([valor, rotulo]) => (
-                <button key={valor} type="button" aria-pressed={filtroRota === valor} onClick={() => setFiltroRota(valor)} className={`rounded-lg px-3 py-2 text-sm font-medium ${filtroRota === valor ? "bg-blue-800 text-white" : "border border-slate-300 bg-white text-slate-700"}`}>{rotulo}</button>
-              ))}
-            </div>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="text-xs font-medium text-slate-600">Unidade<select value={filtroRota} onChange={(e) => setFiltroRota(e.target.value as FiltroRota)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="todas">Todas</option><option value="rio_claro">Rio Claro</option><option value="araras">Araras</option></select></label>
               <label className="text-xs font-medium text-slate-600">Tipo<select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value as FiltroTipo)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="todos">Entrega e Retirada</option><option value="Entrega">Entrega</option><option value="Retirada">Retirada</option></select></label>
               <label className="text-xs font-medium text-slate-600">Vendedor<select value={filtroVendedor} onChange={(e) => setFiltroVendedor(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">Todos</option>{vendedoresAgenda.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>
               <label className="text-xs font-medium text-slate-600">Preenchido por<select value={filtroPreenchido} onChange={(e) => setFiltroPreenchido(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">Todos</option>{preenchidosAgenda.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>

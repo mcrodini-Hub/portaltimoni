@@ -301,11 +301,14 @@ function documentoTexto(valor?: string) {
 }
 
 function ordenarViagens(viagens: Viagem[]) {
-  return [...viagens].sort((a, b) =>
-    (a.horario || "").localeCompare(b.horario || "") ||
-    (a.loja || "").localeCompare(b.loja || "", "pt-BR") ||
-    a.id.localeCompare(b.id, "pt-BR"),
-  );
+  return [...viagens].sort((a, b) => {
+    const horarioA = String(a.horario || "").trim();
+    const horarioB = String(b.horario || "").trim();
+    if (!horarioA && !horarioB) return 0;
+    if (!horarioA) return 1;
+    if (!horarioB) return -1;
+    return horarioA.localeCompare(horarioB);
+  });
 }
 
 function estiloBoxViagem(v: Viagem) {

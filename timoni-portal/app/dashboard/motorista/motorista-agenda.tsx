@@ -55,6 +55,7 @@ type FormState = {
 };
 
 type Modo = "dia" | "semana" | "mes";
+type FiltroAgenda = "todas" | "rio_claro" | "araras" | "retiradas";
 
 type VendedorOption = { nome: string; unidade: string };
 const RESPONSAVEIS_RIO_CLARO: string[] = [
@@ -243,6 +244,17 @@ function lojaLabel(loja?: string) {
   return loja || "";
 }
 
+function classeEntrega(v: Viagem): "Rio Claro" | "Araras" {
+  const local = [lerMetaMotorista(v.notasJson).cidade, v.endereco, v.complemento].filter(Boolean).join(" ");
+  return local.toLocaleLowerCase("pt-BR").includes("araras") ? "Araras" : "Rio Claro";
+}
+
+function filtrarViagens(viagens: Viagem[], filtro: FiltroAgenda) {
+  if (filtro === "todas") return viagens;
+  if (filtro === "retiradas") return viagens.filter((v) => lerMetaMotorista(v.notasJson).tipo === "Retirada");
+  return viagens.filter((v) => lerMetaMotorista(v.notasJson).tipo !== "Retirada" && classeEntrega(v) === (filtro === "araras" ? "Araras" : "Rio Claro"));
+}
+
 function horaCurta(hora?: string) {
   return hora ? hora.slice(0, 5) : "";
 }
@@ -301,14 +313,8 @@ function documentoTexto(valor?: string) {
 }
 
 function ordenarViagens(viagens: Viagem[]) {
-  return [...viagens].sort((a, b) => {
-    const horarioA = String(a.horario || "").trim();
-    const horarioB = String(b.horario || "").trim();
-    if (!horarioA && !horarioB) return 0;
-    if (!horarioA) return 1;
-    if (!horarioB) return -1;
-    return horarioA.localeCompare(horarioB);
-  });
+  // Preserva a sequência original de inclusão vinda da agenda, sem reordenar por horário.
+  return [...viagens];
 }
 
 function estiloBoxViagem(v: Viagem) {
@@ -410,6 +416,7 @@ function formatarCep(value: string) {
 export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boolean }) {
   const hoje = localDateString();
   const [modo, setModo] = useState<Modo>("dia");
+  const [filtroAgenda, setFiltroAgenda] = useState<FiltroAgenda>("todas");
   const [selecionado, setSelecionado] = useState(hoje);
   const [mesBase, setMesBase] = useState(() => dateFromString(hoje));
   const [viagens, setViagens] = useState<Record<string, Viagem[]>>({});
@@ -740,7 +747,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
     popup.document.close();
   }
 
-  const itensDia = ordenarViagens(viagens[selecionado] || []);
+  const itensDia = filtrarViagens(ordenarViagens(viagens[selecionado] || []), filtroAgenda);
   const dataSelecionada = dateFromString(selecionado);
 
   return (
@@ -753,6 +760,21 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
             <button type="button" onClick={() => setModo("dia")} className={`rounded-lg px-3 py-2 text-sm font-medium ${modo === "dia" ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>Dia</button>
             <button type="button" onClick={() => setModo("semana")} className={`rounded-lg px-3 py-2 text-sm font-medium ${modo === "semana" ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>Semana</button>
             <button type="button" onClick={() => setModo("mes")} className={`rounded-lg px-3 py-2 text-sm font-medium ${modo === "mes" ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>Mês</button>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Filtrar agenda</p>
+            <div role="group" aria-label="Filtrar agenda por classificação" className="flex flex-wrap gap-2">
+              {([
+                ["todas", "Todas"],
+                ["rio_claro", "Rio Claro"],
+                ["araras", "Araras"],
+                ["retiradas", "Retiradas"],
+              ] as const).map(([valor, rotulo]) => (
+                <button key={valor} type="button" aria-pressed={filtroAgenda === valor} onClick={() => setFiltroAgenda(valor)} className={`rounded-lg px-3 py-2 text-sm font-medium ${filtroAgenda === valor ? "bg-blue-800 text-white" : "border border-slate-300 bg-white text-slate-700"}`}>{rotulo}</button>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-slate-500">Rio Claro: entregas ao longo do dia · Araras: entregas à tarde · Retiradas: Rio Claro e Araras.</p>
           </div>
 
           {modo === "dia" ? (
@@ -794,7 +816,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
           <div className="mt-4 space-y-4">
             {diasSemana.map((d) => {
               const data = localDateString(d);
-              const itens = ordenarViagens(viagens[data] || []);
+              const itens = filtrarViagens(ordenarViagens(viagens[data] || []), filtroAgenda);
               return (
                 <section key={data} className={`rounded-2xl border bg-white p-4 ${data === hoje ? "border-blue-300 bg-blue-50/40" : "border-slate-200"}`}>
                   <button type="button" onClick={() => selecionarDia(data)} className="w-full text-left">
@@ -865,7 +887,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
             <div className="mt-1 grid grid-cols-7 gap-1">
               {diasMes.map((d) => {
                 const data = localDateString(d);
-                const itens = viagens[data] || [];
+                const itens = filtrarViagens(viagens[data] || [], filtroAgenda);
                 const fora = d.getMonth() !== mesBase.getMonth();
                 return <button key={data} type="button" onClick={() => selecionarDia(data)} className={`min-h-24 rounded-xl border p-2 text-left ${fora ? "border-slate-100 bg-slate-50 text-slate-300" : data === hoje ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white"}`}>
                   <p className="text-sm font-semibold">{d.getDate()}</p>

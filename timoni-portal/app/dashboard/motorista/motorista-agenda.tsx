@@ -326,18 +326,27 @@ function estiloBoxViagem(v: Viagem) {
   };
 }
 
+function lojaAgenda(loja?: string) {
+  const valor = String(loja || "").trim();
+  if (!valor) return "";
+  const chave = valor.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  if (chave === "mcr") return "MCR";
+  if (chave === "rodini") return "Rodini";
+  if (chave === "ct" || chave === "casa timoni") return "CT";
+  if (chave === "rio_claro" || chave === "araras" || chave === "rio claro") return "";
+  return valor;
+}
 function linhaPrincipalRelatorio(v: Viagem) {
   const tipo = lerMetaMotorista(v.notasJson).tipo;
-  const partes = [
-    tipo,
-    v.tipoHorario === "Bloqueio" ? "Bloqueio" : "",
-    unidadeAgenda(v),
+  const loja = lojaAgenda(v.loja);
+  const horario = v.horario ? `${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : "";
+  return [
+    `${tipo}${v.tipoHorario === "Bloqueio" ? " (Bloqueio)" : ""}: ${unidadeAgenda(v)}`,
+    loja,
     v.vendedor ? `Vend.: ${v.vendedor}` : "",
-    v.horario ? `${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : "",
-  ].filter(Boolean);
-  return partes.join(" | ");
+    horario,
+  ].filter(Boolean).join(" | ");
 }
-
 function separarVolume(valor?: string) {
   const texto = String(valor ?? "").trim();
   const unidadeMarcador = " | Unidade: ";
@@ -736,7 +745,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
       const tipo = lerMetaMotorista(v.notasJson).tipo;
       const endereco = formatarEnderecoExibicao(v.endereco, v.numero, v.complemento);
       const link = separarEndereco(v.endereco).link;
-      const linha1 = linhaPrincipalRelatorio(v);
+      const linha1 = `${index + 1}. ${linhaPrincipalRelatorio(v)}`;
       const empresa = (v.clienteFornecedor || "").toUpperCase();
       const documento = documentoTexto(v.numeroPedido);
       const linha2 = [documento, empresa ? `${v.contatoNome ? "CLIENTE " : ""}${empresa}` : "", v.contatoNome ? `A/C: ${v.contatoNome.toUpperCase()}` : "", !v.contatoNome && v.volumes ? `VOLUME: ${String(v.volumes).toUpperCase()}` : ""].filter(Boolean).join(" | ");

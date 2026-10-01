@@ -239,12 +239,6 @@ async function parseResponse(response: Response) {
   return data;
 }
 
-function lojaLabel(loja?: string) {
-  if (loja === "araras") return "Araras";
-  if (loja === "rio_claro") return "Rio Claro";
-  return loja || "";
-}
-
 function unidadeAgenda(v: Viagem): "Rio Claro" | "Araras" {
   const local = [lerMetaMotorista(v.notasJson).cidade, v.endereco, v.complemento].filter(Boolean).join(" ");
   return local.toLocaleLowerCase("pt-BR").includes("araras") ? "Araras" : "Rio Claro";

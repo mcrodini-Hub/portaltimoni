@@ -205,7 +205,8 @@ export default function EstoqueRotativoClient() {
   );
   const selectedStandardizationSupplier = pendingSupplierFiles.find((item) => item.id === selectedStandardizationSupplierId) || null;
   const selectedPreparedSupplier = (data?.supplierStandardizations || []).find(
-    (item) => item.spreadsheet_id === selectedStandardizationSupplierId && item.sheet_name === standardizationSheetName && item.status === "preparada",
+    (item) => item.spreadsheet_id === selectedStandardizationSupplierId && item.sheet_name === standardizationSheetName
+      && (item.status === "preparada" || !(data?.suppliers || []).some((supplier) => supplier.spreadsheet_id === item.spreadsheet_id && supplier.sheet_name === item.sheet_name)),
   ) || null;
 
   async function post(body: Record<string, unknown>) {
@@ -1092,7 +1093,7 @@ export default function EstoqueRotativoClient() {
           </div>
           {selectedStandardizationSupplier && standardizationSheetName ? (
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              {data.supplierStandardizations.some((item) => item.spreadsheet_id === selectedStandardizationSupplierId && item.sheet_name === standardizationSheetName && item.status === "atualizada") ? (
+              {data.supplierStandardizations.some((item) => item.spreadsheet_id === selectedStandardizationSupplierId && item.sheet_name === standardizationSheetName && item.status === "atualizada") && !selectedPreparedSupplier ? (
                 <span className="text-sm font-semibold text-emerald-700">Padronizada ✓</span>
               ) : selectedPreparedSupplier ? (
                 <>

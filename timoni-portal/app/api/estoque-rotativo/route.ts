@@ -1270,7 +1270,7 @@ async function clearSupplierReviewHighlight(
   });
   const sheet = metadata.data.sheets?.find((item) => item.properties?.title === sheetName);
   const sheetId = sheet?.properties?.sheetId;
-  if (sheetId === undefined || sheetId === null) return;
+  if (sheetId === undefined || sheetId === null) throw new Error("A aba selecionada não foi encontrada. Selecione a aba novamente.");
 
   const rules = sheet?.conditionalFormats || [];
   const reviewIndex = rules.findIndex((rule) => {
@@ -1669,11 +1669,9 @@ export async function POST(request: Request) {
       if (!spreadsheetId) throw new Error("Planilha não identificada.");
       const snapshot = await listRotatingStockData();
       const prepared = snapshot.supplierStandardizations.find(
-        (item) => item.spreadsheet_id === spreadsheetId && item.sheet_name === String(body.sheetName || "").trim() && item.status === "preparada",
+        (item) => item.spreadsheet_id === spreadsheetId && item.sheet_name === String(body.sheetName || "").trim(),
       );
       if (!prepared) throw new Error("Esta planilha não está aguardando conferência.");
-      if (!(await confirmSupplierStandardization(spreadsheetId, email, prepared.sheet_name))) throw new Error("Não foi possível confirmar a planilha.");
-      await clearSupplierReviewHighlight(sheets, spreadsheetId, prepared.sheet_name);
 
       const mappingId = await saveSupplierMapping({
         name: prepared.supplier_name,
@@ -1686,6 +1684,14 @@ export async function POST(request: Request) {
         actor: email,
       });
       await attachSupplierToWaitingUpdates(mappingId, spreadsheetId, prepared.supplier_name, prepared.sheet_name);
+      await clearSupplierReviewHighlight(sheets, spreadsheetId, prepared.sheet_name);
+      // Confirmar somente depois de concluir as etapas; uma repetição retoma sem reformatar a aba.
+      if (prepared.status === "preparada" && !(await confirmSupplierStandardization(spreadsheetId, email, prepared.sheet_name))) {
+        const latest = await listRotatingStockData();
+        if (!latest.supplierStandardizations.some((item) => item.spreadsheet_id === spreadsheetId && item.sheet_name === prepared.sheet_name && item.status === "atualizada")) {
+          throw new Error("Não foi possível confirmar a planilha. Tente salvar novamente.");
+        }
+      }
       return NextResponse.json({ ok: true, supplierName: prepared.supplier_name });
     }
 

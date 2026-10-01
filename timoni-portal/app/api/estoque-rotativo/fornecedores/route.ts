@@ -18,7 +18,7 @@ export async function GET() {
   if (!session?.user?.email) return NextResponse.json({ error: "Sessão expirada." }, { status: 401, headers });
   if (!hasModuleAccess(session.user.email, "estoque-rotativo", session.portalUser)) return NextResponse.json({ error: "Acesso não autorizado ao Rotativo." }, { status: 403, headers });
   const credentials = await getStoredTrelloCredentials();
-  if (!credentials) return NextResponse.json({ configured: false, suppliers: [], completedSuppliers: [] }, { headers });
+  if (!credentials) return NextResponse.json({ configured: false, suppliers: [] }, { headers });
   try {
     const cards = await trelloFetch<TrelloCard[]>(`/lists/${ROTATIVO_LIST_ID}/cards`, {
       credentials,
@@ -31,7 +31,6 @@ export async function GET() {
       listId: ROTATIVO_LIST_ID,
       listName: ROTATIVO_LIST_NAME,
       suppliers: activeCards.filter((card) => !card.dueComplete).map(mapCard),
-      completedSuppliers: activeCards.filter((card) => card.dueComplete).map(mapCard),
     }, { headers });
   } catch (error) {
     return NextResponse.json({ configured: true, error: error instanceof Error ? error.message : "Não foi possível ler a lista ESTOQUE ROTATIVO LUCAS/CAROL." }, { status: 502, headers });

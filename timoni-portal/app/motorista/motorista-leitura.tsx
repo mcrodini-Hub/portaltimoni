@@ -66,7 +66,7 @@ function classeEntrega(v: Viagem): "Rio Claro" | "Araras" {
     cidade = String(parsed?.cidade || "");
   } catch {}
   const local = [cidade, v.endereco, v.complemento].filter(Boolean).join(" ");
-  return /\\bararas\\b/i.test(local) ? "Araras" : "Rio Claro";
+  return local.toLocaleLowerCase("pt-BR").includes("araras") ? "Araras" : "Rio Claro";
 }
 
 function filtrarViagens(viagens: Viagem[], filtro: FiltroAgenda) {

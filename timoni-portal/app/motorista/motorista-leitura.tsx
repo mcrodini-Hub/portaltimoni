@@ -113,11 +113,14 @@ function lerTipo(notasJson?: string): "Entrega" | "Retirada" {
 }
 
 function ordenarViagens(viagens: Viagem[]) {
-  return [...viagens].sort((a, b) =>
-    (a.horario || "").localeCompare(b.horario || "") ||
-    (a.loja || "").localeCompare(b.loja || "", "pt-BR") ||
-    a.id.localeCompare(b.id, "pt-BR"),
-  );
+  return [...viagens].sort((a, b) => {
+    const horarioA = String(a.horario || "").trim();
+    const horarioB = String(b.horario || "").trim();
+    if (!horarioA && !horarioB) return 0;
+    if (!horarioA) return 1;
+    if (!horarioB) return -1;
+    return horarioA.localeCompare(horarioB);
+  });
 }
 
 function estiloBoxViagem(v: Viagem) {
@@ -128,9 +131,9 @@ function estiloBoxViagem(v: Viagem) {
   };
 }
 
-function linhaPrincipal(v: Viagem, index: number) {
+function linhaPrincipal(v: Viagem) {
   return [
-    `${index + 1}. ${lerTipo(v.notasJson)}`,
+    lerTipo(v.notasJson),
     v.tipoHorario === "Bloqueio" ? "Bloqueio" : "",
     lojaLabel(v.loja),
     v.vendedor ? `Vend.: ${v.vendedor}` : "",
@@ -271,7 +274,7 @@ export default function MotoristaLeitura() {
                             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow-sm">{index + 1}</span>
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-semibold text-slate-950">{linhaPrincipal(v, index)}</p>
+                                <p className="text-sm font-semibold text-slate-950">{linhaPrincipal(v)}</p>
                                 {!bloqueio && concluida(v.notasJson) && <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">Concluído</span>}
                               </div>
                               <p className="mt-2 text-sm font-bold uppercase text-slate-900">

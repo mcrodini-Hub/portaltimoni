@@ -20,7 +20,7 @@ type Supplier = {
   code_column: number; description_column: number; stock_column: number; validated_at: string | null;
 };
 type TrelloSupplier = { id: string; name: string; url: string; unit?: string; urgent?: boolean };
-type ComprasData = { configured?: boolean; suppliers?: TrelloSupplier[] };
+type ComprasData = { configured?: boolean; suppliers?: TrelloSupplier[]; completedSuppliers?: TrelloSupplier[] };
 
 type SupplierFile = {
   id: string;
@@ -115,6 +115,7 @@ function StatusBadge({ status }: { status: Status }) {
 export default function EstoqueRotativoClient() {
   const [data, setData] = useState<ResponseData | null>(null);
   const [trelloSuppliers, setTrelloSuppliers] = useState<TrelloSupplier[]>([]);
+  const [trelloCompletedSuppliers, setTrelloCompletedSuppliers] = useState<TrelloSupplier[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [refreshingTrello, setRefreshingTrello] = useState(false);
@@ -169,7 +170,8 @@ export default function EstoqueRotativoClient() {
       if (!response.ok) throw new Error(result.error || "Não foi possível atualizar os cards do Trello.");
       if (result.configured === false) throw new Error("A conexão com o Trello não está configurada. Revise a integração em Configurações.");
       setTrelloSuppliers(result.suppliers || []);
-      if (showFeedback) setFeedback("Cards atualizados: " + (result.suppliers?.length || 0) + " pendente(s).");
+      setTrelloCompletedSuppliers(result.completedSuppliers || []);
+      if (showFeedback) setFeedback("Trello atualizado: " + (result.suppliers?.length || 0) + " pendente(s) e " + (result.completedSuppliers?.length || 0) + " concluído(s).");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Não foi possível atualizar os cards do Trello.");
     } finally {
@@ -197,7 +199,10 @@ export default function EstoqueRotativoClient() {
   }, [spreadsheetReference]);
 
   const pending = trelloSuppliers.length;
-  const stockUpdated = data?.updates.filter((item) => item.status === "atualizado").length || 0;
+  const completedTrelloOnly = trelloCompletedSuppliers.filter(
+    (card) => !(data?.updates || []).some((item) => item.trello_card_id === card.id),
+  );
+  const stockUpdated = (data?.updates.filter((item) => item.status === "atualizado").length || 0) + completedTrelloOnly.length;
   const pendingSupplierFiles = useMemo(
     () => (data?.supplierFiles || [])
       .sort((a, b) => a.name.localeCompare(b.name, "pt-BR", { sensitivity: "base" })),
@@ -438,7 +443,11 @@ export default function EstoqueRotativoClient() {
       `${result.reviewed || 0} item(ns) conferido(s). ${result.updated || 0} estoque(s) alterado(s). Status gravado na planilha como "${result.status || "Atualizado"}". Card do Trello concluído.`,
     );
     const completedCardId = data?.currentUpdate?.trello_card_id || data?.updates.find((item) => item.id === activeId)?.trello_card_id;
-    if (completedCardId) setTrelloSuppliers((cards) => cards.filter((card) => card.id !== completedCardId));
+    if (completedCardId) {
+      const completedCard = trelloSuppliers.find((card) => card.id === completedCardId);
+      setTrelloSuppliers((cards) => cards.filter((card) => card.id !== completedCardId));
+      if (completedCard) setTrelloCompletedSuppliers((cards) => [...cards.filter((card) => card.id !== completedCardId), completedCard]);
+    }
     setActiveId(null);
     await load();
   }
@@ -924,6 +933,16 @@ export default function EstoqueRotativoClient() {
             <h2 className="mt-1 text-xl font-semibold text-slate-950">Estoque atualizado</h2>
           </div>
           <div className="mt-3 space-y-2">
+            {completedTrelloOnly.map((card) => (
+              <article key={card.id} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2.5 sm:px-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-sm font-semibold text-slate-950">{card.name}</p>
+                  <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">Concluído no Trello</span>
+                </div>
+                <p className="mt-1 text-xs text-slate-500">Conclusão registrada no Trello; sem conferência ou aplicação de estoque registrada no Portal.</p>
+                {card.url && <a href={card.url} target="_blank" rel="noreferrer" className="mt-2 inline-flex min-h-11 items-center text-sm font-semibold text-blue-800">Abrir card no Trello</a>}
+              </article>
+            ))}
             {visibleUpdates.length ? visibleUpdates.map((item) => (
               <article key={item.id} className="rounded-xl border border-slate-200 px-3 py-2.5 sm:px-4">
                 <div className="flex min-w-0 items-center gap-2 sm:gap-3">
@@ -1060,7 +1079,7 @@ export default function EstoqueRotativoClient() {
 
               </article>
             )) : (
-              <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">Nenhuma atualização registrada.</p>
+              !completedTrelloOnly.length && <p className="rounded-2xl border border-dashed border-slate-300 p-6 text-sm text-slate-500">Nenhuma atualização registrada.</p>
             )}
           </div>
         </section>

@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+type FiltroAgenda = "todas" | "rio_claro" | "araras" | "retiradas";
+
 type Viagem = {
   id: string;
   data: string;
@@ -55,6 +57,22 @@ function lojaLabel(loja?: string) {
   if (loja === "araras") return "Araras";
   if (loja === "rio_claro") return "Rio Claro";
   return loja || "";
+}
+
+function classeEntrega(v: Viagem): "Rio Claro" | "Araras" {
+  let cidade = "";
+  try {
+    const parsed = JSON.parse(String(v.notasJson || "[]"));
+    cidade = String(parsed?.cidade || "");
+  } catch {}
+  const local = [cidade, v.endereco, v.complemento].filter(Boolean).join(" ");
+  return /\\bararas\\b/i.test(local) ? "Araras" : "Rio Claro";
+}
+
+function filtrarViagens(viagens: Viagem[], filtro: FiltroAgenda) {
+  if (filtro === "todas") return viagens;
+  if (filtro === "retiradas") return viagens.filter((v) => lerTipo(v.notasJson) === "Retirada");
+  return viagens.filter((v) => lerTipo(v.notasJson) !== "Retirada" && classeEntrega(v) === (filtro === "araras" ? "Araras" : "Rio Claro"));
 }
 
 function horaCurta(hora?: string) {
@@ -172,6 +190,7 @@ function concluida(notasJson?: string) {
 
 export default function MotoristaLeitura() {
   const [inicio, setInicio] = useState(() => dateFromString(localDateString()));
+  const [filtro, setFiltro] = useState<FiltroAgenda>("todas");
   const [viagens, setViagens] = useState<Record<string, Viagem[]>>({});
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
@@ -241,12 +260,26 @@ export default function MotoristaLeitura() {
           </div>
         </header>
 
+        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Filtrar agenda</p>
+          <div role="group" aria-label="Filtrar agenda por classificação" className="flex flex-wrap gap-2">
+            {([
+              ["todas", "Todas"],
+              ["rio_claro", "Rio Claro"],
+              ["araras", "Araras"],
+              ["retiradas", "Retiradas"],
+            ] as const).map(([valor, rotulo]) => (
+              <button key={valor} type="button" aria-pressed={filtro === valor} onClick={() => setFiltro(valor)} className={`rounded-lg px-3 py-2 text-sm font-medium ${filtro === valor ? "bg-blue-800 text-white" : "border border-slate-300 bg-white text-slate-700"}`}>{rotulo}</button>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-slate-500">Rio Claro: entregas ao longo do dia · Araras: entregas à tarde · Retiradas: Rio Claro e Araras.</p>
+        </div>
         {erro && <p className="mb-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
         <div className="space-y-4">
           {dias.map((d) => {
             const data = localDateString(d);
-            const itens = ordenarViagens((viagens[data] || []).filter((v) => !finalizada(v)));
+            const itens = filtrarViagens(ordenarViagens((viagens[data] || []).filter((v) => !finalizada(v))), filtro);
             const hoje = data === localDateString();
             return (
               <section key={data} className={`rounded-2xl border bg-white p-4 shadow-sm ${hoje ? "border-blue-300" : "border-slate-200"}`}>

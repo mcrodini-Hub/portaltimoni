@@ -54,12 +54,6 @@ function nextDays(start: Date) {
   ).filter((d) => d.getDay() !== 0 && d.getDay() !== 6);
 }
 
-function lojaLabel(loja?: string) {
-  if (loja === "araras") return "Araras";
-  if (loja === "rio_claro") return "Rio Claro";
-  return loja || "";
-}
-
 function unidadeAgenda(v: Viagem): "Rio Claro" | "Araras" {
   let cidade = "";
   try {

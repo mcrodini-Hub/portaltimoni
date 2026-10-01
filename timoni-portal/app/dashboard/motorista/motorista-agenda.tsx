@@ -840,7 +840,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                   <div className="mt-3 space-y-2">
                     {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itens.length === 0 ? <p className="text-sm text-slate-400">Sem viagens.</p> : itens.map((v, index) => (
                       <article key={v.id} style={estiloBoxViagem(v)} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <div className="flex min-w-0 items-start gap-2.5"><span aria-label={`Parada ${index + 1}`} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow-sm">{index + 1}</span><p className="min-w-0 flex-1 text-sm font-semibold leading-5 text-slate-950">{linhaPrincipalRelatorio(v)}</p></div>
+                        <p className="min-w-0 text-sm font-semibold leading-5 text-slate-950">{index + 1}. {linhaPrincipalRelatorio(v)}</p>
                         <p className="mt-2 text-sm font-bold uppercase text-slate-900">
                           {documentoTexto(v.numeroPedido)}
                           {documentoTexto(v.numeroPedido) && v.clienteFornecedor ? " | " : ""}
@@ -872,7 +872,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
               <article key={v.id} style={estiloBoxViagem(v)} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="font-[Arial] text-[11pt] leading-[1.35]">
-                    <div className="flex min-w-0 items-start gap-2.5"><span aria-label={`Parada ${index + 1}`} className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow-sm">{index + 1}</span><p className="min-w-0 flex-1 font-semibold leading-5 text-slate-950">{linhaPrincipalRelatorio(v)}</p></div>
+                    <p className="min-w-0 font-semibold leading-5 text-slate-950">{index + 1}. {linhaPrincipalRelatorio(v)}</p>
                     <p className="mt-2 font-bold uppercase text-slate-900">
                       {documentoTexto(v.numeroPedido)}
                       {documentoTexto(v.numeroPedido) && v.clienteFornecedor ? " | " : ""}

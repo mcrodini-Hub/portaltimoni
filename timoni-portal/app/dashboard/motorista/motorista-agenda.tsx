@@ -190,6 +190,10 @@ function notasComMetaMotorista(
   });
 }
 
+function textoSeguro(valor: unknown): string {
+  return valor == null ? "" : String(valor);
+}
+
 function formFromViagem(v: Viagem): FormState {
   const bloqueio = v.tipoHorario === "Bloqueio";
   const enderecoCompleto = [v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ");
@@ -206,29 +210,29 @@ function formFromViagem(v: Viagem): FormState {
   const volumeInfo = separarVolume(v.volumes);
   return {
     tipo: meta.tipo,
-    loja: v.loja || "",
-    vendedor: v.vendedor || "",
+    loja: textoSeguro(v.loja),
+    vendedor: textoSeguro(v.vendedor),
     data: v.data,
     hora: "",
     bloquear: bloqueio,
-    bloqueioInicio: bloqueio ? (v.horario || "").slice(0, 5) : "",
-    bloqueioFim: bloqueio ? (v.horarioFim || "").slice(0, 5) : "",
-    numeroPedido: v.numeroPedido || "",
-    clienteFornecedor: v.clienteFornecedor || "",
+    bloqueioInicio: bloqueio ? textoSeguro(v.horario).slice(0, 5) : "",
+    bloqueioFim: bloqueio ? textoSeguro(v.horarioFim).slice(0, 5) : "",
+    numeroPedido: textoSeguro(v.numeroPedido),
+    clienteFornecedor: textoSeguro(v.clienteFornecedor),
     volumes: volumeInfo.volume,
     unidadeVolume: "",
     quantidadeVolume: "",
-    contatoNome: v.contatoNome || "",
+    contatoNome: textoSeguro(v.contatoNome),
     contatoWhats: "",
     cep: "",
     endereco: enderecoEditavel,
     numeroEndereco: String(v.numero ?? ""),
     bairro: bairroLegado,
     cidade: meta.cidade || cidadeLegada,
-    referencia: meta.referencia || v.complemento || "",
+    referencia: meta.referencia || textoSeguro(v.complemento),
     linkEndereco: match?.[1] || "",
-    discriminacao: v.info || "",
-    preenchidoPor: v.preenchidoPor || "",
+    discriminacao: textoSeguro(v.info),
+    preenchidoPor: textoSeguro(v.preenchidoPor),
     notasJson: v.notasJson || "[]",
   };
 }
@@ -450,8 +454,8 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
   const diasSemana = useMemo(() => weekDays(selecionado), [selecionado]);
   const linkMapsFormulario = useMemo(() => {
     if (form.linkEndereco) return form.linkEndereco;
-    if (!form.numeroEndereco.trim()) return "";
-    const destino = [form.endereco.trim(), form.numeroEndereco.trim(), form.bairro.trim(), form.cidade.trim()].filter(Boolean).join(", ");
+    if (!textoSeguro(form.numeroEndereco).trim()) return "";
+    const destino = [textoSeguro(form.endereco).trim(), textoSeguro(form.numeroEndereco).trim(), textoSeguro(form.bairro).trim(), textoSeguro(form.cidade).trim()].filter(Boolean).join(", ");
     return destino ? `https://maps.google.com/?q=${encodeURIComponent(destino)}` : "";
   }, [form.linkEndereco, form.endereco, form.numeroEndereco, form.bairro, form.cidade]);
 
@@ -632,7 +636,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
     setSaving(true);
     setErro("");
     try {
-      const enderecoBase = [form.endereco.trim(), form.bairro.trim(), form.cidade.trim()].filter(Boolean).join(" - ");
+      const enderecoBase = [textoSeguro(form.endereco).trim(), textoSeguro(form.bairro).trim(), textoSeguro(form.cidade).trim()].filter(Boolean).join(" - ");
       const destinoMaps = [form.endereco.trim(), form.numeroEndereco.trim(), form.bairro.trim(), form.cidade.trim()].filter(Boolean).join(", ");
       const linkMaps = linkMapsFormulario || `https://maps.google.com/?q=${encodeURIComponent(destinoMaps)}`;
       const detalhesEndereco = `${enderecoBase}\nLink: ${linkMaps}`;
@@ -645,9 +649,9 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
         horario: form.bloquear ? form.bloqueioInicio : "",
         horarioFim: form.bloquear ? form.bloqueioFim : "",
         vendedor: form.vendedor,
-        clienteFornecedor: form.clienteFornecedor.trim().toUpperCase(),
+        clienteFornecedor: textoSeguro(form.clienteFornecedor).trim().toUpperCase(),
         numeroPedido: form.numeroPedido,
-        volumes: form.volumes.trim(),
+        volumes: textoSeguro(form.volumes).trim(),
         contatoNome: form.contatoNome,
         contatoWhats: "",
         endereco: detalhesEndereco,

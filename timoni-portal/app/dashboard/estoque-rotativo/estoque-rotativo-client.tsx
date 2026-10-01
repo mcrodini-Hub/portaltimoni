@@ -137,6 +137,7 @@ export default function EstoqueRotativoClient() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [standardizingSupplier, setStandardizingSupplier] = useState(false);
+  const [standardizationError, setStandardizationError] = useState("");
   const [selectedStandardizationSupplierId, setSelectedStandardizationSupplierId] = useState("");
   const [standardizationSheetNames, setStandardizationSheetNames] = useState<string[]>([]);
   const [standardizationSheetName, setStandardizationSheetName] = useState("");
@@ -209,7 +210,8 @@ export default function EstoqueRotativoClient() {
       && (item.status === "preparada" || !(data?.suppliers || []).some((supplier) => supplier.spreadsheet_id === item.spreadsheet_id && supplier.sheet_name === item.sheet_name)),
   ) || null;
 
-  async function post(body: Record<string, unknown>) {
+  async function post(body: Record<string, unknown>, inStandardization = false) {
+    if (inStandardization) setStandardizationError("");
     setBusy(true); setError(""); setFeedback("");
     try {
       const response = await fetch("/api/estoque-rotativo", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -217,13 +219,16 @@ export default function EstoqueRotativoClient() {
       if (!response.ok) throw new Error(result.error || "Não foi possível concluir a operação.");
       return result;
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Não foi possível concluir a operação.");
+      const message = cause instanceof Error ? cause.message : "Não foi possível concluir a operação.";
+      setError(message);
+      if (inStandardization) setStandardizationError(message);
       return null;
     } finally { setBusy(false); }
   }
 
   async function selectStandardizationSupplier(spreadsheetId: string) {
     const requestId = ++standardizationRequest.current;
+    setStandardizationError("");
     setSelectedStandardizationSupplierId(spreadsheetId);
     setStandardizationSheetName("");
     setStandardizationSheetNames([]);
@@ -257,30 +262,21 @@ export default function EstoqueRotativoClient() {
 
   async function standardizeNextSupplier(spreadsheetId?: string) {
     setStandardizingSupplier(true);
-    const verificationWindow = window.open("about:blank", "_blank");
     const result = await post({
       action: "padronizar_proxima_planilha",
       spreadsheetId: spreadsheetId || undefined,
       sheetName: standardizationSheetName,
-    });
+    }, true);
     setStandardizingSupplier(false);
     if (!result) {
-      verificationWindow?.close();
       return;
     }
     if (result.complete) {
-      verificationWindow?.close();
       setFeedback("Todas as planilhas de fornecedores já foram padronizadas.");
       await load();
       return;
     }
-    if (result.spreadsheetUrl) {
-      if (verificationWindow) verificationWindow.location.href = result.spreadsheetUrl;
-      else window.open(result.spreadsheetUrl, "_blank", "noopener,noreferrer");
-    } else {
-      verificationWindow?.close();
-    }
-    setFeedback(`Planilha ${result.supplierName} pronta para conferência. Confira a planilha aberta e depois marque como atualizada.`);
+    setFeedback(`Planilha ${result.supplierName} pronta para conferência. Clique em Abrir aba para conferir e depois em Salvar padronização.`);
     if (result.spreadsheetId) {
       setSelectedStandardizationSupplierId(String(result.spreadsheetId));
       setStandardizationSheetName(String(result.sheetName || ""));
@@ -294,7 +290,7 @@ export default function EstoqueRotativoClient() {
       action: "confirmar_planilha_fornecedor",
       spreadsheetId: selectedPreparedSupplier.spreadsheet_id,
       sheetName: selectedPreparedSupplier.sheet_name,
-    });
+    }, true);
     if (!result) return;
     setFeedback(`${result.supplierName} aprovada. O destaque amarelo de revisão foi removido.`);
     await load();
@@ -1077,6 +1073,7 @@ export default function EstoqueRotativoClient() {
         }} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <summary className="cursor-pointer text-base font-semibold text-[#13038D]">Padronização das planilhas</summary>
           <p className="mt-3 text-sm text-slate-600">Selecione a aba. O Portal identifica as colunas e guarda o padrão por fornecedor e aba.</p>
+          {standardizationError ? <p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">{standardizationError}</p> : null}
           <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
             <label className="min-w-0 text-sm font-semibold text-slate-800">Fornecedor
               <select value={selectedStandardizationSupplierId} onChange={(event) => void selectStandardizationSupplier(event.target.value)} disabled={busy || standardizingSupplier} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm">

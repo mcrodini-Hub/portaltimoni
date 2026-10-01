@@ -148,9 +148,9 @@ function lojaAgenda(loja?: string) {
   const valor = String(loja || "").trim();
   if (!valor) return "";
   const chave = valor.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  if (/casa[\\s_-]*timoni/i.test(valor) || chave === "ct") return "CT";
   if (chave === "mcr") return "MCR";
   if (chave === "rodini") return "Rodini";
-  if (chave === "ct" || (chave.includes("casa") && chave.includes("timoni"))) return "CT";
   if (chave === "rio_claro" || chave === "araras" || chave === "rio claro") return "";
   return valor;
 }

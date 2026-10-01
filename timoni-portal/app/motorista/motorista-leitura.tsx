@@ -144,16 +144,27 @@ function estiloBoxViagem(v: Viagem) {
   };
 }
 
+function lojaAgenda(loja?: string) {
+  const valor = String(loja || "").trim();
+  if (!valor) return "";
+  const chave = valor.normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  if (chave === "mcr") return "MCR";
+  if (chave === "rodini") return "Rodini";
+  if (chave === "ct" || chave === "casa timoni") return "CT";
+  if (chave === "rio_claro" || chave === "araras" || chave === "rio claro") return "";
+  return valor;
+}
 function linhaPrincipal(v: Viagem) {
+  const tipo = lerTipo(v.notasJson);
+  const loja = lojaAgenda(v.loja);
+  const horario = v.horario ? `${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : "";
   return [
-    lerTipo(v.notasJson),
-    v.tipoHorario === "Bloqueio" ? "Bloqueio" : "",
-    unidadeAgenda(v),
+    `${tipo}${v.tipoHorario === "Bloqueio" ? " (Bloqueio)" : ""}: ${unidadeAgenda(v)}`,
+    loja,
     v.vendedor ? `Vend.: ${v.vendedor}` : "",
-    v.horario ? `${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : "",
+    horario,
   ].filter(Boolean).join(" | ");
 }
-
 function finalizada(v: Viagem) {
   try {
     const parsed = JSON.parse(String(v.notasJson || "[]"));

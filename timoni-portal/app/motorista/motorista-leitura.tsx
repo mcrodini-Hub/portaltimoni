@@ -60,8 +60,11 @@ function unidadeAgenda(v: Viagem): "Rio Claro" | "Araras" {
     const parsed = JSON.parse(String(v.notasJson || "[]"));
     cidade = String(parsed?.cidade || "");
   } catch {}
-  const local = [cidade, v.endereco, v.complemento].filter(Boolean).join(" ");
-  return local.toLocaleLowerCase("pt-BR").includes("araras") ? "Araras" : "Rio Claro";
+  const local = [cidade, v.endereco, v.complemento].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
+  if (local.includes("araras")) return "Araras";
+  if (local.includes("rio claro")) return "Rio Claro";
+  const responsavel = String(v.preenchidoPor || "").split(" - ")[0].trim().normalize("NFD").replace(/[\\u0300-\\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  return ["reginaldo", "margareth", "reinaldo", "paulo", "carol", "lyra", "yan"].includes(responsavel) ? "Araras" : "Rio Claro";
 }
 
 function filtrarViagens(viagens: Viagem[], rota: FiltroRota, tipo: FiltroTipo, vendedor: string, preenchidoPor: string) {

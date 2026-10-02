@@ -334,12 +334,14 @@ function estiloBoxViagem(v: Viagem): CSSProperties {
   const unidade = unidadeViagem(v);
   const retirada = lerMetaMotorista(v.notasJson).tipo === "Retirada";
   const loja = lojaLabel(v.loja);
-  const base: CSSProperties = unidade === "Araras" && loja === "CT"
-    ? { backgroundColor: "rgba(246, 191, 38, 0.10)", borderColor: "rgba(246, 191, 38, 0.42)" }
-    : unidade === "Rio Claro" && (loja === "MCR" || loja === "Rodini")
-      ? { backgroundColor: "rgba(19, 3, 141, 0.04)", borderColor: "rgba(19, 3, 141, 0.24)" }
-      : {};
-  return retirada ? { ...base, borderLeftColor: "#D40C0D", borderLeftWidth: 4 } : base;
+  if (retirada) return { backgroundColor: "rgba(246, 191, 38, 0.12)", borderColor: "rgba(246, 191, 38, 0.48)" };
+  if (unidade === "Araras" && loja === "CT") {
+    return { backgroundColor: "rgba(246, 191, 38, 0.10)", borderColor: "rgba(246, 191, 38, 0.42)" };
+  }
+  if (unidade === "Rio Claro" && (loja === "MCR" || loja === "Rodini")) {
+    return { backgroundColor: "rgba(19, 3, 141, 0.04)", borderColor: "rgba(19, 3, 141, 0.24)" };
+  }
+  return {};
 }
 
 function linhaPrincipalRelatorio(v: Viagem, index: number) {
@@ -775,21 +777,24 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
       const link = separarEndereco(v.endereco).link;
       const tipo = lerMetaMotorista(v.notasJson).tipo;
       const unidade = unidadeViagem(v);
+      const loja = lojaLabel(v.loja);
       const vendedor = textoSeguro(v.vendedor).trim();
-      const linha1 = [`${numero}.`, tipo, unidade, vendedor ? `Vend.: ${vendedor}` : ""].filter(Boolean).join(" | ");
+      const destinoLinha = tipo === "Retirada" ? (loja || unidade) : unidade === "Araras" ? unidade : (loja || unidade);
+      const linha1 = [`${numero}. ${tipo}`, destinoLinha, vendedor ? `Vend.: ${vendedor}` : ""].filter(Boolean).join(" | ");
       const contato = textoSeguro(v.contatoNome).trim();
       const cliente = textoSeguro(v.clienteFornecedor).trim() || contato;
       const documento = documentoTexto(v.numeroPedido);
-      const linha2 = [documento, cliente, contato ? `A/C: ${contato}` : ""].filter(Boolean).join(" | ");
-      const volume = v.volumes ? `<p><strong>VOLUME: ${String(v.volumes).toUpperCase()}</strong></p>` : "";
+      const linha2 = [documento, cliente, contato ? `A/C: ${contato}` : !contato && v.volumes ? `VOLUME: ${String(v.volumes).toUpperCase()}` : ""].filter(Boolean).join(" | ");
+      const volume = contato && v.volumes ? `<p><strong>VOLUME: ${String(v.volumes).toUpperCase()}</strong></p>` : "";
       const detalhe = textoSeguro(v.info).trim() ? `<p>Observação: ${textoSeguro(v.info).replace(/^[\\r\\n]+/, "")}</p>` : "";
       const maps = link ? `<p><a href="${link}" target="_blank" rel="noreferrer"><strong>Google Maps</strong></a></p>` : "";
-      return `<div class="item"><p><strong>${linha1}</strong></p>${linha2 ? `<p><strong>${linha2}</strong></p>` : ""}${endereco ? `<p>End.: ${endereco}</p>` : ""}${maps}${volume}${detalhe}<p><strong>Preenchido por:</strong>${textoSeguro(v.preenchidoPor).trim() ? ` ${textoSeguro(v.preenchidoPor).trim()}` : ""}</p></div>`;
+      const classeBox = tipo === "Retirada" ? "retirada" : unidade === "Araras" ? "araras" : "rio-claro";
+      return `<div class="item ${classeBox}"><p><strong>${linha1}</strong></p>${linha2 ? `<p><strong>${linha2}</strong></p>` : ""}${endereco ? `<p>End.: ${endereco}</p>` : ""}${maps}${volume}${detalhe}<p><strong>Preenchido por:</strong>${textoSeguro(v.preenchidoPor).trim() ? ` ${textoSeguro(v.preenchidoPor).trim()}` : ""}</p></div>`;
     }).join("");
 
     const popup = window.open("", "_blank", "width=850,height=900");
     if (!popup) return;
-    popup.document.write(`<!doctype html><html><head><title>Agenda Motorista</title><style>body{font-family:Arial,sans-serif;margin:28px;color:#111}h1{font-size:18px;margin-bottom:28px}.item{margin-bottom:24px;page-break-inside:avoid}.item p{margin:3px 0;font-family:Arial,sans-serif;font-size:11pt;line-height:1.35}.item .preenchido{font-size:10pt;margin-top:8px}</style></head><body><h1>AGENDA MOTORISTA - DIA ${data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} - ${diaSemana}</h1>${linhas}<script>window.onload=()=>window.print()</script></body></html>`);
+    popup.document.write(`<!doctype html><html><head><title>Agenda Motorista</title><style>body{font-family:Arial,sans-serif;margin:28px;color:#111}h1{font-size:18px;margin-bottom:28px}.item{margin-bottom:24px;padding:14px;border:1px solid #dbe3f0;border-radius:14px;page-break-inside:avoid}.item.rio-claro{background:#f3f6ff;border-color:#c8d4f3}.item.araras,.item.retirada{background:#fff9db;border-color:#ead178}.item p{margin:3px 0;font-family:Arial,sans-serif;font-size:11pt;line-height:1.35}.item .preenchido{font-size:10pt;margin-top:8px}</style></head><body><h1>AGENDA MOTORISTA - DIA ${data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} - ${diaSemana}</h1>${linhas}<script>window.onload=()=>window.print()</script></body></html>`);
     popup.document.close();
   }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 
 type Viagem = {
   id: string;
@@ -140,11 +141,11 @@ function ordenarViagens(viagens: Viagem[]) {
   return [...viagens];
 }
 
-function estiloBoxViagem(v: Viagem) {
+function estiloBoxViagem(v: Viagem): CSSProperties {
   const unidade = unidadeViagem(v);
   const retirada = lerTipo(v.notasJson) === "Retirada";
   const loja = lojaLabel(v.loja);
-  const base = unidade === "Araras" && loja === "CT"
+  const base: CSSProperties = unidade === "Araras" && loja === "CT"
     ? { backgroundColor: "rgba(246, 191, 38, 0.10)", borderColor: "rgba(246, 191, 38, 0.42)" }
     : unidade === "Rio Claro" && (loja === "MCR" || loja === "Rodini")
       ? { backgroundColor: "rgba(19, 3, 141, 0.04)", borderColor: "rgba(19, 3, 141, 0.24)" }

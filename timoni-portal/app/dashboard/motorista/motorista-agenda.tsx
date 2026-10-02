@@ -3,6 +3,7 @@
 // MOTORISTA DASHBOARD: manter Dia, Semana e Mês. A rota /motorista (relatório/leitura) não deve ser alterada nesta reestruturação.
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import type { CSSProperties } from "react";
 import { BrazilianDateInput } from "@/components/ui/brazilian-date-input";
 
 type Viagem = {
@@ -329,11 +330,11 @@ function ordenarViagens(viagens: Viagem[]) {
   return [...viagens];
 }
 
-function estiloBoxViagem(v: Viagem) {
+function estiloBoxViagem(v: Viagem): CSSProperties {
   const unidade = unidadeViagem(v);
   const retirada = lerMetaMotorista(v.notasJson).tipo === "Retirada";
   const loja = lojaLabel(v.loja);
-  const base = unidade === "Araras" && loja === "CT"
+  const base: CSSProperties = unidade === "Araras" && loja === "CT"
     ? { backgroundColor: "rgba(246, 191, 38, 0.10)", borderColor: "rgba(246, 191, 38, 0.42)" }
     : unidade === "Rio Claro" && (loja === "MCR" || loja === "Rodini")
       ? { backgroundColor: "rgba(19, 3, 141, 0.04)", borderColor: "rgba(19, 3, 141, 0.24)" }
@@ -770,7 +771,6 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
     const data = dateFromString(selecionado);
     const diaSemana = data.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
     const linhas = itens.map(({ viagem: v, numero }) => {
-      const tipo = lerMetaMotorista(v.notasJson).tipo;
       const endereco = formatarEnderecoExibicao(v.endereco, v.numero, v.complemento);
       const link = separarEndereco(v.endereco).link;
       const linha1 = linhaPrincipalRelatorio(v, numero - 1);

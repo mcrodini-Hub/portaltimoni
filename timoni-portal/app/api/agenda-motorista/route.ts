@@ -7,9 +7,13 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
-const WEBAPP_URL =
+const DEFAULT_WEBAPP_URL =
   "https://script.google.com/macros/s/AKfycbwy9QfpEbdGtTIiC2OFuZAUx0jIPFsXPLZKedfGp79VJ6mlzLYus_wjI2IvFPoeE6Pc/exec";
 const REQUEST_TIMEOUT_MS = 30_000;
+
+function webAppUrl() {
+  return process.env.MOTORISTA_WEBAPP_URL || DEFAULT_WEBAPP_URL;
+}
 
 async function autorizado() {
   const session = await auth();
@@ -62,7 +66,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, erro: "Não autorizado." }, { status: 401 });
   }
 
-  const destino = new URL(WEBAPP_URL);
+  const destino = new URL(webAppUrl());
   request.nextUrl.searchParams.forEach((valor, chave) => destino.searchParams.set(chave, valor));
   return encaminhar(destino.toString(), { method: "GET" });
 }
@@ -76,7 +80,7 @@ export async function POST(request: NextRequest) {
   }
 
   const corpo = await request.text();
-  const response = await encaminhar(WEBAPP_URL, {
+  const response = await encaminhar(webAppUrl(), {
     method: "POST",
     body: corpo,
     headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },

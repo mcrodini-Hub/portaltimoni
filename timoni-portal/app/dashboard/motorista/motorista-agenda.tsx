@@ -773,14 +773,18 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
     const linhas = itens.map(({ viagem: v, numero }) => {
       const endereco = formatarEnderecoExibicao(v.endereco, v.numero, v.complemento);
       const link = separarEndereco(v.endereco).link;
-      const linha1 = linhaPrincipalRelatorio(v, numero - 1);
-      const empresa = textoSeguro(v.clienteFornecedor).toUpperCase();
+      const tipo = lerMetaMotorista(v.notasJson).tipo;
+      const unidade = unidadeViagem(v);
+      const vendedor = textoSeguro(v.vendedor).trim();
+      const linha1 = [`${numero}.`, tipo, unidade, vendedor ? `Vend.: ${vendedor}` : ""].filter(Boolean).join(" | ");
+      const contato = textoSeguro(v.contatoNome).trim();
+      const cliente = textoSeguro(v.clienteFornecedor).trim() || contato;
       const documento = documentoTexto(v.numeroPedido);
-      const linha2 = [documento, empresa ? `${v.contatoNome ? "CLIENTE " : ""}${empresa}` : "", v.contatoNome ? `A/C: ${textoSeguro(v.contatoNome).toUpperCase()}` : "", !v.contatoNome && v.volumes ? `VOLUME: ${String(v.volumes).toUpperCase()}` : ""].filter(Boolean).join(" | ");
-      const volume = v.contatoNome && v.volumes ? `<p><strong>VOLUME: ${String(v.volumes).toUpperCase()}</strong></p>` : "";
-      const detalhe = v.info ? `<p>${"Observação"}: ${String(v.info).replace(/^[\r\n]+/, "")}</p>` : "";
-      const maps = link ? ` | <a href="${link}" target="_blank"><strong>Google Maps</strong></a>` : "";
-      return `<div class="item"><p><strong>${linha1}</strong></p><p><strong>${linha2}</strong></p>${endereco ? `<p>End.: ${endereco}${maps}</p>` : ""}${volume}${detalhe}<p><strong>Preenchido por:</strong>${v.preenchidoPor ? ` ${v.preenchidoPor}` : ""}</p></div>`;
+      const linha2 = [documento, cliente, contato ? `A/C: ${contato}` : ""].filter(Boolean).join(" | ");
+      const volume = v.volumes ? `<p><strong>VOLUME: ${String(v.volumes).toUpperCase()}</strong></p>` : "";
+      const detalhe = textoSeguro(v.info).trim() ? `<p>Observação: ${textoSeguro(v.info).replace(/^[\\r\\n]+/, "")}</p>` : "";
+      const maps = link ? `<p><a href="${link}" target="_blank" rel="noreferrer"><strong>Google Maps</strong></a></p>` : "";
+      return `<div class="item"><p><strong>${linha1}</strong></p>${linha2 ? `<p><strong>${linha2}</strong></p>` : ""}${endereco ? `<p>End.: ${endereco}</p>` : ""}${maps}${volume}${detalhe}<p><strong>Preenchido por:</strong>${textoSeguro(v.preenchidoPor).trim() ? ` ${textoSeguro(v.preenchidoPor).trim()}` : ""}</p></div>`;
     }).join("");
 
     const popup = window.open("", "_blank", "width=850,height=900");

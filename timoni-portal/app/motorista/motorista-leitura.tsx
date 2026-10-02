@@ -145,12 +145,14 @@ function estiloBoxViagem(v: Viagem): CSSProperties {
   const unidade = unidadeViagem(v);
   const retirada = lerTipo(v.notasJson) === "Retirada";
   const loja = lojaLabel(v.loja);
-  const base: CSSProperties = unidade === "Araras" && loja === "CT"
-    ? { backgroundColor: "rgba(246, 191, 38, 0.10)", borderColor: "rgba(246, 191, 38, 0.42)" }
-    : unidade === "Rio Claro" && (loja === "MCR" || loja === "Rodini")
-      ? { backgroundColor: "rgba(19, 3, 141, 0.04)", borderColor: "rgba(19, 3, 141, 0.24)" }
-      : {};
-  return retirada ? { ...base, borderLeftColor: "#D40C0D", borderLeftWidth: 4 } : base;
+  if (retirada) return { backgroundColor: "rgba(246, 191, 38, 0.12)", borderColor: "rgba(246, 191, 38, 0.48)" };
+  if (unidade === "Araras" && loja === "CT") {
+    return { backgroundColor: "rgba(246, 191, 38, 0.10)", borderColor: "rgba(246, 191, 38, 0.42)" };
+  }
+  if (unidade === "Rio Claro" && (loja === "MCR" || loja === "Rodini")) {
+    return { backgroundColor: "rgba(19, 3, 141, 0.04)", borderColor: "rgba(19, 3, 141, 0.24)" };
+  }
+  return {};
 }
 
 function linhaPrincipal(v: Viagem) {

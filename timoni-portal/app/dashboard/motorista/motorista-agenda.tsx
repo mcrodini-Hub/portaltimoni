@@ -55,6 +55,8 @@ type FormState = {
 };
 
 type Modo = "dia" | "semana" | "mes";
+type FiltroRota = "todas" | "rio_claro" | "araras";
+type FiltroTipo = "todos" | "Entrega" | "Retirada";
 
 type VendedorOption = { nome: string; unidade: string };
 const RESPONSAVEIS_RIO_CLARO: string[] = [
@@ -188,6 +190,10 @@ function notasComMetaMotorista(
   });
 }
 
+function textoSeguro(valor: unknown): string {
+  return valor == null ? "" : String(valor);
+}
+
 function formFromViagem(v: Viagem): FormState {
   const bloqueio = v.tipoHorario === "Bloqueio";
   const enderecoCompleto = [v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ");
@@ -204,29 +210,29 @@ function formFromViagem(v: Viagem): FormState {
   const volumeInfo = separarVolume(v.volumes);
   return {
     tipo: meta.tipo,
-    loja: v.loja || "",
-    vendedor: v.vendedor || "",
+    loja: textoSeguro(v.loja),
+    vendedor: textoSeguro(v.vendedor),
     data: v.data,
     hora: "",
     bloquear: bloqueio,
-    bloqueioInicio: bloqueio ? (v.horario || "").slice(0, 5) : "",
-    bloqueioFim: bloqueio ? (v.horarioFim || "").slice(0, 5) : "",
-    numeroPedido: v.numeroPedido || "",
-    clienteFornecedor: v.clienteFornecedor || "",
+    bloqueioInicio: bloqueio ? textoSeguro(v.horario).slice(0, 5) : "",
+    bloqueioFim: bloqueio ? textoSeguro(v.horarioFim).slice(0, 5) : "",
+    numeroPedido: textoSeguro(v.numeroPedido),
+    clienteFornecedor: textoSeguro(v.clienteFornecedor),
     volumes: volumeInfo.volume,
     unidadeVolume: "",
     quantidadeVolume: "",
-    contatoNome: v.contatoNome || "",
+    contatoNome: textoSeguro(v.contatoNome),
     contatoWhats: "",
     cep: "",
     endereco: enderecoEditavel,
     numeroEndereco: String(v.numero ?? ""),
     bairro: bairroLegado,
     cidade: meta.cidade || cidadeLegada,
-    referencia: meta.referencia || v.complemento || "",
+    referencia: meta.referencia || textoSeguro(v.complemento),
     linkEndereco: match?.[1] || "",
-    discriminacao: v.info || "",
-    preenchidoPor: v.preenchidoPor || "",
+    discriminacao: textoSeguro(v.info),
+    preenchidoPor: textoSeguro(v.preenchidoPor),
     notasJson: v.notasJson || "[]",
   };
 }
@@ -237,10 +243,21 @@ async function parseResponse(response: Response) {
   return data;
 }
 
-function lojaLabel(loja?: string) {
-  if (loja === "araras") return "Araras";
-  if (loja === "rio_claro") return "Rio Claro";
-  return loja || "";
+function unidadeAgenda(v: Viagem): "Rio Claro" | "Araras" {
+  const local = [lerMetaMotorista(v.notasJson).cidade, v.endereco, v.complemento].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
+  if (local.includes("araras")) return "Araras";
+  if (local.includes("rio claro")) return "Rio Claro";
+  const responsavel = String(v.preenchidoPor || "").split(" - ")[0].trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  return RESPONSAVEIS_ARARAS.some((nome) => nome.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR") === responsavel) ? "Araras" : "Rio Claro";
+}
+
+function filtrarViagens(viagens: Viagem[], rota: FiltroRota, tipo: FiltroTipo, vendedor: string, preenchidoPor: string) {
+  return viagens.filter((v) =>
+    (rota === "todas" || unidadeAgenda(v) === (rota === "araras" ? "Araras" : "Rio Claro")) &&
+    (tipo === "todos" || lerMetaMotorista(v.notasJson).tipo === tipo) &&
+    (!vendedor || String(v.vendedor || "") === vendedor) &&
+    (!preenchidoPor || String(v.preenchidoPor || "") === preenchidoPor)
+  );
 }
 
 function horaCurta(hora?: string) {
@@ -301,14 +318,8 @@ function documentoTexto(valor?: string) {
 }
 
 function ordenarViagens(viagens: Viagem[]) {
-  return [...viagens].sort((a, b) => {
-    const horarioA = String(a.horario || "").trim();
-    const horarioB = String(b.horario || "").trim();
-    if (!horarioA && !horarioB) return 0;
-    if (!horarioA) return 1;
-    if (!horarioB) return -1;
-    return horarioA.localeCompare(horarioB);
-  });
+  // Preserva a sequência original de inclusão vinda da agenda, sem reordenar por horário.
+  return [...viagens];
 }
 
 function estiloBoxViagem(v: Viagem) {
@@ -319,16 +330,24 @@ function estiloBoxViagem(v: Viagem) {
   };
 }
 
-function linhaPrincipalRelatorio(v: Viagem, index: number) {
+function lojaAgenda(loja?: string) {
+  const valor = String(loja || "").trim();
+  if (!valor) return "";
+  const chave = valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  if (/casa[\s_-]*timoni/i.test(valor) || chave === "ct") return "CT";
+  if (chave === "mcr") return "MCR";
+  if (chave === "rodini") return "Rodini";
+  if (chave === "rio_claro" || chave === "araras" || chave === "rio claro") return "";
+  return valor;
+}
+function linhaPrincipalRelatorio(v: Viagem) {
   const tipo = lerMetaMotorista(v.notasJson).tipo;
-  const partes = [
-    `${index + 1}. ${tipo}`,
-    v.tipoHorario === "Bloqueio" ? "Bloqueio" : "",
-    lojaLabel(v.loja),
-    v.vendedor ? `Vend.: ${v.vendedor}` : "",
-    v.horario ? `${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : "",
-  ].filter(Boolean);
-  return partes.join(" | ");
+  const unidade = unidadeAgenda(v);
+  const loja = lojaAgenda(v.loja);
+  const vendedor = textoSeguro(v.vendedor).trim();
+  const horario = v.horario ? `${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : "";
+  const destino = tipo === "Retirada" ? (loja || unidade) : unidade === "Araras" ? unidade : (loja || unidade);
+  return [tipo, destino, vendedor ? `Vend.: ${vendedor}` : "", horario].filter(Boolean).join(" | ");
 }
 
 function separarVolume(valor?: string) {
@@ -410,6 +429,10 @@ function formatarCep(value: string) {
 export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boolean }) {
   const hoje = localDateString();
   const [modo, setModo] = useState<Modo>("dia");
+  const [filtroRota, setFiltroRota] = useState<FiltroRota>("todas");
+  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>("todos");
+  const [filtroVendedor, setFiltroVendedor] = useState("");
+  const [filtroPreenchido, setFiltroPreenchido] = useState("");
   const [selecionado, setSelecionado] = useState(hoje);
   const [mesBase, setMesBase] = useState(() => dateFromString(hoje));
   const [viagens, setViagens] = useState<Record<string, Viagem[]>>({});
@@ -424,11 +447,14 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
   const [opcoesVendedores, setOpcoesVendedores] = useState<VendedorOption[]>([]);
 
   const diasMes = useMemo(() => monthDays(mesBase), [mesBase]);
+  const viagensCarregadas = Object.values(viagens).flat();
+  const vendedoresAgenda = [...new Set(viagensCarregadas.map((v) => String(v.vendedor || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const preenchidosAgenda = [...new Set(viagensCarregadas.map((v) => String(v.preenchidoPor || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
   const diasSemana = useMemo(() => weekDays(selecionado), [selecionado]);
   const linkMapsFormulario = useMemo(() => {
     if (form.linkEndereco) return form.linkEndereco;
-    if (!form.numeroEndereco.trim()) return "";
-    const destino = [form.endereco.trim(), form.numeroEndereco.trim(), form.bairro.trim(), form.cidade.trim()].filter(Boolean).join(", ");
+    if (!textoSeguro(form.numeroEndereco).trim()) return "";
+    const destino = [textoSeguro(form.endereco).trim(), textoSeguro(form.numeroEndereco).trim(), textoSeguro(form.bairro).trim(), textoSeguro(form.cidade).trim()].filter(Boolean).join(", ");
     return destino ? `https://maps.google.com/?q=${encodeURIComponent(destino)}` : "";
   }, [form.linkEndereco, form.endereco, form.numeroEndereco, form.bairro, form.cidade]);
 
@@ -547,7 +573,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
   }
 
   function fieldClass(name: keyof FormState) {
-    return `mt-1 w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 ${invalidos.has(name) ? "border-red-500" : "border-slate-300"}`;
+    return `mt-1 w-full rounded-xl border bg-white px-3 py-2.5 text-base md:text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 ${invalidos.has(name) ? "border-red-500" : "border-slate-300"}`;
   }
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -609,7 +635,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
     setSaving(true);
     setErro("");
     try {
-      const enderecoBase = [form.endereco.trim(), form.bairro.trim(), form.cidade.trim()].filter(Boolean).join(" - ");
+      const enderecoBase = [textoSeguro(form.endereco).trim(), textoSeguro(form.bairro).trim(), textoSeguro(form.cidade).trim()].filter(Boolean).join(" - ");
       const destinoMaps = [form.endereco.trim(), form.numeroEndereco.trim(), form.bairro.trim(), form.cidade.trim()].filter(Boolean).join(", ");
       const linkMaps = linkMapsFormulario || `https://maps.google.com/?q=${encodeURIComponent(destinoMaps)}`;
       const detalhesEndereco = `${enderecoBase}\nLink: ${linkMaps}`;
@@ -622,9 +648,9 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
         horario: form.bloquear ? form.bloqueioInicio : "",
         horarioFim: form.bloquear ? form.bloqueioFim : "",
         vendedor: form.vendedor,
-        clienteFornecedor: form.clienteFornecedor.trim().toUpperCase(),
+        clienteFornecedor: textoSeguro(form.clienteFornecedor).trim().toUpperCase(),
         numeroPedido: form.numeroPedido,
-        volumes: form.volumes.trim(),
+        volumes: textoSeguro(form.volumes).trim(),
         contatoNome: form.contatoNome,
         contatoWhats: "",
         endereco: detalhesEndereco,
@@ -709,9 +735,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
   }
 
   function imprimirDia() {
-    const itens = (viagens[selecionado] || [])
-      .slice()
-      .sort((a, b) => (a.horario || "").localeCompare(b.horario || ""));
+    const itens = filtrarViagens(ordenarViagens(viagens[selecionado] || []), filtroRota, filtroTipo, filtroVendedor, filtroPreenchido);
 
     if (!itens.length) {
       setErro("Não há registros neste dia para imprimir.");
@@ -722,25 +746,28 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
     const diaSemana = data.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
     const linhas = itens.map((v, index) => {
       const tipo = lerMetaMotorista(v.notasJson).tipo;
+      const unidade = unidadeAgenda(v);
       const endereco = formatarEnderecoExibicao(v.endereco, v.numero, v.complemento);
       const link = separarEndereco(v.endereco).link;
-      const linha1 = linhaPrincipalRelatorio(v, index);
-      const empresa = (v.clienteFornecedor || "").toUpperCase();
+      const linha1 = `${index + 1}. ${linhaPrincipalRelatorio(v)}`;
+      const contato = textoSeguro(v.contatoNome).trim();
+      const cliente = textoSeguro(v.clienteFornecedor).trim() || contato;
       const documento = documentoTexto(v.numeroPedido);
-      const linha2 = [documento, empresa ? `${v.contatoNome ? "CLIENTE " : ""}${empresa}` : "", v.contatoNome ? `A/C: ${v.contatoNome.toUpperCase()}` : "", !v.contatoNome && v.volumes ? `VOLUME: ${String(v.volumes).toUpperCase()}` : ""].filter(Boolean).join(" | ");
-      const volume = v.contatoNome && v.volumes ? `<p><strong>VOLUME: ${String(v.volumes).toUpperCase()}</strong></p>` : "";
-      const detalhe = v.info ? `<p>${"Observação"}: ${String(v.info).replace(/^[\r\n]+/, "")}</p>` : "";
-      const maps = link ? ` | <a href="${link}" target="_blank"><strong>Google Maps</strong></a>` : "";
-      return `<div class="item"><p><strong>${linha1}</strong></p><p><strong>${linha2}</strong></p>${endereco ? `<p>End.: ${endereco}${maps}</p>` : ""}${volume}${detalhe}<p><strong>Preenchido por:</strong>${v.preenchidoPor ? ` ${v.preenchidoPor}` : ""}</p></div>`;
+      const linha2 = [documento, cliente, contato ? `A/C: ${contato}` : !contato && v.volumes ? `VOLUME: ${String(v.volumes).toUpperCase()}` : ""].filter(Boolean).join(" | ");
+      const volume = contato && v.volumes ? `<p><strong>VOLUME: ${String(v.volumes).toUpperCase()}</strong></p>` : "";
+      const detalhe = textoSeguro(v.info).trim() ? `<p>Observação: ${textoSeguro(v.info).replace(/^[\\r\\n]+/, "")}</p>` : "";
+      const maps = link ? `<p><a href="${link}" target="_blank" rel="noreferrer"><strong>Google Maps</strong></a></p>` : "";
+      const classeBox = tipo === "Retirada" ? "retirada" : unidade === "Araras" ? "araras" : "rio-claro";
+      return `<div class="item ${classeBox}"><p><strong>${linha1}</strong></p>${linha2 ? `<p><strong>${linha2}</strong></p>` : ""}${endereco ? `<p>End.: ${endereco}</p>` : ""}${maps}${volume}${detalhe}<p><strong>Preenchido por:</strong>${textoSeguro(v.preenchidoPor).trim() ? ` ${textoSeguro(v.preenchidoPor).trim()}` : ""}</p></div>`;
     }).join("");
 
     const popup = window.open("", "_blank", "width=850,height=900");
     if (!popup) return;
-    popup.document.write(`<!doctype html><html><head><title>Agenda Motorista</title><style>body{font-family:Arial,sans-serif;margin:28px;color:#111}h1{font-size:18px;margin-bottom:28px}.item{margin-bottom:24px;page-break-inside:avoid}.item p{margin:3px 0;font-family:Arial,sans-serif;font-size:11pt;line-height:1.35}.item .preenchido{font-size:10pt;margin-top:8px}</style></head><body><h1>AGENDA MOTORISTA - DIA ${data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} - ${diaSemana}</h1>${linhas}<script>window.onload=()=>window.print()</script></body></html>`);
+    popup.document.write(`<!doctype html><html><head><title>Agenda Motorista</title><style>body{font-family:Arial,sans-serif;margin:28px;color:#111}h1{font-size:18px;margin-bottom:28px}.item{margin-bottom:24px;padding:14px;border:1px solid #dbe3f0;border-radius:14px;page-break-inside:avoid}.item.rio-claro{background:#f3f6ff;border-color:#c8d4f3}.item.araras,.item.retirada{background:#fff9db;border-color:#ead178}.item p{margin:3px 0;font-family:Arial,sans-serif;font-size:11pt;line-height:1.35}.item .preenchido{font-size:10pt;margin-top:8px}</style></head><body><h1>AGENDA MOTORISTA - DIA ${data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })} - ${diaSemana}</h1>${linhas}<script>window.onload=()=>window.print()</script></body></html>`);
     popup.document.close();
   }
 
-  const itensDia = ordenarViagens(viagens[selecionado] || []);
+  const itensDia = filtrarViagens(ordenarViagens(viagens[selecionado] || []), filtroRota, filtroTipo, filtroVendedor, filtroPreenchido);
   const dataSelecionada = dateFromString(selecionado);
 
   return (
@@ -753,6 +780,17 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
             <button type="button" onClick={() => setModo("dia")} className={`rounded-lg px-3 py-2 text-sm font-medium ${modo === "dia" ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>Dia</button>
             <button type="button" onClick={() => setModo("semana")} className={`rounded-lg px-3 py-2 text-sm font-medium ${modo === "semana" ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>Semana</button>
             <button type="button" onClick={() => setModo("mes")} className={`rounded-lg px-3 py-2 text-sm font-medium ${modo === "mes" ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>Mês</button>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 bg-slate-50 p-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Filtros da agenda</p>
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              <label className="text-xs font-medium text-slate-600">Unidade<select value={filtroRota} onChange={(e) => setFiltroRota(e.target.value as FiltroRota)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="todas">Todas</option><option value="rio_claro">Rio Claro</option><option value="araras">Araras</option></select></label>
+              <label className="text-xs font-medium text-slate-600">Tipo<select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value as FiltroTipo)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="todos">Entrega e Retirada</option><option value="Entrega">Entrega</option><option value="Retirada">Retirada</option></select></label>
+              <label className="text-xs font-medium text-slate-600">Vendedor<select value={filtroVendedor} onChange={(e) => setFiltroVendedor(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">Todos</option>{vendedoresAgenda.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>
+              <label className="text-xs font-medium text-slate-600">Preenchido por<select value={filtroPreenchido} onChange={(e) => setFiltroPreenchido(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">Todos</option>{preenchidosAgenda.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>
+            </div>
+            <p className="mt-2 text-xs text-slate-500">Rio Claro: entregas ao longo do dia · Araras: entregas à tarde · Retiradas: filtre pela unidade e pelo tipo.</p>
           </div>
 
           {modo === "dia" ? (
@@ -794,7 +832,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
           <div className="mt-4 space-y-4">
             {diasSemana.map((d) => {
               const data = localDateString(d);
-              const itens = ordenarViagens(viagens[data] || []);
+              const itens = filtrarViagens(ordenarViagens(viagens[data] || []), filtroRota, filtroTipo, filtroVendedor, filtroPreenchido);
               return (
                 <section key={data} className={`rounded-2xl border bg-white p-4 ${data === hoje ? "border-blue-300 bg-blue-50/40" : "border-slate-200"}`}>
                   <button type="button" onClick={() => selecionarDia(data)} className="w-full text-left">
@@ -804,7 +842,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                   <div className="mt-3 space-y-2">
                     {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itens.length === 0 ? <p className="text-sm text-slate-400">Sem viagens.</p> : itens.map((v, index) => (
                       <article key={v.id} style={estiloBoxViagem(v)} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-sm font-semibold text-slate-950">{linhaPrincipalRelatorio(v, index)}</p>
+                        <p className="min-w-0 text-sm font-semibold leading-5 text-slate-950">{index + 1}. {linhaPrincipalRelatorio(v)}</p>
                         <p className="mt-2 text-sm font-bold uppercase text-slate-900">
                           {documentoTexto(v.numeroPedido)}
                           {documentoTexto(v.numeroPedido) && v.clienteFornecedor ? " | " : ""}
@@ -836,7 +874,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
               <article key={v.id} style={estiloBoxViagem(v)} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="font-[Arial] text-[11pt] leading-[1.35]">
-                    <p className="font-semibold text-slate-950">{linhaPrincipalRelatorio(v, index)}</p>
+                    <p className="min-w-0 font-semibold leading-5 text-slate-950">{index + 1}. {linhaPrincipalRelatorio(v)}</p>
                     <p className="mt-2 font-bold uppercase text-slate-900">
                       {documentoTexto(v.numeroPedido)}
                       {documentoTexto(v.numeroPedido) && v.clienteFornecedor ? " | " : ""}
@@ -865,7 +903,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
             <div className="mt-1 grid grid-cols-7 gap-1">
               {diasMes.map((d) => {
                 const data = localDateString(d);
-                const itens = viagens[data] || [];
+                const itens = filtrarViagens(viagens[data] || [], filtroRota, filtroTipo, filtroVendedor, filtroPreenchido);
                 const fora = d.getMonth() !== mesBase.getMonth();
                 return <button key={data} type="button" onClick={() => selecionarDia(data)} className={`min-h-24 rounded-xl border p-2 text-left ${fora ? "border-slate-100 bg-slate-50 text-slate-300" : data === hoje ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white"}`}>
                   <p className="text-sm font-semibold">{d.getDate()}</p>

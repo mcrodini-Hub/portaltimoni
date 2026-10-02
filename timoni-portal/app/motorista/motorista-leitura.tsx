@@ -2,6 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 
+type FiltroRota = "todas" | "rio_claro" | "araras";
+type FiltroTipo = "todos" | "Entrega" | "Retirada";
+
 type Viagem = {
   id: string;
   data: string;
@@ -51,10 +54,26 @@ function nextDays(start: Date) {
   ).filter((d) => d.getDay() !== 0 && d.getDay() !== 6);
 }
 
-function lojaLabel(loja?: string) {
-  if (loja === "araras") return "Araras";
-  if (loja === "rio_claro") return "Rio Claro";
-  return loja || "";
+function unidadeAgenda(v: Viagem): "Rio Claro" | "Araras" {
+  let cidade = "";
+  try {
+    const parsed = JSON.parse(String(v.notasJson || "[]"));
+    cidade = String(parsed?.cidade || "");
+  } catch {}
+  const local = [cidade, v.endereco, v.complemento].filter(Boolean).join(" ").toLocaleLowerCase("pt-BR");
+  if (local.includes("araras")) return "Araras";
+  if (local.includes("rio claro")) return "Rio Claro";
+  const responsavel = String(v.preenchidoPor || "").split(" - ")[0].trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  return ["reginaldo", "margareth", "reinaldo", "paulo", "carol", "lyra", "yan"].includes(responsavel) ? "Araras" : "Rio Claro";
+}
+
+function filtrarViagens(viagens: Viagem[], rota: FiltroRota, tipo: FiltroTipo, vendedor: string, preenchidoPor: string) {
+  return viagens.filter((v) =>
+    (rota === "todas" || unidadeAgenda(v) === (rota === "araras" ? "Araras" : "Rio Claro")) &&
+    (tipo === "todos" || lerTipo(v.notasJson) === tipo) &&
+    (!vendedor || String(v.vendedor || "") === vendedor) &&
+    (!preenchidoPor || String(v.preenchidoPor || "") === preenchidoPor)
+  );
 }
 
 function horaCurta(hora?: string) {
@@ -113,14 +132,8 @@ function lerTipo(notasJson?: string): "Entrega" | "Retirada" {
 }
 
 function ordenarViagens(viagens: Viagem[]) {
-  return [...viagens].sort((a, b) => {
-    const horarioA = String(a.horario || "").trim();
-    const horarioB = String(b.horario || "").trim();
-    if (!horarioA && !horarioB) return 0;
-    if (!horarioA) return 1;
-    if (!horarioB) return -1;
-    return horarioA.localeCompare(horarioB);
-  });
+  // Preserva a sequência original de inclusão vinda da agenda, sem reordenar por horário.
+  return [...viagens];
 }
 
 function estiloBoxViagem(v: Viagem) {
@@ -131,16 +144,27 @@ function estiloBoxViagem(v: Viagem) {
   };
 }
 
+function lojaAgenda(loja?: string) {
+  const valor = String(loja || "").trim();
+  if (!valor) return "";
+  const chave = valor.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR");
+  if (/casa[\s_-]*timoni/i.test(valor) || chave === "ct") return "CT";
+  if (chave === "mcr") return "MCR";
+  if (chave === "rodini") return "Rodini";
+  if (chave === "rio_claro" || chave === "araras" || chave === "rio claro") return "";
+  return valor;
+}
 function linhaPrincipal(v: Viagem) {
+  const tipo = lerTipo(v.notasJson);
+  const loja = lojaAgenda(v.loja);
+  const horario = v.horario ? `${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : "";
   return [
-    lerTipo(v.notasJson),
-    v.tipoHorario === "Bloqueio" ? "Bloqueio" : "",
-    lojaLabel(v.loja),
+    `${tipo}${v.tipoHorario === "Bloqueio" ? " (Bloqueio)" : ""}: ${unidadeAgenda(v)}`,
+    loja,
     v.vendedor ? `Vend.: ${v.vendedor}` : "",
-    v.horario ? `${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : "",
+    horario,
   ].filter(Boolean).join(" | ");
 }
-
 function finalizada(v: Viagem) {
   try {
     const parsed = JSON.parse(String(v.notasJson || "[]"));
@@ -172,11 +196,18 @@ function concluida(notasJson?: string) {
 
 export default function MotoristaLeitura() {
   const [inicio, setInicio] = useState(() => dateFromString(localDateString()));
+  const [filtroRota, setFiltroRota] = useState<FiltroRota>("todas");
+  const [filtroTipo, setFiltroTipo] = useState<FiltroTipo>("todos");
+  const [filtroVendedor, setFiltroVendedor] = useState("");
+  const [filtroPreenchido, setFiltroPreenchido] = useState("");
   const [viagens, setViagens] = useState<Record<string, Viagem[]>>({});
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState("");
 
   const dias = useMemo(() => nextDays(inicio), [inicio]);
+  const viagensCarregadas = Object.values(viagens).flat();
+  const vendedoresAgenda = [...new Set(viagensCarregadas.map((v) => String(v.vendedor || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
+  const preenchidosAgenda = [...new Set(viagensCarregadas.map((v) => String(v.preenchidoPor || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, "pt-BR"));
 
   useEffect(() => {
     let ativo = true;
@@ -241,12 +272,22 @@ export default function MotoristaLeitura() {
           </div>
         </header>
 
+        <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-slate-500">Filtros da agenda</p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="text-xs font-medium text-slate-600">Unidade<select value={filtroRota} onChange={(e) => setFiltroRota(e.target.value as FiltroRota)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="todas">Todas</option><option value="rio_claro">Rio Claro</option><option value="araras">Araras</option></select></label>
+            <label className="text-xs font-medium text-slate-600">Tipo<select value={filtroTipo} onChange={(e) => setFiltroTipo(e.target.value as FiltroTipo)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="todos">Entrega e Retirada</option><option value="Entrega">Entrega</option><option value="Retirada">Retirada</option></select></label>
+            <label className="text-xs font-medium text-slate-600">Vendedor<select value={filtroVendedor} onChange={(e) => setFiltroVendedor(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">Todos</option>{vendedoresAgenda.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>
+            <label className="text-xs font-medium text-slate-600">Preenchido por<select value={filtroPreenchido} onChange={(e) => setFiltroPreenchido(e.target.value)} className="mt-1 w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm"><option value="">Todos</option>{preenchidosAgenda.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</select></label>
+          </div>
+          <p className="mt-2 text-xs text-slate-500">Entregas de Rio Claro: dia todo · entregas de Araras: à tarde · retiradas: selecione a unidade e o tipo.</p>
+        </div>
         {erro && <p className="mb-4 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
         <div className="space-y-4">
           {dias.map((d) => {
             const data = localDateString(d);
-            const itens = ordenarViagens((viagens[data] || []).filter((v) => !finalizada(v)));
+            const itens = filtrarViagens(ordenarViagens((viagens[data] || []).filter((v) => !finalizada(v))), filtroRota, filtroTipo, filtroVendedor, filtroPreenchido);
             const hoje = data === localDateString();
             return (
               <section key={data} className={`rounded-2xl border bg-white p-4 shadow-sm ${hoje ? "border-blue-300" : "border-slate-200"}`}>
@@ -271,10 +312,10 @@ export default function MotoristaLeitura() {
                       return (
                         <article key={v.id} style={estiloBoxViagem(v)} className={`rounded-xl border p-3 ${bloqueio ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
                           <div className="flex items-start gap-3">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow-sm">{index + 1}</span>
+                            
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-semibold text-slate-950">{linhaPrincipal(v)}</p>
+                                <p className="text-sm font-semibold text-slate-950">{index + 1}. {linhaPrincipal(v)}</p>
                                 {!bloqueio && concluida(v.notasJson) && <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">Concluído</span>}
                               </div>
                               <p className="mt-2 text-sm font-bold uppercase text-slate-900">

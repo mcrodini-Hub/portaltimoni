@@ -1722,7 +1722,7 @@ export async function POST(request: Request) {
       requireRole(email, "manage");
       const spreadsheetId = String(body.spreadsheetId || "").trim();
       if (!spreadsheetId) throw new Error("Planilha não identificada.");
-      if (!(await deleteSupplierStandardization(spreadsheetId, String(body.sheetName || "").trim()))) {
+      if (!(await deleteSupplierStandardization(spreadsheetId, String(body.sheetName || "")))) {
         throw new Error("Fornecedor padronizado não encontrado.");
       }
       return NextResponse.json({ ok: true });

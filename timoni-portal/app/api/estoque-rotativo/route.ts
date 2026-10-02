@@ -747,26 +747,22 @@ function analyzeSheetGrid(values: SheetValue[][]): SupplierSheetDetection | null
 }
 
 function normalizeHistoryHeader(value: SheetValue) {
+  const monthNames = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
   if (typeof value === "number" && Number.isFinite(value) && value > 20000) {
-    const milliseconds = Math.round((value - 25569) * 86400 * 1000);
-    const date = new Date(milliseconds);
+    const date = new Date(Math.round((value - 25569) * 86400 * 1000));
     if (!Number.isNaN(date.getTime())) {
-      return `${String(date.getUTCMonth() + 1).padStart(2, "0")}/${String(date.getUTCFullYear()).slice(-2)}`;
+      return `${monthNames[date.getUTCMonth()]}${String(date.getUTCFullYear()).slice(-2)}`;
     }
   }
   const text = String(value ?? "").trim();
   if (!text) return "";
-  if (/^(0[1-9]|1[0-2])\/[0-9]{2}$/.test(text)) return text;
-  const months: Record<string, string> = {
-    jan: "01", fev: "02", mar: "03", abr: "04", mai: "05", jun: "06",
-    jul: "07", ago: "08", set: "09", out: "10", nov: "11", dez: "12",
-  };
-  const normalized = normalizeMatch(text).replace(/\s+/g, "");
-  const match = normalized.match(/^(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez)[\/.-]?([0-9]{2,4})(.*)$/);
-  if (!match) return text;
-  const year = match[2].slice(-2);
-  const suffix = match[3].replace(/^[-_/]+/, "").trim();
-  return `${months[match[1]]}/${year}${suffix ? ` ${suffix.toUpperCase()}` : ""}`;
+  const numericMonth = text.match(/^(0?[1-9]|1[0-2])\s*[\/.-]\s*([0-9]{4}|[0-9]{2})(?![0-9])(.*)$/);
+  if (numericMonth) {
+    return `${monthNames[Number(numericMonth[1]) - 1]}${numericMonth[2].slice(-2)}${numericMonth[3]}`;
+  }
+  const namedMonth = text.match(/^(JAN|FEV|MAR|ABR|MAI|JUN|JUL|AGO|SET|OUT|NOV|DEZ)\s*[\/.-]?\s*([0-9]{4}|[0-9]{2})(?![0-9])(.*)$/i);
+  if (!namedMonth) return text;
+  return `${namedMonth[1].toUpperCase()}${namedMonth[2].slice(-2)}${namedMonth[3]}`;
 }
 
 function appendPreservedValue(row: SheetValue[], value: SheetValue, startAt = 5) {
@@ -1029,7 +1025,7 @@ async function standardizeSupplierSpreadsheet(
       repeatCell: {
         range: { sheetId: selected.sheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 2, endColumnIndex: 3 },
         cell: { userEnteredFormat: {
-          backgroundColor: { red: 0.82, green: 0.95, blue: 0.84 },
+          backgroundColor: white,
           textFormat: { fontFamily: "Calibri", fontSize: 12, bold: false, foregroundColor: black },
           horizontalAlignment: "CENTER",
           verticalAlignment: "MIDDLE",
@@ -1053,8 +1049,11 @@ async function standardizeSupplierSpreadsheet(
     {
       repeatCell: {
         range: { sheetId: selected.sheetId, startRowIndex: 4, endRowIndex: 5, startColumnIndex: 5, endColumnIndex: outputWidth },
-        cell: { userEnteredFormat: { numberFormat: { type: "DATE", pattern: "mmm/yy" } } },
-        fields: "userEnteredFormat.numberFormat",
+        cell: { userEnteredFormat: {
+          numberFormat: { type: "TEXT", pattern: "@" },
+          textFormat: { fontFamily: "Calibri", fontSize: 13, bold: true, foregroundColor: white },
+        } },
+        fields: "userEnteredFormat(numberFormat,textFormat)",
       },
     },
     {

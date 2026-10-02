@@ -112,6 +112,18 @@ function lerTipo(notasJson?: string): "Entrega" | "Retirada" {
   }
 }
 
+function lerPagamento(notasJson?: string) {
+  try {
+    const parsed = JSON.parse(String(notasJson || "[]"));
+    if (!parsed || Array.isArray(parsed)) return "";
+    return parsed.pagamento === "Pago" || parsed.pagamento === "Receber" || parsed.pagamento === "Boleto"
+      ? parsed.pagamento
+      : "";
+  } catch {
+    return "";
+  }
+}
+
 function ordenarViagens(viagens: Viagem[]) {
   return [...viagens].sort((a, b) => {
     const horarioA = String(a.horario || "").trim();
@@ -124,11 +136,15 @@ function ordenarViagens(viagens: Viagem[]) {
 }
 
 function estiloBoxViagem(v: Viagem) {
-  if (v.tipoHorario === "Bloqueio" || lerTipo(v.notasJson) !== "Retirada") return undefined;
-  return {
-    backgroundColor: "rgba(246, 191, 38, 0.1)",
-    borderColor: "rgba(246, 191, 38, 0.42)",
-  };
+  return lerTipo(v.notasJson) === "Retirada"
+    ? { backgroundColor: "#FFF6CC", borderColor: "#E5C64B" }
+    : { backgroundColor: "#EEF4FF", borderColor: "#B7CAF7" };
+}
+
+function classeLinhaPrincipal(v: Viagem) {
+  return lerTipo(v.notasJson) === "Retirada"
+    ? "font-[Calibri] font-bold text-[#13038D]"
+    : "font-semibold text-slate-950";
 }
 
 function linhaPrincipal(v: Viagem) {
@@ -274,7 +290,7 @@ export default function MotoristaLeitura() {
                             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow-sm">{index + 1}</span>
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
-                                <p className="text-sm font-semibold text-slate-950">{linhaPrincipal(v)}</p>
+                                <p className={`text-sm ${classeLinhaPrincipal(v)}`}>{linhaPrincipal(v)}</p>
                                 {!bloqueio && concluida(v.notasJson) && <span className="rounded-lg bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-800">Concluído</span>}
                               </div>
                               <p className="mt-2 text-sm font-bold uppercase text-slate-900">
@@ -288,7 +304,7 @@ export default function MotoristaLeitura() {
                               {v.contatoNome && v.volumes && <p className="mt-1 text-sm font-bold uppercase text-slate-900">VOLUME: {String(v.volumes).toUpperCase()}</p>}
                               {endereco && <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-slate-700"><span>End.: {endereco}</span>{enderecoInfo.link && <a href={enderecoInfo.link} target="_blank" rel="noreferrer" className="font-semibold text-blue-800 underline underline-offset-2">Google Maps</a>}</p>}
                               {v.info && <p className="mt-1 text-sm text-slate-600">Observação: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
-                              <p className="mt-2 text-sm text-slate-600"><strong>Preenchido por:</strong>{v.preenchidoPor ? ` ${v.preenchidoPor}` : ""}</p>
+                              <p className="mt-2 text-sm text-slate-600"><strong>Preenchido por:</strong>{v.preenchidoPor ? ` ${v.preenchidoPor}` : ""} <span className="mx-1">|</span> <strong>Pagamento:</strong>{lerPagamento(v.notasJson) ? ` ${lerPagamento(v.notasJson)}` : ""}</p>
                             </div>
                           </div>
                         </article>

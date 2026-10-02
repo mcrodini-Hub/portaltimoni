@@ -912,8 +912,8 @@ async function standardizeSupplierSpreadsheet(
   topRows[3][4] = preservedManualDate;
 
   const standardizedHeaders = [
-    "COD-VENDA",
-    "COD-COMPRA",
+    "VENDA",
+    "COMPRA",
     "DESCRIÇÃO",
     "ESTOQUE",
     ...extraColumns.map((column) => normalizeHistoryHeader(sourceHeader[column])),
@@ -1131,10 +1131,8 @@ async function standardizeSupplierSpreadsheet(
       },
     },
     {
-      updateDimensionProperties: {
-        range: { sheetId: selected.sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 2 },
-        properties: { pixelSize: 100 },
-        fields: "pixelSize",
+      autoResizeDimensions: {
+        dimensions: { sheetId: selected.sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 2 },
       },
     },
     {

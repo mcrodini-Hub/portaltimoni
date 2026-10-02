@@ -1072,7 +1072,7 @@ export default function EstoqueRotativoClient() {
           if (supplier) void selectStandardizationSupplier(supplier.id);
         }} className="rounded-3xl border border-slate-200 bg-white p-4 shadow-sm sm:p-6">
           <summary className="cursor-pointer text-base font-semibold text-[#13038D]">Padronização das planilhas</summary>
-          <p className="mt-3 text-sm text-slate-600">Selecione a aba. O Portal identifica as colunas e guarda o padrão por fornecedor e aba.</p>
+          <p className="mt-3 text-sm text-slate-600">Selecione a aba. O Portal identifica as colunas e guarda o padrão por fornecedor e aba. A1: fornecedor em maiúsculas, Calibri 20 e negrito. C1: data e hora da padronização, em negrito, alinhadas à esquerda e com fundo azul claro. C2: vazia na padronização, com fundo verde claro; reservada à atualização do Rotativo.</p>
           {standardizationError ? <p role="alert" className="mt-3 rounded-xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-800">{standardizationError}</p> : null}
           <div className="mt-3 grid min-w-0 gap-3 sm:grid-cols-2">
             <label className="min-w-0 text-sm font-semibold text-slate-800">Fornecedor

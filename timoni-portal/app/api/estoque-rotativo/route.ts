@@ -899,12 +899,11 @@ async function standardizeSupplierSpreadsheet(
     hour: "2-digit", minute: "2-digit", hour12: false,
     timeZone: "America/Sao_Paulo",
   }).format(new Date());
-  const preservedRotatingStockUpdated = formulas[1]?.[2] ?? "";
   const preservedManualDate = formulas[3]?.[4] ?? "";
 
-  topRows[0] = [file.name, `Padronizada em ${standardizedAt}`];
+  // A1 identifies the supplier; C1 records standardization, C2 is reserved for a later Rotativo update.
+  topRows[0] = [file.name.toLocaleUpperCase("pt-BR"), "", `Padronizada em ${standardizedAt}`];
   topRows[1] = [];
-  topRows[1][2] = preservedRotatingStockUpdated;
 
   // A3:E3 may be standardized, but preserve row 3 content from column F onward.
   const preservedRow3Tail = [...(metadataRows[2] || [])].slice(5);
@@ -993,11 +992,12 @@ async function standardizeSupplierSpreadsheet(
         range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 },
         cell: { userEnteredFormat: {
           backgroundColor: white,
-          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: true, foregroundColor: black },
+          textFormat: { fontFamily: "Calibri", fontSize: 20, bold: true, foregroundColor: black },
           horizontalAlignment: "LEFT",
           verticalAlignment: "MIDDLE",
+          wrapStrategy: "WRAP",
         } },
-        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)",
       },
     },
     {
@@ -1017,11 +1017,12 @@ async function standardizeSupplierSpreadsheet(
         range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 2, endColumnIndex: 3 },
         cell: { userEnteredFormat: {
           backgroundColor: { red: 0.82, green: 0.9, blue: 1 },
-          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: false, foregroundColor: black },
-          horizontalAlignment: "CENTER",
+          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: true, foregroundColor: black },
+          horizontalAlignment: "LEFT",
           verticalAlignment: "MIDDLE",
+          wrapStrategy: "WRAP",
         } },
-        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)",
       },
     },
     {
@@ -1032,8 +1033,9 @@ async function standardizeSupplierSpreadsheet(
           textFormat: { fontFamily: "Calibri", fontSize: 12, bold: false, foregroundColor: black },
           horizontalAlignment: "CENTER",
           verticalAlignment: "MIDDLE",
+          wrapStrategy: "WRAP",
         } },
-        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)",
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)",
       },
     },
     {
@@ -1150,6 +1152,12 @@ async function standardizeSupplierSpreadsheet(
       },
     },
   );
+
+  formattingRequests.push({
+    autoResizeDimensions: {
+      dimensions: { sheetId: selected.sheetId, dimension: "ROWS", startIndex: 0, endIndex: 2 },
+    },
+  });
 
   const historyEndColumn = Math.max(selected.columnCount, outputWidth);
   if (historyEndColumn > 5) {

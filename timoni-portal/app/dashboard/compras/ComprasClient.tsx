@@ -77,9 +77,9 @@ export default function ComprasClient() {
   const [selectedId, setSelectedId] = useState("");
 
   const [sheetUrl, setSheetUrl] = useState("");
-  const [columnCode, setColumnCode] = useState("B");
-  const [columnDescription, setColumnDescription] = useState("C");
-  const [columnQuantity, setColumnQuantity] = useState("L");
+  const [columnCode, setColumnCode] = useState("");
+  const [columnDescription, setColumnDescription] = useState("");
+  const [columnQuantity, setColumnQuantity] = useState("");
   const [startRow, setStartRow] = useState("");
   const [items, setItems] = useState<PurchaseItem[]>([]);
   const [sheetInfo, setSheetInfo] = useState("");
@@ -135,11 +135,6 @@ export default function ComprasClient() {
         startRow?: string;
         company?: Company | "RODINI";
       };
-      if (saved.sheetUrl) setSheetUrl(saved.sheetUrl);
-      if (saved.columnCode) setColumnCode(saved.columnCode);
-      if (saved.columnDescription) setColumnDescription(saved.columnDescription);
-      if (saved.columnQuantity) setColumnQuantity(saved.columnQuantity);
-      if (saved.startRow) setStartRow(saved.startRow);
       if (saved.company === "RODINI") setCompany("ROD");
       else if (saved.company) setCompany(saved.company);
     } catch {
@@ -151,9 +146,9 @@ export default function ComprasClient() {
   useEffect(() => {
     localStorage.setItem(
       STORAGE_KEY,
-      JSON.stringify({ sheetUrl, columnCode, columnDescription, columnQuantity, startRow, company }),
+      JSON.stringify({ company }),
     );
-  }, [sheetUrl, columnCode, columnDescription, columnQuantity, startRow, company]);
+  }, [company]);
 
   function chooseSupplier(supplier: Supplier) {
     setSelectedId(supplier.id);
@@ -393,7 +388,7 @@ export default function ComprasClient() {
           <p className="text-xs font-semibold uppercase tracking-wider text-blue-700">2. Itens do pedido · opcional</p>
           <h2 className="mt-2 text-xl font-semibold text-slate-950">Planilha do pedido</h2>
           <p className="mt-2 text-sm leading-6 text-slate-600">
-            Funciona de forma independente. Padrão atual: código B, descrição C e quantidade L.
+            Funciona de forma independente. Preencha as colunas conforme a planilha do fornecedor.
           </p>
 
           <label className="mt-4 block text-sm font-semibold text-slate-800">

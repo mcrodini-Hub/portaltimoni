@@ -325,8 +325,14 @@ function estiloBoxViagem(v: Viagem) {
 
 function classeLinhaPrincipal(v: Viagem) {
   return lerMetaMotorista(v.notasJson).tipo === "Retirada"
-    ? "font-[Calibri] font-bold text-[#13038D]"
+    ? "font-bold text-[#13038D]"
     : "font-semibold text-slate-950";
+}
+
+function estiloLinhaPrincipal(v: Viagem) {
+  return lerMetaMotorista(v.notasJson).tipo === "Retirada"
+    ? { fontFamily: "Calibri, Arial, sans-serif", fontWeight: 700, color: "#13038D" }
+    : undefined;
 }
 
 function pagamentoTexto(notasJson?: string) {
@@ -561,7 +567,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
   }
 
   function fieldClass(name: keyof FormState) {
-    return `mt-1 w-full rounded-xl border bg-white px-3 py-2.5 text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 ${invalidos.has(name) ? "border-red-500" : "border-slate-300"}`;
+    return `mt-1 w-full min-w-0 rounded-xl border bg-white px-3 py-2.5 text-base md:text-sm outline-none transition focus:border-blue-500 focus:ring-2 focus:ring-blue-100 ${invalidos.has(name) ? "border-red-500" : "border-slate-300"}`;
   }
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
@@ -819,7 +825,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                   <div className="mt-3 space-y-2">
                     {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itens.length === 0 ? <p className="text-sm text-slate-400">Sem viagens.</p> : itens.map((v, index) => (
                       <article key={v.id} style={estiloBoxViagem(v)} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p className={`text-sm ${classeLinhaPrincipal(v)}`}>{linhaPrincipalRelatorio(v, index)}</p>
+                        <p style={estiloLinhaPrincipal(v)} className={`text-sm ${classeLinhaPrincipal(v)}`}>{linhaPrincipalRelatorio(v, index)}</p>
                         <p className="mt-2 text-sm font-bold uppercase text-slate-900">
                           {documentoTexto(v.numeroPedido)}
                           {documentoTexto(v.numeroPedido) && v.clienteFornecedor ? " | " : ""}
@@ -851,7 +857,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
               <article key={v.id} style={estiloBoxViagem(v)} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="font-[Arial] text-[11pt] leading-[1.35]">
-                    <p className={classeLinhaPrincipal(v)}>{linhaPrincipalRelatorio(v, index)}</p>
+                    <p style={estiloLinhaPrincipal(v)} className={classeLinhaPrincipal(v)}>{linhaPrincipalRelatorio(v, index)}</p>
                     <p className="mt-2 font-bold uppercase text-slate-900">
                       {documentoTexto(v.numeroPedido)}
                       {documentoTexto(v.numeroPedido) && v.clienteFornecedor ? " | " : ""}
@@ -894,7 +900,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
 
       {modal && !readOnly && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-slate-950/50 p-3 sm:p-6">
-          <form onSubmit={salvar} className="my-4 w-full max-w-4xl rounded-2xl bg-white p-4 shadow-2xl sm:p-6">
+          <form onSubmit={salvar} className="motorista-form my-4 w-full max-w-4xl rounded-2xl bg-white p-4 shadow-2xl sm:p-6">
             <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4">
               <div><p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Motorista</p><h2 className="mt-1 text-xl font-semibold text-slate-950">{editandoId ? "Editar agendamento" : "Nova viagem"}</h2><p className="mt-1 text-xs text-slate-500">Campos com * são obrigatórios.</p></div>
               <button type="button" onClick={() => setModal(false)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600">Fechar</button>

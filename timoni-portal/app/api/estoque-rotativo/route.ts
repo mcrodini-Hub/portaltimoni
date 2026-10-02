@@ -964,6 +964,14 @@ async function standardizeSupplierSpreadsheet(
     requestBody: { values: output.map((row) => row.map((value) => value ?? "")) },
   });
 
+  // Month labels such as MAR25 must stay literal text: USER_ENTERED parses them as dates.
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: file.id,
+    range: `${quotedTitle}!A5`,
+    valueInputOption: "RAW",
+    requestBody: { values: [standardizedHeaders] },
+  });
+
   const black = { red: 0, green: 0, blue: 0 };
   const white = { red: 1, green: 1, blue: 1 };
   const blue = { red: 0.075, green: 0.012, blue: 0.553 };
@@ -1206,6 +1214,16 @@ async function standardizeSupplierSpreadsheet(
     spreadsheetId: file.id,
     requestBody: { requests: formattingRequests },
   });
+
+  const savedHeaders = await sheets.spreadsheets.values.get({
+    spreadsheetId: file.id,
+    range: `${quotedTitle}!A5:${columnLetter(standardizedHeaders.length - 1)}5`,
+    valueRenderOption: "UNFORMATTED_VALUE",
+  });
+  const actualHeaders = savedHeaders.data.values?.[0] || [];
+  if (standardizedHeaders.some((header, index) => (actualHeaders[index] ?? "") !== header)) {
+    throw new Error("Os títulos do histórico não foram preservados como texto. Não confirme a padronização.");
+  }
 
   return {
     spreadsheetId: file.id,

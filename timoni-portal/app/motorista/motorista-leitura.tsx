@@ -52,13 +52,35 @@ function nextDays(start: Date) {
 }
 
 function lojaLabel(loja?: string) {
-  if (loja === "araras") return "Araras";
-  if (loja === "rio_claro") return "Rio Claro";
-  return loja || "";
+  const valor = String(loja ?? "").trim();
+  if (/^casa timoni$/i.test(valor)) return "CT";
+  if (/^mcr$/i.test(valor)) return "MCR";
+  if (/^rodini$/i.test(valor)) return "Rodini";
+  if (/^araras$/i.test(valor)) return "Araras";
+  if (/^rio[_ ]claro$/i.test(valor)) return "Rio Claro";
+  return valor;
+}
+
+function unidadeViagem(v: Viagem) {
+  const meta = (() => {
+    try {
+      const parsed = JSON.parse(String(v.notasJson ?? "[]"));
+      return parsed && !Array.isArray(parsed) && typeof parsed === "object" ? String(parsed.cidade ?? "") : "";
+    } catch {
+      return "";
+    }
+  })();
+  const origem = [meta, v.endereco, v.numero, v.complemento, v.loja]
+    .map((valor) => String(valor ?? "").toLocaleLowerCase("pt-BR"))
+    .join(" ");
+  if (origem.includes("araras")) return "Araras";
+  if (origem.includes("rio claro") || origem.includes("rio_claro")) return "Rio Claro";
+  return "";
 }
 
 function horaCurta(hora?: string) {
-  return hora ? hora.slice(0, 5) : "";
+  const valor = String(hora ?? "");
+  return valor ? valor.slice(0, 5) : "";
 }
 
 function separarEndereco(endereco?: string) {
@@ -113,30 +135,34 @@ function lerTipo(notasJson?: string): "Entrega" | "Retirada" {
 }
 
 function ordenarViagens(viagens: Viagem[]) {
-  return [...viagens].sort((a, b) => {
-    const horarioA = String(a.horario || "").trim();
-    const horarioB = String(b.horario || "").trim();
-    if (!horarioA && !horarioB) return 0;
-    if (!horarioA) return 1;
-    if (!horarioB) return -1;
-    return horarioA.localeCompare(horarioB);
-  });
+  // A planilha entrega as viagens na ordem em que foram cadastradas.
+  // Não reordenar por horário: horários ausentes não podem mudar a sequência.
+  return [...viagens];
 }
 
 function estiloBoxViagem(v: Viagem) {
-  if (v.tipoHorario === "Bloqueio" || lerTipo(v.notasJson) !== "Retirada") return undefined;
-  return {
-    backgroundColor: "rgba(246, 191, 38, 0.1)",
-    borderColor: "rgba(246, 191, 38, 0.42)",
-  };
+  const unidade = unidadeViagem(v);
+  const retirada = lerTipo(v.notasJson) === "Retirada";
+  const loja = lojaLabel(v.loja);
+  const base = unidade === "Araras" && loja === "CT"
+    ? { backgroundColor: "rgba(246, 191, 38, 0.10)", borderColor: "rgba(246, 191, 38, 0.42)" }
+    : unidade === "Rio Claro" && (loja === "MCR" || loja === "Rodini")
+      ? { backgroundColor: "rgba(19, 3, 141, 0.04)", borderColor: "rgba(19, 3, 141, 0.24)" }
+      : {};
+  return retirada ? { ...base, borderLeftColor: "#D40C0D", borderLeftWidth: 4 } : base;
 }
 
 function linhaPrincipal(v: Viagem) {
+  const tipo = lerTipo(v.notasJson);
+  const unidade = unidadeViagem(v);
+  const loja = lojaLabel(v.loja);
+  const lojaEhUnidade = /^araras$|^rio claro$/i.test(loja);
   return [
-    lerTipo(v.notasJson),
+    `${tipo}:`,
+    unidade,
+    lojaEhUnidade ? "" : loja,
+    v.vendedor ? `Vend.: ${String(v.vendedor)}` : "",
     v.tipoHorario === "Bloqueio" ? "Bloqueio" : "",
-    lojaLabel(v.loja),
-    v.vendedor ? `Vend.: ${v.vendedor}` : "",
     v.horario ? `${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : "",
   ].filter(Boolean).join(" | ");
 }
@@ -233,7 +259,7 @@ export default function MotoristaLeitura() {
               <h1 className="text-2xl font-semibold tracking-tight text-slate-950">Agenda do Motorista</h1>
               <p className="mt-1 text-sm text-slate-600">Visualização somente leitura.</p>
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <button type="button" onClick={() => setInicio((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() - 7))} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700">← 7 dias</button>
               <button type="button" onClick={() => setInicio(dateFromString(localDateString()))} className="rounded-lg bg-blue-800 px-3 py-2 text-sm font-semibold text-white">Hoje</button>
               <button type="button" onClick={() => setInicio((d) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + 7))} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700">+ 7 dias</button>
@@ -271,7 +297,7 @@ export default function MotoristaLeitura() {
                       return (
                         <article key={v.id} style={estiloBoxViagem(v)} className={`rounded-xl border p-3 ${bloqueio ? "border-amber-200 bg-amber-50" : "border-slate-200 bg-slate-50"}`}>
                           <div className="flex items-start gap-3">
-                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow-sm">{index + 1}</span>
+                            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-white text-xs font-semibold text-slate-700 shadow-sm">{index + 1}.</span>
                             <div className="min-w-0 flex-1">
                               <div className="flex flex-wrap items-center gap-2">
                                 <p className="text-sm font-semibold text-slate-950">{linhaPrincipal(v)}</p>
@@ -280,9 +306,9 @@ export default function MotoristaLeitura() {
                               <p className="mt-2 text-sm font-bold uppercase text-slate-900">
                                 {documentoTexto(v.numeroPedido)}
                                 {documentoTexto(v.numeroPedido) && v.clienteFornecedor ? " | " : ""}
-                                {v.clienteFornecedor ? <>{v.contatoNome ? "CLIENTE " : ""}{v.clienteFornecedor.toUpperCase()}</> : null}
+                                {v.clienteFornecedor ? <>{v.contatoNome ? "CLIENTE " : ""}{String(v.clienteFornecedor ?? "").toUpperCase()}</> : null}
                                 {(documentoTexto(v.numeroPedido) || v.clienteFornecedor) && v.contatoNome ? " | " : ""}
-                                {v.contatoNome ? <>A/C: {v.contatoNome.toUpperCase()}</> : null}
+                                {v.contatoNome ? <>A/C: {String(v.contatoNome ?? "").toUpperCase()}</> : null}
                                 {!v.contatoNome && v.volumes ? <> | VOLUME: {String(v.volumes).toUpperCase()}</> : null}
                               </p>
                               {v.contatoNome && v.volumes && <p className="mt-1 text-sm font-bold uppercase text-slate-900">VOLUME: {String(v.volumes).toUpperCase()}</p>}

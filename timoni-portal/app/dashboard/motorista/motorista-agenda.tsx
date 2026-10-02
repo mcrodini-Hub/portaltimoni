@@ -157,6 +157,14 @@ function emptyForm(data = localDateString()): FormState {
   };
 }
 
+function textoSeguro(valor: unknown) {
+  return String(valor ?? "");
+}
+
+function normalizarFiltro(valor: unknown) {
+  return textoSeguro(valor).trim().toLocaleLowerCase("pt-BR");
+}
+
 function lerMetaMotorista(notasJson?: string) {
   try {
     const parsed = JSON.parse(String(notasJson || "[]"));
@@ -190,7 +198,7 @@ function notasComMetaMotorista(
 
 function formFromViagem(v: Viagem): FormState {
   const bloqueio = v.tipoHorario === "Bloqueio";
-  const enderecoCompleto = [v.endereco, v.numero, v.complemento].filter(Boolean).join(" - ");
+  const enderecoCompleto = [v.endereco, v.numero, v.complemento].map(textoSeguro).filter(Boolean).join(" - ");
   const match = enderecoCompleto.match(/\nLink:\s*(https?:\/\/\S+)/i);
   const enderecoSemLink = enderecoCompleto.replace(/\nLink:\s*https?:\/\/\S+/i, "").trim();
   const partesEndereco = enderecoSemLink.split(/\s+-\s+/).map((parte) => parte.trim()).filter(Boolean);
@@ -204,30 +212,30 @@ function formFromViagem(v: Viagem): FormState {
   const volumeInfo = separarVolume(v.volumes);
   return {
     tipo: meta.tipo,
-    loja: v.loja || "",
-    vendedor: v.vendedor || "",
-    data: v.data,
+    loja: textoSeguro(v.loja),
+    vendedor: textoSeguro(v.vendedor),
+    data: textoSeguro(v.data),
     hora: "",
     bloquear: bloqueio,
-    bloqueioInicio: bloqueio ? (v.horario || "").slice(0, 5) : "",
-    bloqueioFim: bloqueio ? (v.horarioFim || "").slice(0, 5) : "",
-    numeroPedido: v.numeroPedido || "",
-    clienteFornecedor: v.clienteFornecedor || "",
+    bloqueioInicio: bloqueio ? textoSeguro(v.horario).slice(0, 5) : "",
+    bloqueioFim: bloqueio ? textoSeguro(v.horarioFim).slice(0, 5) : "",
+    numeroPedido: textoSeguro(v.numeroPedido),
+    clienteFornecedor: textoSeguro(v.clienteFornecedor),
     volumes: volumeInfo.volume,
     unidadeVolume: "",
     quantidadeVolume: "",
-    contatoNome: v.contatoNome || "",
+    contatoNome: textoSeguro(v.contatoNome),
     contatoWhats: "",
     cep: "",
     endereco: enderecoEditavel,
-    numeroEndereco: String(v.numero ?? ""),
+    numeroEndereco: textoSeguro(v.numero),
     bairro: bairroLegado,
     cidade: meta.cidade || cidadeLegada,
-    referencia: meta.referencia || v.complemento || "",
+    referencia: meta.referencia || textoSeguro(v.complemento),
     linkEndereco: match?.[1] || "",
-    discriminacao: v.info || "",
-    preenchidoPor: v.preenchidoPor || "",
-    notasJson: v.notasJson || "[]",
+    discriminacao: textoSeguro(v.info),
+    preenchidoPor: textoSeguro(v.preenchidoPor),
+    notasJson: textoSeguro(v.notasJson) || "[]",
   };
 }
 
@@ -238,13 +246,28 @@ async function parseResponse(response: Response) {
 }
 
 function lojaLabel(loja?: string) {
-  if (loja === "araras") return "Araras";
-  if (loja === "rio_claro") return "Rio Claro";
-  return loja || "";
+  const valor = String(loja ?? "").trim();
+  if (/^casa timoni$/i.test(valor)) return "CT";
+  if (/^mcr$/i.test(valor)) return "MCR";
+  if (/^rodini$/i.test(valor)) return "Rodini";
+  if (/^araras$/i.test(valor)) return "Araras";
+  if (/^rio[_ ]claro$/i.test(valor)) return "Rio Claro";
+  return valor;
+}
+
+function unidadeViagem(v: Viagem) {
+  const meta = lerMetaMotorista(v.notasJson).cidade;
+  const origem = [meta, v.endereco, v.numero, v.complemento, v.loja]
+    .map((valor) => String(valor ?? "").toLocaleLowerCase("pt-BR"))
+    .join(" ");
+  if (origem.includes("araras")) return "Araras";
+  if (origem.includes("rio claro") || origem.includes("rio_claro")) return "Rio Claro";
+  return "";
 }
 
 function horaCurta(hora?: string) {
-  return hora ? hora.slice(0, 5) : "";
+  const valor = textoSeguro(hora);
+  return valor ? valor.slice(0, 5) : "";
 }
 
 function separarEndereco(endereco?: string) {
@@ -301,31 +324,34 @@ function documentoTexto(valor?: string) {
 }
 
 function ordenarViagens(viagens: Viagem[]) {
-  return [...viagens].sort((a, b) => {
-    const horarioA = String(a.horario || "").trim();
-    const horarioB = String(b.horario || "").trim();
-    if (!horarioA && !horarioB) return 0;
-    if (!horarioA) return 1;
-    if (!horarioB) return -1;
-    return horarioA.localeCompare(horarioB);
-  });
+  // A planilha devolve os registros pela ordem de inclusão.
+  // Preservá-la mantém a numeração estável, inclusive sem horário cadastrado.
+  return [...viagens];
 }
 
 function estiloBoxViagem(v: Viagem) {
-  if (v.tipoHorario === "Bloqueio" || lerMetaMotorista(v.notasJson).tipo !== "Retirada") return undefined;
-  return {
-    backgroundColor: "rgba(246, 191, 38, 0.1)",
-    borderColor: "rgba(246, 191, 38, 0.42)",
-  };
+  const unidade = unidadeViagem(v);
+  const retirada = lerMetaMotorista(v.notasJson).tipo === "Retirada";
+  const loja = lojaLabel(v.loja);
+  const base = unidade === "Araras" && loja === "CT"
+    ? { backgroundColor: "rgba(246, 191, 38, 0.10)", borderColor: "rgba(246, 191, 38, 0.42)" }
+    : unidade === "Rio Claro" && (loja === "MCR" || loja === "Rodini")
+      ? { backgroundColor: "rgba(19, 3, 141, 0.04)", borderColor: "rgba(19, 3, 141, 0.24)" }
+      : {};
+  return retirada ? { ...base, borderLeftColor: "#D40C0D", borderLeftWidth: 4 } : base;
 }
 
 function linhaPrincipalRelatorio(v: Viagem, index: number) {
   const tipo = lerMetaMotorista(v.notasJson).tipo;
+  const unidade = unidadeViagem(v);
+  const loja = lojaLabel(v.loja);
+  const lojaEhUnidade = /^araras$|^rio claro$/i.test(loja);
   const partes = [
-    `${index + 1}. ${tipo}`,
+    `${index + 1}. ${tipo}:`,
+    unidade,
+    lojaEhUnidade ? "" : loja,
+    v.vendedor ? `Vend.: ${String(v.vendedor)}` : "",
     v.tipoHorario === "Bloqueio" ? "Bloqueio" : "",
-    lojaLabel(v.loja),
-    v.vendedor ? `Vend.: ${v.vendedor}` : "",
     v.horario ? `${horaCurta(v.horario)}${v.horarioFim ? ` a ${horaCurta(v.horarioFim)}` : ""}` : "",
   ].filter(Boolean);
   return partes.join(" | ");
@@ -422,6 +448,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
   const [aviso, setAviso] = useState("");
   const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());
   const [opcoesVendedores, setOpcoesVendedores] = useState<VendedorOption[]>([]);
+  const [filtros, setFiltros] = useState({ tipo: "", unidade: "", vendedor: "", preenchidoPor: "" });
 
   const diasMes = useMemo(() => monthDays(mesBase), [mesBase]);
   const diasSemana = useMemo(() => weekDays(selecionado), [selecionado]);
@@ -441,6 +468,30 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
     }
     return [...nomes.values()].sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
   }, [opcoesVendedores]);
+
+  const viagensCarregadas = useMemo(() => Object.values(viagens).flat(), [viagens]);
+  const vendedoresFiltro = useMemo(() => {
+    const nomes = new Set([
+      ...vendedoresDisponiveis,
+      ...viagensCarregadas.map((v) => textoSeguro(v.vendedor).trim()),
+    ].filter(Boolean));
+    return [...nomes].sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
+  }, [vendedoresDisponiveis, viagensCarregadas]);
+  const preenchidosFiltro = useMemo(() => {
+    const nomes = new Set(viagensCarregadas.map((v) => textoSeguro(v.preenchidoPor).trim()).filter(Boolean));
+    return [...nomes].sort((a, b) => a.localeCompare(b, "pt-BR", { sensitivity: "base" }));
+  }, [viagensCarregadas]);
+
+  function filtrarViagens(lista: Viagem[]) {
+    return ordenarViagens(lista)
+      .map((viagem, index) => ({ viagem, numero: index + 1 }))
+      .filter(({ viagem }) =>
+        (!filtros.tipo || normalizarFiltro(lerMetaMotorista(viagem.notasJson).tipo) === filtros.tipo) &&
+        (!filtros.unidade || normalizarFiltro(unidadeViagem(viagem)) === filtros.unidade) &&
+        (!filtros.vendedor || normalizarFiltro(viagem.vendedor) === normalizarFiltro(filtros.vendedor)) &&
+        (!filtros.preenchidoPor || normalizarFiltro(viagem.preenchidoPor) === normalizarFiltro(filtros.preenchidoPor)),
+      );
+  }
 
   useEffect(() => {
     let ativo = true;
@@ -709,9 +760,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
   }
 
   function imprimirDia() {
-    const itens = (viagens[selecionado] || [])
-      .slice()
-      .sort((a, b) => (a.horario || "").localeCompare(b.horario || ""));
+    const itens = filtrarViagens(viagens[selecionado] || []);
 
     if (!itens.length) {
       setErro("Não há registros neste dia para imprimir.");
@@ -720,14 +769,14 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
 
     const data = dateFromString(selecionado);
     const diaSemana = data.toLocaleDateString("pt-BR", { weekday: "short" }).replace(".", "");
-    const linhas = itens.map((v, index) => {
+    const linhas = itens.map(({ viagem: v, numero }) => {
       const tipo = lerMetaMotorista(v.notasJson).tipo;
       const endereco = formatarEnderecoExibicao(v.endereco, v.numero, v.complemento);
       const link = separarEndereco(v.endereco).link;
-      const linha1 = linhaPrincipalRelatorio(v, index);
-      const empresa = (v.clienteFornecedor || "").toUpperCase();
+      const linha1 = linhaPrincipalRelatorio(v, numero - 1);
+      const empresa = textoSeguro(v.clienteFornecedor).toUpperCase();
       const documento = documentoTexto(v.numeroPedido);
-      const linha2 = [documento, empresa ? `${v.contatoNome ? "CLIENTE " : ""}${empresa}` : "", v.contatoNome ? `A/C: ${v.contatoNome.toUpperCase()}` : "", !v.contatoNome && v.volumes ? `VOLUME: ${String(v.volumes).toUpperCase()}` : ""].filter(Boolean).join(" | ");
+      const linha2 = [documento, empresa ? `${v.contatoNome ? "CLIENTE " : ""}${empresa}` : "", v.contatoNome ? `A/C: ${textoSeguro(v.contatoNome).toUpperCase()}` : "", !v.contatoNome && v.volumes ? `VOLUME: ${String(v.volumes).toUpperCase()}` : ""].filter(Boolean).join(" | ");
       const volume = v.contatoNome && v.volumes ? `<p><strong>VOLUME: ${String(v.volumes).toUpperCase()}</strong></p>` : "";
       const detalhe = v.info ? `<p>${"Observação"}: ${String(v.info).replace(/^[\r\n]+/, "")}</p>` : "";
       const maps = link ? ` | <a href="${link}" target="_blank"><strong>Google Maps</strong></a>` : "";
@@ -740,7 +789,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
     popup.document.close();
   }
 
-  const itensDia = ordenarViagens(viagens[selecionado] || []);
+  const itensDia = filtrarViagens(viagens[selecionado] || []);
   const dataSelecionada = dateFromString(selecionado);
 
   return (
@@ -761,7 +810,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Agenda do dia</p>
                 <p className="mt-1 text-lg font-semibold text-slate-950">{dataSelecionada.toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long", year: "numeric" })}</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => setSelecionado(localDateString(new Date(dataSelecionada.getFullYear(), dataSelecionada.getMonth(), dataSelecionada.getDate() - 1)))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">← Dia anterior</button>
                 <button type="button" onClick={() => setSelecionado(hoje)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">Hoje</button>
                 <button type="button" onClick={() => setSelecionado(localDateString(new Date(dataSelecionada.getFullYear(), dataSelecionada.getMonth(), dataSelecionada.getDate() + 1)))} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">Próximo dia →</button>
@@ -773,7 +822,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                 <p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Agenda da semana</p>
                 <p className="mt-1 text-sm text-slate-600">{selecionado === hoje ? "A partir de hoje" : "A partir do dia selecionado"} · sem sábado e domingo</p>
               </div>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button type="button" onClick={() => { const d = dateFromString(selecionado); d.setDate(d.getDate() - 7); setSelecionado(localDateString(d)); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">− 7 dias</button>
                 <button type="button" onClick={() => setSelecionado(hoje)} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">Hoje</button>
                 <button type="button" onClick={() => { const d = dateFromString(selecionado); d.setDate(d.getDate() + 7); setSelecionado(localDateString(d)); }} className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700">+ 7 dias</button>
@@ -790,11 +839,34 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
 
         {erro && !modal && <p className="mt-3 rounded-xl bg-red-50 px-3 py-2 text-sm text-red-700">{erro}</p>}
 
+        <div className="mt-4 grid w-full grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <label className="min-w-0 text-xs font-semibold text-slate-600">Tipo
+            <select value={filtros.tipo} onChange={(e) => setFiltros((atual) => ({ ...atual, tipo: e.target.value }))} className="mt-1 min-h-11 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800">
+              <option value="">Todos</option><option value="entrega">Entrega</option><option value="retirada">Retirada</option>
+            </select>
+          </label>
+          <label className="min-w-0 text-xs font-semibold text-slate-600">Unidade
+            <select value={filtros.unidade} onChange={(e) => setFiltros((atual) => ({ ...atual, unidade: e.target.value }))} className="mt-1 min-h-11 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800">
+              <option value="">Todas</option><option value="rio claro">Rio Claro</option><option value="araras">Araras</option>
+            </select>
+          </label>
+          <label className="min-w-0 text-xs font-semibold text-slate-600">Vendedor
+            <select value={filtros.vendedor} onChange={(e) => setFiltros((atual) => ({ ...atual, vendedor: e.target.value }))} className="mt-1 min-h-11 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800">
+              <option value="">Todos</option>{vendedoresFiltro.map((nome) => <option key={nome} value={nome}>{nome}</option>)}
+            </select>
+          </label>
+          <label className="min-w-0 text-xs font-semibold text-slate-600">Preenchido por
+            <select value={filtros.preenchidoPor} onChange={(e) => setFiltros((atual) => ({ ...atual, preenchidoPor: e.target.value }))} className="mt-1 min-h-11 w-full min-w-0 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-normal text-slate-800">
+              <option value="">Todos</option>{preenchidosFiltro.map((nome) => <option key={nome} value={nome}>{nome}</option>)}
+            </select>
+          </label>
+        </div>
+
         {modo === "semana" ? (
           <div className="mt-4 space-y-4">
             {diasSemana.map((d) => {
               const data = localDateString(d);
-              const itens = ordenarViagens(viagens[data] || []);
+              const itens = filtrarViagens(viagens[data] || []);
               return (
                 <section key={data} className={`rounded-2xl border bg-white p-4 ${data === hoje ? "border-blue-300 bg-blue-50/40" : "border-slate-200"}`}>
                   <button type="button" onClick={() => selecionarDia(data)} className="w-full text-left">
@@ -802,15 +874,15 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                     <p className="mt-1 font-semibold text-slate-950">{d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}</p>
                   </button>
                   <div className="mt-3 space-y-2">
-                    {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itens.length === 0 ? <p className="text-sm text-slate-400">Sem viagens.</p> : itens.map((v, index) => (
+                    {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itens.length === 0 ? <p className="text-sm text-slate-400">Sem viagens.</p> : itens.map(({ viagem: v, numero }) => (
                       <article key={v.id} style={estiloBoxViagem(v)} className="rounded-xl border border-slate-200 bg-slate-50 p-3">
-                        <p className="text-sm font-semibold text-slate-950">{linhaPrincipalRelatorio(v, index)}</p>
+                        <p className="text-sm font-semibold text-slate-950">{linhaPrincipalRelatorio(v, numero - 1)}</p>
                         <p className="mt-2 text-sm font-bold uppercase text-slate-900">
                           {documentoTexto(v.numeroPedido)}
                           {documentoTexto(v.numeroPedido) && v.clienteFornecedor ? " | " : ""}
-                          {v.clienteFornecedor ? <>{v.contatoNome ? "CLIENTE " : ""}{v.clienteFornecedor.toUpperCase()}</> : null}
+                          {v.clienteFornecedor ? <>{v.contatoNome ? "CLIENTE " : ""}{textoSeguro(v.clienteFornecedor).toUpperCase()}</> : null}
                           {(documentoTexto(v.numeroPedido) || v.clienteFornecedor) && v.contatoNome ? " | " : ""}
-                          {v.contatoNome ? <>A/C: {v.contatoNome.toUpperCase()}</> : null}
+                          {v.contatoNome ? <>A/C: {textoSeguro(v.contatoNome).toUpperCase()}</> : null}
                           {!v.contatoNome && v.volumes ? <> | VOLUME: {String(v.volumes).toUpperCase()}</> : null}
                         </p>
                         {v.contatoNome && v.volumes && <p className="mt-1 text-sm font-bold uppercase text-slate-900">VOLUME: {String(v.volumes).toUpperCase()}</p>}
@@ -832,17 +904,17 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
           </div>
         ) : modo === "dia" ? (
           <div className="mt-4 space-y-3">
-            {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itensDia.length === 0 ? <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-400">Sem viagens neste dia.</p> : itensDia.map((v, index) => (
+            {loading ? <p className="text-sm text-slate-400">Carregando...</p> : itensDia.length === 0 ? <p className="rounded-xl border border-dashed border-slate-300 p-5 text-sm text-slate-400">Sem viagens neste dia.</p> : itensDia.map(({ viagem: v, numero }) => (
               <article key={v.id} style={estiloBoxViagem(v)} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div className="font-[Arial] text-[11pt] leading-[1.35]">
-                    <p className="font-semibold text-slate-950">{linhaPrincipalRelatorio(v, index)}</p>
+                    <p className="font-semibold text-slate-950">{linhaPrincipalRelatorio(v, numero - 1)}</p>
                     <p className="mt-2 font-bold uppercase text-slate-900">
                       {documentoTexto(v.numeroPedido)}
                       {documentoTexto(v.numeroPedido) && v.clienteFornecedor ? " | " : ""}
-                      {v.clienteFornecedor ? <>{v.contatoNome ? "CLIENTE " : ""}{v.clienteFornecedor.toUpperCase()}</> : null}
+                      {v.clienteFornecedor ? <>{v.contatoNome ? "CLIENTE " : ""}{textoSeguro(v.clienteFornecedor).toUpperCase()}</> : null}
                       {(documentoTexto(v.numeroPedido) || v.clienteFornecedor) && v.contatoNome ? " | " : ""}
-                      {v.contatoNome ? <>A/C: {v.contatoNome.toUpperCase()}</> : null}
+                      {v.contatoNome ? <>A/C: {textoSeguro(v.contatoNome).toUpperCase()}</> : null}
                       {!v.contatoNome && v.volumes ? <> | VOLUME: {String(v.volumes).toUpperCase()}</> : null}
                     </p>
                     {v.contatoNome && v.volumes && <p className="mt-1 font-bold uppercase text-slate-900">VOLUME: {String(v.volumes).toUpperCase()}</p>}
@@ -869,7 +941,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
                 const fora = d.getMonth() !== mesBase.getMonth();
                 return <button key={data} type="button" onClick={() => selecionarDia(data)} className={`min-h-24 rounded-xl border p-2 text-left ${fora ? "border-slate-100 bg-slate-50 text-slate-300" : data === hoje ? "border-blue-300 bg-blue-50" : "border-slate-200 bg-white"}`}>
                   <p className="text-sm font-semibold">{d.getDate()}</p>
-                  <div className="mt-1 space-y-1">{itens.slice(0, 3).map((v) => <p key={v.id} className="truncate text-[10px] text-slate-600">{horaCurta(v.horario)} {v.clienteFornecedor || v.tipoHorario}</p>)}{itens.length > 3 && <p className="text-[10px] text-slate-400">+{itens.length - 3}</p>}</div>
+                  <div className="mt-1 space-y-1">{itens.slice(0, 3).map(({ viagem: v, numero }) => <p key={v.id} className="truncate text-[10px] text-slate-600">{numero}. {horaCurta(v.horario)} {textoSeguro(v.clienteFornecedor) || v.tipoHorario}</p>)}{itens.length > 3 && <p className="text-[10px] text-slate-400">+{itens.length - 3}</p>}</div>
                 </button>;
               })}
             </div>

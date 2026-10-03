@@ -21,7 +21,7 @@ type Meeting = {
 type FormState = Omit<Meeting, "status">;
 const EMPTY: FormState = {
   id: "", unit: "Araras", date: "", time: "07:40", secondDate: "",
-  secondTime: "07:40", frequency: "Mensal", leaders: "",
+  secondTime: "", frequency: "Mensal", leaders: "",
   pautaUrl: "", ataUrl: "", slidesUrl: "",
 };
 
@@ -62,23 +62,6 @@ function upcomingMeeting(meeting: Meeting): Meeting | null {
     secondTime: upcoming[1]?.time || "",
   };
 }
-
-const OFFICIAL_PAST_MEETINGS: Meeting[] = [
-  {
-    id: "historico-araras-2026-08-07",
-    unit: "Araras",
-    date: "2026-08-07",
-    time: "07:40",
-    secondDate: "",
-    secondTime: "",
-    frequency: "Mensal",
-    leaders: "Ciça e Marcelo",
-    pautaUrl: "https://docs.google.com/document/d/1NoZASmMc-ptrqFy8zbvtGgCJjLJxX8GsORM-F4N799k",
-    ataUrl: "https://docs.google.com/document/d/1S9dQlOGwFE8RwNnjw1PFy08DH9a6k1_9kugQEBgmxHQ",
-    slidesUrl: "",
-    status: "concluida",
-  },
-];
 
 function MeetingCard({
   meeting, canManage, onEdit, onComplete, onDelete,
@@ -171,9 +154,8 @@ export default function ReunioesClient({
   const history = useMemo(() => {
     const completed = items
       .filter((item) => item.status === "concluida" && (isGestao || item.unit === "Araras"));
-    const official = OFFICIAL_PAST_MEETINGS.filter((item) => isGestao || item.unit === "Araras");
     const unique = new Map<string, Meeting>();
-    [...official, ...completed].forEach((item) => unique.set(`${item.unit}-${item.date}`, item));
+    completed.forEach((item) => unique.set(`${item.unit}-${item.date}`, item));
     return [...unique.values()].sort((a, b) => b.date.localeCompare(a.date));
   }, [items, isGestao]);
 
@@ -264,11 +246,11 @@ export default function ReunioesClient({
           <label className="text-sm font-medium text-slate-700">Primeiro horário
             <input type="time" value={form.time} onChange={(e) => setField("time", e.target.value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" required />
           </label>
-          <label className="text-sm font-medium text-slate-700">Segunda data
-            <BrazilianDateInput value={form.secondDate} onChange={(value) => setField("secondDate", value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" required />
+          <label className="text-sm font-medium text-slate-700">Segunda data (opcional)
+            <BrazilianDateInput value={form.secondDate} onChange={(value) => setField("secondDate", value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" />
           </label>
-          <label className="text-sm font-medium text-slate-700">Segundo horário
-            <input type="time" value={form.secondTime} onChange={(e) => setField("secondTime", e.target.value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" required />
+          <label className="text-sm font-medium text-slate-700">Segundo horário (opcional)
+            <input type="time" value={form.secondTime} onChange={(e) => setField("secondTime", e.target.value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" />
           </label>
           <label className="text-sm font-medium text-slate-700 md:col-span-2">Condução
             <input value={form.leaders} onChange={(e) => setField("leaders", e.target.value)} placeholder="Ex.: Ciça e Marcelo" className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" />
@@ -317,10 +299,9 @@ export default function ReunioesClient({
           {history.length ? history.map((meeting) => (
             <div key={meeting.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 p-3">
               <p className="text-sm text-slate-700"><strong>{meeting.unit}</strong> · {formatDate(meeting.date)} · {formatTime(meeting.time)}</p>
-              {canManage && !meeting.id.startsWith("historico-") && (
+              {canManage && (
                 <div className="flex flex-wrap gap-2">
-                  <button onClick={() => edit(meeting)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800">Abrir para editar</button>
-                  <button onClick={() => void mutate(meeting.id, "reopen")} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800">Reabrir</button>
+                  <button onClick={() => void mutate(meeting.id, "reopen")} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800">Desarquivar</button>
                   <button onClick={() => void mutate(meeting.id, "delete")} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">Excluir</button>
                 </div>
               )}

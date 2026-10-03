@@ -38,9 +38,10 @@ function parseInput(body: Record<string, unknown>) {
   };
   if (
     !VALID_UNITS.has(input.unit) || !input.date || !input.time ||
-    !input.secondDate || !input.secondTime || input.secondDate < input.date
+    Boolean(input.secondDate) !== Boolean(input.secondTime) ||
+    (input.secondDate && input.secondDate < input.date)
   ) {
-    throw new Error("Preencha as duas datas e horários corretamente.");
+    throw new Error("Preencha a primeira data e horário. A segunda reunião é opcional; se informada, preencha data e horário.");
   }
   return input;
 }

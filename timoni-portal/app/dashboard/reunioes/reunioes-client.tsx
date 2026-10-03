@@ -35,31 +35,31 @@ function formatTime(value: string) {
   return value ? value.replace(/^0/, "") : "";
 }
 
-function isPastOrToday(value: string) {
-  if (!value) return false;
+function upcomingMeeting(meeting: Meeting): Meeting | null {
+  if (meeting.status !== "agendada") return null;
+  const dates = [
+    { date: meeting.date, time: meeting.time },
+    { date: meeting.secondDate, time: meeting.secondTime },
+  ].filter((item) => item.date);
+  if (!dates.length) return null;
+
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
     year: "numeric",
     month: "2-digit",
     day: "2-digit",
   }).format(new Date());
-  return value <= today;
-}
-
-function upcomingMeeting(meeting: Meeting): Meeting | null {
-  if (meeting.status !== "agendada") return null;
-  const future = [
-    { date: meeting.date, time: meeting.time },
-    { date: meeting.secondDate, time: meeting.secondTime },
-  ].filter((item) => item.date)
+  const upcoming = dates
+    .filter((item) => item.date >= today)
     .sort((a, b) => a.date.localeCompare(b.date));
-  if (!future.length) return null;
+  const selected = upcoming[0] || [...dates].sort((a, b) => b.date.localeCompare(a.date))[0];
+
   return {
     ...meeting,
-    date: future[0].date,
-    time: future[0].time,
-    secondDate: future[1]?.date || "",
-    secondTime: future[1]?.time || "",
+    date: selected.date,
+    time: selected.time,
+    secondDate: upcoming[1]?.date || "",
+    secondTime: upcoming[1]?.time || "",
   };
 }
 

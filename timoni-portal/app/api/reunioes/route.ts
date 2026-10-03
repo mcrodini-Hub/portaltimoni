@@ -82,6 +82,8 @@ export async function PATCH(request: Request) {
     if (!id) throw new Error("Reunião inválida.");
     if (body.action === "complete") {
       await updateMeeting(context.accessToken, id, { status: "concluida" });
+    } else if (body.action === "reopen") {
+      await updateMeeting(context.accessToken, id, { status: "agendada" });
     } else {
       await updateMeeting(context.accessToken, id, parseInput(body));
     }

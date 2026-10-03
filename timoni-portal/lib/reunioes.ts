@@ -23,6 +23,14 @@ export type Meeting = {
 };
 
 const SHEET = "Reunioes";
+const CACHE_TTL_MS = 15_000;
+let meetingsCache: { items: Meeting[]; createdAt: number } | null = null;
+let meetingsLoad: Promise<Meeting[]> | null = null;
+
+function invalidateMeetingsCache() {
+  meetingsCache = null;
+}
+
 const HEADERS = [
   "id", "unit", "date", "time", "secondDate", "secondTime", "frequency",
   "leaders", "pautaUrl", "ataUrl", "slidesUrl", "status", "createdAt", "updatedAt",
@@ -145,7 +153,22 @@ async function seedIfEmpty(accessToken: string) {
 }
 
 export async function listMeetings(accessToken: string) {
-  return parseRows(await seedIfEmpty(accessToken)).sort((a, b) => a.date.localeCompare(b.date));
+  if (meetingsCache && Date.now() - meetingsCache.createdAt < CACHE_TTL_MS) {
+    return meetingsCache.items;
+  }
+  if (meetingsLoad) return meetingsLoad;
+
+  meetingsLoad = (async () => {
+    const items = parseRows(await seedIfEmpty(accessToken)).sort((a, b) => a.date.localeCompare(b.date));
+    meetingsCache = { items, createdAt: Date.now() };
+    return items;
+  })();
+
+  try {
+    return await meetingsLoad;
+  } finally {
+    meetingsLoad = null;
+  }
 }
 
 export async function createMeeting(
@@ -168,6 +191,7 @@ export async function createMeeting(
     insertDataOption: "INSERT_ROWS",
     requestBody: { values: [valuesOf(item)] },
   });
+  invalidateMeetingsCache();
   return item.id;
 }
 
@@ -190,6 +214,7 @@ export async function updateMeeting(accessToken: string, id: string, input: Part
     valueInputOption: "RAW",
     requestBody: { values: [valuesOf(updated)] },
   });
+  invalidateMeetingsCache();
 }
 
 export async function deleteMeeting(accessToken: string, id: string) {
@@ -212,4 +237,5 @@ export async function deleteMeeting(accessToken: string, id: string) {
       }],
     },
   });
+  invalidateMeetingsCache();
 }

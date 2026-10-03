@@ -331,7 +331,7 @@ function classeLinhaPrincipal(v: Viagem) {
 
 function estiloLinhaPrincipal(v: Viagem) {
   return lerMetaMotorista(v.notasJson).tipo === "Retirada"
-    ? { fontFamily: "Calibri, Arial, sans-serif", fontWeight: 700, color: "#13038D" }
+    ? { fontFamily: "Calibri, Arial, sans-serif", fontWeight: 700, color: "#13038D", fontSize: "14px", lineHeight: 1.35 }
     : undefined;
 }
 
@@ -442,6 +442,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
   const [aviso, setAviso] = useState("");
   const [invalidos, setInvalidos] = useState<Set<keyof FormState>>(new Set());
   const [opcoesVendedores, setOpcoesVendedores] = useState<VendedorOption[]>([]);
+  const [layoutViewport, setLayoutViewport] = useState<"mobile" | "tablet" | "desktop">("desktop");
 
   const diasMes = useMemo(() => monthDays(mesBase), [mesBase]);
   const diasSemana = useMemo(() => weekDays(selecionado), [selecionado]);
@@ -451,6 +452,29 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
     const destino = [form.endereco.trim(), form.numeroEndereco.trim(), form.bairro.trim(), form.cidade.trim()].filter(Boolean).join(", ");
     return destino ? `https://maps.google.com/?q=${encodeURIComponent(destino)}` : "";
   }, [form.linkEndereco, form.endereco, form.numeroEndereco, form.bairro, form.cidade]);
+
+  useEffect(() => {
+    const atualizarLayout = () => {
+      const largura = window.innerWidth;
+      setLayoutViewport(largura < 640 ? "mobile" : largura < 1024 ? "tablet" : "desktop");
+    };
+    atualizarLayout();
+    window.addEventListener("resize", atualizarLayout);
+    window.visualViewport?.addEventListener("resize", atualizarLayout);
+    return () => {
+      window.removeEventListener("resize", atualizarLayout);
+      window.visualViewport?.removeEventListener("resize", atualizarLayout);
+    };
+  }, []);
+
+  const colunasFormulario = (desktop: string, tablet = "repeat(2, minmax(0, 1fr))") => ({
+    gridTemplateColumns:
+      layoutViewport === "mobile"
+        ? "minmax(0, 1fr)"
+        : layoutViewport === "tablet"
+          ? tablet
+          : desktop,
+  });
 
   const vendedoresDisponiveis = useMemo(() => {
     const nomes = new Map<string, string>();
@@ -900,13 +924,17 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
 
       {modal && !readOnly && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overflow-x-hidden bg-slate-950/50 p-3 sm:p-6">
-          <form onSubmit={salvar} className="motorista-form my-4 w-full max-w-4xl rounded-2xl bg-white p-4 shadow-2xl sm:p-6">
+          <form
+            onSubmit={salvar}
+            style={layoutViewport === "mobile" ? { width: "calc(100vw - 24px)", maxWidth: "calc(100vw - 24px)" } : undefined}
+            className="motorista-form my-4 w-full max-w-4xl rounded-2xl bg-white p-4 shadow-2xl sm:p-6"
+          >
             <div className="flex items-start justify-between gap-3 border-b border-slate-200 pb-4">
               <div><p className="text-xs font-semibold uppercase tracking-[0.14em] text-blue-700">Motorista</p><h2 className="mt-1 text-xl font-semibold text-slate-950">{editandoId ? "Editar agendamento" : "Nova viagem"}</h2><p className="mt-1 text-xs text-slate-500">Campos com * são obrigatórios.</p></div>
               <button type="button" onClick={() => setModal(false)} className="rounded-lg border border-slate-300 px-3 py-1.5 text-sm text-slate-600">Fechar</button>
             </div>
 
-            <div className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div style={colunasFormulario("repeat(4, minmax(0, 1fr))")} className="mt-5 grid gap-4">
               <label className="min-w-0 text-sm font-medium text-slate-700">* Tipo<select value={form.tipo} onChange={(e) => set("tipo", e.target.value as "Entrega" | "Retirada")} className={fieldClass("tipo")}><option value="Entrega">Entrega</option><option value="Retirada">Retirada</option></select></label>
               <label className="min-w-0 text-sm font-medium text-slate-700">* Loja<select value={form.loja} onChange={(e) => set("loja", e.target.value)} className={fieldClass("loja")}><option value="">Selecione</option><option value="Casa Timoni">Casa Timoni</option><option value="MCR">MCR</option><option value="Rodini">Rodini</option></select></label>
               <label className="min-w-0 text-sm font-medium text-slate-700">* Data<BrazilianDateInput value={form.data} onChange={(value) => set("data", value)} className={fieldClass("data")} required /></label>
@@ -915,38 +943,38 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
 
             <div className="mt-4 rounded-2xl border border-slate-200 bg-slate-50 p-4">
               <label className="flex items-center gap-2 text-sm font-semibold text-slate-800"><input type="checkbox" checked={form.bloquear} onChange={(e) => set("bloquear", e.target.checked)} />Bloqueio</label>
-              {form.bloquear && <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2"><label className="text-sm text-slate-700">Início<input type="time" value={form.bloqueioInicio} onChange={(e) => set("bloqueioInicio", e.target.value)} className={fieldClass("bloqueioInicio")} /></label><label className="text-sm text-slate-700">Fim<input type="time" value={form.bloqueioFim} onChange={(e) => set("bloqueioFim", e.target.value)} className={fieldClass("bloqueioFim")} /></label></div>}
+              {form.bloquear && <div style={colunasFormulario("repeat(2, minmax(0, 1fr))")} className="mt-3 grid gap-3"><label className="text-sm text-slate-700">Início<input type="time" value={form.bloqueioInicio} onChange={(e) => set("bloqueioInicio", e.target.value)} className={fieldClass("bloqueioInicio")} /></label><label className="text-sm text-slate-700">Fim<input type="time" value={form.bloqueioFim} onChange={(e) => set("bloqueioFim", e.target.value)} className={fieldClass("bloqueioFim")} /></label></div>}
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div style={colunasFormulario("repeat(3, minmax(0, 1fr))")} className="mt-4 grid gap-4">
               <label className="min-w-0 text-sm font-medium text-slate-700">* Nota Fiscal/Pedido<input value={form.numeroPedido} onChange={(e) => set("numeroPedido", e.target.value)} className={fieldClass("numeroPedido")} /></label>
               <label className="min-w-0 text-sm font-medium text-slate-700">* Cliente/Fornecedor<input value={form.clienteFornecedor} onChange={(e) => set("clienteFornecedor", e.target.value.toUpperCase())} className={fieldClass("clienteFornecedor")} /></label>
               <label className="min-w-0 text-sm font-medium text-slate-700">A/C<input value={form.contatoNome} onChange={(e) => set("contatoNome", e.target.value)} className={fieldClass("contatoNome")} /></label>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[220px_160px_1fr] xl:items-end">
+            <div style={colunasFormulario("220px 160px minmax(0, 1fr)")} className="mt-4 grid gap-4 items-end">
               <label className="min-w-0 text-sm font-medium text-slate-700">CEP<input value={form.cep} onChange={(e) => set("cep", formatarCep(e.target.value))} inputMode="numeric" placeholder="00000-000" className={fieldClass("cep")} /></label>
               <button type="button" onClick={buscarCep} className="h-[42px] rounded-lg border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 hover:bg-slate-50">Buscar CEP</button>
               <div className="min-w-0 text-sm font-medium text-slate-700">Link do endereço<div className="mt-1 flex h-[42px] items-center">{linkMapsFormulario ? <a href={linkMapsFormulario} target="_blank" rel="noreferrer" className="inline-flex rounded-lg border border-blue-200 bg-blue-50 px-4 py-2 text-sm font-semibold text-blue-800">Google Maps</a> : <span className="text-sm text-slate-400">Gerado após informar o número</span>}</div></div>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[1fr_180px]">
+            <div style={colunasFormulario("minmax(0, 1fr) 180px")} className="mt-4 grid gap-4">
               <label className="min-w-0 text-sm font-medium text-slate-700">* Endereço <span className="font-normal text-slate-400">(Rua / Av. / Rodovia)</span><input value={form.endereco} onChange={(e) => { set("endereco", e.target.value); set("linkEndereco", ""); }} className={fieldClass("endereco")} /></label>
               <label className="min-w-0 text-sm font-medium text-slate-700">* Número<input value={form.numeroEndereco} onChange={(e) => { const numero = e.target.value; set("numeroEndereco", numero); const destino = [form.endereco, numero, form.bairro, form.cidade].filter(Boolean).join(", "); set("linkEndereco", destino ? `https://maps.google.com/?q=${encodeURIComponent(destino)}` : ""); }} className={fieldClass("numeroEndereco")} /></label>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            <div style={colunasFormulario("repeat(3, minmax(0, 1fr))")} className="mt-4 grid gap-4">
               <label className="min-w-0 text-sm font-medium text-slate-700">Bairro<input value={form.bairro} onChange={(e) => { set("bairro", e.target.value); set("linkEndereco", ""); }} className={fieldClass("bairro")} /></label>
               <label className="min-w-0 text-sm font-medium text-slate-700">Cidade<input value={form.cidade} onChange={(e) => { set("cidade", e.target.value); set("linkEndereco", ""); }} className={fieldClass("cidade")} /></label>
               <label className="min-w-0 text-sm font-medium text-slate-700">Referência<input value={form.referencia} onChange={(e) => set("referencia", e.target.value)} placeholder="Ex.: portão lateral" className={fieldClass("referencia")} /></label>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-[180px_1fr]">
+            <div style={colunasFormulario("180px minmax(0, 1fr)")} className="mt-4 grid gap-4">
               <label className="min-w-0 text-sm font-medium text-slate-700">* Volume<input value={form.volumes} onChange={(e) => set("volumes", e.target.value)} placeholder="Ex.: 15" className={fieldClass("volumes")} /></label>
               <label className="min-w-0 text-sm font-medium text-slate-700">Discriminação<textarea value={form.discriminacao} onChange={(e) => set("discriminacao", e.target.value)} rows={4} placeholder={"Ex.:\n10 rolos de bolha\n5 sacos de Polifloc"} className={fieldClass("discriminacao")} /></label>
             </div>
 
-            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div style={colunasFormulario("repeat(2, minmax(0, 1fr))")} className="mt-4 grid gap-4">
               <label className="block min-w-0 text-sm font-medium text-slate-700">Preenchido por:<select value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} className={fieldClass("preenchidoPor")}><option value="">Selecione</option>{form.preenchidoPor && ![...RESPONSAVEIS_RIO_CLARO, ...RESPONSAVEIS_ARARAS].includes(form.preenchidoPor) && <option value={form.preenchidoPor} disabled>{form.preenchidoPor} (já registrado)</option>}<optgroup label="Rio Claro">{RESPONSAVEIS_RIO_CLARO.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</optgroup><optgroup label="Araras">{RESPONSAVEIS_ARARAS.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</optgroup></select></label>
               <label className="block min-w-0 text-sm font-medium text-slate-700">Pagamento:<select value={form.pagamento} onChange={(e) => set("pagamento", e.target.value as FormState["pagamento"])} className={fieldClass("pagamento")}><option value="">Selecione</option><option value="Pago">Pago</option><option value="Receber">Receber</option><option value="Boleto">Boleto</option></select></label>
             </div>

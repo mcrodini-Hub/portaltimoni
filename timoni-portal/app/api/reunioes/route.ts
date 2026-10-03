@@ -31,6 +31,7 @@ function parseInput(body: Record<string, unknown>) {
     time: String(body.time || ""),
     secondDate: String(body.secondDate || ""),
     secondTime: String(body.secondTime || ""),
+    additionalDates: Array.isArray(body.additionalDates) ? body.additionalDates.map((item) => ({ date: String(item?.date || ""), time: String(item?.time || "") })) : [],
     frequency: String(body.frequency || "Mensal"),
     leaders: String(body.leaders || ""),
     pautaUrl: String(body.pautaUrl || ""),
@@ -40,9 +41,11 @@ function parseInput(body: Record<string, unknown>) {
   if (
     !VALID_UNITS.has(input.unit) || !input.date || !input.time ||
     Boolean(input.secondDate) !== Boolean(input.secondTime) ||
-    (input.secondDate && input.secondDate < input.date)
+    (input.secondDate && input.secondDate < input.date) ||
+    input.additionalDates.some((item) => Boolean(item.date) !== Boolean(item.time)) ||
+    [input.secondDate, ...input.additionalDates.map((item) => item.date)].filter(Boolean).some((date, index, dates) => date < (index === 0 ? input.date : dates[index - 1]))
   ) {
-    throw new Error("Preencha a primeira data e horário. A segunda reunião é opcional; se informada, preencha data e horário.");
+    throw new Error("Preencha a primeira data e horário. As datas seguintes são opcionais; cada data preenchida precisa ter horário e estar em ordem cronológica.");
   }
   return input;
 }

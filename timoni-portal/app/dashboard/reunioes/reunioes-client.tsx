@@ -247,7 +247,7 @@ export default function ReunioesClient({
             <input type="time" value={form.time} onChange={(e) => setField("time", e.target.value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" required />
           </label>
           <label className="text-sm font-medium text-slate-700">Segunda data (opcional)
-            <BrazilianDateInput value={form.secondDate} onChange={(value) => setField("secondDate", value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" required />
+            <BrazilianDateInput value={form.secondDate} onChange={(value) => setField("secondDate", value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" />
           </label>
           <label className="text-sm font-medium text-slate-700">Segundo horário
             <input type="time" value={form.secondTime} onChange={(e) => setField("secondTime", e.target.value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" />

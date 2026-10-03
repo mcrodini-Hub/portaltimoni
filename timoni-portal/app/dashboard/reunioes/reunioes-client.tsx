@@ -10,18 +10,19 @@ type Meeting = {
   time: string;
   secondDate: string;
   secondTime: string;
+  additionalDates: Array<{ date: string; time: string }>;
   frequency: string;
   leaders: string;
   pautaUrl: string;
   ataUrl: string;
   slidesUrl: string;
-  status: "agendada" | "concluida";
+  status: "agendada" | "concluida" | "mesclada";
 };
 
 type FormState = Omit<Meeting, "status">;
 const EMPTY: FormState = {
   id: "", unit: "Araras", date: "", time: "07:40", secondDate: "",
-  secondTime: "", frequency: "Mensal", leaders: "",
+  secondTime: "", additionalDates: [], frequency: "Mensal", leaders: "",
   pautaUrl: "", ataUrl: "", slidesUrl: "",
 };
 
@@ -41,6 +42,7 @@ function pastOccurrences(meeting: Meeting) {
   return [
     { date: meeting.date, time: meeting.time },
     { date: meeting.secondDate, time: meeting.secondTime },
+    ...(meeting.additionalDates || []),
   ]
     .filter((item) => item.date && item.date < today)
     .sort((a, b) => a.date.localeCompare(b.date));
@@ -55,8 +57,8 @@ function upcomingMeeting(meeting: Meeting): Meeting | null {
   const dates = [
     { date: meeting.date, time: meeting.time },
     { date: meeting.secondDate, time: meeting.secondTime },
+    ...(meeting.additionalDates || []),
   ].filter((item) => item.date);
-  if (!dates.length) return null;
 
   const today = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
@@ -67,14 +69,17 @@ function upcomingMeeting(meeting: Meeting): Meeting | null {
   const upcoming = dates
     .filter((item) => item.date >= today)
     .sort((a, b) => a.date.localeCompare(b.date));
-  const selected = upcoming[0] || [...dates].sort((a, b) => b.date.localeCompare(a.date))[0];
+  const schedule = upcoming.length ? upcoming : [...dates].sort((a, b) => b.date.localeCompare(a.date));
+  const selected = schedule[0];
+  if (!selected) return null;
 
   return {
     ...meeting,
     date: selected.date,
     time: selected.time,
-    secondDate: upcoming[1]?.date || "",
-    secondTime: upcoming[1]?.time || "",
+    secondDate: schedule[1]?.date || "",
+    secondTime: schedule[1]?.time || "",
+    additionalDates: schedule.slice(2),
   };
 }
 
@@ -100,16 +105,18 @@ function MeetingCard({
         <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">{meeting.frequency}</span>
       </div>
 
-      <div className="mt-5 grid grid-cols-2 gap-3">
-        <div className="rounded-2xl bg-white/80 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Próxima</p>
-          <p className="mt-1 font-semibold text-slate-900">{formatDate(meeting.date)}</p>
-          <p className="text-xs text-slate-500">{formatTime(meeting.time)}</p>
-        </div>
-        <div className="rounded-2xl bg-white/80 p-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Seguinte</p>
-          <p className="mt-1 font-semibold text-slate-900">{meeting.secondDate ? formatDate(meeting.secondDate) : "A definir"}</p>
-          <p className="text-xs text-slate-500">{formatTime(meeting.secondTime)}</p>
+      <div className="mt-5 rounded-2xl bg-white/80 p-4">
+        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Próxima reunião</p>
+        <p className="mt-1 font-semibold text-slate-900">{formatDate(meeting.date)} · {formatTime(meeting.time)}</p>
+        <div className="mt-3 border-t border-slate-100 pt-3">
+          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Datas seguintes</p>
+          {[...(meeting.secondDate ? [{ date: meeting.secondDate, time: meeting.secondTime }] : []), ...(meeting.additionalDates || [])].length ? (
+            <div className="mt-2 flex flex-wrap gap-2">
+              {[...(meeting.secondDate ? [{ date: meeting.secondDate, time: meeting.secondTime }] : []), ...(meeting.additionalDates || [])].map((item) => (
+                <span key={item.date} className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700">{formatDate(item.date)} · {formatTime(item.time)}</span>
+              ))}
+            </div>
+          ) : <p className="mt-1 text-sm text-slate-500">A definir</p>}
         </div>
       </div>
 
@@ -253,7 +260,7 @@ export default function ReunioesClient({
           <div>
             <p className="text-xs font-semibold uppercase tracking-wider text-rose-600">Gestão e acompanhamento</p>
             <h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-900">{isGestao ? "Reuniões" : "Reuniões Araras"}</h1>
-            <p className="mt-2 text-sm leading-6 text-slate-600">Pautas, atas, apresentações e duas datas futuras por loja.</p>
+            <p className="mt-2 text-sm leading-6 text-slate-600">Pautas, atas, apresentações e datas futuras por loja.</p>
           </div>
           <div className="flex flex-wrap gap-2">
             {canManage && <button onClick={startNew} className="rounded-xl bg-blue-700 px-4 py-2.5 text-sm font-semibold text-white">+ Nova reunião</button>}
@@ -282,9 +289,23 @@ export default function ReunioesClient({
           <label className="text-sm font-medium text-slate-700">Segunda data (opcional)
             <BrazilianDateInput value={form.secondDate} onChange={(value) => setField("secondDate", value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" />
           </label>
-          <label className="text-sm font-medium text-slate-700">Segundo horário (opcional)
+          <label className="text-sm font-medium text-slate-700">Horário da data seguinte (opcional)
             <input type="time" value={form.secondTime} onChange={(e) => setField("secondTime", e.target.value)} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" />
           </label>
+          {form.additionalDates.map((item, index) => (
+            <div key={index} className="grid gap-4 md:col-span-2 md:grid-cols-2">
+              <label className="text-sm font-medium text-slate-700">Outra data (opcional)
+                <BrazilianDateInput value={item.date} onChange={(value) => setField("additionalDates", form.additionalDates.map((date, i) => i === index ? { ...date, date: value } : date))} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" />
+              </label>
+              <label className="text-sm font-medium text-slate-700">Horário (opcional)
+                <div className="flex gap-2">
+                  <input type="time" value={item.time} onChange={(e) => setField("additionalDates", form.additionalDates.map((date, i) => i === index ? { ...date, time: e.target.value } : date))} className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" />
+                  <button type="button" onClick={() => setField("additionalDates", form.additionalDates.filter((_, i) => i !== index))} className="mt-1 rounded-xl border border-red-200 bg-white px-3 text-sm font-semibold text-red-700">Remover</button>
+                </div>
+              </label>
+            </div>
+          ))}
+          <button type="button" onClick={() => setField("additionalDates", [...form.additionalDates, { date: "", time: "" }])} className="w-fit rounded-xl border border-blue-200 bg-white px-4 py-2 text-sm font-semibold text-blue-800 md:col-span-2">+ Adicionar outra data</button>
           <label className="text-sm font-medium text-slate-700 md:col-span-2">Condução
             <input value={form.leaders} onChange={(e) => setField("leaders", e.target.value)} placeholder="Ex.: Ciça e Marcelo" className="mt-1 w-full rounded-xl border border-blue-200 px-3 py-2.5" />
           </label>

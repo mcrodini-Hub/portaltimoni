@@ -84,7 +84,7 @@ function MeetingCard({
   meeting: Meeting;
   canManage: boolean;
   onEdit: () => void;
-  onComplete: (id: string) => void;
+  onComplete: (id: string, date: string) => void;
   onDelete: (id: string) => void;
   pendingOccurrences: Array<{ date: string; time: string }>;
   onArchiveOccurrence: (id: string, date: string) => void;
@@ -139,7 +139,7 @@ function MeetingCard({
       {canManage && (
         <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-200/80 pt-4">
           <button onClick={onEdit} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800">Abrir para editar</button>
-          {pendingOccurrences.length === 0 && <button onClick={() => onComplete(meeting.id)} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800">Arquivar manualmente</button>}
+          {pendingOccurrences.length === 0 && <button onClick={() => onComplete(meeting.id, meeting.date)} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800">Arquivar manualmente</button>}
           <button onClick={() => onDelete(meeting.id)} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">Excluir</button>
         </div>
       )}
@@ -319,7 +319,7 @@ export default function ReunioesClient({
                   meeting={meeting}
                   canManage={canManage}
                   onEdit={() => edit(sourceMeeting)}
-                  onComplete={(id) => void mutate(id, "complete")}
+                  onComplete={(id, date) => void mutate(id, "complete-occurrence", date)}
                   pendingOccurrences={pendingOccurrences}
                   onArchiveOccurrence={(id, date) => void mutate(id, "complete-occurrence", date)}
                   onDelete={(id) => void mutate(id, "delete")}

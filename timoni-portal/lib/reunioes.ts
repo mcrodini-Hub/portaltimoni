@@ -222,7 +222,8 @@ export async function archiveMeetingOccurrence(
   id: string,
   occurrenceDate: string,
 ) {
-  const rows = parseRows(await readRows(accessToken));
+  const rawRows = await readRows(accessToken);
+  const rows = parseRows(rawRows);
   const current = rows.find((item) => item.id === id);
   if (!current || current.status !== "agendada") throw new Error("Reunião não encontrada ou já arquivada.");
 
@@ -234,7 +235,8 @@ export async function archiveMeetingOccurrence(
   if (occurrenceIndex < 0) throw new Error("Data da reunião não encontrada.");
 
   const now = new Date().toISOString();
-  const rowNumber = rows.findIndex((item) => item.id === id) + 2;
+  const rowNumber = rawRows.findIndex((row) => row[0] === id) + 2;
+  if (rowNumber < 2) throw new Error("Reunião não encontrada.");
   const hasAnotherOccurrence = occurrenceIndex === 0
     ? Boolean(current.secondDate)
     : occurrenceIndex === 1 && Boolean(current.date);

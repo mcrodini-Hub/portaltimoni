@@ -304,7 +304,7 @@ export default function MotoristaLeitura() {
                               {v.contatoNome && v.volumes && <p className="mt-1 text-sm font-bold uppercase text-slate-900">VOLUME: {String(v.volumes).toUpperCase()}</p>}
                               {endereco && <p className="mt-1 flex flex-wrap items-center gap-x-2 text-sm text-slate-700"><span>End.: {endereco}</span>{enderecoInfo.link && <a href={enderecoInfo.link} target="_blank" rel="noreferrer" className="font-semibold text-blue-800 underline underline-offset-2">Google Maps</a>}</p>}
                               {v.info && <p className="mt-1 text-sm text-slate-600">Observação: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
-                              <p className="mt-2 text-sm text-slate-600"><strong>Preenchido por:</strong>{v.preenchidoPor ? ` ${v.preenchidoPor}` : ""} <span className="mx-1">|</span> <strong>Pagamento:</strong>{lerPagamento(v.notasJson) ? ` ${lerPagamento(v.notasJson)}` : ""}</p>
+                              <p className="mt-2 text-sm text-slate-600"><strong>Preenchido por:</strong>{v.preenchidoPor ? ` ${v.preenchidoPor}` : ""} <span className="mx-1">|</span> <strong>Forma de pagamento:</strong>{lerPagamento(v.notasJson) ? ` ${lerPagamento(v.notasJson)}` : ""}</p>
                             </div>
                           </div>
                         </article>

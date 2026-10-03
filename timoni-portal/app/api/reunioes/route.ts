@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getPortalUser } from "@/lib/access-control";
 import {
+  archiveMeetingOccurrence,
   createMeeting,
   deleteMeeting,
   listMeetings,
@@ -81,7 +82,9 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     const id = String(body.id || "");
     if (!id) throw new Error("Reunião inválida.");
-    if (body.action === "complete") {
+    if (body.action === "complete-occurrence") {
+      await archiveMeetingOccurrence(context.accessToken, id, String(body.occurrenceDate || ""));
+    } else if (body.action === "complete") {
       await updateMeeting(context.accessToken, id, { status: "concluida" });
     } else if (body.action === "reopen") {
       await updateMeeting(context.accessToken, id, { status: "agendada" });

@@ -217,6 +217,78 @@ export async function updateMeeting(accessToken: string, id: string, input: Part
   invalidateMeetingsCache();
 }
 
+export async function archiveMeetingOccurrence(
+  accessToken: string,
+  id: string,
+  occurrenceDate: string,
+) {
+  const rawRows = await readRows(accessToken);
+  const rows = parseRows(rawRows);
+  const current = rows.find((item) => item.id === id);
+  if (!current || current.status !== "agendada") throw new Error("Reunião não encontrada ou já arquivada.");
+
+  const occurrenceIndex = current.date === occurrenceDate
+    ? 0
+    : current.secondDate === occurrenceDate
+      ? 1
+      : -1;
+  if (occurrenceIndex < 0) throw new Error("Data da reunião não encontrada.");
+
+  const now = new Date().toISOString();
+  const rowNumber = rawRows.findIndex((row) => row[0] === id) + 2;
+  if (rowNumber < 2) throw new Error("Reunião não encontrada.");
+  const hasAnotherOccurrence = occurrenceIndex === 0
+    ? Boolean(current.secondDate)
+    : occurrenceIndex === 1 && Boolean(current.date);
+
+  const sheets = await sheetsClient(accessToken);
+  if (hasAnotherOccurrence) {
+    const archived: Meeting = {
+      ...current,
+      id: `history-${id}-${occurrenceDate}`,
+      date: occurrenceDate,
+      time: occurrenceIndex === 0 ? current.time : current.secondTime,
+      secondDate: "",
+      secondTime: "",
+      status: "concluida",
+      updatedAt: now,
+    };
+    if (!rows.some((item) => item.id === archived.id)) {
+      await sheets.spreadsheets.values.append({
+        spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
+        range: `${SHEET}!A:N`,
+        valueInputOption: "RAW",
+        insertDataOption: "INSERT_ROWS",
+        requestBody: { values: [valuesOf(archived)] },
+      });
+    }
+  }
+
+  let updated: Meeting = { ...current, updatedAt: now };
+  if (occurrenceIndex === 0 && current.secondDate) {
+    updated = {
+      ...updated,
+      date: current.secondDate,
+      time: current.secondTime,
+      secondDate: "",
+      secondTime: "",
+      status: "agendada",
+    };
+  } else if (occurrenceIndex === 1) {
+    updated = { ...updated, secondDate: "", secondTime: "" };
+  } else {
+    updated = { ...updated, status: "concluida" };
+  }
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
+    range: `${SHEET}!A${rowNumber}:N${rowNumber}`,
+    valueInputOption: "RAW",
+    requestBody: { values: [valuesOf(updated)] },
+  });
+  invalidateMeetingsCache();
+}
+
 export async function deleteMeeting(accessToken: string, id: string) {
   const rowNumber = await findRow(accessToken, id);
   if (!rowNumber) throw new Error("Reunião não encontrada.");

@@ -51,7 +51,7 @@ type FormState = {
   linkEndereco: string;
   discriminacao: string;
   preenchidoPor: string;
-  pagamento: "" | "Pago" | "Receber" | "Boleto";
+  pagamento: "" | "Boleto" | "Debite" | "Pago" | "Receber";
   notasJson: string;
 };
 
@@ -167,7 +167,7 @@ function lerMetaMotorista(notasJson?: string) {
         tipo: parsed.tipo === "Retirada" ? "Retirada" as const : "Entrega" as const,
         cidade: String(parsed.cidade || ""),
         referencia: String(parsed.referencia || ""),
-        pagamento: parsed.pagamento === "Pago" || parsed.pagamento === "Receber" || parsed.pagamento === "Boleto" ? parsed.pagamento as "Pago" | "Receber" | "Boleto" : "" as const,
+        pagamento: parsed.pagamento === "Boleto" || parsed.pagamento === "Debite" || parsed.pagamento === "Pago" || parsed.pagamento === "Receber" ? parsed.pagamento as "Boleto" | "Debite" | "Pago" | "Receber" : "" as const,
       };
     }
   } catch {}
@@ -176,7 +176,7 @@ function lerMetaMotorista(notasJson?: string) {
 
 function notasComMetaMotorista(
   notasJson: string | undefined,
-  meta: { tipo: "Entrega" | "Retirada"; cidade: string; referencia: string; pagamento: "" | "Pago" | "Receber" | "Boleto" },
+  meta: { tipo: "Entrega" | "Retirada"; cidade: string; referencia: string; pagamento: "" | "Boleto" | "Debite" | "Pago" | "Receber" },
 ) {
   let base: Record<string, unknown> = {};
   try {
@@ -976,7 +976,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
 
             <div style={colunasFormulario("repeat(2, minmax(0, 1fr))")} className="mt-4 grid gap-4">
               <label className="block min-w-0 text-sm font-medium text-slate-700">Preenchido por:<select value={form.preenchidoPor} onChange={(e) => set("preenchidoPor", e.target.value)} className={fieldClass("preenchidoPor")}><option value="">Selecione</option>{form.preenchidoPor && ![...RESPONSAVEIS_RIO_CLARO, ...RESPONSAVEIS_ARARAS].includes(form.preenchidoPor) && <option value={form.preenchidoPor} disabled>{form.preenchidoPor} (já registrado)</option>}<optgroup label="Rio Claro">{RESPONSAVEIS_RIO_CLARO.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</optgroup><optgroup label="Araras">{RESPONSAVEIS_ARARAS.map((nome) => <option key={nome} value={nome}>{nome}</option>)}</optgroup></select></label>
-              <label className="block min-w-0 text-sm font-medium text-slate-700">Pagamento:<select value={form.pagamento} onChange={(e) => set("pagamento", e.target.value as FormState["pagamento"])} className={fieldClass("pagamento")}><option value="">Selecione</option><option value="Pago">Pago</option><option value="Receber">Receber</option><option value="Boleto">Boleto</option></select></label>
+              <label className="block min-w-0 text-sm font-medium text-slate-700">Pagamento:<select value={form.pagamento} onChange={(e) => set("pagamento", e.target.value as FormState["pagamento"])} className={fieldClass("pagamento")}><option value="">Selecione</option><option value="Boleto">Boleto</option><option value="Debite">Debite</option><option value="Pago">Pago</option><option value="Receber">Receber</option></select></label>
             </div>
 
             {aviso && <p className="mt-4 rounded-xl bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{aviso}</p>}

@@ -51,7 +51,7 @@ function upcomingMeeting(meeting: Meeting): Meeting | null {
   const future = [
     { date: meeting.date, time: meeting.time },
     { date: meeting.secondDate, time: meeting.secondTime },
-  ].filter((item) => item.date && !isPastOrToday(item.date))
+  ].filter((item) => item.date)
     .sort((a, b) => a.date.localeCompare(b.date));
   if (!future.length) return null;
   return {
@@ -123,7 +123,7 @@ function MeetingCard({
       {canManage && (
         <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-200/80 pt-4">
           <button onClick={() => onEdit(meeting)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800">Editar</button>
-          <button onClick={() => onComplete(meeting.id)} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800">Concluir</button>
+          <button onClick={() => onComplete(meeting.id)} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800">Arquivar manualmente</button>
           <button onClick={() => onDelete(meeting.id)} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">Excluir</button>
         </div>
       )}
@@ -171,16 +171,9 @@ export default function ReunioesClient({
   const history = useMemo(() => {
     const completed = items
       .filter((item) => item.status === "concluida" && (isGestao || item.unit === "Araras"));
-    const elapsed = items
-      .filter((item) => isGestao || item.unit === "Araras")
-      .flatMap((item) => [
-        { ...item, id: `${item.id}-date-1`, secondDate: "", secondTime: "", status: "concluida" as const },
-        { ...item, id: `${item.id}-date-2`, date: item.secondDate, time: item.secondTime, secondDate: "", secondTime: "", status: "concluida" as const },
-      ])
-      .filter((item) => item.date && isPastOrToday(item.date));
     const official = OFFICIAL_PAST_MEETINGS.filter((item) => isGestao || item.unit === "Araras");
     const unique = new Map<string, Meeting>();
-    [...official, ...completed, ...elapsed].forEach((item) => unique.set(`${item.unit}-${item.date}`, item));
+    [...official, ...completed].forEach((item) => unique.set(`${item.unit}-${item.date}`, item));
     return [...unique.values()].sort((a, b) => b.date.localeCompare(a.date));
   }, [items, isGestao]);
 
@@ -222,7 +215,7 @@ export default function ReunioesClient({
     }
   }
 
-  async function mutate(id: string, action: "complete" | "delete") {
+  async function mutate(id: string, action: "complete" | "reopen" | "delete") {
     if (action === "delete" && !window.confirm("Excluir esta reunião definitivamente?")) return;
     setError("");
     const response = await fetch("/api/reunioes", {
@@ -307,12 +300,18 @@ export default function ReunioesClient({
       </section>
 
       <details className="mt-6 rounded-2xl border border-slate-200 bg-white p-4">
-        <summary className="cursor-pointer text-sm font-semibold text-slate-700">Histórico de concluídas ({history.length})</summary>
+        <summary className="cursor-pointer text-sm font-semibold text-slate-700">Reuniões arquivadas ({history.length})</summary>
         <div className="mt-4 grid gap-3">
           {history.length ? history.map((meeting) => (
             <div key={meeting.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-slate-50 p-3">
               <p className="text-sm text-slate-700"><strong>{meeting.unit}</strong> · {formatDate(meeting.date)} · {formatTime(meeting.time)}</p>
-              {canManage && <button onClick={() => void mutate(meeting.id, "delete")} className="text-xs font-semibold text-red-700">Excluir</button>}
+              {canManage && !meeting.id.startsWith("historico-") && (
+                <div className="flex flex-wrap gap-2">
+                  <button onClick={() => edit(meeting)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800">Abrir para editar</button>
+                  <button onClick={() => void mutate(meeting.id, "reopen")} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800">Reabrir</button>
+                  <button onClick={() => void mutate(meeting.id, "delete")} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">Excluir</button>
+                </div>
+              )}
             </div>
           )) : <p className="text-sm text-slate-500">Nenhuma reunião concluída.</p>}
         </div>

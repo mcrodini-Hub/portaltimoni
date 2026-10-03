@@ -3,7 +3,8 @@ import { getAccessTokenFromRefreshToken } from "@/lib/google-calendar";
 import { COMUNICADOS_SPREADSHEET_ID } from "@/lib/comunicados";
 
 export type MeetingUnit = "Araras" | "Rio Claro";
-export type MeetingStatus = "agendada" | "concluida";
+export type MeetingStatus = "agendada" | "concluida" | "mesclada";
+export type MeetingOccurrence = { date: string; time: string };
 
 export type Meeting = {
   id: string;
@@ -12,6 +13,7 @@ export type Meeting = {
   time: string;
   secondDate: string;
   secondTime: string;
+  additionalDates: MeetingOccurrence[];
   frequency: string;
   leaders: string;
   pautaUrl: string;
@@ -33,7 +35,7 @@ function invalidateMeetingsCache() {
 
 const HEADERS = [
   "id", "unit", "date", "time", "secondDate", "secondTime", "frequency",
-  "leaders", "pautaUrl", "ataUrl", "slidesUrl", "status", "createdAt", "updatedAt",
+  "leaders", "pautaUrl", "ataUrl", "slidesUrl", "status", "createdAt", "updatedAt", "additionalDates",
 ];
 
 const SEED: Omit<Meeting, "id" | "createdAt" | "updatedAt">[] = [
@@ -43,6 +45,7 @@ const SEED: Omit<Meeting, "id" | "createdAt" | "updatedAt">[] = [
     time: "07:40",
     secondDate: "2026-10-09",
     secondTime: "07:40",
+    additionalDates: [],
     frequency: "Mensal",
     leaders: "Ciça e Marcelo",
     pautaUrl: "https://docs.google.com/document/d/1NoZASmMc-ptrqFy8zbvtGgCJjLJxX8GsORM-F4N799k",
@@ -56,6 +59,7 @@ const SEED: Omit<Meeting, "id" | "createdAt" | "updatedAt">[] = [
     time: "07:30",
     secondDate: "2026-09-03",
     secondTime: "07:30",
+    additionalDates: [],
     frequency: "Mensal",
     leaders: "Ciça, Marcelo e Jeovana",
     pautaUrl: "https://docs.google.com/document/d/1qlgMtkqkg-LlS-LtdxDHYKcNXWbAbgWjARDtNRLHBe8",
@@ -86,7 +90,7 @@ async function ensureSheet(accessToken: string) {
     });
     await sheets.spreadsheets.values.update({
       spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
-      range: `${SHEET}!A1:N1`,
+      range: `${SHEET}!A1:O1`,
       valueInputOption: "RAW",
       requestBody: { values: [HEADERS] },
     });
@@ -102,6 +106,7 @@ function parseRows(rows: string[][]): Meeting[] {
     time: row[3] || "",
     secondDate: row[4] || "",
     secondTime: row[5] || "",
+    additionalDates: (() => { try { return JSON.parse(row[14] || "[]") as MeetingOccurrence[]; } catch { return []; } })(),
     frequency: row[6] || "Mensal",
     leaders: row[7] || "",
     pautaUrl: row[8] || "",
@@ -117,7 +122,7 @@ function valuesOf(item: Meeting) {
   return [
     item.id, item.unit, item.date, item.time, item.secondDate, item.secondTime,
     item.frequency, item.leaders, item.pautaUrl, item.ataUrl, item.slidesUrl,
-    item.status, item.createdAt, item.updatedAt,
+    item.status, item.createdAt, item.updatedAt, JSON.stringify(item.additionalDates || []),
   ];
 }
 
@@ -125,7 +130,7 @@ async function readRows(accessToken: string) {
   const sheets = await ensureSheet(accessToken);
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
-    range: `${SHEET}!A2:N500`,
+    range: `${SHEET}!A2:O500`,
     valueRenderOption: "FORMATTED_VALUE",
   });
   return (response.data.values || []) as string[][];
@@ -144,7 +149,7 @@ async function seedIfEmpty(accessToken: string) {
   }));
   await sheets.spreadsheets.values.append({
     spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
-    range: `${SHEET}!A:N`,
+    range: `${SHEET}!A:O`,
     valueInputOption: "RAW",
     insertDataOption: "INSERT_ROWS",
     requestBody: { values },
@@ -210,7 +215,7 @@ export async function updateMeeting(accessToken: string, id: string, input: Part
   const updated: Meeting = { ...current, ...input, id, updatedAt: new Date().toISOString() };
   await sheets.spreadsheets.values.update({
     spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
-    range: `${SHEET}!A${rowNumber}:N${rowNumber}`,
+    range: `${SHEET}!A${rowNumber}:O${rowNumber}`,
     valueInputOption: "RAW",
     requestBody: { values: [valuesOf(updated)] },
   });
@@ -227,62 +232,53 @@ export async function archiveMeetingOccurrence(
   const current = rows.find((item) => item.id === id);
   if (!current || current.status !== "agendada") throw new Error("Reunião não encontrada ou já arquivada.");
 
-  const occurrenceIndex = current.date === occurrenceDate
-    ? 0
-    : current.secondDate === occurrenceDate
-      ? 1
-      : -1;
+  const occurrences = [
+    { date: current.date, time: current.time },
+    { date: current.secondDate, time: current.secondTime },
+    ...(current.additionalDates || []),
+  ].filter((item) => item.date);
+  const occurrenceIndex = occurrences.findIndex((item) => item.date === occurrenceDate);
   if (occurrenceIndex < 0) throw new Error("Data da reunião não encontrada.");
 
   const now = new Date().toISOString();
   const rowNumber = rawRows.findIndex((row) => row[0] === id) + 2;
   if (rowNumber < 2) throw new Error("Reunião não encontrada.");
-  const hasAnotherOccurrence = occurrenceIndex === 0
-    ? Boolean(current.secondDate)
-    : occurrenceIndex === 1 && Boolean(current.date);
-
   const sheets = await sheetsClient(accessToken);
-  if (hasAnotherOccurrence) {
-    const archived: Meeting = {
-      ...current,
-      id: `history-${id}-${occurrenceDate}`,
-      date: occurrenceDate,
-      time: occurrenceIndex === 0 ? current.time : current.secondTime,
-      secondDate: "",
-      secondTime: "",
-      status: "concluida",
-      updatedAt: now,
-    };
-    if (!rows.some((item) => item.id === archived.id)) {
-      await sheets.spreadsheets.values.append({
-        spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
-        range: `${SHEET}!A:N`,
-        valueInputOption: "RAW",
-        insertDataOption: "INSERT_ROWS",
-        requestBody: { values: [valuesOf(archived)] },
-      });
-    }
+  const archived: Meeting = {
+    ...current,
+    id: `history-${id}-${occurrenceDate}`,
+    date: occurrences[occurrenceIndex].date,
+    time: occurrences[occurrenceIndex].time,
+    secondDate: "",
+    secondTime: "",
+    additionalDates: [],
+    status: "concluida",
+    updatedAt: now,
+  };
+  if (!rows.some((item) => item.id === archived.id)) {
+    await sheets.spreadsheets.values.append({
+      spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
+      range: `${SHEET}!A:O`,
+      valueInputOption: "RAW",
+      insertDataOption: "INSERT_ROWS",
+      requestBody: { values: [valuesOf(archived)] },
+    });
   }
 
-  let updated: Meeting = { ...current, updatedAt: now };
-  if (occurrenceIndex === 0 && current.secondDate) {
-    updated = {
-      ...updated,
-      date: current.secondDate,
-      time: current.secondTime,
-      secondDate: "",
-      secondTime: "",
-      status: "agendada",
-    };
-  } else if (occurrenceIndex === 1) {
-    updated = { ...updated, secondDate: "", secondTime: "" };
-  } else {
-    updated = { ...updated, status: "concluida" };
-  }
-
+  const remaining = occurrences.filter((_, index) => index !== occurrenceIndex);
+  const updated: Meeting = {
+    ...current,
+    date: remaining[0]?.date || "",
+    time: remaining[0]?.time || "",
+    secondDate: remaining[1]?.date || "",
+    secondTime: remaining[1]?.time || "",
+    additionalDates: remaining.slice(2),
+    status: remaining.length ? "agendada" : "concluida",
+    updatedAt: now,
+  };
   await sheets.spreadsheets.values.update({
     spreadsheetId: COMUNICADOS_SPREADSHEET_ID,
-    range: `${SHEET}!A${rowNumber}:N${rowNumber}`,
+    range: `${SHEET}!A${rowNumber}:O${rowNumber}`,
     valueInputOption: "RAW",
     requestBody: { values: [valuesOf(updated)] },
   });

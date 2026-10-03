@@ -116,7 +116,7 @@ function lerPagamento(notasJson?: string) {
   try {
     const parsed = JSON.parse(String(notasJson || "[]"));
     if (!parsed || Array.isArray(parsed)) return "";
-    return parsed.pagamento === "Pago" || parsed.pagamento === "Receber" || parsed.pagamento === "Boleto"
+    return parsed.pagamento === "Boleto" || parsed.pagamento === "Debite" || parsed.pagamento === "Pago" || parsed.pagamento === "Receber"
       ? parsed.pagamento
       : "";
   } catch {

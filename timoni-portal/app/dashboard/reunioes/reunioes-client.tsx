@@ -31,6 +31,21 @@ function formatDate(value: string) {
   return `${day}/${month}/${year}`;
 }
 
+function pastOccurrences(meeting: Meeting) {
+  const today = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  return [
+    { date: meeting.date, time: meeting.time },
+    { date: meeting.secondDate, time: meeting.secondTime },
+  ]
+    .filter((item) => item.date && item.date < today)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function formatTime(value: string) {
   return value ? value.replace(/^0/, "") : "";
 }
@@ -64,13 +79,15 @@ function upcomingMeeting(meeting: Meeting): Meeting | null {
 }
 
 function MeetingCard({
-  meeting, canManage, onEdit, onComplete, onDelete,
+  meeting, canManage, onEdit, onComplete, onDelete, pendingOccurrences, onArchiveOccurrence,
 }: {
   meeting: Meeting;
   canManage: boolean;
   onEdit: () => void;
   onComplete: (id: string) => void;
   onDelete: (id: string) => void;
+  pendingOccurrences: Array<{ date: string; time: string }>;
+  onArchiveOccurrence: (id: string, date: string) => void;
 }) {
   const color = meeting.unit === "Araras" ? "border-amber-200 bg-amber-50" : "border-blue-200 bg-blue-50";
   return (
@@ -97,6 +114,22 @@ function MeetingCard({
       </div>
 
       {meeting.leaders && <p className="mt-4 text-sm text-slate-600">Condução: <strong>{meeting.leaders}</strong></p>}
+      {pendingOccurrences.length > 0 && (
+        <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <p className="text-xs font-semibold text-amber-900">Reunião anterior aguardando arquivamento manual</p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {pendingOccurrences.map((occurrence) => (
+              <div key={occurrence.date} className="flex flex-wrap items-center gap-2 rounded-lg bg-white px-3 py-2">
+                <span className="text-xs font-medium text-slate-700">{formatDate(occurrence.date)} · {formatTime(occurrence.time)}</span>
+                {canManage && (
+                  <button onClick={() => onArchiveOccurrence(meeting.id, occurrence.date)} className="rounded-lg border border-emerald-200 bg-white px-3 py-1.5 text-xs font-semibold text-emerald-800">Arquivar manualmente</button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="mt-4 flex flex-wrap gap-4">
         {meeting.pautaUrl && <a href={meeting.pautaUrl} target="_blank" rel="noreferrer" className="text-sm font-semibold text-emerald-700">Abrir pauta →</a>}
         {meeting.ataUrl && <a href={meeting.ataUrl} target="_blank" rel="noreferrer" className="text-sm font-semibold text-blue-700">Abrir ata →</a>}
@@ -106,7 +139,7 @@ function MeetingCard({
       {canManage && (
         <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-200/80 pt-4">
           <button onClick={onEdit} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800">Abrir para editar</button>
-          <button onClick={() => onComplete(meeting.id)} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800">Arquivar manualmente</button>
+          {pendingOccurrences.length === 0 && <button onClick={() => onComplete(meeting.id)} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800">Arquivar manualmente</button>}
           <button onClick={() => onDelete(meeting.id)} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">Excluir</button>
         </div>
       )}
@@ -197,13 +230,13 @@ export default function ReunioesClient({
     }
   }
 
-  async function mutate(id: string, action: "complete" | "reopen" | "delete") {
+  async function mutate(id: string, action: "complete" | "complete-occurrence" | "reopen" | "delete", occurrenceDate?: string) {
     if (action === "delete" && !window.confirm("Excluir esta reunião definitivamente?")) return;
     setError("");
     const response = await fetch("/api/reunioes", {
       method: action === "delete" ? "DELETE" : "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id, action }),
+      body: JSON.stringify({ id, action, ...(occurrenceDate ? { occurrenceDate } : {}) }),
     });
     const data = await response.json();
     if (!response.ok) {
@@ -279,6 +312,7 @@ export default function ReunioesClient({
           visible.length ? <div className={`mt-3 grid gap-4 ${isGestao ? "md:grid-cols-2" : ""}`}>
             {visible.map((meeting) => {
               const sourceMeeting = items.find((item) => item.id === meeting.id) || meeting;
+              const pendingOccurrences = pastOccurrences(sourceMeeting);
               return (
                 <MeetingCard
                   key={meeting.id}
@@ -286,6 +320,8 @@ export default function ReunioesClient({
                   canManage={canManage}
                   onEdit={() => edit(sourceMeeting)}
                   onComplete={(id) => void mutate(id, "complete")}
+                  pendingOccurrences={pendingOccurrences}
+                  onArchiveOccurrence={(id, date) => void mutate(id, "complete-occurrence", date)}
                   onDelete={(id) => void mutate(id, "delete")}
                 />
               );

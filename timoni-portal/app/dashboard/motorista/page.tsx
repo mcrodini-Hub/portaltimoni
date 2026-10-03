@@ -39,32 +39,6 @@ export default async function MotoristaPage() {
         .motorista-agenda-controle button.border-red-200:hover {
           background: #f8fafc !important;
         }
-
-        @media (max-width: 1023px) {
-          .motorista-agenda-controle .motorista-form .grid {
-            grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-          }
-        }
-
-        @media (max-width: 639px) {
-          .motorista-agenda-controle .motorista-form {
-            width: calc(100vw - 24px) !important;
-            max-width: calc(100vw - 24px) !important;
-            padding: 14px !important;
-          }
-
-          .motorista-agenda-controle .motorista-form .grid {
-            grid-template-columns: minmax(0, 1fr) !important;
-          }
-
-          .motorista-agenda-controle .motorista-form input,
-          .motorista-agenda-controle .motorista-form select,
-          .motorista-agenda-controle .motorista-form textarea {
-            width: 100% !important;
-            min-width: 0 !important;
-            font-size: 16px !important;
-          }
-        }
       `}</style>
     </div>
   );

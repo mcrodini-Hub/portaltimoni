@@ -1,3 +1,4 @@
+import { unstable_cache, revalidateTag } from "next/cache";
 import { google } from "googleapis";
 import { getAccessTokenFromRefreshToken } from "@/lib/google-calendar";
 import { COMUNICADOS_SPREADSHEET_ID } from "@/lib/comunicados";
@@ -25,12 +26,10 @@ export type Meeting = {
 };
 
 const SHEET = "Reunioes";
-const CACHE_TTL_MS = 15_000;
-let meetingsCache: { items: Meeting[]; createdAt: number } | null = null;
-let meetingsLoad: Promise<Meeting[]> | null = null;
+const MEETINGS_CACHE_TAG = "reunioes";
 
 function invalidateMeetingsCache() {
-  meetingsCache = null;
+  revalidateTag(MEETINGS_CACHE_TAG);
 }
 
 const HEADERS = [
@@ -136,6 +135,16 @@ async function readRows(accessToken: string) {
   return (response.data.values || []) as string[][];
 }
 
+const getCachedMeetings = unstable_cache(
+  async () => {
+    const accessToken = await getAccessTokenFromRefreshToken();
+    const items = parseRows(await seedIfEmpty(accessToken)).sort((a, b) => a.date.localeCompare(b.date));
+    return items;
+  },
+  ["reunioes-list-v1"],
+  { revalidate: 60, tags: [MEETINGS_CACHE_TAG] },
+);
+
 async function seedIfEmpty(accessToken: string) {
   const rows = await readRows(accessToken);
   if (rows.length) return rows;
@@ -157,23 +166,8 @@ async function seedIfEmpty(accessToken: string) {
   return values as string[][];
 }
 
-export async function listMeetings(accessToken: string) {
-  if (meetingsCache && Date.now() - meetingsCache.createdAt < CACHE_TTL_MS) {
-    return meetingsCache.items;
-  }
-  if (meetingsLoad) return meetingsLoad;
-
-  meetingsLoad = (async () => {
-    const items = parseRows(await seedIfEmpty(accessToken)).sort((a, b) => a.date.localeCompare(b.date));
-    meetingsCache = { items, createdAt: Date.now() };
-    return items;
-  })();
-
-  try {
-    return await meetingsLoad;
-  } finally {
-    meetingsLoad = null;
-  }
+export async function listMeetings(_accessToken: string) {
+  return getCachedMeetings();
 }
 
 export async function createMeeting(

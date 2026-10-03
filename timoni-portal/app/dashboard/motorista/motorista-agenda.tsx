@@ -331,7 +331,7 @@ function classeLinhaPrincipal(v: Viagem) {
 
 function estiloLinhaPrincipal(v: Viagem) {
   return lerMetaMotorista(v.notasJson).tipo === "Retirada"
-    ? { fontFamily: "Calibri, Arial, sans-serif", fontWeight: 700, fontSize: "calc(1em + 1px)", color: "#13038D" }
+    ? { fontFamily: "Calibri, Arial, sans-serif", fontWeight: 700, fontSize: "11pt", color: "#13038D" }
     : undefined;
 }
 

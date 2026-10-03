@@ -85,7 +85,7 @@ function MeetingCard({
 }: {
   meeting: Meeting;
   canManage: boolean;
-  onEdit: (meeting: Meeting) => void;
+  onEdit: () => void;
   onComplete: (id: string) => void;
   onDelete: (id: string) => void;
 }) {
@@ -122,7 +122,7 @@ function MeetingCard({
 
       {canManage && (
         <div className="mt-5 flex flex-wrap gap-2 border-t border-slate-200/80 pt-4">
-          <button onClick={() => onEdit(meeting)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800">Editar</button>
+          <button onClick={onEdit} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800">Abrir para editar</button>
           <button onClick={() => onComplete(meeting.id)} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800">Arquivar manualmente</button>
           <button onClick={() => onDelete(meeting.id)} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">Excluir</button>
         </div>
@@ -295,7 +295,19 @@ export default function ReunioesClient({
         <h2 className="text-xl font-semibold text-slate-900">Reuniões agendadas</h2>
         {loading ? <p className="mt-3 text-sm text-slate-500">Carregando...</p> :
           visible.length ? <div className={`mt-3 grid gap-4 ${isGestao ? "md:grid-cols-2" : ""}`}>
-            {visible.map((meeting) => <MeetingCard key={meeting.id} meeting={meeting} canManage={canManage} onEdit={edit} onComplete={(id) => void mutate(id, "complete")} onDelete={(id) => void mutate(id, "delete")} />)}
+            {visible.map((meeting) => {
+              const sourceMeeting = items.find((item) => item.id === meeting.id) || meeting;
+              return (
+                <MeetingCard
+                  key={meeting.id}
+                  meeting={meeting}
+                  canManage={canManage}
+                  onEdit={() => edit(sourceMeeting)}
+                  onComplete={(id) => void mutate(id, "complete")}
+                  onDelete={(id) => void mutate(id, "delete")}
+                />
+              );
+            })}
           </div> : <p className="mt-3 text-sm text-slate-500">Nenhuma reunião agendada.</p>}
       </section>
 

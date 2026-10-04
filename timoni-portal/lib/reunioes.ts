@@ -1,6 +1,5 @@
 import { unstable_cache, revalidateTag } from "next/cache";
 import { google } from "googleapis";
-import { getAccessTokenFromRefreshToken } from "@/lib/google-calendar";
 import { COMUNICADOS_SPREADSHEET_ID } from "@/lib/comunicados";
 
 export type MeetingUnit = "Araras" | "Rio Claro";
@@ -136,12 +135,11 @@ async function readRows(accessToken: string) {
 }
 
 const getCachedMeetings = unstable_cache(
-  async () => {
-    const accessToken = await getAccessTokenFromRefreshToken();
+  async (accessToken: string) => {
     const items = parseRows(await seedIfEmpty(accessToken)).sort((a, b) => a.date.localeCompare(b.date));
     return items;
   },
-  ["reunioes-list-v1"],
+  ["reunioes-list-v2"],
   { revalidate: 60, tags: [MEETINGS_CACHE_TAG] },
 );
 
@@ -167,7 +165,7 @@ async function seedIfEmpty(accessToken: string) {
 }
 
 export async function listMeetings(_accessToken: string) {
-  return getCachedMeetings();
+  return getCachedMeetings(_accessToken);
 }
 
 export async function createMeeting(

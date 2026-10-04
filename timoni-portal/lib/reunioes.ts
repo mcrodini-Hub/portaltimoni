@@ -1,5 +1,6 @@
 import { unstable_cache, revalidateTag } from "next/cache";
 import { google } from "googleapis";
+import { getAccessTokenFromRefreshToken } from "@/lib/google-calendar";
 import { COMUNICADOS_SPREADSHEET_ID } from "@/lib/comunicados";
 
 export type MeetingUnit = "Araras" | "Rio Claro";

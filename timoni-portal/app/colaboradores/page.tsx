@@ -6,6 +6,7 @@ import ComunicadosAdmin from "@/app/colaboradores/comunicados-admin";
 import type { PortalUser } from "@/lib/access-control";
 import type { ConfiguredCollaborator } from "@/lib/portal-config";
 import { getEffectivePanelData } from "@/lib/portal-config";
+import { listMeetings, type Meeting } from "@/lib/reunioes";
 import ModuleArrivalSummary from "@/components/module-arrival-summary";
 
 export const dynamic = "force-dynamic";
@@ -48,25 +49,34 @@ function panelItem(e:CalendarEventDTO):PanelDateItem{return{id:`${e.calendarKey}
 function cleanSummary(s:string){return s.replace(/^anivers[aá]rio\s*/i,"").replace(/\s*-\s*f[eé]rias\s*$/i,"").trim()}
 function unique(items:PanelDateItem[]){const seen=new Set<string>();return items.sort((a,b)=>parseEventDate(a.start).getTime()-parseEventDate(b.start).getTime()).filter(i=>{const k=`${normalizeText(cleanSummary(i.summary))}-${formatDate(i.start)}`;if(seen.has(k))return false;seen.add(k);return true})}
 
-const fixedMeetingSchedule:Record<Store,FixedMeeting[]>={
- araras:[{summary:"Reunião Araras",start:"2026-09-08T07:40:00-03:00",label:"Próxima"},{summary:"Reunião Araras",start:"2026-10-09T07:40:00-03:00",label:"Seguinte"}],
- "rio claro":[{summary:"Reunião Rio Claro",start:"2026-09-03T07:30:00-03:00",label:"Próxima"},{summary:"Reunião Rio Claro",start:"2026-10-03T07:30:00-03:00",label:"Seguinte"}]
-};
-function meetings(now:Date,unit:Store){return fixedMeetingSchedule[unit].filter(m=>new Date(parseEventDate(m.start).getTime()+3600000)>now).slice(0,2)}
+function meetings(items:Meeting[],now:Date,unit:Store):FixedMeeting[]{
+ const parts=new Intl.DateTimeFormat("en-CA",{timeZone:PANEL_TIME_ZONE,year:"numeric",month:"2-digit",day:"2-digit"}).formatToParts(now);
+ const today=`${parts.find(item=>item.type==="year")?.value}-${parts.find(item=>item.type==="month")?.value}-${parts.find(item=>item.type==="day")?.value}`;
+ const expectedUnit=unit==="araras"?"Araras":"Rio Claro";
+ return items.filter(item=>item.status==="agendada"&&item.unit===expectedUnit)
+  .flatMap(item=>[{date:item.date,time:item.time},{date:item.secondDate,time:item.secondTime},...(item.additionalDates||[])])
+  .filter(item=>item.date&&item.date>=today)
+  .sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time))
+  .slice(0,2)
+  .map((item,index)=>({summary:`Reunião ${expectedUnit}`,start:`${item.date}T${item.time}:00${PANEL_UTC_OFFSET}`,label:index===0?"Próxima":"Seguinte"}));
+}
 function AnnouncementCard({store,isAdmin,canConfirmRead,collaborators}:{store:Store;isAdmin:boolean;canConfirmRead:boolean;collaborators:ConfiguredCollaborator[]}){const unit=store==="rio claro"?"Rio Claro":"Araras";const members=collaborators.filter(member=>member.active&&member.unit===unit);return <article className="h-full min-w-0 rounded-3xl border border-blue-200 bg-blue-50 p-5 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wider text-blue-700">AVISOS</p><h2 className="mt-2 text-xl font-semibold text-slate-950">{unit}</h2><div className="mt-4 space-y-4"><ComunicadosFeed store={store} isAdmin={isAdmin} canConfirmRead={canConfirmRead} members={members}/></div></article>}
 function MeetingSummaryCard({title,list}:{title:string;list:FixedMeeting[]}){return <article className="h-full min-w-0 rounded-3xl border border-violet-200 bg-violet-50 p-5 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Reuniões</p><h3 className="mt-3 font-semibold text-slate-950">{title}</h3>{list.length?<div className="mt-2 space-y-2">{list.map((m,i)=><div key={m.start} className="rounded-xl bg-white/70 p-3"><p className="text-xs font-semibold uppercase text-violet-700">{i===0?"Próxima":"Seguinte"}</p><p className="mt-1 text-sm font-semibold text-slate-800">{formatMeeting(m)}</p></div>)}</div>:<p className="mt-2 text-sm text-slate-500">Nenhuma reunião programada.</p>}</article>}
 function EventCard({title,tone,events}:{title:string;tone:"pink"|"amber";events:PanelDateItem[]}){const cls=tone==="pink"?"border-pink-200 bg-pink-50":"border-amber-200 bg-amber-50";return <article className={`h-full min-w-0 rounded-3xl border p-5 shadow-sm ${cls}`}><p className="text-xs font-semibold uppercase tracking-wider text-slate-700">{title}</p>{events.length?<ul className="mt-3 space-y-2">{events.map(e=><li key={e.id} className="rounded-xl bg-white/70 p-3"><p className="font-semibold text-slate-900">{cleanSummary(e.summary)}</p><p className="mt-1 text-sm text-slate-600">{title==="Férias"&&e.end?`${formatDate(e.start)} a ${formatDate(e.end)}`:formatDate(e.start)}</p></li>)}</ul>:<p className="mt-3 text-sm text-slate-500">Nenhum registro informado.</p>}</article>}
 
 export default async function ColaboradoresPage(){
  const session=await auth();const email=session?.user?.email??"";const normalized=email.trim().toLowerCase();const now=new Date();const eventWindow=getPanelDateWindow(now);
- const [panelData,events]=await Promise.all([
+ const [panelData,events,meetingItems]=await Promise.all([
   getEffectivePanelData(session?.accessToken,normalized),
   session?.accessToken&&session.error!=="RefreshAccessTokenError"
    ?listEventsInRange(session.accessToken,{timeMin:eventWindow.timeMin,timeMax:eventWindow.timeMax,maxResults:500},["timoni"]).catch(()=>[] as CalendarEventDTO[])
-   :Promise.resolve([] as CalendarEventDTO[])
+   :Promise.resolve([] as CalendarEventDTO[]),
+  session?.accessToken&&session.error!=="RefreshAccessTokenError"
+   ?listMeetings(session.accessToken).catch(()=>[] as Meeting[])
+   :Promise.resolve([] as Meeting[])
  ]);
  const effectiveUser=panelData.user;const collaborators=panelData.collaborators;const panelStore=getPanelStore(email,effectiveUser??session?.portalUser);const isCica=normalized==="mcrodini@gmail.com";const isManagement=["mcrodini@gmail.com","mrodini@gmail.com"].includes(normalized);const canConfirmRead=!isManagement&&Boolean(effectiveUser?.noticeRequired);
- const araras=meetings(now,"araras"),rioClaro=meetings(now,"rio claro");
+ const araras=meetings(meetingItems,now,"araras"),rioClaro=meetings(meetingItems,now,"rio claro");
  const birthdays=unique(events.filter(e=>isBirthday(e)&&eventStartsInPanelWindow(e,eventWindow)).map(panelItem));
  const vacations=unique(events.filter(e=>isVacation(e)&&eventOverlapsPanelWindow(e,eventWindow)).map(panelItem));
  return <div className="pb-10"><header className="mb-6"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Comunicação interna</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Painel Timoni</h1></header>

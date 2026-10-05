@@ -7,6 +7,7 @@ import {
 } from "@/lib/access-control";
 import { AVISO_TEAM_MEMBERS, TEAM_MEMBERS, type TeamMember } from "@/lib/team-members";
 import { AVISO_LEITURAS_SPREADSHEET_ID } from "@/lib/portal-data-constants";
+import { unstable_cache, revalidateTag } from "next/cache";
 
 const USERS_SHEET = "PortalUsuarios";
 const COLLABORATORS_SHEET = "PortalColaboradores";
@@ -15,6 +16,7 @@ const ROTATING_STOCK_MIGRATION = "Permissões Estoque Rotativo v1";
 const NOTICE_BY_ACCESS_MIGRATION = "Confirmação de leitura por acesso v1";
 const COLLABORATOR_ROSTER_MIGRATION = "Lista oficial de colaboradores 30-09-2026 v1";
 const REQUIRED_SHEETS = [USERS_SHEET, COLLABORATORS_SHEET, HISTORY_SHEET];
+const PORTAL_CONFIG_CACHE_TAG = "portal-config";
 export const CICA_EMAIL = "mcrodini@gmail.com";
 export const DASHBOARD_BOX_MODULES: PortalModule[] = ["painel", "agenda", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads"];
 
@@ -165,7 +167,7 @@ async function ensureSheets(accessToken: string) {
   return ensureSheetsPromise;
 }
 
-async function readUsers(accessToken: string): Promise<PortalUser[]> {
+async function fetchUsers(accessToken: string): Promise<PortalUser[]> {
   const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${USERS_SHEET}!A2:N500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
   return (response.values || []).map((row) => ({
     email: normalizeEmail(row[0]),
@@ -184,11 +186,21 @@ async function readUsers(accessToken: string): Promise<PortalUser[]> {
   })).filter((user) => user.email && user.name);
 }
 
+const readUsersCached = unstable_cache(
+  async (accessToken: string) => fetchUsers(accessToken),
+  ["portal-users-v1"],
+  { revalidate: 30, tags: [PORTAL_CONFIG_CACHE_TAG] },
+);
+
+async function readUsers(accessToken: string) {
+  return readUsersCached(accessToken);
+}
+
 export async function listConfiguredPortalUsers(accessToken: string) {
   return readUsers(accessToken);
 }
 
-async function readCollaborators(accessToken: string): Promise<ConfiguredCollaborator[]> {
+async function fetchCollaborators(accessToken: string): Promise<ConfiguredCollaborator[]> {
   const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A2:I500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));
   return (response.values || []).map((row) => ({
     id: row[0] || "",
@@ -201,6 +213,16 @@ async function readCollaborators(accessToken: string): Promise<ConfiguredCollabo
     chatEnabled: yes(row[7], true),
     role: row[8] || "",
   })).filter((member) => member.id && member.name);
+}
+
+const readCollaboratorsCached = unstable_cache(
+  async (accessToken: string) => fetchCollaborators(accessToken),
+  ["portal-collaborators-v1"],
+  { revalidate: 30, tags: [PORTAL_CONFIG_CACHE_TAG] },
+);
+
+async function readCollaborators(accessToken: string) {
+  return readCollaboratorsCached(accessToken);
 }
 
 async function readHistory(accessToken: string): Promise<PortalAuditEntry[]> {
@@ -257,6 +279,7 @@ export async function writeUsers(accessToken: string, users: PortalUser[]) {
     user.accessLabel || user.name,
     user.noticeRequired ? "Sim" : "Não",
   ]));
+  revalidateTag(PORTAL_CONFIG_CACHE_TAG);
 }
 
 function userRow(user: PortalUser, now = new Date().toISOString()) {
@@ -298,6 +321,7 @@ export async function upsertPortalUser(accessToken: string, input: PortalUser) {
       body: JSON.stringify({ values: [userRow(user)] }),
     });
   }
+  revalidateTag(PORTAL_CONFIG_CACHE_TAG);
   return user;
 }
 
@@ -329,6 +353,7 @@ export async function writeCollaborators(accessToken: string, collaborators: Con
     member.chatEnabled === false ? "Não" : "Sim",
     member.role || "",
   ]));
+  revalidateTag(PORTAL_CONFIG_CACHE_TAG);
 }
 
 export async function upsertCollaborator(accessToken: string, member: ConfiguredCollaborator) {
@@ -341,6 +366,7 @@ export async function upsertCollaborator(accessToken: string, member: Configured
   } else {
     await sheetsRequest(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${COLLABORATORS_SHEET}!A:I`)}:append`, { valueInputOption: "RAW", insertDataOption: "INSERT_ROWS" }), { method: "POST", body: JSON.stringify({ values }) });
   }
+  revalidateTag(PORTAL_CONFIG_CACHE_TAG);
   return member;
 }
 
@@ -544,6 +570,7 @@ export async function recordPortalAccess(accessToken: string, email: string) {
       method: "PUT",
       body: JSON.stringify({ values: [[new Date().toISOString()]] }),
     });
+    revalidateTag(PORTAL_CONFIG_CACHE_TAG);
   } catch (error) {
     console.warn("[portal-config] Não foi possível registrar o último acesso.", error);
   }

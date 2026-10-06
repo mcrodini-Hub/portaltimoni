@@ -83,11 +83,28 @@ export async function GET() {
     ]);
     const unit = unitForEmail(context.email, context.portalUser);
     const now = Date.now();
+
+    const expiredActiveItems = items.filter((item) =>
+      item.status === "ativo" &&
+      Boolean(item.expiresAt) &&
+      !isWithinDisplayEndDate(item.expiresAt, now)
+    );
+    if (expiredActiveItems.length) {
+      await Promise.all(
+        expiredActiveItems.map((item) => updateComunicado(context.accessToken, item.id, { status: "arquivado" }))
+      );
+    }
+    const normalizedItems = items.map((item) =>
+      expiredActiveItems.some((expired) => expired.id === item.id)
+        ? { ...item, status: "arquivado" as const }
+        : item
+    );
+
     const currentAccess = users.find((user) => normalizeEmail(user.email) === context.email);
     const requiredMembers = currentAccess?.noticeRequired
       ? collaborators.filter((member) => member.active && normalizeEmail(member.accessEmail) === context.email)
       : [];
-    const activeItems = items.filter((item) =>
+    const activeItems = normalizedItems.filter((item) =>
       item.status === "ativo" &&
       (!item.startsAt || Date.parse(item.startsAt) <= now) &&
       isWithinDisplayEndDate(item.expiresAt, now) &&
@@ -114,7 +131,7 @@ export async function GET() {
           .map((user) => ({ email: user.email, name: user.accessLabel || user.name, unit: user.unit }));
       } catch { recipientOptionsError = true; }
     }
-    return NextResponse.json({ ok: true, items: isAdmin ? items : items.filter((item) => canViewComunicado(item, context.email, unit)), activeCount, isAdmin, recipientOptions, recipientOptionsError });
+    return NextResponse.json({ ok: true, items: isAdmin ? normalizedItems : normalizedItems.filter((item) => canViewComunicado(item, context.email, unit)), activeCount, isAdmin, recipientOptions, recipientOptionsError });
   } catch (error) {
     console.error("[comunicados][GET]", error);
     return NextResponse.json({ error: "Não foi possível carregar os comunicados." }, { status: 500 });

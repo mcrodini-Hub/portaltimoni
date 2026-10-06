@@ -102,23 +102,21 @@ function MeetingCard({
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Próximas reuniões</p>
           <h3 className="mt-1 text-2xl font-semibold text-slate-900">{meeting.unit}</h3>
         </div>
-        <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700">{meeting.frequency}</span>
+        <span className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-slate-700">{meeting.frequency}</span>
       </div>
 
-      <div className="mt-5 rounded-2xl bg-white/80 p-4">
-        <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Próxima reunião</p>
-        <p className="mt-1 font-semibold text-slate-900">{formatDate(meeting.date)} · {formatTime(meeting.time)}</p>
-        <div className="mt-3 border-t border-slate-100 pt-3">
-          <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">Datas seguintes</p>
-          {[...(meeting.secondDate ? [{ date: meeting.secondDate, time: meeting.secondTime }] : []), ...(meeting.additionalDates || [])].length ? (
-            <div className="mt-2 flex flex-wrap gap-2">
-              {[...(meeting.secondDate ? [{ date: meeting.secondDate, time: meeting.secondTime }] : []), ...(meeting.additionalDates || [])].map((item) => (
-                <span key={item.date} className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700">{formatDate(item.date)} · {formatTime(item.time)}</span>
-              ))}
-            </div>
-          ) : <p className="mt-1 text-sm text-slate-500">A definir</p>}
+      <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="min-w-0 rounded-2xl bg-white/80 p-4">
+          <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">Próxima</p>
+          <p className="mt-2 text-lg font-semibold text-slate-900">{formatDate(meeting.date)}</p>
+          {meeting.time && <p className="mt-1 text-base text-slate-500">{formatTime(meeting.time)}</p>}
+        </div>
+        <div className="min-w-0 rounded-2xl bg-white/80 p-4">
+          <p className="text-sm font-semibold uppercase tracking-wider text-slate-500">Seguinte</p>
+          {meeting.secondDate ? <><p className="mt-2 text-lg font-semibold text-slate-900">{formatDate(meeting.secondDate)}</p>{meeting.secondTime && <p className="mt-1 text-base text-slate-500">{formatTime(meeting.secondTime)}</p>}</> : <p className="mt-2 text-base text-slate-500">A definir</p>}
         </div>
       </div>
+      {(meeting.additionalDates || []).length > 0 && <div className="mt-3 rounded-2xl bg-white/70 p-4"><p className="text-sm font-semibold uppercase tracking-wider text-slate-500">Outras datas</p><div className="mt-2 flex flex-wrap gap-2">{meeting.additionalDates.map((item) => <span key={item.date} className="rounded-lg bg-white px-3 py-2 text-sm font-medium text-slate-700">{formatDate(item.date)}{item.time ? ` · ${formatTime(item.time)}` : ""}</span>)}</div></div>}
 
       {meeting.leaders && <p className="mt-4 text-sm text-slate-600">Condução: <strong>{meeting.leaders}</strong></p>}
       {pendingOccurrences.length > 0 && (

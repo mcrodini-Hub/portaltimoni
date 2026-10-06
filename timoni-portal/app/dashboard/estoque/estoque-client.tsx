@@ -74,12 +74,12 @@ function findByDescription(list: Product[], term: string) {
 function label(status: string) {
   return (
     {
-      pendente: "Em aberto",
+      pendente: "Aberto",
       em_compra: "Relação de compra",
-      pedido_existente: "A caminho",
+      pedido_existente: "Pedido",
       observacao: "Aguardando retorno",
       consulta: "Consulta",
-      chegou: "Finalizado",
+      chegou: "Chegou",
     } as Record<string, string>
   )[status] || status;
 }
@@ -402,12 +402,13 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
 
   const sortedNeeds = useMemo(() => [...needs].sort((a, b) => timestamp(b.criadoEm) - timestamp(a.criadoEm)), [needs]);
   const filtered = useMemo(() => sortedNeeds.filter((need) => unit === "todas" || need.unidade === unit), [sortedNeeds, unit]);
-  const openNeeds = filtered.filter((need) => ["pendente", "observacao", "consulta"].includes(need.status));
+  const consultationNeeds = filtered.filter((need) => need.status === "consulta");
+  const openNeeds = filtered.filter((need) => ["pendente", "observacao"].includes(need.status));
   const purchaseNeeds = filtered.filter((need) => need.status === "em_compra");
   const onWay = filtered.filter((need) => need.status === "pedido_existente");
-  const finalizedCutoff = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const arrivedCutoff = Date.now() - 7 * 24 * 60 * 60 * 1000;
   const history = filtered
-    .filter((need) => need.status === "chegou" && timestamp(need.chegouEm) >= finalizedCutoff)
+    .filter((need) => need.status === "chegou" && timestamp(need.chegouEm) >= arrivedCutoff)
     .slice(0, 50);
   const codeResults = useMemo(() => (selected ? [] : findByCode(products, codeSearch)), [products, codeSearch, selected]);
   const descriptionResults = useMemo(() => (selected ? [] : findByDescription(products, descriptionSearch)), [products, descriptionSearch, selected]);
@@ -530,46 +531,83 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
   function NeedsSection() {
     const statusSections = [
       {
-        title: "Necessidades de compra — Em aberto",
+        title: "Consulta",
+        items: consultationNeeds,
+        empty: "Nenhuma consulta pendente.",
+        wide: false,
+      },
+      {
+        title: "Aberto",
         items: openNeeds,
         empty: "Nenhuma necessidade em aberto.",
+        wide: false,
       },
       {
         title: "Relação de compra",
         items: purchaseNeeds,
         empty: "Nenhum produto na relação de compra.",
+        wide: false,
       },
       {
-        title: "A caminho",
+        title: "Pedido",
         items: onWay,
-        empty: "Nenhum produto a caminho.",
+        empty: "Nenhum pedido aguardando chegada.",
+        wide: false,
       },
       {
         title: "Chegou",
         items: history,
-        empty: "Nenhum produto recebido.",
+        empty: "Nenhum produto recebido nos últimos 7 dias.",
+        wide: true,
       },
     ];
 
     return (
-      <>
-        {statusSections.map(({ title, items, empty }, index) => (
-          <section key={title} className="rounded-3xl border bg-white p-5 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-xl font-semibold">{title}</h2>
-              {isManager && index === 0 && (
-                <div className="flex rounded-xl bg-slate-100 p-1">
-                  {(["todas", "rio_claro", "araras"] as Unit[]).map((item) => <button key={item} onClick={() => setUnit(item)} className={`rounded-lg px-3 py-2 text-xs font-semibold ${unit === item ? "bg-white shadow-sm" : "text-slate-500"}`}>{item === "todas" ? "Todas" : unitLabel(item)}</button>)}
-                </div>
-              )}
+      <div>
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-950">Acompanhamento do Estoque</h2>
+            <p className="mt-1 text-sm text-slate-500">Solicitações organizadas por etapa</p>
+          </div>
+          {isManager && (
+            <div role="group" className="flex rounded-xl bg-slate-100 p-1" aria-label="Filtrar todos os quadros por unidade">
+              {(["todas", "rio_claro", "araras"] as Unit[]).map((item) => (
+                <button
+                  key={item}
+                  onClick={() => setUnit(item)}
+                  aria-pressed={unit === item}
+                  className={`rounded-lg px-3 py-2 text-xs font-semibold ${unit === item ? "bg-white shadow-sm" : "text-slate-500"}`}
+                >
+                  {item === "todas" ? "Todas" : unitLabel(item)}
+                </button>
+              ))}
             </div>
-            <div className="mt-4 grid gap-3 lg:grid-cols-2">
-              {items.map((need) => <div key={need.id}>{NeedCard({ need })}</div>)}
-              {!loading && !items.length && <p className="rounded-xl bg-slate-50 p-4 text-sm text-slate-500 lg:col-span-2">{empty}</p>}
-            </div>
-          </section>
-        ))}
-      </>
+          )}
+        </div>
+
+        <div className="grid gap-4 lg:grid-cols-2">
+          {statusSections.map(({ title, items, empty, wide }) => (
+            <section
+              key={title}
+              className={`min-w-0 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm ${wide ? "lg:col-span-2" : ""}`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-lg font-semibold text-slate-950">{title}</h3>
+                <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-600">{items.length}</span>
+              </div>
+              {wide && <p className="mt-1 text-xs text-slate-500">Produtos recebidos nos últimos 7 dias</p>}
+              <div className={`mt-4 grid gap-3 ${wide ? "lg:grid-cols-2" : ""}`}>
+                {items.map((need) => <div key={need.id}>{NeedCard({ need })}</div>)}
+                {!loading && !items.length && (
+                  <p className={`rounded-xl bg-slate-50 p-4 text-sm text-slate-500 ${wide ? "lg:col-span-2" : ""}`}>
+                    {empty}
+                  </p>
+                )}
+              </div>
+            </section>
+          ))}
+        </div>
+      </div>
     );
   }
 
@@ -601,7 +639,7 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
             return (
               <div key={currentUnit} className="overflow-hidden rounded-2xl border border-slate-200">
                 <div className="flex items-center justify-between bg-slate-50 px-4 py-3">
-                  <h3 className="font-semibold text-slate-950">{unitLabel(currentUnit)}</h3>
+                  <h3 className="font-semibold text-slate-950">Pedidos {unitLabel(currentUnit)}</h3>
                   <span className="rounded-full bg-blue-100 px-2.5 py-1 text-xs font-semibold text-blue-800">{orders.length}</span>
                 </div>
                 <div className="divide-y divide-slate-100">

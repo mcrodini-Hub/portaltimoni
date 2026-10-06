@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
 
 type PanelStore = "geral" | "rio claro" | "araras";
 type Store = "rio claro" | "araras";
-type FixedMeeting = { summary: string; start: string; label: string };
+type FixedMeeting = { date: string; time: string; label: string; frequency: string };
 type PanelDateItem = { id: string; summary: string; start: string; end?: string };
 
 function normalizeText(value:string){return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()}
@@ -42,7 +42,7 @@ function eventOverlapsPanelWindow(event:CalendarEventDTO,window:PanelDateWindow)
  return start<window.endExclusive&&end>window.start;
 }
 function formatDate(value:string|Date){const d=typeof value==="string"?parseEventDate(value):value;return new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",day:"2-digit",month:"2-digit",year:"numeric"}).format(d)}
-function formatMeeting(m:FixedMeeting){const d=parseEventDate(m.start);const time=new Intl.DateTimeFormat("pt-BR",{timeZone:"America/Sao_Paulo",hour:"2-digit",minute:"2-digit"}).format(d);return `${formatDate(d)} · ${time}`}
+function formatMeeting(m:FixedMeeting){return formatDate(m.date)}
 function isBirthday(e:CalendarEventDTO){const t=normalizeText(e.summary);return t.includes("aniversario")||t.includes("aniversariante")||t.includes("birthday")}
 function isVacation(e:CalendarEventDTO){return normalizeText(e.summary).includes("ferias")}
 function panelItem(e:CalendarEventDTO):PanelDateItem{return{id:`${e.calendarKey}-${e.id}`,summary:e.summary,start:e.start,end:e.end}}
@@ -54,14 +54,14 @@ function meetings(items:Meeting[],now:Date,unit:Store):FixedMeeting[]{
  const today=`${parts.find(item=>item.type==="year")?.value}-${parts.find(item=>item.type==="month")?.value}-${parts.find(item=>item.type==="day")?.value}`;
  const expectedUnit=unit==="araras"?"Araras":"Rio Claro";
  return items.filter(item=>item.status==="agendada"&&item.unit===expectedUnit)
-  .flatMap(item=>[{date:item.date,time:item.time},{date:item.secondDate,time:item.secondTime},...(item.additionalDates||[])])
+  .flatMap(item=>[{date:item.date,time:item.time,frequency:item.frequency},{date:item.secondDate,time:item.secondTime,frequency:item.frequency},...(item.additionalDates||[]).map(occurrence=>({...occurrence,frequency:item.frequency}))])
   .filter(item=>item.date&&item.date>=today)
   .sort((a,b)=>a.date.localeCompare(b.date)||a.time.localeCompare(b.time))
   .slice(0,2)
-  .map((item,index)=>({summary:`Reunião ${expectedUnit}`,start:`${item.date}T${item.time}:00${PANEL_UTC_OFFSET}`,label:index===0?"Próxima":"Seguinte"}));
+  .map((item,index)=>({date:item.date,time:item.time,label:index===0?"Próxima":"Seguinte",frequency:item.frequency||"Mensal"}));
 }
 function AnnouncementCard({store,isAdmin,canConfirmRead,collaborators}:{store:Store;isAdmin:boolean;canConfirmRead:boolean;collaborators:ConfiguredCollaborator[]}){const unit=store==="rio claro"?"Rio Claro":"Araras";const members=collaborators.filter(member=>member.active&&member.unit===unit);return <article className="h-full min-w-0 rounded-3xl border border-blue-200 bg-blue-50 p-5 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wider text-blue-700">AVISOS</p><h2 className="mt-2 text-xl font-semibold text-slate-950">{unit}</h2><div className="mt-4 space-y-4"><ComunicadosFeed store={store} isAdmin={isAdmin} canConfirmRead={canConfirmRead} members={members}/></div></article>}
-function MeetingSummaryCard({title,list}:{title:string;list:FixedMeeting[]}){return <article className="h-full min-w-0 rounded-3xl border border-violet-200 bg-violet-50 p-5 shadow-sm"><p className="text-xs font-semibold uppercase tracking-wider text-violet-700">Reuniões</p><h3 className="mt-3 font-semibold text-slate-950">{title}</h3>{list.length?<div className="mt-2 space-y-2">{list.map((m,i)=><div key={m.start} className="rounded-xl bg-white/70 p-3"><p className="text-xs font-semibold uppercase text-violet-700">{i===0?"Próxima":"Seguinte"}</p><p className="mt-1 text-sm font-semibold text-slate-800">{formatMeeting(m)}</p></div>)}</div>:<p className="mt-2 text-sm text-slate-500">Nenhuma reunião programada.</p>}</article>}
+function MeetingSummaryCard({title,list}:{title:string;list:FixedMeeting[]}){const frequency=list[0]?.frequency;return <article className="h-full min-w-0 rounded-3xl border border-blue-200 bg-blue-50 p-5 shadow-sm"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold uppercase tracking-wider text-slate-500">PRÓXIMAS REUNIÕES</p><h3 className="mt-1 text-xl font-semibold text-slate-950">{title}</h3></div>{frequency&&<span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-700">{frequency}</span>}</div><div className="mt-5 grid gap-3 sm:grid-cols-2">{["PRÓXIMA","SEGUINTE"].map((label,index)=>{const meeting=list[index];return <div key={label} className="min-w-0 rounded-2xl bg-white/80 p-4"><p className="text-sm font-semibold uppercase tracking-wider text-slate-500">{label}</p>{meeting?<><p className="mt-2 text-lg font-semibold text-slate-900">{formatMeeting(meeting)}</p>{meeting.time&&<p className="mt-1 text-base text-slate-500">{meeting.time}</p>}</>:<p className="mt-2 text-base text-slate-500">A definir</p>}</div>})}</div></article>}
 function EventCard({title,tone,events}:{title:string;tone:"pink"|"amber";events:PanelDateItem[]}){const cls=tone==="pink"?"border-pink-200 bg-pink-50":"border-amber-200 bg-amber-50";return <article className={`h-full min-w-0 rounded-3xl border p-5 shadow-sm ${cls}`}><p className="text-xs font-semibold uppercase tracking-wider text-slate-700">{title}</p>{events.length?<ul className="mt-3 space-y-2">{events.map(e=><li key={e.id} className="rounded-xl bg-white/70 p-3"><p className="font-semibold text-slate-900">{cleanSummary(e.summary)}</p><p className="mt-1 text-sm text-slate-600">{title==="Férias"&&e.end?`${formatDate(e.start)} a ${formatDate(e.end)}`:formatDate(e.start)}</p></li>)}</ul>:<p className="mt-3 text-sm text-slate-500">Nenhum registro informado.</p>}</article>}
 
 export default async function ColaboradoresPage(){

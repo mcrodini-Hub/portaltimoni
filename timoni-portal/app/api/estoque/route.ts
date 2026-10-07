@@ -396,6 +396,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
 
+    if (action === "editar") {
+      if (!(await canDeleteStockRecords())) throw new Error("Somente Ciça pode editar solicitações do Estoque.");
+      const quantidade = String(body.quantidade ?? currentNeed.quantidade).trim();
+      const nota = String(body.nota ?? currentNeed.notaVendedor).trim();
+      const observacao = String(body.observacao ?? currentNeed.observacao).trim();
+      const numeroPedido = String(body.numeroPedido ?? currentNeed.numeroPedido).trim();
+      const previsao = String(body.previsao ?? currentNeed.previsaoEntrega).trim();
+      if (previsao && !/^\d{4}-\d{2}-\d{2}$/.test(previsao)) throw new Error("Informe uma previsão de entrega válida.");
+      if (nota.length > 50000 || observacao.length > 50000) throw new Error("Observação muito longa.");
+      await updateCells(sheets, [
+        { range: `Necessidades!G${rowNumber}:I${rowNumber}`, values: [[numeroPedido, previsao, observacao]] },
+        { range: `Necessidades!M${rowNumber}:N${rowNumber}`, values: [[quantidade, nota]] },
+      ]);
+      await recordStockUpdate(`Solicitação editada: ${currentNeed.codigo} · ${currentNeed.descricao}.`);
+      return NextResponse.json({ ok: true });
+    }
+
     if (action === "em_compra") {
       await updateCells(sheets, [
         { range: `Necessidades!D${rowNumber}`, values: [[STATUS.EM_COMPRA]] },

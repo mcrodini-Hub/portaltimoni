@@ -665,10 +665,16 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
       </nav>
       {editingNeed && (
         <section role="dialog" aria-modal="true" aria-label="Editar solicitação" className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/40 p-4">
-          <form onSubmit={async (event) => { event.preventDefault(); if (await post({ action: "editar", id: editingNeed.id, quantidade: editingNeed.quantidade, nota: editingNeed.notaVendedor, observacao: editingNeed.observacao, numeroPedido: editingNeed.numeroPedido, previsao: editingNeed.previsaoEntrega }, editingNeed.id)) setEditingNeed(null); }} className="mx-auto my-8 max-w-lg space-y-4 rounded-2xl bg-white p-5 shadow-xl">
+          <form onSubmit={async (event) => { event.preventDefault(); if (await post({ action: "editar", id: editingNeed.id, status: editingNeed.status, quantidade: editingNeed.quantidade, nota: editingNeed.notaVendedor, observacao: editingNeed.observacao, numeroPedido: editingNeed.numeroPedido, previsao: editingNeed.previsaoEntrega }, editingNeed.id)) setEditingNeed(null); }} className="mx-auto my-8 max-w-lg space-y-4 rounded-2xl bg-white p-5 shadow-xl">
             <h2 className="text-xl font-semibold">Editar solicitação</h2>
             {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
             <p className="text-sm">{editingNeed.codigo} · {editingNeed.descricao}</p>
+            <label className="block text-sm">Etapa<select value={editingNeed.status} onChange={(event) => setEditingNeed({ ...editingNeed, status: event.target.value })} className={input + " mt-1 w-full"}>
+              {!["pendente", "em_compra", "pedido_existente"].includes(editingNeed.status) && <option value={editingNeed.status}>Manter etapa atual: {label(editingNeed.status)}</option>}
+              <option value="pendente">Necessidades de compra</option>
+              <option value="em_compra">Relação de compra</option>
+              <option value="pedido_existente">A caminho</option>
+            </select></label>
             <label className="block text-sm">Quantidade<input autoFocus value={editingNeed.quantidade} onChange={(event) => setEditingNeed({ ...editingNeed, quantidade: event.target.value })} className={input + " mt-1 w-full"} /></label>
             <label className="block text-sm">Observação do vendedor<textarea value={editingNeed.notaVendedor} onChange={(event) => setEditingNeed({ ...editingNeed, notaVendedor: event.target.value })} className={input + " mt-1 w-full"} /></label>
             <label className="block text-sm">Resposta do Estoque<textarea value={editingNeed.observacao} onChange={(event) => setEditingNeed({ ...editingNeed, observacao: event.target.value })} className={input + " mt-1 w-full"} /></label>

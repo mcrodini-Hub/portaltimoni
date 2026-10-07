@@ -490,6 +490,17 @@ export async function POST(request: Request) {
       await recordStockUpdate(`Resposta do vendedor recebida: ${currentNeed.codigo} · ${currentNeed.descricao}.`);
       return NextResponse.json({ ok: true });
     }
+    if (action === "reabrir") {
+      if (!(await canDeleteStockRecords())) throw new Error("Somente Ciça pode reabrir solicitações do Estoque.");
+      if (currentNeed.status !== STATUS.CHEGOU) throw new Error("Somente solicitações em Chegou podem ser reabertas.");
+      await updateCells(sheets, [
+        { range: `Necessidades!D${rowNumber}`, values: [[STATUS.PEDIDO_EXISTENTE]] },
+        { range: `Necessidades!O${rowNumber}`, values: [[""]] },
+      ]);
+      await recordStockUpdate(`Solicitação reaberta para A caminho: ${currentNeed.codigo} · ${currentNeed.descricao}.`);
+      return NextResponse.json({ ok: true });
+    }
+
     if (action === "chegou") {
       await updateCells(sheets, [
         { range: `Necessidades!D${rowNumber}`, values: [[STATUS.CHEGOU]] },

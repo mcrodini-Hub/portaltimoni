@@ -304,6 +304,12 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
     setResponseDrafts((current) => ({ ...current, [need.id]: "" }));
   }
 
+  async function reopen(need: Need) {
+    if (window.confirm(`Reabrir ${need.codigo} e devolver para A caminho?`)) {
+      await post({ action: "reabrir", id: need.id }, need.id);
+    }
+  }
+
   async function arrived(need: Need) {
     if (window.confirm(`Confirmar chegada de ${need.codigo}?`)) await post({ action: "chegou", id: need.id }, need.id);
   }
@@ -479,6 +485,7 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
           </div>
         )}
         {canEdit && <button type="button" disabled={disabled} onClick={() => setEditingNeed({ ...need })} className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 disabled:opacity-50">Editar</button>}
+        {need.status === "chegou" && canEdit && <button type="button" disabled={disabled} onClick={() => void reopen(need)} className="ml-2 mt-4 rounded-lg bg-blue-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Reabrir</button>}
         {need.status === "chegou" && canDelete && (
           <div className="mt-4">
             <button disabled={disabled} onClick={() => void remove(need)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50">Excluir</button>

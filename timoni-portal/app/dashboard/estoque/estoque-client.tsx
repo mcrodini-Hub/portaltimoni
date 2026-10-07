@@ -139,6 +139,7 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
   const [note, setNote] = useState("");
   const [waiting, setWaiting] = useState(false);
   const [responseDrafts, setResponseDrafts] = useState<Record<string, string>>({});
+  const [editingNeed, setEditingNeed] = useState<Need | null>(null);
   const [editingResponseIds, setEditingResponseIds] = useState<Set<string>>(new Set());
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>("default");
 
@@ -453,7 +454,6 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
               {["pendente", "em_compra", "observacao", "consulta"].includes(need.status) && <button disabled={disabled} onClick={() => void order(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Pedido feito</button>}
               {(["pendente", "em_compra", "observacao", "consulta"].includes(need.status) || editingResponseIds.has(need.id)) && <button disabled={disabled} onClick={() => void observe(need)} className="rounded-lg border px-3 py-2 text-xs font-semibold disabled:opacity-50">{editingResponseIds.has(need.id) ? "Salvar edição" : "Salvar observação"}</button>}
               {need.status === "pedido_existente" && <button disabled={disabled} onClick={() => void arrived(need)} className="rounded-lg bg-emerald-700 px-3 py-2 text-xs font-semibold text-white disabled:opacity-50">Produto chegou</button>}
-              {canEdit && need.observacao && <button disabled={disabled} onClick={() => toggleEditResponse(need)} className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 disabled:opacity-50">{editingResponseIds.has(need.id) ? "Cancelar edição" : "Editar"}</button>}
               {canDelete && <button disabled={disabled} onClick={() => void remove(need)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50">Excluir</button>}
             </div>
           </div>
@@ -478,6 +478,7 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
             </button>
           </div>
         )}
+        {canEdit && <button type="button" disabled={disabled} onClick={() => setEditingNeed({ ...need })} className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-800 disabled:opacity-50">Editar</button>}
         {need.status === "chegou" && canDelete && (
           <div className="mt-4">
             <button disabled={disabled} onClick={() => void remove(need)} className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-100 disabled:opacity-50">Excluir</button>
@@ -554,7 +555,7 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
     return (
       <>
         {statusSections.map(({ title, items, empty }, index) => (
-          <section key={title} className="rounded-3xl border bg-white p-5 shadow-sm">
+          <section key={title} id={`estoque-etapa-${index}`} className="scroll-mt-24 rounded-3xl border bg-white p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-semibold">{title}</h2>
               {isManager && index === 0 && (
@@ -645,6 +646,31 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
 
       {error && <div className={isManager ? "mt-4 rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800" : "rounded-2xl border border-red-200 bg-red-50 p-4 text-sm font-medium text-red-800"}>{error}</div>}
       {notice && <div className={isManager ? "mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800" : "rounded-2xl border border-emerald-200 bg-emerald-50 p-4 text-sm font-medium text-emerald-800"}>{notice}</div>}
+
+
+      <nav aria-label="Resumo do Estoque" className="mt-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
+        {[{ title: "Em aberto", count: openNeeds.length }, { title: "Relação de compra", count: purchaseNeeds.length }, { title: "A caminho", count: onWay.length }, { title: "Chegou", count: history.length }].map((item, index) => (
+          <a key={item.title} href={`#estoque-etapa-${index}`} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:border-blue-400 focus-visible:outline-2 focus-visible:outline-blue-700">
+            <span className="block text-2xl font-semibold text-slate-950">{item.count}</span>
+            <span className="mt-1 block text-sm text-blue-800">{item.title}</span>
+          </a>
+        ))}
+      </nav>
+      {editingNeed && (
+        <section role="dialog" aria-modal="true" aria-label="Editar solicitação" className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/40 p-4">
+          <form onSubmit={async (event) => { event.preventDefault(); if (await post({ action: "editar", id: editingNeed.id, quantidade: editingNeed.quantidade, nota: editingNeed.notaVendedor, observacao: editingNeed.observacao, numeroPedido: editingNeed.numeroPedido, previsao: editingNeed.previsaoEntrega }, editingNeed.id)) setEditingNeed(null); }} className="mx-auto my-8 max-w-lg space-y-4 rounded-2xl bg-white p-5 shadow-xl">
+            <h2 className="text-xl font-semibold">Editar solicitação</h2>
+            {error && <p role="alert" className="text-sm text-red-700">{error}</p>}
+            <p className="text-sm">{editingNeed.codigo} · {editingNeed.descricao}</p>
+            <label className="block text-sm">Quantidade<input autoFocus value={editingNeed.quantidade} onChange={(event) => setEditingNeed({ ...editingNeed, quantidade: event.target.value })} className={input + " mt-1 w-full"} /></label>
+            <label className="block text-sm">Observação do vendedor<textarea value={editingNeed.notaVendedor} onChange={(event) => setEditingNeed({ ...editingNeed, notaVendedor: event.target.value })} className={input + " mt-1 w-full"} /></label>
+            <label className="block text-sm">Resposta do Estoque<textarea value={editingNeed.observacao} onChange={(event) => setEditingNeed({ ...editingNeed, observacao: event.target.value })} className={input + " mt-1 w-full"} /></label>
+            <label className="block text-sm">Número do pedido<input value={editingNeed.numeroPedido} onChange={(event) => setEditingNeed({ ...editingNeed, numeroPedido: event.target.value })} className={input + " mt-1 w-full"} /></label>
+            <label className="block text-sm">Previsão de entrega<input type="date" value={editingNeed.previsaoEntrega} onChange={(event) => setEditingNeed({ ...editingNeed, previsaoEntrega: event.target.value })} className={input + " mt-1 w-full"} /></label>
+            <div className="flex gap-2"><button type="submit" disabled={busy === editingNeed.id} className={primary}>Salvar</button><button type="button" disabled={busy === editingNeed.id} onClick={() => setEditingNeed(null)} className={input}>Cancelar</button></div>
+          </form>
+        </section>
+      )}
 
       {!isManager ? (
         <div className="space-y-5">

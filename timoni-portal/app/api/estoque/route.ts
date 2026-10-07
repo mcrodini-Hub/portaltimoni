@@ -398,16 +398,24 @@ export async function POST(request: Request) {
 
     if (action === "editar") {
       if (!(await canDeleteStockRecords())) throw new Error("Somente Ciça pode editar solicitações do Estoque.");
+      const status = String(body.status ?? currentNeed.status);
+      const statusChanged = status !== currentNeed.status;
+      if (statusChanged && !([STATUS.PENDENTE, STATUS.EM_COMPRA, STATUS.PEDIDO_EXISTENTE] as string[]).includes(status)) throw new Error("Selecione uma etapa válida.");
       const quantidade = String(body.quantidade ?? currentNeed.quantidade).trim();
       const nota = String(body.nota ?? currentNeed.notaVendedor).trim();
       const observacao = String(body.observacao ?? currentNeed.observacao).trim();
       const numeroPedido = String(body.numeroPedido ?? currentNeed.numeroPedido).trim();
       const previsao = String(body.previsao ?? currentNeed.previsaoEntrega).trim();
       if (previsao && !/^\d{4}-\d{2}-\d{2}$/.test(previsao)) throw new Error("Informe uma previsão de entrega válida.");
+      if (statusChanged && status === STATUS.PEDIDO_EXISTENTE && (!numeroPedido || !previsao)) throw new Error("Informe o pedido e a previsão para A caminho.");
       if (nota.length > 50000 || observacao.length > 50000) throw new Error("Observação muito longa.");
       await updateCells(sheets, [
         { range: `Necessidades!G${rowNumber}:I${rowNumber}`, values: [[numeroPedido, previsao, observacao]] },
         { range: `Necessidades!M${rowNumber}:N${rowNumber}`, values: [[quantidade, nota]] },
+        ...(statusChanged ? [
+          { range: `Necessidades!D${rowNumber}`, values: [[status]] },
+          { range: `Necessidades!O${rowNumber}`, values: [[""]] },
+        ] : []),
       ]);
       await recordStockUpdate(`Solicitação editada: ${currentNeed.codigo} · ${currentNeed.descricao}.`);
       return NextResponse.json({ ok: true });

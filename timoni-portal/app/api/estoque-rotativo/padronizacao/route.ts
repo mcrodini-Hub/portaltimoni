@@ -23,7 +23,7 @@ async function context() {
   if (!session?.accessToken || session.error === "RefreshAccessTokenError") throw new Error("Sessão expirada. Saia e entre novamente no Portal.");
   const oauth = new google.auth.OAuth2();
   oauth.setCredentials({ access_token: session.accessToken });
-  return { email, sheets: google.sheets({ version: "v4", auth: oauth }) };
+  return { sheets: google.sheets({ version: "v4", auth: oauth }) };
 }
 
 async function spreadsheetSheets(sheets: sheets_v4.Sheets, spreadsheetId: string) {
@@ -108,7 +108,7 @@ async function restoreBackup(sheets: sheets_v4.Sheets, spreadsheetId: string, sh
   const sourceId = source?.properties?.sheetId;
   const backupId = backup?.properties?.sheetId;
   if (sourceId === undefined || sourceId === null) throw new Error("A aba padronizada não foi encontrada.");
-  if (backupId === undefined || backupId === null) throw new Error("Não há ponto de restauração para esta padronização. Não foi feita nenhuma alteração.");
+  if (backupId === undefined || backupId === null) return false;
 
   const temporaryTitle = `TMP_ROTATIVO_${Date.now()}`.slice(0, 100);
   const originalIndex = Number(source?.properties?.index || 0);
@@ -132,6 +132,7 @@ async function restoreBackup(sheets: sheets_v4.Sheets, spreadsheetId: string, sh
       ],
     },
   });
+  return true;
 }
 
 function apiError(error: unknown) {
@@ -164,9 +165,9 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: true });
     }
     if (action === "reverter") {
-      await restoreBackup(sheets, spreadsheetId, sheetName);
+      const restored = await restoreBackup(sheets, spreadsheetId, sheetName);
       await deleteSupplierStandardization(spreadsheetId, sheetName);
-      return NextResponse.json({ ok: true });
+      return NextResponse.json({ ok: true, restored });
     }
     throw new Error("Ação de padronização inválida.");
   } catch (error) {

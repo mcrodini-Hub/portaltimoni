@@ -74,18 +74,32 @@ async function createBackup(sheets: sheets_v4.Sheets, spreadsheetId: string, she
 
 async function setA1Overflow(sheets: sheets_v4.Sheets, spreadsheetId: string, sheetName: string) {
   const available = await spreadsheetSheets(sheets, spreadsheetId);
-  const sheetId = available.find((sheet) => sheet.properties?.title === sheetName)?.properties?.sheetId;
+  const sheet = available.find((item) => item.properties?.title === sheetName);
+  const sheetId = sheet?.properties?.sheetId;
   if (sheetId === undefined || sheetId === null) throw new Error("A aba selecionada não foi encontrada.");
+
+  const rowCount = Math.max(5, sheet?.properties?.gridProperties?.rowCount || 1000);
+  const columnCount = Math.max(6, sheet?.properties?.gridProperties?.columnCount || 26);
+
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId,
     requestBody: {
-      requests: [{
-        repeatCell: {
-          range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 },
-          cell: { userEnteredFormat: { wrapStrategy: "OVERFLOW_CELL" } },
-          fields: "userEnteredFormat.wrapStrategy",
+      requests: [
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 },
+            cell: { userEnteredFormat: { wrapStrategy: "OVERFLOW_CELL" } },
+            fields: "userEnteredFormat.wrapStrategy",
+          },
         },
-      }],
+        {
+          repeatCell: {
+            range: { sheetId, startRowIndex: 4, endRowIndex: rowCount, startColumnIndex: 5, endColumnIndex: columnCount },
+            cell: { userEnteredFormat: { numberFormat: { type: "TEXT", pattern: "@" } } },
+            fields: "userEnteredFormat.numberFormat",
+          },
+        },
+      ],
     },
   });
 }

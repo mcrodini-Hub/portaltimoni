@@ -226,6 +226,25 @@ export default function EstoqueRotativoClient() {
     } finally { setBusy(false); }
   }
 
+  async function standardizationControl(action: string, spreadsheetId: string, sheetName: string) {
+    setStandardizationError("");
+    try {
+      const response = await fetch("/api/estoque-rotativo/padronizacao", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, spreadsheetId, sheetName }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Não foi possível concluir a padronização.");
+      return result;
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : "Não foi possível concluir a padronização.";
+      setError(message);
+      setStandardizationError(message);
+      return null;
+    }
+  }
+
   async function selectStandardizationSupplier(spreadsheetId: string) {
     const requestId = ++standardizationRequest.current;
     setStandardizationError("");
@@ -261,21 +280,34 @@ export default function EstoqueRotativoClient() {
   }
 
   async function standardizeNextSupplier(spreadsheetId?: string) {
+    const targetSpreadsheetId = spreadsheetId || selectedStandardizationSupplierId;
+    if (!targetSpreadsheetId || !standardizationSheetName) return;
     setStandardizingSupplier(true);
+    const backup = await standardizationControl("criar_backup", targetSpreadsheetId, standardizationSheetName);
+    if (!backup) {
+      setStandardizingSupplier(false);
+      return;
+    }
     const result = await post({
       action: "padronizar_proxima_planilha",
-      spreadsheetId: spreadsheetId || undefined,
+      spreadsheetId: targetSpreadsheetId,
       sheetName: standardizationSheetName,
     }, true);
-    setStandardizingSupplier(false);
     if (!result) {
+      setStandardizingSupplier(false);
       return;
     }
     if (result.complete) {
+      setStandardizingSupplier(false);
       setFeedback("Todas as planilhas de fornecedores já foram padronizadas.");
       await load();
       return;
     }
+    const resultSpreadsheetId = String(result.spreadsheetId || targetSpreadsheetId);
+    const resultSheetName = String(result.sheetName || standardizationSheetName);
+    const adjusted = await standardizationControl("ajustar_a1", resultSpreadsheetId, resultSheetName);
+    setStandardizingSupplier(false);
+    if (!adjusted) return;
     setFeedback(`Planilha ${result.supplierName} pronta para conferência. Clique em Abrir aba para conferir e depois em Salvar padronização.`);
     if (result.spreadsheetId) {
       setSelectedStandardizationSupplierId(String(result.spreadsheetId));
@@ -286,13 +318,41 @@ export default function EstoqueRotativoClient() {
 
   async function confirmSupplierSheet() {
     if (!selectedPreparedSupplier) return;
+    const adjusted = await standardizationControl(
+      "ajustar_a1",
+      selectedPreparedSupplier.spreadsheet_id,
+      selectedPreparedSupplier.sheet_name,
+    );
+    if (!adjusted) return;
     const result = await post({
       action: "confirmar_planilha_fornecedor",
       spreadsheetId: selectedPreparedSupplier.spreadsheet_id,
       sheetName: selectedPreparedSupplier.sheet_name,
     }, true);
     if (!result) return;
+    await standardizationControl(
+      "descartar_backup",
+      selectedPreparedSupplier.spreadsheet_id,
+      selectedPreparedSupplier.sheet_name,
+    );
     setFeedback(`${result.supplierName} aprovada. O destaque amarelo de revisão foi removido.`);
+    await load();
+  }
+
+  async function revertPreparedSupplier() {
+    if (!selectedPreparedSupplier) return;
+    if (!window.confirm(`Reverter a padronização de ${selectedPreparedSupplier.supplier_name} · ${selectedPreparedSupplier.sheet_name} e voltar para a etapa anterior?`)) return;
+    setStandardizingSupplier(true);
+    const result = await standardizationControl(
+      "reverter",
+      selectedPreparedSupplier.spreadsheet_id,
+      selectedPreparedSupplier.sheet_name,
+    );
+    setStandardizingSupplier(false);
+    if (!result) return;
+    setFeedback(result.restored
+      ? `${selectedPreparedSupplier.supplier_name} restaurada para o estado anterior à padronização.`
+      : `${selectedPreparedSupplier.supplier_name} voltou para a etapa anterior.`);
     await load();
   }
 
@@ -1094,7 +1154,8 @@ export default function EstoqueRotativoClient() {
               ) : selectedPreparedSupplier ? (
                 <>
                   <a href={selectedPreparedSupplier.spreadsheet_url} target="_blank" rel="noreferrer" className="text-sm font-semibold text-[#13038D] underline">Abrir aba para conferir</a>
-                  <button type="button" onClick={() => void confirmSupplierSheet()} disabled={busy} className="min-h-11 rounded-xl bg-[#13038D] px-4 text-sm font-semibold text-white disabled:opacity-50">Salvar padronização</button>
+                  <button type="button" onClick={() => void confirmSupplierSheet()} disabled={busy || standardizingSupplier} className="min-h-11 rounded-xl bg-[#13038D] px-4 text-sm font-semibold text-white disabled:opacity-50">Salvar padronização</button>
+                  <button type="button" onClick={() => void revertPreparedSupplier()} disabled={busy || standardizingSupplier} className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 disabled:opacity-50">Reverter</button>
                 </>
               ) : (
                 <button type="button" onClick={() => void standardizeNextSupplier(selectedStandardizationSupplier.id)} disabled={busy || standardizingSupplier} className="min-h-11 rounded-xl bg-[#13038D] px-4 text-sm font-semibold text-white disabled:opacity-50">{standardizingSupplier ? "Padronizando..." : "Padronizar e conferir"}</button>

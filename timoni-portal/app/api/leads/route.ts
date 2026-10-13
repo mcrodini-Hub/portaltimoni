@@ -16,9 +16,11 @@ export async function GET(request: Request) {
   const context = await authorizedContext();
   if (!context) return NextResponse.json({ error: "Sessão Google sem acesso à planilha. Entre novamente no Portal." }, { status: 401 });
   try {
-    const summaryOnly = new URL(request.url).searchParams.get("summary") === "1";
+    const params = new URL(request.url).searchParams;
+    const location = params.get("location") === "ara" ? "ara" : "rc";
+    const summaryOnly = params.get("summary") === "1";
     if (summaryOnly) {
-      const leads = await listLeads(context.accessToken);
+      const leads = await listLeads(context.accessToken, location);
       const atrasados = leads.filter((x) => x.status === "atrasado").length;
       const hoje = leads.filter((x) => x.status === "hoje").length;
       return NextResponse.json(
@@ -26,7 +28,7 @@ export async function GET(request: Request) {
         { headers: { "Cache-Control": "no-store" } },
       );
     }
-    const [leads, prospects, activities] = await Promise.all([listLeads(context.accessToken), listProspects(context.accessToken), listLeadActivities(context.accessToken)]);
+    const [leads, prospects, activities] = await Promise.all([listLeads(context.accessToken, location), listProspects(context.accessToken, location), listLeadActivities(context.accessToken, location)]);
     const atrasados = leads.filter((x) => x.status === "atrasado").length;
     const hoje = leads.filter((x) => x.status === "hoje").length;
     const semData = leads.filter((x) => x.status === "sem-data").length;
@@ -41,11 +43,12 @@ export async function POST(request: Request) {
   if (!context) return NextResponse.json({ error: "Sessão Google sem acesso à planilha. Entre novamente no Portal." }, { status: 401 });
   try {
     const body = await request.json();
+    const location = body?.location === "ara" ? "ara" : "rc";
     if (body?.action === "gerar_relatorio") {
       const result = await createLeadsReport({
         startDate: String(body?.startDate ?? "").trim(),
         endDate: String(body?.endDate ?? "").trim(),
-      }, context.accessToken);
+      }, context.accessToken, location);
       return NextResponse.json({ ok: true, ...result });
     }
     if (body?.action === "reativar") {
@@ -57,12 +60,12 @@ export async function POST(request: Request) {
         canal: String(body?.canal ?? "").trim(),
         proximoContato: String(body?.proximoContato ?? "").trim(),
         observacoes: String(body?.observacoes ?? "").trim(),
-      }, context.accessToken);
+      }, context.accessToken, location);
       await recordModuleUpdateSafely("leads", context.email, "Cliente reativado no Follow Up.");
       return NextResponse.json({ ok: true });
     }
     if (body?.action === "mover_para_prospectar") {
-      await moveLeadToProspects({ row: Number(body?.row) }, context.accessToken);
+      await moveLeadToProspects({ row: Number(body?.row) }, context.accessToken, location);
       await recordModuleUpdateSafely("leads", context.email, "Cliente transferido para A Prospectar.");
       return NextResponse.json({ ok: true });
     }
@@ -75,9 +78,9 @@ export async function POST(request: Request) {
       observacoes: String(body?.observacoes ?? "").trim(),
     };
     if (destino === "followup") {
-      await addLead({ ...common, proximoContato: String(body?.proximoContato ?? "").trim() }, context.accessToken);
+      await addLead({ ...common, proximoContato: String(body?.proximoContato ?? "").trim() }, context.accessToken, location);
     } else {
-      await addProspect({ ...common, cidade: String(body?.cidade ?? "").trim(), oportunidade: String(body?.oportunidade ?? "").trim() }, context.accessToken);
+      await addProspect({ ...common, cidade: String(body?.cidade ?? "").trim(), oportunidade: String(body?.oportunidade ?? "").trim() }, context.accessToken, location);
     }
     await recordModuleUpdateSafely("leads", context.email, `Cliente cadastrado: ${common.cliente || "sem nome"}.`);
     return NextResponse.json({ ok: true });
@@ -91,6 +94,7 @@ export async function PATCH(request: Request) {
   if (!context) return NextResponse.json({ error: "Sessão Google sem acesso à planilha. Entre novamente no Portal." }, { status: 401 });
   try {
     const body = await request.json();
+    const location = body?.location === "ara" ? "ara" : "rc";
     const row = Number(body?.row);
     const cliente = String(body?.cliente ?? "").trim();
     const segmento = String(body?.segmento ?? "").trim();
@@ -100,7 +104,7 @@ export async function PATCH(request: Request) {
     const proximoContato = String(body?.proximoContato ?? "").trim();
     const observacoes = String(body?.observacoes ?? "").trim();
     if (!proximoContato) return NextResponse.json({ error: "Informe a data do próximo contato." }, { status: 400 });
-    await updateLeadFollowUp({ row, cliente, segmento, contato, canal, ultimoContato, proximoContato, observacoes }, context.accessToken);
+    await updateLeadFollowUp({ row, cliente, segmento, contato, canal, ultimoContato, proximoContato, observacoes }, context.accessToken, location);
     await recordModuleUpdateSafely("leads", context.email, `Follow Up atualizado: ${cliente || "cliente"}.`);
     return NextResponse.json({ ok: true });
   } catch (error) {
@@ -113,7 +117,8 @@ export async function PUT(request: Request) {
   if (!context) return NextResponse.json({ error: "Sessão Google sem acesso à planilha. Entre novamente no Portal." }, { status: 401 });
   try {
     const body = await request.json();
-    const result = await importLeads(body?.rows, context.accessToken);
+    const location = body?.location === "ara" ? "ara" : "rc";
+    const result = await importLeads(body?.rows, context.accessToken, location);
     await recordModuleUpdateSafely("leads", context.email, "Lista de Leads importada.");
     return NextResponse.json({ ok: true, ...result });
   } catch (error) {

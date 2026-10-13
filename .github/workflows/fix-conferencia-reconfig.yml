@@ -1,4 +1,4 @@
-name: Corrigir reativacao da Conferencia
+name: Atualizar modelo Rotativo urgente
 
 on:
   push:
@@ -17,105 +17,242 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Ajustar recuperacao da configuracao
+      - name: Aplicar novo modelo do Rotativo
         run: |
           python - <<'PY'
           from pathlib import Path
 
-          path = Path('timoni-portal/app/dashboard/conferencia-pedidos/ConferenciaPedidosClient.tsx')
-          text = path.read_text(encoding='utf-8')
+          route = Path('timoni-portal/app/api/estoque-rotativo/route.ts')
+          text = route.read_text(encoding='utf-8')
 
-          text = text.replace(
-            '  const [result, setResult] = useState<ConferenciaResult | null>(null);',
-            '  const [result, setResult] = useState<ConferenciaResult | null>(null);\n  const [needsGeminiSetup, setNeedsGeminiSetup] = useState(false);',
-            1,
-          )
+          old = '''  const preservedManualDate = formulas[3]?.[3] ?? formulas[3]?.[4] ?? "";
+  const responsible = metadataRows
+    .flat()
+    .map((value) => String(value ?? "").trim())
+    .find((value) => ["lucas", "jonatan"].includes(normalizeHeader(value))) || "LUCAS";
 
-          text = text.replace(
-            '    setError("");\n    setResult(null);',
-            '    setError("");\n    setResult(null);\n    setNeedsGeminiSetup(false);',
-            1,
-          )
+  // A1 identifies the supplier; C1 records standardization, C2 is reserved for a later Rotativo update.
+  topRows[0] = [file.name.toLocaleUpperCase("pt-BR"), "", `Padronizada em ${standardizedAt}`];
+  topRows[1] = [];
 
-          old = '''      const payload = await response.json();
-      if (!response.ok) {
-        throw new Error(payload?.error || "Não foi possível concluir a conferência.");
-      }
-'''
-          new = '''      const payload = await response.json();
-      if (!response.ok) {
-        if (payload?.code === "GEMINI_NOT_CONFIGURED") {
-          setNeedsGeminiSetup(true);
-          throw new Error(
-            "A análise precisa ser reativada neste navegador antes de continuar.",
-          );
-        }
-        throw new Error(payload?.error || "Não foi possível concluir a conferência.");
-      }
-'''
+  // D3 concentra o responsavel; preserve o historico da linha 3 a partir da coluna F.
+  const preservedRow3Tail = [...(metadataRows[2] || [])].slice(5);
+  topRows[2] = [];
+  topRows[2][3] = responsible.toLocaleUpperCase("pt-BR");
+  preservedRow3Tail.forEach((value, index) => {
+    topRows[2][index + 5] = value;
+  });
+  topRows[3] = [];
+  topRows[3][3] = preservedManualDate;'''
+          new = '''  const preservedRotativoUpdate = metadataRows
+    .flat()
+    .find((value) => /^Rotativo atualizado em\\s+/i.test(String(value ?? "").trim())) || "";
+
+  let responsible: SheetValue = "";
+  let preservedManualDate: SheetValue = "";
+  for (const row of metadataRows) {
+    const originalRow = row || [];
+    const normalizedRow = originalRow.map((value) => normalizeHeader(value));
+    const employeeLabelIndex = normalizedRow.findIndex((value) => value.includes("funcionario"));
+    if (employeeLabelIndex < 0) continue;
+    const dateLabelIndex = normalizedRow.findIndex((value, index) => index > employeeLabelIndex && value === "data");
+    const responsibleValues = originalRow
+      .slice(employeeLabelIndex + 1, dateLabelIndex >= 0 ? dateLabelIndex : undefined)
+      .filter((value) => String(value ?? "").trim() !== "");
+    if (responsibleValues.length) responsible = responsibleValues.map((value) => String(value).trim()).join(" / ");
+    if (dateLabelIndex >= 0) {
+      preservedManualDate = originalRow
+        .slice(dateLabelIndex + 1)
+        .find((value) => String(value ?? "").trim() !== "") ?? "";
+    }
+    break;
+  }
+  if (!responsible) {
+    responsible = metadataRows
+      .flat()
+      .map((value) => String(value ?? "").trim())
+      .find((value) => /(^|[\\s/,;-])(lucas|jonathan|jonatan)([\\s/,;-]|$)/i.test(value)) || "";
+  }
+
+  topRows[0] = [file.name.toLocaleUpperCase("pt-BR")];
+  topRows[1] = [`Padronizada em ${standardizedAt}`];
+  const preservedRow3Tail = [...(metadataRows[2] || [])].slice(5);
+  topRows[2] = preservedRotativoUpdate ? [preservedRotativoUpdate] : [];
+  preservedRow3Tail.forEach((value, index) => {
+    topRows[2][index + 5] = value;
+  });
+  topRows[3] = [];
+  topRows[3][2] = String(responsible || "").toLocaleUpperCase("pt-BR");
+  topRows[3][3] = preservedManualDate;'''
           if old not in text:
-            raise SystemExit('Bloco de resposta nao encontrado')
+            raise SystemExit('bloco principal nao encontrado')
           text = text.replace(old, new, 1)
 
-          text = text.replace(
-            '    setStatus("");\n  }',
-            '    setStatus("");\n    setNeedsGeminiSetup(false);\n  }',
-            1,
-          )
+          text = text.replace('''          wrapStrategy: "WRAP",
+        } },
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 1, endColumnIndex: 2 },''', '''          wrapStrategy: "OVERFLOW_CELL",
+        } },
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 1, endColumnIndex: 2 },''', 1)
 
-          old_error = '''      {error && (
-        <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">
-          {error}
-        </div>
-      )}
-'''
-          new_error = '''      {error && (
-        <div className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-800">
-          <p>{error}</p>
-          {needsGeminiSetup && (
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <a
-                href="/dashboard/conferencia-pedidos/configurar"
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-h-10 items-center justify-center rounded-xl bg-rose-700 px-4 py-2 text-sm font-semibold text-white hover:bg-rose-800"
-              >
-                Reativar análise
-              </a>
-              <span className="text-xs font-normal text-rose-700">
-                Abra em nova aba, salve a chave e depois tente novamente. Seus arquivos permanecem nesta tela.
-              </span>
-            </div>
-          )}
-        </div>
-      )}
-'''
-          if old_error not in text:
-            raise SystemExit('Bloco de erro nao encontrado')
-          text = text.replace(old_error, new_error, 1)
-          path.write_text(text, encoding='utf-8')
+          old_c1 = '''        range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 2, endColumnIndex: 3 },
+        cell: { userEnteredFormat: {
+          backgroundColor: { red: 0.82, green: 0.9, blue: 1 },
+          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: true, foregroundColor: black },
+          horizontalAlignment: "LEFT",
+          verticalAlignment: "MIDDLE",
+          wrapStrategy: "WRAP",
+        } },'''
+          new_a2 = old_c1.replace('startRowIndex: 0, endRowIndex: 1, startColumnIndex: 2, endColumnIndex: 3', 'startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 1').replace('wrapStrategy: "WRAP"', 'wrapStrategy: "OVERFLOW_CELL"')
+          if old_c1 not in text:
+            raise SystemExit('formato C1 antigo nao encontrado')
+          text = text.replace(old_c1, new_a2, 1)
 
-          config = Path('timoni-portal/app/dashboard/conferencia-pedidos/configurar/ConfigurarGeminiClient.tsx')
-          config_text = config.read_text(encoding='utf-8')
-          config_text = config_text.replace('Configuração única', 'Configuração deste navegador')
-          config_text = config_text.replace(
-            'Depois disso, a conferência funciona normalmente neste navegador.',
-            'Depois disso, a conferência funciona normalmente enquanto esta configuração permanecer salva no navegador.',
-          )
-          config.write_text(config_text, encoding='utf-8')
+          old_c2 = '''        range: { sheetId: selected.sheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 2, endColumnIndex: 3 },
+        cell: { userEnteredFormat: {
+          backgroundColor: white,
+          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: false, foregroundColor: black },
+          horizontalAlignment: "CENTER",
+          verticalAlignment: "MIDDLE",
+          wrapStrategy: "WRAP",
+        } },'''
+          new_a3 = '''        range: { sheetId: selected.sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 1 },
+        cell: { userEnteredFormat: {
+          backgroundColor: { red: 1, green: 0.949, blue: 0.8 },
+          textFormat: { fontFamily: "Calibri", fontSize: 10, bold: true, foregroundColor: black },
+          horizontalAlignment: "LEFT",
+          verticalAlignment: "MIDDLE",
+          wrapStrategy: "OVERFLOW_CELL",
+        } },'''
+          if old_c2 not in text:
+            raise SystemExit('formato C2 antigo nao encontrado')
+          text = text.replace(old_c2, new_a3, 1)
+
+          text = text.replace('range: { sheetId: selected.sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 3, endColumnIndex: 4 },', 'range: { sheetId: selected.sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 2, endColumnIndex: 3 },', 1)
+
+          old_update = '''    range: `'${sheetName.replace(/'/g, "''")}'!C2`,
+    valueInputOption: "RAW",
+    requestBody: { values: [[`Rotativo atualizado em ${date}`]] },'''
+          new_update = old_update.replace("!C2`", "!A3`")
+          if old_update not in text:
+            raise SystemExit('registro Rotativo C2 nao encontrado')
+          text = text.replace(old_update, new_update, 1)
+
+          old_fmt = '''          range: { sheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 2, endColumnIndex: 3 },
+          cell: { userEnteredFormat: {
+            backgroundColor: { red: 0.82, green: 0.95, blue: 0.84 },
+            textFormat: {
+              fontFamily: "Calibri",
+              fontSize: 12,
+              bold: false,
+              foregroundColor: { red: 0, green: 0, blue: 0 },
+            },
+            horizontalAlignment: "CENTER",
+            verticalAlignment: "MIDDLE",
+          } },'''
+          new_fmt = '''          range: { sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 1 },
+          cell: { userEnteredFormat: {
+            backgroundColor: { red: 1, green: 0.949, blue: 0.8 },
+            textFormat: {
+              fontFamily: "Calibri",
+              fontSize: 10,
+              bold: true,
+              foregroundColor: { red: 0, green: 0, blue: 0 },
+            },
+            horizontalAlignment: "LEFT",
+            verticalAlignment: "MIDDLE",
+          } },'''
+          if old_fmt not in text:
+            raise SystemExit('formato registro Rotativo antigo nao encontrado')
+          text = text.replace(old_fmt, new_fmt, 1)
+          route.write_text(text, encoding='utf-8')
+
+          control = Path('timoni-portal/app/api/estoque-rotativo/padronizacao/route.ts')
+          ctext = control.read_text(encoding='utf-8')
+          start = ctext.index('async function setA1Overflow(')
+          end = ctext.index('async function discardBackup(', start)
+          new_func = r'''async function setA1Overflow(sheets: sheets_v4.Sheets, spreadsheetId: string, sheetName: string) {
+  const available = await spreadsheetSheets(sheets, spreadsheetId);
+  const sheet = available.find((item) => item.properties?.title === sheetName);
+  const backup = available.find((item) => item.properties?.title === backupTitle(sheetName));
+  const sheetId = sheet?.properties?.sheetId;
+  if (sheetId === undefined || sheetId === null) throw new Error("A aba selecionada não foi encontrada.");
+
+  const rowCount = Math.max(5, sheet?.properties?.gridProperties?.rowCount || 1000);
+  const columnCount = Math.max(6, sheet?.properties?.gridProperties?.columnCount || 26);
+  const quotedSheet = `'${sheetName.replace(/'/g, "''")}'`;
+  let standardizedLabel: unknown = "";
+  let rotatingLabel: unknown = "";
+  let responsible: unknown = "";
+  let originalDate: unknown = "";
+
+  const current = await sheets.spreadsheets.values.get({ spreadsheetId, range: `${quotedSheet}!A1:D4`, valueRenderOption: "FORMULA" });
+  const currentValues = current.data.values || [];
+  standardizedLabel = currentValues.flat().find((value) => /^Padronizada em\s+/i.test(String(value ?? "").trim())) || "";
+  rotatingLabel = currentValues.flat().find((value) => isRotatingStockUpdate(value)) || "";
+  responsible = currentValues[3]?.[2] || currentValues[2]?.[3] || "";
+  originalDate = currentValues[3]?.[3] || "";
+
+  if (backup?.properties?.title) {
+    const quotedBackup = `'${backup.properties.title.replace(/'/g, "''")}'`;
+    const original = await sheets.spreadsheets.values.get({ spreadsheetId, range: `${quotedBackup}!A1:Z20`, valueRenderOption: "FORMULA" });
+    for (const row of original.data.values || []) {
+      const normalized = (row || []).map((value) => String(value ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLocaleLowerCase("pt-BR").replace(/[^a-z0-9]+/g, " ").trim());
+      const employeeIndex = normalized.findIndex((value) => value.includes("funcionario"));
+      if (employeeIndex < 0) continue;
+      const dateIndex = normalized.findIndex((value, index) => index > employeeIndex && value === "data");
+      const names = (row || []).slice(employeeIndex + 1, dateIndex >= 0 ? dateIndex : undefined).filter((value) => hasValue(value));
+      if (names.length) responsible = names.map((value) => String(value).trim()).join(" / ");
+      if (dateIndex >= 0) originalDate = (row || []).slice(dateIndex + 1).find((value) => hasValue(value)) || originalDate;
+      break;
+    }
+  }
+
+  await sheets.spreadsheets.values.batchUpdate({
+    spreadsheetId,
+    requestBody: { valueInputOption: "USER_ENTERED", data: [
+      { range: `${quotedSheet}!A2`, values: [[standardizedLabel]] },
+      { range: `${quotedSheet}!A3`, values: [[rotatingLabel]] },
+      { range: `${quotedSheet}!C4`, values: [[String(responsible || "").toLocaleUpperCase("pt-BR")]] },
+      { range: `${quotedSheet}!D4`, values: [[originalDate]] },
+      { range: `${quotedSheet}!C1`, values: [[""]] },
+      { range: `${quotedSheet}!C2`, values: [[""]] },
+      { range: `${quotedSheet}!D3`, values: [[""]] },
+    ] },
+  });
+
+  await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests: [
+    { repeatCell: { range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { wrapStrategy: "OVERFLOW_CELL" } }, fields: "userEnteredFormat.wrapStrategy" } },
+    { repeatCell: { range: { sheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { backgroundColor: { red: 0.82, green: 0.9, blue: 1 }, textFormat: { fontFamily: "Calibri", fontSize: 12, bold: true, foregroundColor: { red: 0, green: 0, blue: 0 } }, horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE", wrapStrategy: "OVERFLOW_CELL" } }, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)" } },
+    { repeatCell: { range: { sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { backgroundColor: { red: 1, green: 0.949, blue: 0.8 }, textFormat: { fontFamily: "Calibri", fontSize: 10, bold: true, foregroundColor: { red: 0, green: 0, blue: 0 } }, horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE", wrapStrategy: "OVERFLOW_CELL" } }, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)" } },
+    { repeatCell: { range: { sheetId, startRowIndex: 4, endRowIndex: rowCount, startColumnIndex: 5, endColumnIndex: columnCount }, cell: { userEnteredFormat: { numberFormat: { type: "TEXT", pattern: "@" } } }, fields: "userEnteredFormat.numberFormat" } },
+  ] } });
+}
+
+'''
+          ctext = ctext[:start] + new_func + ctext[end:]
+          control.write_text(ctext, encoding='utf-8')
           PY
 
       - name: Validar build
         working-directory: timoni-portal
         run: npm ci && npm run build
 
-      - name: Publicar correcao
+      - name: Publicar
         run: |
-          rm .github/workflows/fix-conferencia-reconfig.yml
+          git checkout HEAD^ -- .github/workflows/fix-conferencia-reconfig.yml
+          rm -f .github/workflows/update-rotativo-model-layout.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add timoni-portal/app/dashboard/conferencia-pedidos/ConferenciaPedidosClient.tsx \
-                  timoni-portal/app/dashboard/conferencia-pedidos/configurar/ConfigurarGeminiClient.tsx \
-                  .github/workflows/fix-conferencia-reconfig.yml
-          git commit -m "Improve conference Gemini recovery flow"
+          git add timoni-portal/app/api/estoque-rotativo/route.ts timoni-portal/app/api/estoque-rotativo/padronizacao/route.ts .github/workflows/fix-conferencia-reconfig.yml .github/workflows/update-rotativo-model-layout.yml
+          git commit -m "fix(rotativo): atualizar modelo de planilha padronizada"
           git push origin main

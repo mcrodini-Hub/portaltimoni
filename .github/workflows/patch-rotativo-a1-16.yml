@@ -1,0 +1,45 @@
+name: Ajustar A1 do modelo Rotativo para 16
+
+on:
+  push:
+    branches: [rotativo-a1-calibri-16]
+    paths:
+      - .github/workflows/patch-rotativo-a1-16.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Corrigir fonte de A1
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('timoni-portal/app/api/estoque-rotativo/route.ts')
+          text = path.read_text(encoding='utf-8')
+          old = 'textFormat: { fontFamily: "Calibri", fontSize: 18, bold: true, foregroundColor: black }'
+          new = 'textFormat: { fontFamily: "Calibri", fontSize: 16, bold: true, foregroundColor: black }'
+          if old not in text:
+              raise SystemExit('Formato A1 Calibri 18 nao encontrado')
+          text = text.replace(old, new, 1)
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Validar build
+        working-directory: timoni-portal
+        run: npm ci && npm run build
+
+      - name: Publicar alteracao na branch
+        run: |
+          rm .github/workflows/patch-rotativo-a1-16.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add timoni-portal/app/api/estoque-rotativo/route.ts .github/workflows/patch-rotativo-a1-16.yml
+          git commit -m "Corrige A1 do modelo Rotativo para Calibri 16"
+          git push origin HEAD:rotativo-a1-calibri-16

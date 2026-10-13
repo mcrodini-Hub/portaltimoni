@@ -1,15 +1,21 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { hasModuleAccess } from "@/lib/access-control";
+import { canAccessLeadsLocation, canViewBothLeadsLocations, hasModuleAccess, resolveLeadsLocation } from "@/lib/access-control";
 import { addLead, addProspect, createLeadsReport, importLeads, listLeadActivities, listLeads, listProspects, moveLeadToProspects, reactivateProspect, updateLeadFollowUp } from "@/lib/leads";
 import { recordModuleUpdateSafely } from "@/lib/module-updates";
+
+function writeLocation(context: { email: string; portalUser?: import("@/lib/access-control").PortalUser | null }, value: unknown) {
+  const requested = value === "ara" ? "ara" : "rc";
+  if (value !== undefined && !canAccessLeadsLocation(context.email, requested, context.portalUser)) return null;
+  return resolveLeadsLocation(context.email, requested, context.portalUser);
+}
 
 async function authorizedContext() {
   const session = await auth();
   const email = session?.user?.email ?? "";
   if (!hasModuleAccess(email, "leads", session?.portalUser)) return null;
   if (!session?.accessToken) return null;
-  return { accessToken: session.accessToken, email };
+  return { accessToken: session.accessToken, email, portalUser: session.portalUser };
 }
 
 export async function GET(request: Request) {
@@ -17,14 +23,14 @@ export async function GET(request: Request) {
   if (!context) return NextResponse.json({ error: "Sessão Google sem acesso à planilha. Entre novamente no Portal." }, { status: 401 });
   try {
     const params = new URL(request.url).searchParams;
-    const location = params.get("location") === "ara" ? "ara" : "rc";
+    const location = resolveLeadsLocation(context.email, params.get("location"), context.portalUser);
     const summaryOnly = params.get("summary") === "1";
     if (summaryOnly) {
       const leads = await listLeads(context.accessToken, location);
       const atrasados = leads.filter((x) => x.status === "atrasado").length;
       const hoje = leads.filter((x) => x.status === "hoje").length;
       return NextResponse.json(
-        { summary: { pendentes: atrasados + hoje } },
+        { summary: { pendentes: atrasados + hoje }, location, canViewBothLocations: canViewBothLeadsLocations(context.email) },
         { headers: { "Cache-Control": "no-store" } },
       );
     }
@@ -32,7 +38,7 @@ export async function GET(request: Request) {
     const atrasados = leads.filter((x) => x.status === "atrasado").length;
     const hoje = leads.filter((x) => x.status === "hoje").length;
     const semData = leads.filter((x) => x.status === "sem-data").length;
-    return NextResponse.json({ leads, prospects, activities, summary: { atrasados, hoje, semData, pendentes: atrasados + hoje, prospectar: prospects.length } });
+    return NextResponse.json({ leads, prospects, activities, location, canViewBothLocations: canViewBothLeadsLocations(context.email), summary: { atrasados, hoje, semData, pendentes: atrasados + hoje, prospectar: prospects.length } });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível carregar os leads." }, { status: 500 });
   }
@@ -43,7 +49,8 @@ export async function POST(request: Request) {
   if (!context) return NextResponse.json({ error: "Sessão Google sem acesso à planilha. Entre novamente no Portal." }, { status: 401 });
   try {
     const body = await request.json();
-    const location = body?.location === "ara" ? "ara" : "rc";
+    const location = writeLocation(context, body?.location);
+    if (!location) return NextResponse.json({ error: "Acesso permitido somente à unidade vinculada a este usuário." }, { status: 403 });
     if (body?.action === "gerar_relatorio") {
       const result = await createLeadsReport({
         startDate: String(body?.startDate ?? "").trim(),
@@ -94,7 +101,8 @@ export async function PATCH(request: Request) {
   if (!context) return NextResponse.json({ error: "Sessão Google sem acesso à planilha. Entre novamente no Portal." }, { status: 401 });
   try {
     const body = await request.json();
-    const location = body?.location === "ara" ? "ara" : "rc";
+    const location = writeLocation(context, body?.location);
+    if (!location) return NextResponse.json({ error: "Acesso permitido somente à unidade vinculada a este usuário." }, { status: 403 });
     const row = Number(body?.row);
     const cliente = String(body?.cliente ?? "").trim();
     const segmento = String(body?.segmento ?? "").trim();
@@ -117,7 +125,8 @@ export async function PUT(request: Request) {
   if (!context) return NextResponse.json({ error: "Sessão Google sem acesso à planilha. Entre novamente no Portal." }, { status: 401 });
   try {
     const body = await request.json();
-    const location = body?.location === "ara" ? "ara" : "rc";
+    const location = writeLocation(context, body?.location);
+    if (!location) return NextResponse.json({ error: "Acesso permitido somente à unidade vinculada a este usuário." }, { status: 403 });
     const result = await importLeads(body?.rows, context.accessToken, location);
     await recordModuleUpdateSafely("leads", context.email, "Lista de Leads importada.");
     return NextResponse.json({ ok: true, ...result });

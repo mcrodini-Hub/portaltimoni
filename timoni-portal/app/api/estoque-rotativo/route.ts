@@ -1539,7 +1539,7 @@ async function ensurePendingStatuses(sheets: sheets_v4.Sheets) {
   });
   const rows = (response.data.values || []) as unknown[][];
   const data: Array<{ range: string; values: string[][] }> = [];
-  const validUpdated = /^atualizado em \d{2}\/\d{2}\/(?:\d{2}|\d{4})$/i;
+  const validUpdated = /^atualizado(?: em)? \d{2}\/\d{2}\/(?:\d{2}|\d{4})$/i;
 
   for (let index = 0; index < rows.length; index += 1) {
     const status = String(rows[index]?.[0] ?? "").trim();
@@ -2008,13 +2008,32 @@ export async function POST(request: Request) {
         await sheets.spreadsheets.batchUpdate({
           spreadsheetId: ROTATING_STOCK_CENTRAL.spreadsheetId,
           requestBody: {
-            requests: matched.map((item) => ({
-              repeatCell: {
-                range: { sheetId, startRowIndex: item.target_row! - 1, endRowIndex: item.target_row!, startColumnIndex: 3, endColumnIndex: 4 },
-                cell: { userEnteredFormat: { backgroundColor: { red: 1, green: 0.949, blue: 0.8 } } },
-                fields: "userEnteredFormat.backgroundColor",
+            requests: matched.flatMap((item) => [
+              {
+                repeatCell: {
+                  range: { sheetId, startRowIndex: item.target_row! - 1, endRowIndex: item.target_row!, startColumnIndex: 0, endColumnIndex: 1 },
+                  cell: {
+                    userEnteredFormat: {
+                      backgroundColor: { red: 1, green: 1, blue: 0 },
+                      textFormat: {
+                        fontFamily: "Calibri",
+                        fontSize: 10,
+                        bold: true,
+                        foregroundColor: { red: 0, green: 0, blue: 0 },
+                      },
+                    },
+                  },
+                  fields: "userEnteredFormat.backgroundColor,userEnteredFormat.textFormat",
+                },
               },
-            })),
+              {
+                repeatCell: {
+                  range: { sheetId, startRowIndex: item.target_row! - 1, endRowIndex: item.target_row!, startColumnIndex: 3, endColumnIndex: 4 },
+                  cell: { userEnteredFormat: { backgroundColor: { red: 1, green: 0.949, blue: 0.8 } } },
+                  fields: "userEnteredFormat.backgroundColor",
+                },
+              },
+            ]),
           },
         });
       }

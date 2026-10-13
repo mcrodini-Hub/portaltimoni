@@ -2,77 +2,38 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Escala tipográfica padronizada — Roboto em todos os módulos. */
+:root {
+  --ct-font-body: 15px;
+  --ct-font-page-title: 30px;
+  --ct-font-section-title: 20px;
+  --ct-font-subtitle: 16px;
+  --ct-font-caption: 12px;
+  --ct-font-weight-regular: 400;
+  --ct-font-weight-medium: 500;
+  --ct-font-weight-strong: 600;
+}
+
 body {
-  background: radial-gradient(circle at 90% 0%, rgba(37,99,235,.08), transparent 25rem), #f8fafc;
-  font-weight: 300;
+  background: radial-gradient(circle at 90% 0%, rgba(37, 99, 235, .08), transparent 25rem), #f8fafc;
+  font-weight: var(--ct-font-weight-regular);
 }
 
-/* Tipografia leve: preserva a hierarquia com menos peso visual. */
-.font-normal { font-weight: 300!important; }
-.font-medium { font-weight: 400!important; }
-.font-semibold { font-weight: 500!important; }
-.font-bold, .font-extrabold, strong, b { font-weight: 600!important; }
+.font-normal { font-weight: var(--ct-font-weight-regular) !important; }
+.font-medium { font-weight: var(--ct-font-weight-medium) !important; }
+.font-semibold { font-weight: var(--ct-font-weight-strong) !important; }
+.font-bold, .font-extrabold, strong, b { font-weight: var(--ct-font-weight-strong) !important; }
 input, select, textarea, button { font-weight: 400; }
-section.border-blue-100.bg-blue-50 { display:none; }
-[data-ct-hidden-copy="true"],[data-ct-store-filter="true"] { display:none!important; }
-[data-ct-card-detail="true"] { display:none!important; }
-[data-ct-collapsible="true"][data-ct-expanded="true"] [data-ct-card-detail="true"] { display:block!important; }
-[data-ct-collapsible="true"] { cursor:pointer; }
-[data-ct-always-visible="true"] { display:inline-flex!important; }
 
-/* Regra Ciça: todo o Portal segue o padrão visual aprovado, com fonte mobile menor. */
-@media (max-width:640px){
- html{font-size:12.5px;-webkit-text-size-adjust:100%;width:100%;max-width:100%;overflow-x:hidden}
- body{width:100%;max-width:100%;overflow-x:hidden}
- main{width:100%;max-width:100%;padding:.65rem!important}
- .grid>*{min-width:0}
- main section.grid{align-items:stretch}
- main section.grid>article{height:100%}
+section.border-blue-100.bg-blue-50 { display: none; }
+[data-ct-hidden-copy="true"],
+[data-ct-store-filter="true"],
+[data-ct-card-detail="true"] { display: none !important; }
+[data-ct-collapsible="true"][data-ct-expanded="true"] [data-ct-card-detail="true"] { display: block !important; }
+[data-ct-collapsible="true"] { cursor: pointer; }
+[data-ct-always-visible="true"] { display: inline-flex !important; }
 
- h1{font-size:1.18rem!important;line-height:1.28!important;margin-bottom:.4rem!important}
- h2{font-size:1rem!important;line-height:1.3!important}
- h3{font-size:.92rem!important;line-height:1.3!important}
- p,label,li,td,th,input,select,textarea,button,a{font-size:.78rem}
- input,select,textarea{min-height:2.05rem;padding:.36rem .5rem!important}
- textarea{min-height:4.1rem}
- button,[role="button"]{min-height:2rem;padding:.33rem .56rem!important;line-height:1.15!important}
- .p-8{padding:.75rem!important}.p-6{padding:.7rem!important}.p-5{padding:.65rem!important}.p-4{padding:.6rem!important}.p-3{padding:.5rem!important}
- .px-8{padding-left:.75rem!important;padding-right:.75rem!important}.px-6{padding-left:.7rem!important;padding-right:.7rem!important}.px-4{padding-left:.6rem!important;padding-right:.6rem!important}
- .py-6{padding-top:.7rem!important;padding-bottom:.7rem!important}.py-4{padding-top:.6rem!important;padding-bottom:.6rem!important}
- .gap-8{gap:.75rem!important}.gap-6{gap:.7rem!important}.gap-5{gap:.65rem!important}.gap-4{gap:.6rem!important}
- .space-y-8>:not([hidden])~:not([hidden]){margin-top:.75rem!important}.space-y-6>:not([hidden])~:not([hidden]){margin-top:.7rem!important}.space-y-4>:not([hidden])~:not([hidden]){margin-top:.6rem!important}
- .rounded-3xl,.rounded-2xl,.rounded-xl{border-radius:.7rem!important}
- table{font-size:.72rem}th,td{padding:.38rem!important}
- img,svg,video,canvas{max-width:100%}
- main>*,main section,main article,main form{max-width:100%;min-width:0}
- .overflow-x-auto{max-width:calc(100vw - 1.3rem);-webkit-overflow-scrolling:touch}
-}
-
-/* O painel mobile replica a referência web sem alterar as telas dos módulos. */
-@media (max-width: 639px) {
-  .portal-dashboard h1 { font-size: 20px!important; }
-  .portal-dashboard section > a { min-height: 140px; padding: 16px!important; }
-  .portal-dashboard section > a p:first-child { font-size: 16px; }
-  .portal-dashboard section > a p + p { font-size: 28px; }
-  .portal-mobile-header button { min-height: 44px; min-width: 44px; }
-  .portal-mobile-header a > span { font-size: 18px; }
-  #portal-mobile-menu button { min-height: 32px; min-width: 32px; }
-  #portal-mobile-menu a[aria-label] > span { font-size: 13px; }
-  #portal-mobile-menu nav a, #portal-mobile-menu nav button { min-height: 34px; font-size: 14px; }
-}
-
-
-/* Chat mobile compacto: abaixo do cabeçalho e sem campo de mensagem superdimensionado. */
-@media (max-width: 639px) {
-  #internal-chat-dialog textarea { min-height: 2.35rem!important; max-height: 5rem!important; padding: .42rem .5rem!important; font-size: 12px!important; line-height: 1.15rem!important; }
-  #internal-chat-dialog [data-chat-footer] { padding-top: .4rem!important; padding-left: .45rem!important; padding-right: .45rem!important; }
-  #internal-chat-dialog [data-chat-composer] { padding: .35rem!important; gap: .35rem!important; }
-  #internal-chat-dialog [data-chat-composer] button { min-height: 2.35rem!important; padding-left: .7rem!important; padding-right: .7rem!important; font-size: 11px!important; }
-}
-
-
-/* Portal Timoni — padrão visual enxuto inspirado no módulo Compras.
-   Exclusivamente estético: não altera fluxos, dados, permissões ou integrações. */
+/* Portal Timoni — padrão visual aprovado. */
 main {
   --ct-card-radius: 1.25rem;
   --ct-inner-radius: .9rem;
@@ -86,9 +47,7 @@ main article.rounded-3xl {
   box-shadow: var(--ct-card-shadow);
 }
 
-main .rounded-2xl {
-  border-radius: var(--ct-inner-radius) !important;
-}
+main .rounded-2xl { border-radius: var(--ct-inner-radius) !important; }
 
 main h1 {
   letter-spacing: -.02em;
@@ -96,9 +55,7 @@ main h1 {
 }
 
 main h2,
-main h3 {
-  letter-spacing: -.01em;
-}
+main h3 { letter-spacing: -.01em; }
 
 main input,
 main select,
@@ -117,111 +74,194 @@ main textarea:focus {
 }
 
 main button,
-main a[role="button"] {
-  box-shadow: none;
-}
+main a[role="button"] { box-shadow: none; }
 
-main table {
-  line-height: 1.35;
-}
+main table { line-height: 1.35; }
 
 @media (min-width: 641px) {
-  main {
-    font-size: 15px;
-  }
+  main { font-size: var(--ct-font-body); }
 
   main > div.space-y-5,
-  main > div.space-y-6 {
-    row-gap: 1.25rem;
-  }
+  main > div.space-y-6 { row-gap: 1.25rem; }
 
   main section.rounded-3xl,
-  main article.rounded-3xl {
-    padding: 1.35rem !important;
-  }
+  main article.rounded-3xl { padding: 1.35rem !important; }
 
   main h1 {
-    font-size: 1.9rem !important;
+    font-size: var(--ct-font-page-title) !important;
     line-height: 1.2 !important;
   }
 
   main h2 {
-    font-size: 1.18rem !important;
+    font-size: var(--ct-font-section-title) !important;
     line-height: 1.3 !important;
   }
 
   main h3 {
+    font-size: var(--ct-font-subtitle) !important;
+    line-height: 1.3 !important;
+  }
+
+  main button,
+  main a.inline-flex { min-height: 2.6rem; }
+}
+
+/* Regras mobile consolidadas: preservam o padrão visual aprovado sem sobrescritas duplicadas. */
+@media (max-width: 640px) {
+  :root {
+    --ct-font-body: 13px;
+    --ct-font-page-title: 19px;
+    --ct-font-section-title: 15px;
+    --ct-font-subtitle: 13px;
+  }
+
+  html {
+    font-size: 12.5px;
+    -webkit-text-size-adjust: 100%;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  h1 {
+    font-size: 1.18rem !important;
+    line-height: 1.28 !important;
+    margin-bottom: .4rem !important;
+  }
+
+  h2 {
     font-size: 1rem !important;
     line-height: 1.3 !important;
   }
 
-  main button,
-  main a.inline-flex {
-    min-height: 2.6rem;
+  h3 {
+    font-size: .92rem !important;
+    line-height: 1.3 !important;
   }
-}
 
-@media (max-width: 640px) {
+  p, label, li, td, th, input, select, textarea, button, a { font-size: .78rem; }
+
+  input, select, textarea {
+    min-height: 2.05rem;
+    padding: .36rem .5rem !important;
+  }
+
+  textarea { min-height: 4.1rem; }
+
+  button,
+  [role="button"] {
+    min-height: 2rem;
+    padding: .33rem .56rem !important;
+    line-height: 1.15 !important;
+  }
+
+  .grid > * { min-width: 0; }
+  main section.grid { align-items: stretch; }
+  main section.grid > article { height: 100%; }
+
+  .p-8 { padding: .75rem !important; }
+  .p-6 { padding: .7rem !important; }
+  .p-5 { padding: .65rem !important; }
+  .p-4 { padding: .6rem !important; }
+  .p-3 { padding: .5rem !important; }
+
+  .px-8 { padding-left: .75rem !important; padding-right: .75rem !important; }
+  .px-6 { padding-left: .7rem !important; padding-right: .7rem !important; }
+  .px-4 { padding-left: .6rem !important; padding-right: .6rem !important; }
+
+  .py-6 { padding-top: .7rem !important; padding-bottom: .7rem !important; }
+  .py-4 { padding-top: .6rem !important; padding-bottom: .6rem !important; }
+
+  .gap-8 { gap: .75rem !important; }
+  .gap-6 { gap: .7rem !important; }
+  .gap-5 { gap: .65rem !important; }
+  .gap-4 { gap: .6rem !important; }
+
+  .space-y-8 > :not([hidden]) ~ :not([hidden]) { margin-top: .75rem !important; }
+  .space-y-6 > :not([hidden]) ~ :not([hidden]) { margin-top: .7rem !important; }
+  .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: .6rem !important; }
+
+  .rounded-3xl,
+  .rounded-2xl,
+  .rounded-xl { border-radius: .7rem !important; }
+
+  table { font-size: .72rem; }
+  th, td { padding: .38rem !important; }
+  img, svg, video, canvas { max-width: 100%; }
+
   main {
+    width: 100%;
+    max-width: 100%;
     padding: .7rem !important;
+    font-size: var(--ct-font-body);
+  }
+
+  main > *,
+  main section,
+  main article,
+  main form {
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .overflow-x-auto {
+    max-width: calc(100vw - 1.3rem);
+    -webkit-overflow-scrolling: touch;
   }
 
   main > div.space-y-5,
-  main > div.space-y-6 {
-    row-gap: .8rem;
-  }
+  main > div.space-y-6 { row-gap: .8rem; }
 
   main section.rounded-3xl,
-  main article.rounded-3xl {
-    padding: .85rem !important;
-  }
+  main article.rounded-3xl { padding: .85rem !important; }
 
   main h1 {
-    font-size: 1.4rem !important;
+    font-size: var(--ct-font-page-title) !important;
     line-height: 1.25 !important;
   }
 
   main h2 {
-    font-size: 1.08rem !important;
+    font-size: var(--ct-font-section-title) !important;
     line-height: 1.3 !important;
   }
 
   main h3 {
-    font-size: .98rem !important;
+    font-size: var(--ct-font-subtitle) !important;
     line-height: 1.3 !important;
   }
 
-  main p,
-  main label,
-  main li,
-  main td,
-  main th,
-  main input,
-  main select,
-  main textarea,
-  main button,
-  main a {
+  main p, main label, main li, main td, main th,
+  main input, main select, main textarea, main button, main a {
+    font-size: var(--ct-font-body);
     line-height: 1.35;
   }
 
-  main input,
-  main select {
-    min-height: 2.75rem;
+  main table,
+  main [class~="text-xs"],
+  main [class~="text-[9px]"],
+  main [class~="text-[10px]"],
+  main [class~="text-[11px]"] {
+    font-size: var(--ct-font-caption) !important;
   }
 
-  main textarea {
-    min-height: 5rem;
-  }
+  main [class~="text-sm"] { font-size: var(--ct-font-body) !important; }
+  main [class~="text-base"] { font-size: 15px !important; }
 
-  main button,
-  main a.inline-flex {
-    min-height: 2.6rem;
-  }
+  main input, main select, main textarea,
+  main button, main a[role="button"], main a.inline-flex { min-height: 40px; }
 
   main .grid {
     column-gap: .55rem;
     row-gap: .55rem;
   }
+
+  .portal-dashboard h1 { font-size: 20px !important; }
 
   .portal-dashboard section > a {
     min-height: 4.6rem !important;
@@ -237,70 +277,40 @@ main table {
     font-size: 20px !important;
     margin-top: .35rem !important;
   }
-}
 
+  .portal-mobile-header button { min-height: 44px; min-width: 44px; }
+  .portal-mobile-header a > span { font-size: 18px; }
+  #portal-mobile-menu button { min-height: 32px; min-width: 32px; }
+  #portal-mobile-menu a[aria-label] > span { font-size: 13px; }
+  #portal-mobile-menu nav a,
+  #portal-mobile-menu nav button { min-height: 34px; font-size: 14px; }
 
-/* Escala tipográfica padronizada — Roboto em todos os módulos. */
-:root {
-  --ct-font-body: 15px;
-  --ct-font-page-title: 30px;
-  --ct-font-section-title: 20px;
-  --ct-font-subtitle: 16px;
-  --ct-font-caption: 12px;
-  --ct-font-weight-regular: 400;
-  --ct-font-weight-medium: 500;
-  --ct-font-weight-strong: 600;
-}
-
-body { font-weight: var(--ct-font-weight-regular); }
-.font-normal { font-weight: var(--ct-font-weight-regular) !important; }
-.font-medium { font-weight: var(--ct-font-weight-medium) !important; }
-.font-semibold { font-weight: var(--ct-font-weight-strong) !important; }
-.font-bold, .font-extrabold, strong, b { font-weight: var(--ct-font-weight-strong) !important; }
-
-@media (min-width: 641px) {
-  main { font-size: var(--ct-font-body); }
-  main h1 { font-size: var(--ct-font-page-title) !important; }
-  main h2 { font-size: var(--ct-font-section-title) !important; }
-  main h3 { font-size: var(--ct-font-subtitle) !important; }
-}
-
-@media (max-width: 640px) {
-  :root {
-    --ct-font-body: 13px;
-    --ct-font-page-title: 19px;
-    --ct-font-section-title: 15px;
-    --ct-font-subtitle: 13px;
+  #internal-chat-dialog textarea {
+    min-height: 2.35rem !important;
+    max-height: 5rem !important;
+    padding: .42rem .5rem !important;
+    font-size: 12px !important;
+    line-height: 1.15rem !important;
   }
 
-  main { font-size: var(--ct-font-body); }
-  main h1 { font-size: var(--ct-font-page-title) !important; }
-  main h2 { font-size: var(--ct-font-section-title) !important; }
-  main h3 { font-size: var(--ct-font-subtitle) !important; }
-
-  main p, main label, main li, main td, main th,
-  main input, main select, main textarea, main button, main a {
-    font-size: var(--ct-font-body);
+  #internal-chat-dialog [data-chat-footer] {
+    padding-top: .4rem !important;
+    padding-left: .45rem !important;
+    padding-right: .45rem !important;
   }
 
-  main table, main [class~="text-xs"],
-  main [class~="text-[9px]"], main [class~="text-[10px]"],
-  main [class~="text-[11px]"] {
-    font-size: var(--ct-font-caption) !important;
+  #internal-chat-dialog [data-chat-composer] {
+    padding: .35rem !important;
+    gap: .35rem !important;
   }
 
-  main [class~="text-sm"] { font-size: var(--ct-font-body) !important; }
-  main [class~="text-base"] { font-size: 15px !important; }
-
-  main input, main select, main textarea,
-  main button, main a[role="button"], main a.inline-flex {
-    min-height: 40px;
+  #internal-chat-dialog [data-chat-composer] button {
+    min-height: 2.35rem !important;
+    padding-left: .7rem !important;
+    padding-right: .7rem !important;
+    font-size: 11px !important;
   }
-}
 
-
-/* No celular, os cards do Painel Timoni ocupam a largura disponível. */
-@media (max-width: 640px) {
   main section.portal-comms-grid {
     grid-template-columns: minmax(0, 1fr) !important;
   }

@@ -166,7 +166,6 @@ jobs:
 
           s = s.replace('''        range: { sheetId: selected.sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 3, endColumnIndex: 4 },''', '''        range: { sheetId: selected.sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 2, endColumnIndex: 3 },''', 1)
 
-          # D4 already occupies row 4 / column D; keep its approved date formatting.
           p.write_text(s, encoding='utf-8')
       - name: Validate minimum structure in source
         shell: bash
@@ -189,3 +188,5 @@ jobs:
           fi
           git commit -m "fix(rotativo): corrigir modelo minimo de padronizacao"
           git push origin main
+
+# trigger 2026-10-13

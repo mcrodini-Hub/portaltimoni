@@ -895,21 +895,25 @@ async function standardizeSupplierSpreadsheet(
     hour: "2-digit", minute: "2-digit", hour12: false,
     timeZone: "America/Sao_Paulo",
   }).format(new Date());
-  const preservedManualDate = formulas[3]?.[4] ?? "";
+  const preservedManualDate = formulas[3]?.[3] ?? formulas[3]?.[4] ?? "";
+  const responsible = metadataRows
+    .flat()
+    .map((value) => String(value ?? "").trim())
+    .find((value) => ["lucas", "jonatan"].includes(normalizeHeader(value))) || "LUCAS";
 
   // A1 identifies the supplier; C1 records standardization, C2 is reserved for a later Rotativo update.
   topRows[0] = [file.name.toLocaleUpperCase("pt-BR"), "", `Padronizada em ${standardizedAt}`];
   topRows[1] = [];
 
-  // A3:E3 may be standardized, but preserve row 3 content from column F onward.
+  // D3 concentra o responsavel; preserve o historico da linha 3 a partir da coluna F.
   const preservedRow3Tail = [...(metadataRows[2] || [])].slice(5);
   topRows[2] = [];
-  topRows[2][4] = "LUCAS";
+  topRows[2][3] = responsible.toLocaleUpperCase("pt-BR");
   preservedRow3Tail.forEach((value, index) => {
     topRows[2][index + 5] = value;
   });
   topRows[3] = [];
-  topRows[3][4] = preservedManualDate;
+  topRows[3][3] = preservedManualDate;
 
   const standardizedHeaders = [
     "VENDA",
@@ -946,9 +950,9 @@ async function standardizeSupplierSpreadsheet(
   const output = [...topRows, standardizedHeaders, ...productRows];
   const outputWidth = Math.max(...output.map((row) => row.length), 4);
   for (const row of output) while (row.length < outputWidth) row.push("");
-  const lastProductRow = 5 + productRows.length;
-  for (let column = 4; column < outputWidth; column += 1) {
-    output[3][column] = `=COUNTA(${columnLetter(column)}6:${columnLetter(column)}${lastProductRow})`;
+  for (let column = 5; column < outputWidth; column += 1) {
+    const letter = columnLetter(column);
+    output[3][column] = `=COUNTA(${letter}6:${letter})`;
   }
 
   const quotedTitle = `'${selected.title.replace(/'/g, "''")}'`;
@@ -996,7 +1000,7 @@ async function standardizeSupplierSpreadsheet(
         range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 },
         cell: { userEnteredFormat: {
           backgroundColor: white,
-          textFormat: { fontFamily: "Calibri", fontSize: 20, bold: true, foregroundColor: black },
+          textFormat: { fontFamily: "Calibri", fontSize: 18, bold: true, foregroundColor: black },
           horizontalAlignment: "LEFT",
           verticalAlignment: "MIDDLE",
           wrapStrategy: "WRAP",
@@ -1087,7 +1091,7 @@ async function standardizeSupplierSpreadsheet(
     },
     {
       repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 4, endColumnIndex: 5 },
+        range: { sheetId: selected.sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 3, endColumnIndex: 4 },
         cell: { userEnteredFormat: {
           textFormat: { fontFamily: "Calibri", fontSize: 12, bold: true, foregroundColor: { red: 0.831, green: 0.047, blue: 0.051 } },
           horizontalAlignment: "CENTER",
@@ -1098,9 +1102,9 @@ async function standardizeSupplierSpreadsheet(
     },
     {
       repeatCell: {
-        range: { sheetId: selected.sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 4, endColumnIndex: 5 },
+        range: { sheetId: selected.sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 3, endColumnIndex: 4 },
         cell: { userEnteredFormat: {
-          textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: black },
+          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: true, foregroundColor: { red: 0.831, green: 0.047, blue: 0.051 } },
           numberFormat: { type: "DATE", pattern: "dd/mm/yy" },
           horizontalAlignment: "CENTER",
           verticalAlignment: "MIDDLE",
@@ -1131,8 +1135,10 @@ async function standardizeSupplierSpreadsheet(
       },
     },
     {
-      autoResizeDimensions: {
-        dimensions: { sheetId: selected.sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 2 },
+      updateDimensionProperties: {
+        range: { sheetId: selected.sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 2 },
+        properties: { pixelSize: 80 },
+        fields: "pixelSize",
       },
     },
     {

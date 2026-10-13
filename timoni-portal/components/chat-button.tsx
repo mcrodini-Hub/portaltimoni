@@ -1,7 +1,7 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 
 const InternalChatPanel = dynamic(() => import("@/components/internal-chat-panel"), { ssr: false });
 
@@ -21,33 +21,6 @@ function InternalChatMark({ className = "h-6 w-6" }: { className?: string }) {
 export default function ChatButton({ mobile = false, mobileHeader = false, onOpen }: { mobile?: boolean; mobileHeader?: boolean; onOpen?: () => void }) {
   const [open, setOpen] = useState(false);
   const [unread, setUnread] = useState(0);
-  const [available, setAvailable] = useState(false);
-
-  const loadUnread = useCallback(async () => {
-    try {
-      const response = await fetch("/api/internal-chat", { cache: "no-store" });
-      if (!response.ok) { setAvailable(false); return; }
-      const data = await response.json();
-      const identities = Array.isArray(data.identities) ? data.identities : [];
-      setAvailable(identities.length > 0);
-      setUnread(Number(data.totalUnread || 0));
-    } catch {}
-  }, []);
-
-  useEffect(() => {
-    const refreshWhenVisible = () => {
-      if (!document.hidden) void loadUnread();
-    };
-    refreshWhenVisible();
-    const interval = window.setInterval(refreshWhenVisible, 30_000);
-    document.addEventListener("visibilitychange", refreshWhenVisible);
-    return () => {
-      window.clearInterval(interval);
-      document.removeEventListener("visibilitychange", refreshWhenVisible);
-    };
-  }, [loadUnread]);
-
-  if (!available) return null;
 
   const badge = unread > 0 ? <span className="absolute -right-1 -top-1 flex min-h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[.65rem] font-bold text-white ring-2 ring-white">{unread > 99 ? "99+" : unread}</span> : null;
   const openChat = () => { onOpen?.(); setOpen(true); };

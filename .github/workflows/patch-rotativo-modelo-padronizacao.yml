@@ -1,0 +1,91 @@
+name: Ajustar modelo de padronizacao do Rotativo
+
+on:
+  push:
+    branches: [rotativo-ajusta-modelo-padronizacao]
+    paths:
+      - .github/workflows/patch-rotativo-modelo-padronizacao.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Ajustar modelo da planilha padronizada
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('timoni-portal/app/api/estoque-rotativo/route.ts')
+          text = path.read_text(encoding='utf-8')
+
+          def replace_once(old: str, new: str, label: str):
+              global text
+              if old not in text:
+                  raise SystemExit(f'Bloco nao encontrado: {label}')
+              text = text.replace(old, new, 1)
+
+          replace_once(
+              '  const preservedManualDate = formulas[3]?.[4] ?? "";\n',
+              '''  const preservedManualDate = formulas[3]?.[3] ?? formulas[3]?.[4] ?? "";\n  const responsible = metadataRows\n    .flat()\n    .map((value) => String(value ?? "").trim())\n    .find((value) => ["lucas", "jonatan"].includes(normalizeHeader(value))) || "LUCAS";\n''',
+              'responsavel e data',
+          )
+
+          replace_once(
+              '''  // A3:E3 may be standardized, but preserve row 3 content from column F onward.\n  const preservedRow3Tail = [...(metadataRows[2] || [])].slice(5);\n  topRows[2] = [];\n  topRows[2][4] = "LUCAS";\n  preservedRow3Tail.forEach((value, index) => {\n    topRows[2][index + 5] = value;\n  });\n  topRows[3] = [];\n  topRows[3][4] = preservedManualDate;\n''',
+              '''  // D3 concentra o responsavel; preserve o historico da linha 3 a partir da coluna F.\n  const preservedRow3Tail = [...(metadataRows[2] || [])].slice(5);\n  topRows[2] = [];\n  topRows[2][3] = responsible.toLocaleUpperCase("pt-BR");\n  preservedRow3Tail.forEach((value, index) => {\n    topRows[2][index + 5] = value;\n  });\n  topRows[3] = [];\n  topRows[3][3] = preservedManualDate;\n''',
+              'D3 e D4',
+          )
+
+          replace_once(
+              '''  const lastProductRow = 5 + productRows.length;\n  for (let column = 4; column < outputWidth; column += 1) {\n    output[3][column] = `=COUNTA(${columnLetter(column)}6:${columnLetter(column)}${lastProductRow})`;\n  }\n''',
+              '''  for (let column = 5; column < outputWidth; column += 1) {\n    const letter = columnLetter(column);\n    output[3][column] = `=COUNTA(${letter}6:${letter})`;\n  }\n''',
+              'CONT.VALORES a partir de F6',
+          )
+
+          replace_once(
+              '          textFormat: { fontFamily: "Calibri", fontSize: 20, bold: true, foregroundColor: black },\n',
+              '          textFormat: { fontFamily: "Calibri", fontSize: 18, bold: true, foregroundColor: black },\n',
+              'A1 Calibri 18',
+          )
+
+          replace_once(
+              '        range: { sheetId: selected.sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 4, endColumnIndex: 5 },\n',
+              '        range: { sheetId: selected.sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 3, endColumnIndex: 4 },\n',
+              'D3 posicao',
+          )
+
+          replace_once(
+              '''        range: { sheetId: selected.sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 4, endColumnIndex: 5 },\n        cell: { userEnteredFormat: {\n          textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: black },\n          numberFormat: { type: "DATE", pattern: "dd/mm/yy" },\n          horizontalAlignment: "CENTER",\n          verticalAlignment: "MIDDLE",\n        } },\n''',
+              '''        range: { sheetId: selected.sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 3, endColumnIndex: 4 },\n        cell: { userEnteredFormat: {\n          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: true, foregroundColor: { red: 0.831, green: 0.047, blue: 0.051 } },\n          numberFormat: { type: "DATE", pattern: "dd/mm/yy" },\n          horizontalAlignment: "CENTER",\n          verticalAlignment: "MIDDLE",\n        } },\n''',
+              'D4 formato',
+          )
+
+          replace_once(
+              '''    {\n      autoResizeDimensions: {\n        dimensions: { sheetId: selected.sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 2 },\n      },\n    },\n''',
+              '''    {\n      updateDimensionProperties: {\n        range: { sheetId: selected.sheetId, dimension: "COLUMNS", startIndex: 0, endIndex: 2 },\n        properties: { pixelSize: 80 },\n        fields: "pixelSize",\n      },\n    },\n''',
+              'largura A e B 80px',
+          )
+
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Validar build
+        working-directory: timoni-portal
+        run: npm ci && npm run build
+
+      - name: Publicar alteracao na branch
+        run: |
+          rm .github/workflows/patch-rotativo-modelo-padronizacao.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add timoni-portal/app/api/estoque-rotativo/route.ts \
+                  .github/workflows/patch-rotativo-modelo-padronizacao.yml
+          git commit -m "Ajusta modelo de padronizacao do Rotativo"
+          git push origin HEAD:rotativo-ajusta-modelo-padronizacao

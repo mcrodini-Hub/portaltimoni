@@ -136,15 +136,19 @@ function ordenarViagens(viagens: Viagem[]) {
 }
 
 function estiloBoxViagem(v: Viagem) {
-  return lerTipo(v.notasJson) === "Retirada"
+  const tipo = lerTipo(v.notasJson);
+  if (tipo === "Retirada") {
+    return { backgroundColor: "#E9F7EC", borderColor: "#9FCFA8" };
+  }
+  const loja = String(v.loja || "").trim().toLocaleLowerCase("pt-BR");
+  const entregaAraras = loja === "araras" || loja === "casa timoni";
+  return entregaAraras
     ? { backgroundColor: "#FFF6CC", borderColor: "#E5C64B" }
     : { backgroundColor: "#EEF4FF", borderColor: "#B7CAF7" };
 }
 
-function classeLinhaPrincipal(v: Viagem) {
-  return lerTipo(v.notasJson) === "Retirada"
-    ? "font-[Calibri] font-bold text-[#13038D]"
-    : "font-semibold text-slate-950";
+function classeLinhaPrincipal(_v: Viagem) {
+  return "font-[Calibri] font-bold text-black";
 }
 
 function linhaPrincipal(v: Viagem) {

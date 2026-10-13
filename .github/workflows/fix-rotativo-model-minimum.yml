@@ -1,0 +1,191 @@
+name: Fix Rotativo model minimum
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/fix-rotativo-model-minimum.yml
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+      - name: Apply exact Rotativo model patch
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('timoni-portal/app/api/estoque-rotativo/route.ts')
+          s = p.read_text(encoding='utf-8')
+
+          old = '''  const preservedManualDate = formulas[3]?.[3] ?? formulas[3]?.[4] ?? "";
+  const responsible = metadataRows
+    .flat()
+    .map((value) => String(value ?? "").trim())
+    .find((value) => ["lucas", "jonatan"].includes(normalizeHeader(value))) || "LUCAS";
+
+  // A1 identifies the supplier; C1 records standardization, C2 is reserved for a later Rotativo update.
+  topRows[0] = [file.name.toLocaleUpperCase("pt-BR"), "", `Padronizada em ${standardizedAt}`];
+  topRows[1] = [];
+
+  // D3 concentra o responsavel; preserve o historico da linha 3 a partir da coluna F.
+  const preservedRow3Tail = [...(metadataRows[2] || [])].slice(5);
+  topRows[2] = [];
+  topRows[2][3] = responsible.toLocaleUpperCase("pt-BR");
+  preservedRow3Tail.forEach((value, index) => {
+    topRows[2][index + 5] = value;
+  });
+  topRows[3] = [];
+  topRows[3][3] = preservedManualDate;
+'''
+
+          new = '''  // Localiza responsavel(is) e a data na planilha ORIGINAL, antes da transformacao.
+  // Nao depende de posicoes fixas: procura Lucas/Luca/Jonatan/Jonathan e prioriza uma data
+  // na mesma linha; se nao houver, usa a data mais proxima na area anterior ao cabecalho.
+  const originalTopFormatted = formatted.slice(0, Math.max(headerIndex + 1, 1));
+  const responsibleMatches: Array<{ row: number; column: number; value: string }> = [];
+  for (let row = 0; row < originalTopFormatted.length; row += 1) {
+    for (let column = 0; column < (originalTopFormatted[row] || []).length; column += 1) {
+      const value = String(originalTopFormatted[row]?.[column] ?? "").trim();
+      const normalized = normalizeHeader(value);
+      if (/\\b(lucas|luca|jonatan|jonathan)\\b/.test(normalized)) {
+        responsibleMatches.push({ row, column, value });
+      }
+    }
+  }
+  const responsible = Array.from(new Set(responsibleMatches.map((match) => match.value))).join(" / ");
+
+  const datePattern = /\\b(0?[1-9]|[12][0-9]|3[01])[\\/-](0?[1-9]|1[0-2])[\\/-](20)?[0-9]{2}\\b/;
+  let preservedManualDate: SheetValue = "";
+  for (const match of responsibleMatches) {
+    const sameRow = originalTopFormatted[match.row] || [];
+    const dateCell = sameRow.find((value) => datePattern.test(String(value ?? "").trim()));
+    if (dateCell !== undefined) {
+      preservedManualDate = dateCell;
+      break;
+    }
+  }
+  if (preservedManualDate === "") {
+    let best: { distance: number; value: SheetValue } | null = null;
+    for (let row = 0; row < originalTopFormatted.length; row += 1) {
+      for (const value of originalTopFormatted[row] || []) {
+        if (!datePattern.test(String(value ?? "").trim())) continue;
+        const distance = responsibleMatches.length
+          ? Math.min(...responsibleMatches.map((match) => Math.abs(match.row - row)))
+          : row;
+        if (!best || distance < best.distance) best = { distance, value };
+      }
+    }
+    preservedManualDate = best?.value ?? "";
+  }
+
+  const originalRotativoUpdate = originalTopFormatted
+    .flat()
+    .map((value) => String(value ?? "").trim())
+    .find((value) => /(?:estoque\\s+)?rotativo\\s+atualizado\\s+em/i.test(value)) || "";
+
+  // Estrutura minima aprovada: A1 fornecedor; A2 padronizacao; A3 ultima atualizacao;
+  // C4 responsavel(is); D4 data original. C1 fica livre.
+  topRows[0] = [file.name.toLocaleUpperCase("pt-BR")];
+  topRows[1] = [`Padronizada em ${standardizedAt}`];
+  topRows[2] = [originalRotativoUpdate];
+  topRows[3] = [];
+  topRows[3][2] = responsible;
+  topRows[3][3] = preservedManualDate;
+'''
+
+          if old not in s:
+              raise SystemExit('Target metadata block not found; refusing unsafe patch')
+          s = s.replace(old, new, 1)
+
+          s = s.replace('''          wrapStrategy: "WRAP",\n        } },\n        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)",\n      },\n    },\n    {\n      repeatCell: {\n        range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 1, endColumnIndex: 2 },''', '''          wrapStrategy: "OVERFLOW_CELL",\n        } },\n        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)",\n      },\n    },\n    {\n      repeatCell: {\n        range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 1, endColumnIndex: 2 },''', 1)
+
+          old_fmt = '''    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 2, endColumnIndex: 3 },
+        cell: { userEnteredFormat: {
+          backgroundColor: { red: 0.82, green: 0.9, blue: 1 },
+          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: true, foregroundColor: black },
+          horizontalAlignment: "LEFT",
+          verticalAlignment: "MIDDLE",
+          wrapStrategy: "WRAP",
+        } },
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 2, endColumnIndex: 3 },
+        cell: { userEnteredFormat: {
+          backgroundColor: white,
+          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: false, foregroundColor: black },
+          horizontalAlignment: "CENTER",
+          verticalAlignment: "MIDDLE",
+          wrapStrategy: "WRAP",
+        } },
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)",
+      },
+    },
+'''
+          new_fmt = '''    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 1 },
+        cell: { userEnteredFormat: {
+          backgroundColor: { red: 0.624, green: 0.773, blue: 0.91 },
+          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: true, foregroundColor: black },
+          horizontalAlignment: "LEFT",
+          verticalAlignment: "MIDDLE",
+          wrapStrategy: "OVERFLOW_CELL",
+        } },
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId: selected.sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 1 },
+        cell: { userEnteredFormat: {
+          backgroundColor: { red: 1, green: 0.898, blue: 0.6 },
+          textFormat: { fontFamily: "Calibri", fontSize: 12, bold: false, foregroundColor: black },
+          horizontalAlignment: "LEFT",
+          verticalAlignment: "MIDDLE",
+          wrapStrategy: "OVERFLOW_CELL",
+        } },
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)",
+      },
+    },
+'''
+          if old_fmt not in s:
+              raise SystemExit('Target A2/A3 format block not found; refusing unsafe patch')
+          s = s.replace(old_fmt, new_fmt, 1)
+
+          s = s.replace('''        range: { sheetId: selected.sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 3, endColumnIndex: 4 },''', '''        range: { sheetId: selected.sheetId, startRowIndex: 3, endRowIndex: 4, startColumnIndex: 2, endColumnIndex: 3 },''', 1)
+
+          # D4 already occupies row 4 / column D; keep its approved date formatting.
+          p.write_text(s, encoding='utf-8')
+      - name: Validate minimum structure in source
+        shell: bash
+        run: |
+          grep -F 'topRows[0] = [file.name.toLocaleUpperCase("pt-BR")];' timoni-portal/app/api/estoque-rotativo/route.ts
+          grep -F 'topRows[1] = [`Padronizada em ${standardizedAt}`];' timoni-portal/app/api/estoque-rotativo/route.ts
+          grep -F 'topRows[2] = [originalRotativoUpdate];' timoni-portal/app/api/estoque-rotativo/route.ts
+          grep -F 'topRows[3][2] = responsible;' timoni-portal/app/api/estoque-rotativo/route.ts
+          grep -F 'topRows[3][3] = preservedManualDate;' timoni-portal/app/api/estoque-rotativo/route.ts
+          grep -F 'wrapStrategy: "OVERFLOW_CELL"' timoni-portal/app/api/estoque-rotativo/route.ts
+      - name: Commit patch
+        shell: bash
+        run: |
+          git config user.name "mcrodini-Hub"
+          git config user.email "mcrodini@gmail.com"
+          git add timoni-portal/app/api/estoque-rotativo/route.ts
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "fix(rotativo): corrigir modelo minimo de padronizacao"
+          git push origin main

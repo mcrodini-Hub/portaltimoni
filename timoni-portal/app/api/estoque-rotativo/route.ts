@@ -1000,7 +1000,7 @@ async function standardizeSupplierSpreadsheet(
         range: { sheetId: selected.sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 },
         cell: { userEnteredFormat: {
           backgroundColor: white,
-          textFormat: { fontFamily: "Calibri", fontSize: 18, bold: true, foregroundColor: black },
+          textFormat: { fontFamily: "Calibri", fontSize: 16, bold: true, foregroundColor: black },
           horizontalAlignment: "LEFT",
           verticalAlignment: "MIDDLE",
           wrapStrategy: "WRAP",

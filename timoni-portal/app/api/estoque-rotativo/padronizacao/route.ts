@@ -15,6 +15,14 @@ function backupTitle(sheetName: string) {
   return `${BACKUP_PREFIX}${sanitized}`.slice(0, 100);
 }
 
+function hasValue(value: unknown) {
+  return String(value ?? "").trim() !== "";
+}
+
+function isRotatingStockUpdate(value: unknown) {
+  return /^Rotativo atualizado em\s+/i.test(String(value ?? "").trim());
+}
+
 async function context() {
   const session = await auth();
   const email = normalizeEmail(session?.user?.email);
@@ -75,32 +83,106 @@ async function createBackup(sheets: sheets_v4.Sheets, spreadsheetId: string, she
 async function setA1Overflow(sheets: sheets_v4.Sheets, spreadsheetId: string, sheetName: string) {
   const available = await spreadsheetSheets(sheets, spreadsheetId);
   const sheet = available.find((item) => item.properties?.title === sheetName);
+  const backup = available.find((item) => item.properties?.title === backupTitle(sheetName));
   const sheetId = sheet?.properties?.sheetId;
   if (sheetId === undefined || sheetId === null) throw new Error("A aba selecionada não foi encontrada.");
 
   const rowCount = Math.max(5, sheet?.properties?.gridProperties?.rowCount || 1000);
   const columnCount = Math.max(6, sheet?.properties?.gridProperties?.columnCount || 26);
+  const quotedSheet = `'${sheetName.replace(/'/g, "''")}'`;
+  const quotedBackup = backup?.properties?.title
+    ? `'${backup.properties.title.replace(/'/g, "''")}'`
+    : "";
+
+  let restoreC2: unknown = "";
+  let restoreD4: unknown = "";
+
+  if (quotedBackup) {
+    const [current, original] = await Promise.all([
+      sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `${quotedSheet}!C2:E4`,
+        valueRenderOption: "FORMULA",
+      }),
+      sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `${quotedBackup}!C2:E4`,
+        valueRenderOption: "FORMULA",
+      }),
+    ]);
+
+    const currentValues = current.data.values || [];
+    const originalValues = original.data.values || [];
+    const currentC2 = currentValues[0]?.[0];
+    const currentD4 = currentValues[2]?.[1];
+    const currentE4 = currentValues[2]?.[2];
+    const originalC2 = originalValues[0]?.[0];
+    const originalD4 = originalValues[2]?.[1];
+    const originalE4 = originalValues[2]?.[2];
+
+    if (!hasValue(currentC2) && isRotatingStockUpdate(originalC2)) restoreC2 = originalC2;
+    if (!hasValue(currentD4)) {
+      restoreD4 = hasValue(currentE4)
+        ? currentE4
+        : hasValue(originalD4)
+          ? originalD4
+          : hasValue(originalE4)
+            ? originalE4
+            : "";
+    }
+  }
+
+  const restoreData: Array<{ range: string; values: unknown[][] }> = [];
+  if (hasValue(restoreC2)) restoreData.push({ range: `${quotedSheet}!C2`, values: [[restoreC2]] });
+  if (hasValue(restoreD4)) restoreData.push({ range: `${quotedSheet}!D4`, values: [[restoreD4]] });
+  if (restoreData.length) {
+    await sheets.spreadsheets.values.batchUpdate({
+      spreadsheetId,
+      requestBody: { valueInputOption: "USER_ENTERED", data: restoreData },
+    });
+  }
+
+  const requests: sheets_v4.Schema$Request[] = [
+    {
+      repeatCell: {
+        range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 },
+        cell: { userEnteredFormat: { wrapStrategy: "OVERFLOW_CELL" } },
+        fields: "userEnteredFormat.wrapStrategy",
+      },
+    },
+    {
+      repeatCell: {
+        range: { sheetId, startRowIndex: 4, endRowIndex: rowCount, startColumnIndex: 5, endColumnIndex: columnCount },
+        cell: { userEnteredFormat: { numberFormat: { type: "TEXT", pattern: "@" } } },
+        fields: "userEnteredFormat.numberFormat",
+      },
+    },
+  ];
+
+  if (hasValue(restoreC2)) {
+    requests.push({
+      repeatCell: {
+        range: { sheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 2, endColumnIndex: 3 },
+        cell: { userEnteredFormat: {
+          backgroundColor: { red: 0.82, green: 0.95, blue: 0.84 },
+          textFormat: {
+            fontFamily: "Calibri",
+            fontSize: 12,
+            bold: false,
+            foregroundColor: { red: 0, green: 0, blue: 0 },
+          },
+          horizontalAlignment: "CENTER",
+          verticalAlignment: "MIDDLE",
+          wrapStrategy: "WRAP",
+        } },
+        fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)",
+      },
+    });
+  }
 
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId,
-    requestBody: {
-      requests: [
-        {
-          repeatCell: {
-            range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 },
-            cell: { userEnteredFormat: { wrapStrategy: "OVERFLOW_CELL" } },
-            fields: "userEnteredFormat.wrapStrategy",
-          },
-        },
-        {
-          repeatCell: {
-            range: { sheetId, startRowIndex: 4, endRowIndex: rowCount, startColumnIndex: 5, endColumnIndex: columnCount },
-            cell: { userEnteredFormat: { numberFormat: { type: "TEXT", pattern: "@" } } },
-            fields: "userEnteredFormat.numberFormat",
-          },
-        },
-      ],
-    },
+    requestBody: { requests },
   });
 }
 

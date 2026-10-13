@@ -53,7 +53,7 @@ function ContactLinks({value}:{value:string}){
 const headerAliases:Record<Exclude<keyof ImportRow,"sourceRow"|"duplicate"|"error">,string[]>={
   cliente:["cliente","empresa","razaosocial","nomefantasia"], segmento:["segmento","ramo","atividade"], contato:["contato","pessoa","responsavel"],
   canal:["canal","telefone","email","telefoneemail","whatsapp","whatsappemail"], ultimoContato:["ultimocontato","dataultimocontato","datadocontato"],
-  proximoContato:["proximocontato","dataproximocontato","datadoproximocontato","retorno"], observacoes:["observacoes","observacao","observacoesperiocidadeprodutosetc","observacoesperiodicidadeprodutosetc","notas"],
+  proximoContato:["proximocontato","dataproximocontato","datadoproximocontato","datafollowup","datafollowupcliente","retorno"], observacoes:["observacoes","observacao","observacoesperiocidadeprodutosetc","observacoesperiodicidadeprodutosetc","notas"],
 };
 
 export default function LeadsPage() {

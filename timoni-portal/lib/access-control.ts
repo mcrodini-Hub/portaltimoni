@@ -77,6 +77,49 @@ const CHAT_COLLABORATOR_EMAILS = new Set([
   "carolina@casatimoni.com.br",
 ]);
 
+const LEADS_ARARAS_EMAILS = new Set([
+  "comercialara@casatimoni.com.br",
+  "reginaldo@casatimoni.com.br",
+  "fotoscasatimoni@gmail.com",
+  "casatimoniararas@gmail.com",
+  "estoqueararascasatimoni@gmail.com",
+]);
+const LEADS_RIO_CLARO_EMAILS = new Set([
+  "marketplacerc.mcr@gmail.com",
+  "comercialrc@casatimoni.com.br",
+  "carolina@casatimoni.com.br",
+  "balcaotimoni@gmail.com",
+  "caixarctimoni@gmail.com",
+  "estoquetimoni@gmail.com",
+]);
+
+export type LeadsLocation = "rc" | "ara";
+
+export function canViewBothLeadsLocations(email?: string | null) {
+  const normalized = normalizeEmail(email);
+  return normalized === CICA_EMAIL || normalized === MARCELO_EMAIL;
+}
+
+export function getAssignedLeadsLocation(email?: string | null, configured?: PortalUser | null): LeadsLocation {
+  const normalized = normalizeEmail(email);
+  const user = getPortalUser(normalized, configured);
+  if (user?.unit === "Araras") return "ara";
+  if (user?.unit === "Rio Claro") return "rc";
+  if (LEADS_ARARAS_EMAILS.has(normalized)) return "ara";
+  if (LEADS_RIO_CLARO_EMAILS.has(normalized)) return "rc";
+  // Preserve the existing Leads RC default for accounts without an assigned unit.
+  return "rc";
+}
+
+export function resolveLeadsLocation(email: string | null | undefined, requested: unknown, configured?: PortalUser | null): LeadsLocation {
+  if (canViewBothLeadsLocations(email)) return requested === "ara" ? "ara" : "rc";
+  return getAssignedLeadsLocation(email, configured);
+}
+
+export function canAccessLeadsLocation(email: string | null | undefined, requested: LeadsLocation, configured?: PortalUser | null) {
+  return canViewBothLeadsLocations(email) || getAssignedLeadsLocation(email, configured) === requested;
+}
+
 function operationalUser(name: string, email: string): PortalUser {
   let modules: PortalModule[] = email === ESTOQUE_TIMONI_EMAIL
     ? [...operationalModules, "compras"]

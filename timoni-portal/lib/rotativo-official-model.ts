@@ -33,8 +33,8 @@ export async function applyOfficialRotativoModel(
 
   let read = await sheets.spreadsheets.values.get({ spreadsheetId, range: `${q}!A1:Z30`, valueRenderOption: "FORMULA" });
   let v = read.data.values || [];
-  const employee = v[3]?.[2] ?? "";
-  const originalDate = v[3]?.[3] ?? "";
+  const employee = v[3]?.[2] ?? v[3]?.[0] ?? "";
+  const originalDate = v[3]?.[3] ?? v[4]?.[0] ?? "";
 
   if (norm(v[6]?.[0]) !== "venda") {
     await sheets.spreadsheets.batchUpdate({
@@ -53,26 +53,50 @@ export async function applyOfficialRotativoModel(
     columnCount += 1;
   }
 
+  read = await sheets.spreadsheets.values.get({ spreadsheetId, range: `${q}!A1:Z30`, valueRenderOption: "FORMULA" });
+  v = read.data.values || [];
+  const header = v[6] || [];
+  const historyColumns = header
+    .map((value, index) => ({ value, index }))
+    .filter(({ value, index }) => index >= 5 && String(value ?? "").trim() !== "")
+    .map(({ index }) => index);
+
+  // O topo oficial contém somente A1:A5. Remova qualquer resíduo da planilha original.
+  await sheets.spreadsheets.values.batchClear({
+    spreadsheetId,
+    requestBody: {
+      ranges: [
+        `${q}!B1:Z5`,
+        `${q}!A6:Z6`,
+      ],
+    },
+  });
+
   const data: Array<{ range: string; values: unknown[][] }> = [
     { range: `${q}!A4`, values: [[employee]] },
     { range: `${q}!A5`, values: [[originalDate]] },
-    { range: `${q}!C4`, values: [[""]] },
-    { range: `${q}!D4`, values: [[""]] },
     { range: `${q}!E7`, values: [["UN"]] },
   ];
-  for (let c = 5; c < columnCount; c += 1) {
+  for (const c of historyColumns) {
     const letter = colLetter(c);
     data.push({ range: `${q}!${letter}6`, values: [[`=COUNTA(${letter}8:${letter}${rowCount})`]] });
   }
   await sheets.spreadsheets.values.batchUpdate({ spreadsheetId, requestBody: { valueInputOption: "USER_ENTERED", data } });
 
+  const white = { red: 1, green: 1, blue: 1 };
+  const black = { red: 0, green: 0, blue: 0 };
+  const red = { red: 0.831, green: 0.047, blue: 0.051 };
+  const blue = { red: 0.075, green: 0.012, blue: 0.553 };
   const requests: sheets_v4.Schema$Request[] = [
-    { repeatCell: { range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { wrapStrategy: "OVERFLOW_CELL", textFormat: { fontFamily: "Calibri", fontSize: 16, bold: true }, verticalAlignment: "MIDDLE" } }, fields: "userEnteredFormat(wrapStrategy,textFormat,verticalAlignment)" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { backgroundColor: { red: 0.859, green: 0.914, blue: 0.969 }, textFormat: { fontFamily: "Calibri", fontSize: 10 }, verticalAlignment: "MIDDLE", wrapStrategy: "OVERFLOW_CELL" } }, fields: "userEnteredFormat(backgroundColor,textFormat,verticalAlignment,wrapStrategy)" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { backgroundColor: { red: 1, green: 0.902, blue: 0.6 }, textFormat: { fontFamily: "Calibri", fontSize: 10 }, verticalAlignment: "MIDDLE", wrapStrategy: "OVERFLOW_CELL" } }, fields: "userEnteredFormat(backgroundColor,textFormat,verticalAlignment,wrapStrategy)" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 3, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: { red: 0.831, green: 0.047, blue: 0.051 } }, verticalAlignment: "MIDDLE", wrapStrategy: "OVERFLOW_CELL" } }, fields: "userEnteredFormat(textFormat,verticalAlignment,wrapStrategy)" } },
+    // Limpa também a formatação residual do topo antes de aplicar o modelo.
+    { repeatCell: { range: { sheetId, startRowIndex: 0, endRowIndex: 6, startColumnIndex: 0, endColumnIndex: columnCount }, cell: { userEnteredFormat: { backgroundColor: white, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: false, foregroundColor: black }, horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE", wrapStrategy: "OVERFLOW_CELL" } }, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)" } },
+    { repeatCell: { range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { backgroundColor: white, wrapStrategy: "OVERFLOW_CELL", textFormat: { fontFamily: "Calibri", fontSize: 16, bold: true, foregroundColor: black }, horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE" } }, fields: "userEnteredFormat(backgroundColor,wrapStrategy,textFormat,horizontalAlignment,verticalAlignment)" } },
+    { repeatCell: { range: { sheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { backgroundColor: { red: 0.859, green: 0.914, blue: 0.969 }, textFormat: { fontFamily: "Calibri", fontSize: 10, bold: false, foregroundColor: black }, horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE", wrapStrategy: "OVERFLOW_CELL" } }, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)" } },
+    { repeatCell: { range: { sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { backgroundColor: { red: 1, green: 0.902, blue: 0.6 }, textFormat: { fontFamily: "Calibri", fontSize: 10, bold: false, foregroundColor: black }, horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE", wrapStrategy: "OVERFLOW_CELL" } }, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)" } },
+    { repeatCell: { range: { sheetId, startRowIndex: 3, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { backgroundColor: white, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: red }, horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE", wrapStrategy: "OVERFLOW_CELL" } }, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy)" } },
     { repeatCell: { range: { sheetId, startRowIndex: 4, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { numberFormat: { type: "DATE", pattern: "dd/mm/yyyy" } } }, fields: "userEnteredFormat.numberFormat" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 6, endRowIndex: 7, startColumnIndex: 0, endColumnIndex: columnCount }, cell: { userEnteredFormat: { backgroundColor: { red: 0.075, green: 0.012, blue: 0.553 }, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } }, horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } }, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)" } },
+    { repeatCell: { range: { sheetId, startRowIndex: 5, endRowIndex: 6, startColumnIndex: 0, endColumnIndex: columnCount }, cell: { userEnteredFormat: { backgroundColor: white, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: false, foregroundColor: black }, horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } }, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)" } },
+    { repeatCell: { range: { sheetId, startRowIndex: 6, endRowIndex: 7, startColumnIndex: 0, endColumnIndex: columnCount }, cell: { userEnteredFormat: { backgroundColor: blue, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: white }, horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } }, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)" } },
     { repeatCell: { range: { sheetId, startRowIndex: 7, endRowIndex: rowCount, startColumnIndex: 5, endColumnIndex: columnCount }, cell: { userEnteredFormat: { numberFormat: { type: "TEXT", pattern: "@" } } }, fields: "userEnteredFormat.numberFormat" } },
     { updateSheetProperties: { properties: { sheetId, gridProperties: { frozenRowCount: 7 } }, fields: "gridProperties.frozenRowCount" } },
   ];

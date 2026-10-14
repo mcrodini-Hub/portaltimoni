@@ -6,7 +6,6 @@ const protectedRoutes: Array<{ prefix: string; module: PortalModule }> = [
   { prefix: "/agenda-ct", module: "agenda-ct" },
   { prefix: "/agenda", module: "agenda" },
   { prefix: "/colaboradores", module: "painel" },
-  { prefix: "/dashboard/pedido-de-compra", module: "pedido-de-compra" },
   { prefix: "/dashboard/compras", module: "compras" },
   { prefix: "/dashboard/conferencia-pedidos", module: "conferencia" },
   { prefix: "/dashboard/estoque-rotativo", module: "estoque-rotativo" },
@@ -53,6 +52,8 @@ export default auth((request) => {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
+  // Pedidos de Compra validates current saved permissions in its server page.
+  // The JWT may still contain the permissions from before the last edit.
   const protectedRoute = protectedRoutes.find(({ prefix }) => pathname.startsWith(prefix));
 
   if (protectedRoute && !hasModuleAccess(request.auth.user.email, protectedRoute.module, configuredUser)) {
@@ -75,4 +76,5 @@ export const config = {
     "/configuracoes/:path*",
   ],
 };
+
 

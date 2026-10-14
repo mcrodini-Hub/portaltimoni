@@ -1,4 +1,5 @@
 import { auth } from "@/lib/auth";
+import { getEffectivePortalUser } from "@/lib/portal-config";
 import { hasModuleAccess } from "@/lib/access-control";
 import { normalizeTrelloText, trelloFetch, TRELLO_BOARD_SHORT_LINK } from "@/lib/trello";
 import { google, type sheets_v4 } from "googleapis";
@@ -152,8 +153,10 @@ async function writeSentOrdersCache(sheets: sheets_v4.Sheets, orders: SentOrder[
 
 export async function GET() {
   const session = await auth();
-  if (!session?.user?.email || !hasModuleAccess(session.user.email, "pedido-de-compra", session.portalUser)) return NextResponse.json({ ok: false, error: "Acesso não autorizado a Pedido de Compra." }, { status: 403 });
+  if (!session?.user?.email) return NextResponse.json({ ok: false, error: "Sessão expirada. Entre novamente no Portal." }, { status: 401 });
   try {
+    const portalUser = await getEffectivePortalUser(session.accessToken, session.user.email);
+    if (!hasModuleAccess(session.user.email, "pedido-de-compra", portalUser)) return NextResponse.json({ ok: false, error: "Acesso não autorizado a Pedidos de Compra." }, { status: 403 });
     let pedidosEnviados: SentOrder[];
     try {
       pedidosEnviados = await readSentOrders();
@@ -174,3 +177,4 @@ export async function GET() {
     return NextResponse.json({ ok: true, pedidosEnviados }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) { return NextResponse.json({ ok: false, error: error instanceof Error ? error.message : "Falha ao carregar os pedidos." }, { status: 502 }); }
 }
+

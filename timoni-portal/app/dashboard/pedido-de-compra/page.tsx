@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { auth } from "@/lib/auth";
 import { hasModuleAccess, type PortalUser } from "@/lib/access-control";
+import { getEffectivePortalUser } from "@/lib/portal-config";
 import { redirect } from "next/navigation";
 import PedidoCompraClient from "./pedido-compra-client";
 
@@ -50,9 +51,11 @@ function resolveAllowedUnits(email: string, isManager: boolean, portalUser?: Por
 export default async function PedidoCompraPage() {
   const session = await auth();
   const email = session?.user?.email?.trim().toLowerCase() ?? "";
-  if (!hasModuleAccess(email, "pedido-de-compra", session?.portalUser)) redirect("/login?error=AccessDenied");
+  const portalUser = await getEffectivePortalUser(session?.accessToken, email);
+  if (!hasModuleAccess(email, "pedido-de-compra", portalUser)) redirect("/login?error=AccessDenied");
   const isManager = ESTOQUE_GESTAO_EMAILS.has(email);
-  const allowedUnits = resolveAllowedUnits(email, isManager, session?.portalUser);
+  const allowedUnits = resolveAllowedUnits(email, isManager, portalUser);
   const visibleUnits: RequestUnit[] = isManager || allowedUnits.length > 1 ? ["rio_claro", "araras"] : allowedUnits;
   return <PedidoCompraClient visibleUnits={visibleUnits} />;
 }
+

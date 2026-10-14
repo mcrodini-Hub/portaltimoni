@@ -7,6 +7,7 @@ const destinations: Array<{ module: PortalModule; href: string }> = [
   { module: "agenda", href: "/agenda" },
   { module: "agenda-ct", href: "/agenda-ct" },
   { module: "compras", href: "/dashboard/compras" },
+  { module: "pedido-de-compra", href: "/dashboard/pedido-de-compra" },
   { module: "conferencia", href: "/dashboard/conferencia-pedidos" },
   { module: "estoque", href: "/dashboard/estoque" },
   { module: "estoque-rotativo", href: "/dashboard/estoque-rotativo" },
@@ -25,3 +26,4 @@ export default async function DashboardPage() {
   if (!target) redirect("/login?error=AccessDenied");
   redirect(target.href);
 }
+

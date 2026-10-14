@@ -12,6 +12,7 @@ const navItems: Array<{ href: string; label: string; module: PortalModule; updat
   { href: "/agenda", label: "Agenda Ciça", module: "agenda", updateModule: "agenda", icon: "star", color: "text-cyan-700" },
   { href: "/agenda-ct", label: "Agenda CT", module: "agenda-ct", icon: "star", color: "text-cyan-700" },
   { href: "/dashboard/compras", label: "Compras", module: "compras", updateModule: "compras", icon: "cart", color: "text-orange-700" },
+  { href: "/dashboard/pedido-de-compra", label: "PEDIDO DE COMPRA", module: "pedido-de-compra", icon: "cart", color: "text-orange-700" },
   { href: "/dashboard/conferencia-pedidos", label: "Conferência", module: "conferencia", updateModule: "conferencia", icon: "document", color: "text-rose-700" },
   { href: "/dashboard/estoque", label: "Estoque", module: "estoque", updateModule: "estoque", icon: "stock", color: "text-amber-700" },
   { href: "/dashboard/estoque-rotativo", label: "Rotativo", module: "estoque-rotativo", updateModule: "estoque-rotativo", icon: "stock", color: "text-yellow-700" },
@@ -27,7 +28,7 @@ export default async function PortalHeader({ email, portalUser }: { email: strin
   const isManagement = ["mcrodini@gmail.com", "mrodini@gmail.com"].includes(email.trim().toLowerCase());
   const canViewUpdates = isManagement;
   const canUseChat = hasModuleAccess(email, "chat", effectivePortalUser);
-  const mobileVisible = (module: PortalModule) => effectivePortalUser?.mobileModules === undefined || effectivePortalUser.mobileModules.includes(module);
+  const mobileVisible = (module: PortalModule) => (module === "pedido-de-compra" && email.trim().toLowerCase() === "mcrodini@gmail.com") || effectivePortalUser?.mobileModules === undefined || effectivePortalUser.mobileModules.includes(module);
   const linkClass =
     "whitespace-nowrap rounded-lg px-2 py-2 text-[13px] font-medium text-white/90 transition hover:bg-white/10 hover:text-white";
   const allowedItems = navItems
@@ -90,3 +91,4 @@ export default async function PortalHeader({ email, portalUser }: { email: strin
     </>
   );
 }
+

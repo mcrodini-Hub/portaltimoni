@@ -4,6 +4,7 @@ export type PortalModule =
   | "agenda-ct"
   | "chat"
   | "compras"
+  | "pedido-de-compra"
   | "conferencia"
   | "estoque"
   | "estoque-rotativo"
@@ -169,7 +170,7 @@ export function getPortalUser(email?: string | null, configured?: PortalUser | n
   const fallback = portalUsers[normalized] ?? null;
   return fallback?.active === false ? null : fallback;
 }
-export function hasModuleAccess(email: string | null | undefined, module: PortalModule, configured?: PortalUser | null) { return getPortalUser(email, configured)?.modules.includes(module) ?? false; }
+export function hasModuleAccess(email: string | null | undefined, module: PortalModule, configured?: PortalUser | null) { const user = getPortalUser(email, configured); return Boolean(user && ((module === "pedido-de-compra" && normalizeEmail(email) === CICA_EMAIL) || user.modules.includes(module))); }
 export function isCicaAccess(email?: string | null) { return normalizeEmail(email) === CICA_EMAIL; }
 export function entersDirectlyInPainelTimoni(email?: string | null, configured?: PortalUser | null) {
   if (configured && normalizeEmail(configured.email) === normalizeEmail(email)) return configured.directPainel ?? false;
@@ -195,3 +196,4 @@ export function isBoxVisible(email: string | null | undefined, box: PortalBox, c
   if (!user.boxes) return true;
   return user.boxes.includes(box);
 }
+

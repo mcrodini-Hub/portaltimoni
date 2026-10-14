@@ -6,6 +6,7 @@ const protectedRoutes: Array<{ prefix: string; module: PortalModule }> = [
   { prefix: "/agenda-ct", module: "agenda-ct" },
   { prefix: "/agenda", module: "agenda" },
   { prefix: "/colaboradores", module: "painel" },
+  { prefix: "/dashboard/pedido-de-compra", module: "pedido-de-compra" },
   { prefix: "/dashboard/compras", module: "compras" },
   { prefix: "/dashboard/conferencia-pedidos", module: "conferencia" },
   { prefix: "/dashboard/estoque-rotativo", module: "estoque-rotativo" },
@@ -74,3 +75,4 @@ export const config = {
     "/configuracoes/:path*",
   ],
 };
+

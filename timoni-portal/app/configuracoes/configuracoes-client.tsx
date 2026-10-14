@@ -22,6 +22,7 @@ const MODULES: Array<{ id: PortalModule; label: string }> = [
   { id: "agenda-ct", label: "Agenda CT" },
   { id: "chat", label: "Chat" },
   { id: "compras", label: "Compras" },
+  { id: "pedido-de-compra", label: "Pedido de Compra" },
   { id: "conferencia", label: "Conferência" },
   { id: "estoque", label: "Estoque" },
   { id: "estoque-rotativo", label: "Rotativo" },
@@ -31,7 +32,7 @@ const MODULES: Array<{ id: PortalModule; label: string }> = [
 ];
 
 const DASHBOARD_MODULES = new Set<PortalModule>([
-  "painel", "agenda", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads",
+  "painel", "agenda", "compras", "pedido-de-compra", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads",
 ]);
 
 function emptyMember(): ConfiguredCollaborator {
@@ -571,3 +572,4 @@ function Editor({
     </div>
   );
 }
+

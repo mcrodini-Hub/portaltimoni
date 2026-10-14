@@ -1,6 +1,5 @@
 import { auth } from "@/lib/auth";
 import { hasModuleAccess } from "@/lib/access-control";
-import { normalizeTrelloText, trelloFetch, TRELLO_BOARD_SHORT_LINK } from "@/lib/trello";
 import { google, type sheets_v4 } from "googleapis";
 import { NextResponse } from "next/server";
 import { recordModuleUpdateSafely } from "@/lib/module-updates";
@@ -10,8 +9,6 @@ export const dynamic = "force-dynamic";
 
 const SPREADSHEET_ID = "1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo";
 const NEED_COLUMNS = 15;
-const SENT_ORDERS_CACHE_RANGE = "Necessidades!Q:W";
-const SENT_ORDERS_CACHE_HEADER = ["id", "nome", "enviadoEm", "previsaoEntrega", "recebidoEm", "unidade", "situacao"];
 
 const STATUS = {
   PENDENTE: "pendente",
@@ -43,26 +40,6 @@ type Need = {
 type Product = { codigo: string; descricao: string; unidade: string };
 type Seller = { nome: string; unidade: string };
 type Counts = { emAberto: number; aguardandoCompra: number; aguardandoChegada: number; finalizadas: number };
-type SentOrder = {
-  id: string;
-  nome: string;
-  enviadoEm: string;
-  previsaoEntrega: string;
-  recebidoEm: string;
-  unidade: "rio_claro" | "araras";
-  situacao: "enviado" | "recebido";
-};
-type TrelloList = { id: string; name: string; closed?: boolean };
-type TrelloBoard = { lists?: TrelloList[]; cards?: TrelloCard[] };
-type TrelloCard = {
-  id: string;
-  name: string;
-  idList: string;
-  start?: string | null;
-  due?: string | null;
-  dateLastActivity?: string | null;
-  closed?: boolean;
-};
 
 const fixedSellers: Seller[] = [
   { nome: "João", unidade: "rio_claro" },
@@ -109,21 +86,6 @@ function rowsToSellers(rows: unknown[][]): Seller[] {
   return sellers;
 }
 
-function rowsToCachedOrders(rows: unknown[][]): SentOrder[] {
-  return rows
-    .slice(1)
-    .map((row) => ({
-      id: value(row, 0),
-      nome: value(row, 1),
-      enviadoEm: value(row, 2),
-      previsaoEntrega: value(row, 3),
-      recebidoEm: value(row, 4),
-      unidade: value(row, 5) === "araras" ? "araras" as const : "rio_claro" as const,
-      situacao: value(row, 6) === "recebido" ? "recebido" as const : "enviado" as const,
-    }))
-    .filter((order) => Boolean(order.id && order.nome))
-    .filter((order) => order.situacao === "enviado");
-}
 
 function summarize(needs: Need[]) {
   const geral = emptyCounts();
@@ -141,82 +103,6 @@ function summarize(needs: Need[]) {
   return { geral, porUnidade };
 }
 
-function hasAllTokens(value: string, tokens: string[]) {
-  const normalized = normalizeTrelloText(value);
-  return tokens.every((token) => normalized.includes(token));
-}
-
-function dedupeOrders(orders: SentOrder[]) {
-  const unique = new Map<string, SentOrder>();
-  const prioritized = [...orders].sort((a, b) => {
-    const aTime = new Date(a.enviadoEm || a.recebidoEm || "").getTime();
-    const bTime = new Date(b.enviadoEm || b.recebidoEm || "").getTime();
-    return (Number.isNaN(bTime) ? 0 : bTime) - (Number.isNaN(aTime) ? 0 : aTime);
-  });
-  for (const order of prioritized) {
-    const key = `${normalizeTrelloText(order.nome)}|${order.unidade}`;
-    if (!unique.has(key)) unique.set(key, order);
-  }
-  return [...unique.values()];
-}
-
-const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
-
-function isWithinLast30Days(value: string) {
-  if (!value) return false;
-  const time = new Date(value).getTime();
-  if (Number.isNaN(time)) return false;
-  return time >= Date.now() - THIRTY_DAYS_MS;
-}
-
-function sortOrders(orders: SentOrder[]) {
-  return dedupeOrders(orders)
-    .filter((order) => isWithinLast30Days(order.enviadoEm))
-    .sort((a, b) => {
-    const aTime = new Date(a.enviadoEm || a.recebidoEm || "").getTime();
-    const bTime = new Date(b.enviadoEm || b.recebidoEm || "").getTime();
-    const safeATime = Number.isNaN(aTime) ? 0 : aTime;
-    const safeBTime = Number.isNaN(bTime) ? 0 : bTime;
-      if (safeATime !== safeBTime) return safeBTime - safeATime;
-      return a.nome.localeCompare(b.nome, "pt-BR");
-    });
-}
-
-async function readSentOrders(): Promise<SentOrder[]> {
-  const board = await trelloFetch<TrelloBoard>(`/boards/${TRELLO_BOARD_SHORT_LINK}`, {
-    params: {
-      fields: "name",
-      lists: "open",
-      list_fields: "name,closed",
-      cards: "open",
-      card_fields: "name,idList,start,due,dateLastActivity,closed",
-    },
-  });
-  const lists = (board.lists || []).filter((list) => !list.closed);
-  const cards = (board.cards || []).filter((card) => !card.closed);
-  const sentRioClaroList = lists.find((list) => hasAllTokens(list.name, ["pedidos", "enviado", "rio", "claro"]));
-  const sentArarasList = lists.find((list) => hasAllTokens(list.name, ["pedidos", "enviado", "araras"]));
-
-  const toOrders = (list: TrelloList | undefined, unidade: "rio_claro" | "araras"): SentOrder[] =>
-    list
-      ? cards
-          .filter((card) => card.idList === list.id)
-          .map((card) => ({
-            id: card.id,
-            nome: card.name,
-            enviadoEm: card.start || "",
-            previsaoEntrega: card.due || "",
-            recebidoEm: "",
-            unidade,
-            situacao: "enviado" as const,
-          }))
-      : [];
-
-  return sortOrders([
-    ...toOrders(sentRioClaroList, "rio_claro"),
-    ...toOrders(sentArarasList, "araras"),
-  ]);
-}
 
 async function getSheets() {
   const session = await auth();
@@ -239,42 +125,19 @@ async function canDeleteStockRecords() {
 async function readAll(sheets: sheets_v4.Sheets) {
   const response = await sheets.spreadsheets.values.batchGet({
     spreadsheetId: SPREADSHEET_ID,
-    ranges: ["Necessidades!A:O", "Produtos!A:C", "Vendedores!A:B", SENT_ORDERS_CACHE_RANGE],
+    ranges: ["Necessidades!A:O", "Produtos!A:C", "Vendedores!A:B"],
     valueRenderOption: "FORMATTED_VALUE",
   });
-  const [needRange, productRange, sellerRange, sentOrdersCacheRange] = response.data.valueRanges ?? [];
+  const [needRange, productRange, sellerRange] = response.data.valueRanges ?? [];
   const needRows = (needRange?.values ?? []) as unknown[][];
   const productRows = (productRange?.values ?? []) as unknown[][];
   const sellerRows = (sellerRange?.values ?? []) as unknown[][];
-  const cacheRows = (sentOrdersCacheRange?.values ?? []) as unknown[][];
   const necessidades = needRows.slice(1).filter((row) => value(row, 0)).map(rowToNeed);
   const produtos = rowsToProducts(productRows);
   const vendedores = rowsToSellers(sellerRows);
-  const cachedOrders = sortOrders(rowsToCachedOrders(cacheRows));
-  return { necessidades, produtos, vendedores, summary: summarize(necessidades), needRows, cachedOrders };
+  return { necessidades, produtos, vendedores, summary: summarize(necessidades), needRows };
 }
 
-async function writeSentOrdersCache(sheets: sheets_v4.Sheets, orders: SentOrder[]) {
-  const values = [
-    SENT_ORDERS_CACHE_HEADER,
-    ...orders.map((order) => [
-      order.id,
-      order.nome,
-      order.enviadoEm,
-      order.previsaoEntrega,
-      order.recebidoEm,
-      order.unidade,
-      order.situacao,
-    ]),
-  ];
-  await sheets.spreadsheets.values.clear({ spreadsheetId: SPREADSHEET_ID, range: SENT_ORDERS_CACHE_RANGE });
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: SPREADSHEET_ID,
-    range: "Necessidades!Q1",
-    valueInputOption: "RAW",
-    requestBody: { values },
-  });
-}
 
 function apiError(error: unknown) {
   const message = error instanceof Error ? error.message : "Falha ao acessar o Estoque.";
@@ -290,21 +153,12 @@ export async function GET() {
   try {
     const sheets = await getSheets();
     const data = await readAll(sheets);
-    let pedidosEnviados = data.cachedOrders;
-    try {
-      const trelloOrders = await readSentOrders();
-      pedidosEnviados = trelloOrders;
-      await writeSentOrdersCache(sheets, trelloOrders);
-    } catch {
-      pedidosEnviados = data.cachedOrders;
-    }
     return NextResponse.json({
       ok: true,
       necessidades: data.necessidades,
       produtos: data.produtos,
       vendedores: data.vendedores,
       summary: data.summary,
-      pedidosEnviados,
     }, { headers: { "Cache-Control": "no-store" } });
   } catch (error) {
     return apiError(error);
@@ -522,3 +376,4 @@ export async function POST(request: Request) {
     return apiError(error);
   }
 }
+

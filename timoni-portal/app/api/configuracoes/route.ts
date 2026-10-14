@@ -14,10 +14,10 @@ import {
 import { bumpPortalConfigurationRevisionSafely } from "@/lib/portal-config-revision";
 
 const VALID_MODULES = new Set<PortalModule>([
-  "painel", "agenda", "agenda-ct", "chat", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads",
+  "painel", "agenda", "agenda-ct", "chat", "compras", "pedido-de-compra", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads",
 ]);
 const VALID_BOXES = new Set<PortalBox>([
-  "painel", "agenda", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads", "espaco-equipe",
+  "painel", "agenda", "compras", "pedido-de-compra", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads", "espaco-equipe",
 ]);
 const MANAGEMENT_EMAILS = new Set([CICA_EMAIL, "mrodini@gmail.com"]);
 
@@ -157,3 +157,4 @@ export async function PUT(request: Request) {
     return NextResponse.json({ error: error instanceof Error ? error.message : "Não foi possível salvar." }, { status: 400 });
   }
 }
+

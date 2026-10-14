@@ -18,7 +18,7 @@ const COLLABORATOR_ROSTER_MIGRATION = "Lista oficial de colaboradores 30-09-2026
 const REQUIRED_SHEETS = [USERS_SHEET, COLLABORATORS_SHEET, HISTORY_SHEET];
 const PORTAL_CONFIG_CACHE_TAG = "portal-config";
 export const CICA_EMAIL = "mcrodini@gmail.com";
-export const DASHBOARD_BOX_MODULES: PortalModule[] = ["painel", "agenda", "compras", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads"];
+export const DASHBOARD_BOX_MODULES: PortalModule[] = ["painel", "agenda", "compras", "pedido-de-compra", "conferencia", "estoque", "estoque-rotativo", "motorista", "reunioes", "leads"];
 
 export type ConfiguredCollaborator = TeamMember & {
   id: string;
@@ -575,3 +575,4 @@ export async function recordPortalAccess(accessToken: string, email: string) {
     console.warn("[portal-config] Não foi possível registrar o último acesso.", error);
   }
 }
+

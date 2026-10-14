@@ -7,6 +7,10 @@ import { POST as legacyPOST } from "./route-legacy";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+const ROTATIVO_APPS_SCRIPT_URL = process.env.ROTATIVO_APPS_SCRIPT_URL
+  || "https://script.google.com/macros/s/AKfycbzhImr2vK_yA3Szx8zgUwXAj19KF8KwSgD4lZlWWCSZpc0tKPYEsQjwym5qcM5WcKZgTQ/exec";
+const ROTATIVO_TEMPLATE_SPREADSHEET_ID = "1zuQpzoqKs8oiJSENwAcVgyqQm0OJKLnkTWyNLCZwRus";
+
 async function sheetsClient() {
   const session = await auth();
   const email = normalizeEmail(session?.user?.email);
@@ -16,6 +20,36 @@ async function sheetsClient() {
   const oauth = new google.auth.OAuth2();
   oauth.setCredentials({ access_token: session.accessToken });
   return google.sheets({ version: "v4", auth: oauth });
+}
+
+async function invokeRotativoAppsScript(spreadsheetId: string, sheetName: string) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 12000);
+  try {
+    const url = new URL(ROTATIVO_APPS_SCRIPT_URL);
+    url.searchParams.set("action", "padronizar");
+    url.searchParams.set("spreadsheetId", spreadsheetId);
+    url.searchParams.set("sheetName", sheetName);
+    url.searchParams.set("templateSpreadsheetId", ROTATIVO_TEMPLATE_SPREADSHEET_ID);
+
+    const response = await fetch(url, {
+      method: "GET",
+      cache: "no-store",
+      redirect: "follow",
+      signal: controller.signal,
+    });
+    if (!response.ok) {
+      throw new Error(`Apps Script respondeu HTTP ${response.status}.`);
+    }
+    return true;
+  } catch (error) {
+    // A padronização nativa do Portal continua sendo a fonte final de verdade.
+    // O Apps Script é integrado como etapa complementar para manter o fluxo compatível no mobile.
+    console.warn("[rotativo] Apps Script indisponível; aplicando modelo nativo do Portal.", error);
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
 }
 
 export async function POST(request: Request) {
@@ -29,6 +63,9 @@ export async function POST(request: Request) {
   if (!response.ok) return response;
 
   if (action === "ajustar_a1" && spreadsheetId && sheetName) {
+    // Integra o Web App do Apps Script sem tornar o Portal dependente dele.
+    // Em seguida o Portal reaplica o modelo oficial para garantir o mesmo resultado em web e mobile.
+    await invokeRotativoAppsScript(spreadsheetId, sheetName);
     const sheets = await sheetsClient();
     await applyOfficialRotativoModel(sheets, spreadsheetId, sheetName);
   }

@@ -22,7 +22,7 @@ const MODULES: Array<{ id: PortalModule; label: string }> = [
   { id: "agenda-ct", label: "Agenda CT" },
   { id: "chat", label: "Chat" },
   { id: "compras", label: "Compras" },
-  { id: "pedido-de-compra", label: "Pedido de Compra" },
+  { id: "pedido-de-compra", label: "Pedidos de Compra" },
   { id: "conferencia", label: "Conferência" },
   { id: "estoque", label: "Estoque" },
   { id: "estoque-rotativo", label: "Rotativo" },

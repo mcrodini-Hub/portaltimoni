@@ -12,7 +12,7 @@ const navItems: Array<{ href: string; label: string; module: PortalModule; updat
   { href: "/agenda", label: "Agenda Ciça", module: "agenda", updateModule: "agenda", icon: "star", color: "text-cyan-700" },
   { href: "/agenda-ct", label: "Agenda CT", module: "agenda-ct", icon: "star", color: "text-cyan-700" },
   { href: "/dashboard/compras", label: "Compras", module: "compras", updateModule: "compras", icon: "cart", color: "text-orange-700" },
-  { href: "/dashboard/pedido-de-compra", label: "PEDIDO DE COMPRA", module: "pedido-de-compra", icon: "cart", color: "text-orange-700" },
+  { href: "/dashboard/pedido-de-compra", label: "Pedidos de Compra", module: "pedido-de-compra", icon: "cart", color: "text-orange-700" },
   { href: "/dashboard/conferencia-pedidos", label: "Conferência", module: "conferencia", updateModule: "conferencia", icon: "document", color: "text-rose-700" },
   { href: "/dashboard/estoque", label: "Estoque", module: "estoque", updateModule: "estoque", icon: "stock", color: "text-amber-700" },
   { href: "/dashboard/estoque-rotativo", label: "Rotativo", module: "estoque-rotativo", updateModule: "estoque-rotativo", icon: "stock", color: "text-yellow-700" },

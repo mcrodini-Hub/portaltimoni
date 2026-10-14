@@ -4,7 +4,7 @@ import { hasModuleAccess, type PortalUser } from "@/lib/access-control";
 import { redirect } from "next/navigation";
 import PedidoCompraClient from "./pedido-compra-client";
 
-export const metadata: Metadata = { title: "PEDIDO DE COMPRA" };
+export const metadata: Metadata = { title: "Pedidos de Compra" };
 type RequestUnit = "rio_claro" | "araras";
 
 const ESTOQUE_GESTAO_EMAILS = new Set([

@@ -45,7 +45,7 @@ export async function applyOfficialRotativoModel(
 ) {
   const meta = await sheets.spreadsheets.get({
     spreadsheetId,
-    fields: "properties(title),sheets(properties(sheetId,title,gridProperties),conditionalFormats)",
+    fields: "properties(title),sheets(properties(sheetId,title,gridProperties),conditionalFormats,bandedRanges(bandedRangeId))",
   });
   const sheet = meta.data.sheets?.find((item) => item.properties?.title === sheetName);
   const sheetId = sheet?.properties?.sheetId;
@@ -175,6 +175,15 @@ export async function applyOfficialRotativoModel(
     .map(({ index }) => index);
   const lastActiveColumn = Math.max(5, historyColumns.length ? Math.max(...historyColumns) + 1 : 5);
 
+  // Última linha de produto (índice exclusivo). Usa só colunas-chave: o ITEM do layout antigo
+  // (coluna A) deixa números soltos em linhas vazias e não pode contar como produto.
+  // Sem produtos, só o cabeçalho (linha 7) recebe borda.
+  const productKeyColumns = originalWasOfficial ? [0, 1, 2] : [1, 2];
+  let lastProductRow = 7;
+  for (let r = 7; r < values.length; r += 1) {
+    if (productKeyColumns.some((c) => String(values[r]?.[c] ?? "").trim() !== "")) lastProductRow = r + 1;
+  }
+
   const data: Array<{ range: string; values: unknown[][] }> = [
     { range: `${q}!A1`, values: [[supplierName]] },
     { range: `${q}!A2`, values: [[`Padronizada em ${standardizedAt}`]] },
@@ -198,6 +207,16 @@ export async function applyOfficialRotativoModel(
   const conditionalRules = sheet?.conditionalFormats || [];
   for (let i = conditionalRules.length - 1; i >= 0; i -= 1) {
     requests.push({ deleteConditionalFormatRule: { sheetId, index: i } });
+  }
+
+  // Resíduos que a limpeza de formato não alcança: mesclagens, validação de dados e faixas alternadas.
+  const fullGrid = { sheetId, startRowIndex: 0, endRowIndex: rowCount, startColumnIndex: 0, endColumnIndex: columnCount };
+  requests.push({ unmergeCells: { range: fullGrid } });
+  requests.push({ setDataValidation: { range: fullGrid } });
+  for (const band of sheet?.bandedRanges || []) {
+    if (band.bandedRangeId !== undefined && band.bandedRangeId !== null) {
+      requests.push({ deleteBanding: { bandedRangeId: band.bandedRangeId } });
+    }
   }
 
   // Limpe integralmente a formatação herdada sem tocar em valores, fórmulas ou históricos.
@@ -233,6 +252,10 @@ export async function applyOfficialRotativoModel(
     { repeatCell: { range: { sheetId, startRowIndex: 7, endRowIndex: rowCount, startColumnIndex: 2, endColumnIndex: 3 }, cell: { userEnteredFormat: { horizontalAlignment: "LEFT" } }, fields: "userEnteredFormat.horizontalAlignment" } },
     { repeatCell: { range: { sheetId, startRowIndex: 7, endRowIndex: rowCount, startColumnIndex: 3, endColumnIndex: 5 }, cell: { userEnteredFormat: { textFormat: { fontFamily: "Calibri", fontSize: 11, bold: false, foregroundColor: black }, horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } }, fields: "userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment)" } },
     { repeatCell: { range: { sheetId, startRowIndex: 7, endRowIndex: rowCount, startColumnIndex: 5, endColumnIndex: lastActiveColumn }, cell: { userEnteredFormat: { numberFormat: { type: "TEXT", pattern: "@" }, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: false, foregroundColor: black }, horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } }, fields: "userEnteredFormat(numberFormat,textFormat,horizontalAlignment,verticalAlignment)" } },
+    // Bordas sólidas nos dados: do primeiro produto até a última linha de produto, só até o último histórico.
+    ...(lastProductRow > 7
+      ? [{ repeatCell: { range: { sheetId, startRowIndex: 7, endRowIndex: lastProductRow, startColumnIndex: 0, endColumnIndex: lastActiveColumn }, cell: { userEnteredFormat: { borders: solidBorders } }, fields: "userEnteredFormat.borders" } }]
+      : []),
     { updateSheetProperties: { properties: { sheetId, gridProperties: { frozenRowCount: 7 } }, fields: "gridProperties.frozenRowCount" } },
   );
 

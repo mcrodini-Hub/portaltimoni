@@ -129,6 +129,33 @@ export async function POST(request: Request) {
     const sheetName = String(body.sheetName || "").trim();
     if (!spreadsheetId || !sheetName) throw new Error("Planilha e aba são obrigatórias.");
 
+    if (action === "testar_em_copia") {
+      // Native Sheets copy needs only the existing spreadsheets scope.
+      // No Drive permission expansion, supplier registration or source writes.
+      const source = await sheets.spreadsheets.get({ spreadsheetId, fields: "properties(title),sheets.properties(sheetId,title)" });
+      const sourceSheetId = source.data.sheets?.find(s => s.properties?.title === sheetName)?.properties?.sheetId;
+      if (sourceSheetId == null) throw new Error("A aba selecionada não foi encontrada.");
+      const created = await sheets.spreadsheets.create({ requestBody: { properties: { title: `TESTE ROTATIVO — ${source.data.properties?.title || sheetName}` }, sheets: [{ properties: { title: "PREPARANDO_TESTE" } }] } });
+      const copyId = created.data.spreadsheetId;
+      if (!copyId) throw new Error("Não foi possível criar a planilha de teste.");
+      const copyUrl = created.data.spreadsheetUrl;
+      try {
+        const copied = await sheets.spreadsheets.sheets.copyTo({ spreadsheetId, sheetId: sourceSheetId, requestBody: { destinationSpreadsheetId: copyId } });
+        const copiedSheetId = copied.data.sheetId;
+        if (copiedSheetId == null) throw new Error("A cópia da aba não foi confirmada.");
+        const placeholderId = created.data.sheets?.[0]?.properties?.sheetId;
+        await sheets.spreadsheets.batchUpdate({ spreadsheetId: copyId, requestBody: { requests: [
+          { updateSheetProperties: { properties: { sheetId: copiedSheetId, title: sheetName }, fields: "title" } },
+          ...(placeholderId != null ? [{ deleteSheet: { sheetId: placeholderId } }] : []),
+        ] } });
+        await withStandardizationLock(copyId, () => createBackup(sheets, copyId, sheetName));
+        const result = await setA1Overflow(sheets, copyId, sheetName);
+        return NextResponse.json({ ok: true, ...result, spreadsheetId: copyId, spreadsheetUrl: copyUrl, sheetName });
+      } catch (cause) {
+        throw new Error(`${cause instanceof Error ? cause.message : "Falha no teste."} A original não foi alterada. Cópia de teste: ${copyUrl || copyId}`);
+      }
+    }
+
     if (action === "criar_backup") {
       await withStandardizationLock(spreadsheetId, () => createBackup(sheets, spreadsheetId, sheetName));
       return NextResponse.json({ ok: true });
@@ -151,4 +178,5 @@ export async function POST(request: Request) {
     return apiError(error);
   }
 }
+
 

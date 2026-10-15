@@ -1,246 +1,222 @@
+import { randomUUID } from "node:crypto";
 import type { sheets_v4 } from "googleapis";
 
-function norm(value: unknown) {
-  return String(value ?? "")
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .toLocaleLowerCase("pt-BR")
-    .replace(/[^a-z0-9]+/g, " ")
-    .trim();
+type Cell = sheets_v4.Schema$CellData;
+type Request = sheets_v4.Schema$Request;
+export const ROTATIVO_HEADERS = ["VENDA", "COMPRA", "DESCRIÇÃO", "ESTOQUE", "UN"];
+const norm = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+const occupied = (c?: Cell) => Boolean(c?.userEnteredValue && Object.values(c.userEnteredValue).some(v => v !== "" && v != null));
+const label = (c?: Cell) => c?.formattedValue ?? c?.userEnteredValue?.stringValue ?? "";
+export function colLetter(i: number) {
+  let s = "";
+  for (let n = i + 1; n > 0; n = Math.floor((n - 1) / 26)) s = String.fromCharCode(65 + (n - 1) % 26) + s;
+  return s;
 }
-
-function colLetter(index: number) {
-  let n = index + 1;
-  let out = "";
-  while (n > 0) {
-    const r = (n - 1) % 26;
-    out = String.fromCharCode(65 + r) + out;
-    n = Math.floor((n - 1) / 26);
-  }
-  return out;
+export function gridRows(sheet: sheets_v4.Schema$Sheet): Cell[][] {
+  const rows: Cell[][] = [];
+  for (const block of sheet.data || []) (block.rowData || []).forEach((row, r) => {
+    const target = rows[r + (block.startRow || 0)] ||= [];
+    (row.values || []).forEach((c, i) => { target[i + (block.startColumn || 0)] = c; });
+  });
+  return rows;
 }
-
-function isDateLike(value: unknown) {
-  const text = String(value ?? "").trim();
-  return /^\d{1,2}[/-]\d{1,2}[/-]\d{2,4}$/.test(text) || /^\d{4}-\d{2}-\d{2}/.test(text);
-}
-
-const white = { red: 1, green: 1, blue: 1 };
-const black = { red: 0, green: 0, blue: 0 };
+const white = { red: 1, green: 1, blue: 1 }, black = { red: 0, green: 0, blue: 0 };
 const red = { red: 0.83137256, green: 0.047058824, blue: 0.050980393 };
 const blue = { red: 0.07450981, green: 0.011764706, blue: 0.5529412 };
 const lightBlue = { red: 0.85882354, green: 0.9137255, blue: 0.96862745 };
 const yellow = { red: 1, green: 0.9019608, blue: 0.6 };
-const solidBorders = {
-  top: { style: "SOLID" },
-  bottom: { style: "SOLID" },
-  left: { style: "SOLID" },
-  right: { style: "SOLID" },
-};
 
-export async function applyOfficialRotativoModel(
-  sheets: sheets_v4.Sheets,
-  spreadsheetId: string,
-  sheetName: string,
-) {
-  const meta = await sheets.spreadsheets.get({
-    spreadsheetId,
-    fields: "properties(title),sheets(properties(sheetId,title,gridProperties),conditionalFormats)",
-  });
-  const sheet = meta.data.sheets?.find((item) => item.properties?.title === sheetName);
-  const sheetId = sheet?.properties?.sheetId;
-  if (sheetId === undefined || sheetId === null) throw new Error("A aba selecionada não foi encontrada.");
-
-  const rowCount = Math.max(1000, sheet?.properties?.gridProperties?.rowCount || 1000);
-  const columnCount = Math.max(10, sheet?.properties?.gridProperties?.columnCount || 10);
-  const q = `'${sheetName.replace(/'/g, "''")}'`;
-
-  let read = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `${q}!A1:${colLetter(Math.min(columnCount, 31) - 1)}40`,
-    valueRenderOption: "FORMATTED_VALUE",
-  });
-  let values = read.data.values || [];
-
-  const headerIndex = values.findIndex((row) => {
-    const n = (row || []).map(norm);
-    return n.includes("estoque") && (n.includes("codigo") || n.includes("venda") || n.includes("cod venda"));
-  });
-  if (headerIndex < 0) throw new Error("Não foi possível identificar o cabeçalho da planilha original.");
-
-  const originalHeader = values[headerIndex] || [];
-  const normalizedHeader = originalHeader.map(norm);
-  const originalWasOfficial = normalizedHeader[0] === "venda";
-
-  let employee = "";
-  let originalDate: unknown = "";
-  const topRows = values.slice(0, headerIndex);
-  for (const row of topRows) {
-    const normalized = (row || []).map(norm);
-    const employeeLabel = normalized.findIndex((cell) => cell.includes("funcionario"));
-    if (employeeLabel >= 0) {
-      const dateLabel = normalized.findIndex((cell, index) => index > employeeLabel && cell === "data");
-      const candidates = (row || [])
-        .slice(employeeLabel + 1, dateLabel >= 0 ? dateLabel : undefined)
-        .map((value) => String(value ?? "").trim())
-        .filter(Boolean);
-      if (candidates.length) employee = candidates.join(" / ");
-      if (dateLabel >= 0) {
-        originalDate = (row || []).slice(dateLabel + 1).find((value) => String(value ?? "").trim() !== "") ?? "";
+// Pure planner. Native dimension moves retain typed values, formulas and number formats.
+export function planOfficialRotativoModel(sheet: sheets_v4.Schema$Sheet, title: string, now = new Date()) {
+  const sheetId = sheet.properties?.sheetId;
+  if (sheetId == null) throw new Error("A aba selecionada não foi encontrada.");
+  const rows = gridRows(sheet);
+  const aliases = [
+    ["venda", "codigo", "cod venda", "codigo venda", "codigo de venda", "sku", "referencia"],
+    ["compra", "cod compra", "codigo compra", "codigo de compra", "codigo fornecedor", "cod fornecedor"],
+    ["descricao", "produto", "mercadoria", "nome produto"],
+    ["estoque", "quantidade", "qtd", "saldo", "estoque atual"], ["un", "unidade", "und"],
+  ];
+  const candidates = rows.map((row, index) => {
+    const names = row.map(c => norm(label(c)));
+    const columns = aliases.map(allowed => {
+      const hits = names.map((n, i) => allowed.includes(n) ? i : -1).filter(i => i >= 0);
+      return hits.length === 1 ? hits[0] : -1;
+    });
+    return { index, columns, names };
+  }).filter(x => x.columns[0] >= 0 && x.columns[2] >= 0 && x.columns[3] >= 0);
+  if (candidates.length !== 1) throw new Error("Cabeçalho desconhecido ou ambíguo. Nenhuma alteração foi feita.");
+  const { index: headerIndex, columns, names } = candidates[0];
+  const official = headerIndex === 6 && ROTATIVO_HEADERS.every((h, i) => names[i] === norm(h));
+  if (headerIndex > 6) throw new Error("Cabeçalho abaixo da linha 7. Revise a estrutura antes de padronizar.");
+  const rowShift = 6 - headerIndex;
+  let lastSourceRow = headerIndex;
+  rows.forEach((row, i) => { if (i > headerIndex && row.some(occupied)) lastSourceRow = i; });
+  if (lastSourceRow === headerIndex) throw new Error("Nenhum produto encontrado abaixo do cabeçalho.");
+  const sourceWidth = Math.max(1, ...rows.slice(headerIndex).filter(Boolean).map(row => {
+    let end = row.length;
+    while (end && !occupied(row[end - 1])) end--;
+    return end;
+  }));
+  const excluded = names.map((n, i) => ["item", "numero", "min", "minimo", "max", "maximo", "estoque minimo", "estoque maximo"].includes(n) ? i : -1).filter(i => i >= 0 && !columns.includes(i));
+  const histories = Array.from({ length: sourceWidth }, (_, i) => i).filter(i => !columns.includes(i) && !excluded.includes(i));
+  const lastRow = lastSourceRow + rowShift + 1, lastColumn = 5 + histories.length;
+  for (const c of columns.slice(0, 2).filter(c => c >= 0)) for (let r = headerIndex + 1; r <= lastSourceRow; r++) {
+    const cell = rows[r]?.[c], n = cell?.userEnteredValue?.numberValue;
+    if (n != null && cell?.formattedValue != null && cell.formattedValue !== String(n)) throw new Error(`Código com formato especial em ${colLetter(c)}${r + 1}. A conversão para texto alteraria sua exibição.`);
+  }
+  if (excluded.length && rows.slice(headerIndex + 1).some(row => row.some(c => c.userEnteredValue?.formulaValue))) throw new Error("Planilha com fórmulas e colunas auxiliares antigas: revise as referências antes da migração.");
+  const requests: Request[] = [];
+  for (let i = (sheet.conditionalFormats || []).length - 1; i >= 0; i--) requests.push({ deleteConditionalFormatRule: { sheetId, index: i } });
+  for (const m of sheet.merges || []) requests.push({ unmergeCells: { range: m } });
+  if (sheet.basicFilter) requests.push({ clearBasicFilter: { sheetId } });
+  for (const f of sheet.filterViews || []) if (f.filterViewId != null) requests.push({ deleteFilterView: { filterId: f.filterViewId } });
+  for (const b of sheet.bandedRanges || []) if (b.bandedRangeId != null) requests.push({ deleteBanding: { bandedRangeId: b.bandedRangeId } });
+  if ((sheet as sheets_v4.Schema$Sheet & { tables?: unknown[] }).tables?.length) throw new Error("A aba contém tabela nativa. Revise a estrutura antes de padronizar.");
+  if (rowShift) requests.push({ insertDimension: { range: { sheetId, dimension: "ROWS", startIndex: headerIndex, endIndex: 6 }, inheritFromBefore: false } });
+  const order = Array.from({ length: sheet.properties?.gridProperties?.columnCount || sourceWidth }, (_, i) => i);
+  for (let dest = 0; dest < 5; dest++) {
+    const original = columns[dest];
+    if (original < 0) {
+      requests.push({ insertDimension: { range: { sheetId, dimension: "COLUMNS", startIndex: dest, endIndex: dest + 1 }, inheritFromBefore: false } });
+      order.splice(dest, 0, -dest - 1);
+    } else {
+      const from = order.indexOf(original);
+      if (from !== dest) {
+        requests.push({ moveDimension: { source: { sheetId, dimension: "COLUMNS", startIndex: from, endIndex: from + 1 }, destinationIndex: dest } });
+        order.splice(dest, 0, order.splice(from, 1)[0]);
       }
     }
   }
-  if (!employee) {
-    employee = topRows
-      .flat()
-      .map((value) => String(value ?? "").trim())
-      .find((value) => /(^|[\s/,;-])(lucas|luca|jonathan|jonatan)([\s/,;-]|$)/i.test(value)) || "";
+  for (const i of excluded.map(i => order.indexOf(i)).sort((a, b) => b - a)) {
+    requests.push({ deleteDimension: { range: { sheetId, dimension: "COLUMNS", startIndex: i, endIndex: i + 1 } } });
+    order.splice(i, 1);
   }
-  if (!originalDate) originalDate = topRows.flat().find(isDateLike) ?? "";
-
-  if (originalWasOfficial && headerIndex === 6) {
-    employee = String(values[3]?.[0] ?? employee).trim();
-    originalDate = values[4]?.[0] ?? originalDate;
+  const rowCount = (sheet.properties?.gridProperties?.rowCount || rows.length) + rowShift, columnCount = order.length;
+  const range = (r: number, end: number, c: number, ce: number) => ({ sheetId, startRowIndex: r, endRowIndex: end, startColumnIndex: c, endColumnIndex: ce });
+  const fmt = (r: number, end: number, c: number, ce: number, userEnteredFormat: sheets_v4.Schema$CellFormat, fields: string) => {
+    if (end > r && ce > c) requests.push({ repeatCell: { range: range(r, end, c, ce), cell: { userEnteredFormat }, fields } });
+  };
+  // Clear visual inheritance, never numberFormat. Blank surroundings lose old borders/alignment.
+  fmt(0, rowCount, 0, columnCount, {}, "userEnteredFormat(backgroundColor,backgroundColorStyle,borders,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy,textDirection,padding,textRotation)");
+  requests.push({ repeatCell: { range: range(0, rowCount, 0, columnCount), cell: {}, fields: "dataValidation" } });
+  fmt(0, lastRow, 0, lastColumn, { backgroundColor: white, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: false, foregroundColor: black }, wrapStrategy: "OVERFLOW_CELL" }, "userEnteredFormat(backgroundColor,textFormat,wrapStrategy)");
+  fmt(0, 6, 0, lastColumn, { horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE" }, "userEnteredFormat(horizontalAlignment,verticalAlignment)");
+  fmt(0, 1, 0, 1, { textFormat: { fontFamily: "Calibri", fontSize: 16, bold: true, foregroundColor: black } }, "userEnteredFormat.textFormat");
+  fmt(1, 2, 0, 2, { backgroundColor: lightBlue, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: black } }, "userEnteredFormat(backgroundColor,textFormat)");
+  fmt(2, 3, 0, 2, { backgroundColor: yellow }, "userEnteredFormat.backgroundColor");
+  fmt(2, 3, 0, 1, { textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: black } }, "userEnteredFormat.textFormat");
+  fmt(3, 5, 0, 1, { textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: red } }, "userEnteredFormat.textFormat");
+  fmt(5, 6, 5, lastColumn, { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" }, "userEnteredFormat(horizontalAlignment,verticalAlignment)");
+  fmt(6, lastRow, 0, lastColumn, { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" }, "userEnteredFormat(horizontalAlignment,verticalAlignment)");
+  fmt(6, lastRow, 2, 3, { horizontalAlignment: "LEFT" }, "userEnteredFormat.horizontalAlignment");
+  fmt(6, 7, 0, lastColumn, { backgroundColor: blue, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: white } }, "userEnteredFormat(backgroundColor,textFormat)");
+  fmt(7, lastRow, 0, 2, { numberFormat: { type: "TEXT", pattern: "@" } }, "userEnteredFormat.numberFormat");
+  for (let r = headerIndex + 1; r <= lastSourceRow; r++) {
+    const nf = rows[r]?.[columns[3]]?.userEnteredFormat?.numberFormat;
+    if (!nf || nf.type !== "NUMBER" || nf.pattern === "0.###############") {
+      const value = rows[r]?.[columns[3]]?.effectiveValue?.numberValue ?? rows[r]?.[columns[3]]?.userEnteredValue?.numberValue;
+      const [mantissa, exponent = "0"] = String(value ?? 0).split("e");
+      const decimals = Math.min(15, Math.max(0, (mantissa.split(".")[1]?.length || 0) - Number(exponent)));
+      const pattern = decimals ? `0.${"0".repeat(decimals)}` : "0";
+      fmt(r + rowShift, r + rowShift + 1, 3, 4, { numberFormat: { type: "NUMBER", pattern } }, "userEnteredFormat.numberFormat");
+    }
   }
-
-  const previousRotativoUpdate = topRows
-    .flat()
-    .map((value) => String(value ?? "").trim())
-    .find((value) => /(?:estoque\s+)?rotativo\s+atualizado\s+em/i.test(value)) || "";
-  const normalizedUpdate = previousRotativoUpdate
-    ? previousRotativoUpdate.replace(/^Estoque\s+Rotativo atualizado em/i, "Rotativo atualizado em")
-    : "";
-
-  if (headerIndex < 6) {
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      requestBody: {
-        requests: [{
-          insertDimension: {
-            range: { sheetId, dimension: "ROWS", startIndex: headerIndex, endIndex: 6 },
-            inheritFromBefore: false,
-          },
-        }],
-      },
-    });
+  const border = { style: "SOLID", color: black };
+  requests.push({ updateBorders: { range: range(6, lastRow, 0, lastColumn), top: border, bottom: border, left: border, right: border, innerHorizontal: border, innerVertical: border } });
+  for (const [r, end, c, ce] of [[0, 1, 0, 1], [1, 2, 0, 2], [2, 3, 0, 1]]) requests.push({ updateBorders: { range: range(r, end, c, ce), top: border, bottom: border, left: border, right: border, innerVertical: border } });
+  const write = (r: number, c: number, value: sheets_v4.Schema$ExtendedValue) => requests.push({ updateCells: { start: { sheetId, rowIndex: r, columnIndex: c }, rows: [{ values: [{ userEnteredValue: value }] }], fields: "userEnteredValue" } });
+  const top = rows.slice(0, headerIndex).flat();
+  const standardized = top.find(c => /^Padronizada em /i.test(label(c)));
+  const updated = top.find(c => /^(?:Estoque\s+)?Rotativo atualizado em /i.test(label(c)));
+  let responsible: Cell | undefined = official ? rows[3]?.[0] : undefined;
+  let date: Cell | undefined = official ? rows[4]?.[0] : undefined;
+  if (!official) for (const row of rows.slice(0, headerIndex)) {
+    const emp = row.findIndex(c => norm(label(c)).includes("funcionario"));
+    const dt = row.findIndex(c => norm(label(c)) === "data");
+    if (emp >= 0) responsible = row.slice(emp + 1, dt > emp ? dt : undefined).find(occupied) || responsible;
+    if (dt >= 0) date = row.slice(dt + 1).find(occupied) || date;
   }
+  responsible ||= top.find(c => /^(lucas|jonatan|jonathan)$/i.test(String(label(c)).trim()));
+  date ||= top.find(c => /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(String(label(c)).trim()));
+  const stamp = new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short", timeZone: "America/Sao_Paulo" }).format(now);
+  requests.push({ repeatCell: { range: range(0, 6, 0, columnCount), cell: {}, fields: "userEnteredValue" } });
+  write(0, 0, { stringValue: official ? String(label(rows[0]?.[0])) : title.trim().toLocaleUpperCase("pt-BR") });
+  write(1, 0, standardized?.userEnteredValue || { stringValue: `Padronizada em ${stamp}` });
+  write(2, 0, updated?.userEnteredValue || { stringValue: "" });
+  write(3, 0, responsible?.userEnteredValue || { stringValue: "" });
+  write(4, 0, date?.userEnteredValue || { stringValue: "" });
+  if (date?.userEnteredFormat?.numberFormat) fmt(4, 5, 0, 1, { numberFormat: date.userEnteredFormat.numberFormat }, "userEnteredFormat.numberFormat");
+  for (let c = 0; c < 5; c++) write(6, c, { stringValue: ROTATIVO_HEADERS[c] });
+  for (let c = 5; c < lastColumn; c++) write(5, c, { formulaValue: `=COUNTA(${colLetter(c)}8:${colLetter(c)})` });
+  requests.push({ updateSheetProperties: { properties: { sheetId, gridProperties: { frozenRowCount: 7, frozenColumnCount: 0 } }, fields: "gridProperties(frozenRowCount,frozenColumnCount)" } });
+  const dim = (dimension: string, a: number, b: number, pixelSize: number) => {
+    if (b > a) requests.push({ updateDimensionProperties: { range: { sheetId, dimension, startIndex: a, endIndex: b }, properties: { pixelSize }, fields: "pixelSize" } });
+  };
+  [160, 160, 439, 103, 31].forEach((px, i) => dim("COLUMNS", i, i + 1, px));
+  dim("COLUMNS", 5, lastColumn, 127);
+  dim("ROWS", 0, 1, 32); dim("ROWS", 1, 5, 25); dim("ROWS", 5, 6, 19); dim("ROWS", 6, 7, 29); dim("ROWS", 7, lastRow, 19);
+  if (Buffer.byteLength(JSON.stringify(requests)) > 1_800_000) throw new Error("Planilha excede o tamanho seguro de uma operação. Nenhuma alteração foi feita.");
+  return { requests, lastRow, lastColumn, headerIndex, rowShift, columns, histories, official, products: rows.slice(headerIndex + 1, lastSourceRow + 1).filter(r => r.some(occupied)).length };
+}
 
-  read = await sheets.spreadsheets.values.get({
-    spreadsheetId,
-    range: `${q}!A1:${colLetter(columnCount - 1)}${rowCount}`,
-    valueRenderOption: "FORMULA",
-  });
-  values = read.data.values || [];
-  const header = values[6] || [];
+export async function readRotativoSheet(sheets: sheets_v4.Sheets, spreadsheetId: string, sheetName: string) {
+  const q = `'${sheetName.replace(/'/g, "''")}'`;
+  const meta = await sheets.spreadsheets.get({ spreadsheetId, fields: "properties(title),sheets(properties)" });
+  const properties = meta.data.sheets?.find(s => s.properties?.title === sheetName)?.properties;
+  if (!properties) throw new Error("A aba selecionada não foi encontrada.");
+  const rowCount = properties.gridProperties?.rowCount || 0, columnCount = properties.gridProperties?.columnCount || 0;
+  if (!rowCount || !columnCount || rowCount * columnCount > 200_000) throw new Error("A aba excede o limite seguro de leitura desta rotina.");
+  const values = await sheets.spreadsheets.values.get({ spreadsheetId, range: `${q}!A1:${colLetter(columnCount - 1)}${rowCount}`, valueRenderOption: "FORMULA" });
+  const usedRows = Math.max(1, values.data.values?.length || 0);
+  const usedColumns = Math.max(5, ...(values.data.values || []).map(row => row.length));
+  const result = await sheets.spreadsheets.get({ spreadsheetId, ranges: [`${q}!A1:${colLetter(usedColumns - 1)}${usedRows}`], fields: "properties(title),sheets(properties,merges,conditionalFormats,basicFilter,filterViews,bandedRanges,tables,data(startRow,startColumn,rowData(values(userEnteredValue,effectiveValue,formattedValue,userEnteredFormat,dataValidation))))" });
+  const sheet = result.data.sheets?.find(s => s.properties?.sheetId === properties.sheetId);
+  if (!sheet) throw new Error("Não foi possível ler a aba selecionada.");
+  return { sheet, title: result.data.properties?.title || sheetName };
+}
 
-  if (!originalWasOfficial) {
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      requestBody: {
-        requests: [{
-          cutPaste: {
-            source: { sheetId, startRowIndex: 7, endRowIndex: rowCount, startColumnIndex: 1, endColumnIndex: 2 },
-            destination: { sheetId, rowIndex: 7, columnIndex: 0 },
-            pasteType: "PASTE_NORMAL",
-          },
-        }],
-      },
-    });
-  }
-
-  await sheets.spreadsheets.values.batchClear({
-    spreadsheetId,
-    requestBody: {
-      ranges: [
-        `${q}!B1:${colLetter(columnCount - 1)}5`,
-        `${q}!A6:${colLetter(columnCount - 1)}6`,
-      ],
-    },
-  });
-
-  const supplierName = String(meta.data.properties?.title || sheetName).trim().toLocaleUpperCase("pt-BR");
-  const standardizedAt = new Intl.DateTimeFormat("pt-BR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date());
-
-  const historyColumns = header
-    .map((value, index) => ({ value, index }))
-    .filter(({ value, index }) => index >= 5 && String(value ?? "").trim() !== "")
-    .map(({ index }) => index);
-  const lastActiveColumn = Math.max(5, historyColumns.length ? Math.max(...historyColumns) + 1 : 5);
-
-  const data: Array<{ range: string; values: unknown[][] }> = [
-    { range: `${q}!A1`, values: [[supplierName]] },
-    { range: `${q}!A2`, values: [[`Padronizada em ${standardizedAt}`]] },
-    { range: `${q}!A3`, values: [[normalizedUpdate]] },
-    { range: `${q}!A4`, values: [[employee]] },
-    { range: `${q}!A5`, values: [[originalDate]] },
-    { range: `${q}!A7:E7`, values: [["VENDA", "COMPRA", "DESCRIÇÃO", "ESTOQUE", "UN"]] },
+export async function applyOfficialRotativoModel(sheets: sheets_v4.Sheets, spreadsheetId: string, sheetName: string) {
+  const snapshot = await readRotativoSheet(sheets, spreadsheetId, sheetName);
+  const plan = planOfficialRotativoModel(snapshot.sheet, snapshot.title);
+  const sheetId = snapshot.sheet.properties!.sheetId!;
+  const operationId = randomUUID(), backupName = `BKP_EXEC_${operationId.slice(0, 8)}_${sheetName}`.slice(0, 100);
+  const backups = await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests: [{ duplicateSheet: { sourceSheetId: sheetId, newSheetName: backupName } }] } });
+  const backupId = backups.data.replies?.[0]?.duplicateSheet?.properties?.sheetId;
+  if (backupId == null) throw new Error("Backup não confirmado. A padronização foi interrompida.");
+  const requests: Request[] = [...plan.requests,
+    { updateSheetProperties: { properties: { sheetId: backupId, hidden: true }, fields: "hidden" } },
+    { createDeveloperMetadata: { developerMetadata: { metadataKey: "rotativo_operation", metadataValue: operationId, location: { sheetId }, visibility: "DOCUMENT" } } },
   ];
-  for (const c of historyColumns) {
-    const letter = colLetter(c);
-    data.push({ range: `${q}!${letter}6`, values: [[`=COUNTA(${letter}8:${letter}${rowCount})`]] });
+  try {
+    await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } }, { retry: false });
+  } catch (cause) {
+    const status = (cause as { response?: { status?: number } }).response?.status;
+    if (status && [400, 401, 403, 404].includes(status)) throw new Error(`Padronização recusada pela API; nenhuma alteração aplicada. Backup: ${backupName}. ${cause instanceof Error ? cause.message : ""}`);
+    const check = await sheets.spreadsheets.get({ spreadsheetId, fields: "sheets(properties(sheetId),developerMetadata)" }).catch(() => null);
+    const applied = check?.data.sheets?.find(s => s.properties?.sheetId === sheetId)?.developerMetadata?.some(m => m.metadataKey === "rotativo_operation" && m.metadataValue === operationId);
+    if (!applied) {
+      const error = new Error(`Não foi possível confirmar a execução. Não repita agora; confira a planilha e o backup ${backupName}.`);
+      error.name = "RotativoUncertainWriteError";
+      throw error;
+    }
   }
-  await sheets.spreadsheets.values.batchUpdate({
-    spreadsheetId,
-    requestBody: { valueInputOption: "USER_ENTERED", data },
-  });
-
-  const requests: sheets_v4.Schema$Request[] = [];
-
-  // Remova todas as regras condicionais antigas da aba. Elas não fazem parte do modelo oficial.
-  const conditionalRules = sheet?.conditionalFormats || [];
-  for (let i = conditionalRules.length - 1; i >= 0; i -= 1) {
-    requests.push({ deleteConditionalFormatRule: { sheetId, index: i } });
+  const verified = await readRotativoSheet(sheets, spreadsheetId, sheetName), rows = gridRows(verified.sheet);
+  if (!ROTATIVO_HEADERS.every((h, i) => label(rows[6]?.[i]) === h)) throw new Error("Cabeçalho não confirmado após a padronização. Preserve o backup.");
+  for (let c = 5; c < plan.lastColumn; c++) if (rows[5]?.[c]?.effectiveValue?.errorValue || rows[5]?.[c]?.effectiveValue?.numberValue == null) throw new Error(`Contador ${colLetter(c)}6 não calculado. Preserve o backup.`);
+  const before = gridRows(snapshot.sheet);
+  const mapping = [...plan.columns, ...plan.histories];
+  for (let r = plan.headerIndex; r < before.length; r++) for (let c = 0; c < mapping.length; c++) {
+    if ((r === plan.headerIndex && c < 5) || mapping[c] < 0) continue;
+    const source = before[r]?.[mapping[c]] || {}, target = rows[r + plan.rowShift]?.[c] || {};
+    const a = source.userEnteredValue || {}, b = target.userEnteredValue || {};
+    const structural = plan.rowShift !== 0 || mapping.some((v, i) => v !== i);
+    const formulaMoved = Boolean(a.formulaValue && structural);
+    if (formulaMoved ? (!b.formulaValue || JSON.stringify(source.effectiveValue) !== JSON.stringify(target.effectiveValue)) : JSON.stringify(a) !== JSON.stringify(b)) {
+      throw new Error(`Dados divergentes em ${colLetter(c)}${r + plan.rowShift + 1}. Preserve o backup e não confirme.`);
+    }
+    if (c >= 5 && JSON.stringify(source.userEnteredFormat?.numberFormat || {}) !== JSON.stringify(target.userEnteredFormat?.numberFormat || {})) throw new Error("Formato do histórico divergente. Preserve o backup.");
+    if (!formulaMoved && (source.formattedValue || "") !== (target.formattedValue || "")) throw new Error(`Exibição divergente em ${colLetter(c)}${r + plan.rowShift + 1}. Preserve o backup.`);
   }
-
-  // Limpe integralmente a formatação herdada sem tocar em valores, fórmulas ou históricos.
-  requests.push({
-    repeatCell: {
-      range: { sheetId, startRowIndex: 0, endRowIndex: rowCount, startColumnIndex: 0, endColumnIndex: columnCount },
-      cell: { userEnteredFormat: {} },
-      fields: "userEnteredFormat",
-    },
-  });
-
-  // Base do modelo: Calibri 11, branco, sem bordas, dados preservados.
-  requests.push({
-    repeatCell: {
-      range: { sheetId, startRowIndex: 0, endRowIndex: rowCount, startColumnIndex: 0, endColumnIndex: lastActiveColumn },
-      cell: { userEnteredFormat: { backgroundColor: white, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: false, foregroundColor: black }, verticalAlignment: "MIDDLE", wrapStrategy: "OVERFLOW_CELL" } },
-      fields: "userEnteredFormat(backgroundColor,textFormat,verticalAlignment,wrapStrategy)",
-    },
-  });
-
-  requests.push(
-    { repeatCell: { range: { sheetId, startRowIndex: 0, endRowIndex: 1, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { backgroundColor: white, borders: solidBorders, textFormat: { fontFamily: "Calibri", fontSize: 16, bold: true, foregroundColor: black }, horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE" } }, fields: "userEnteredFormat(backgroundColor,borders,textFormat,horizontalAlignment,verticalAlignment)" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 1, endRowIndex: 2, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { backgroundColor: lightBlue, borders: solidBorders, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: black }, horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE" } }, fields: "userEnteredFormat(backgroundColor,borders,textFormat,horizontalAlignment,verticalAlignment)" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { backgroundColor: yellow, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: false, foregroundColor: black }, horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE" } }, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 2, endRowIndex: 3, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { borders: solidBorders, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: black } } }, fields: "userEnteredFormat(borders,textFormat)" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 3, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { backgroundColor: white, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: red }, horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE" } }, fields: "userEnteredFormat(backgroundColor,textFormat,horizontalAlignment,verticalAlignment)" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 4, endRowIndex: 5, startColumnIndex: 0, endColumnIndex: 1 }, cell: { userEnteredFormat: { numberFormat: { type: "DATE", pattern: "dd/mm/yyyy" } } }, fields: "userEnteredFormat.numberFormat" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 5, endRowIndex: 6, startColumnIndex: 5, endColumnIndex: lastActiveColumn }, cell: { userEnteredFormat: { backgroundColor: white, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: false, foregroundColor: black } } }, fields: "userEnteredFormat(backgroundColor,textFormat)" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 6, endRowIndex: 7, startColumnIndex: 0, endColumnIndex: lastActiveColumn }, cell: { userEnteredFormat: { backgroundColor: blue, borders: solidBorders, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: white }, horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } }, fields: "userEnteredFormat(backgroundColor,borders,textFormat,horizontalAlignment,verticalAlignment)" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 7, endRowIndex: rowCount, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { textFormat: { fontFamily: "Calibri", fontSize: 11, bold: false, foregroundColor: black }, verticalAlignment: "MIDDLE" } }, fields: "userEnteredFormat(textFormat,verticalAlignment)" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 7, endRowIndex: rowCount, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { numberFormat: { type: "TEXT", pattern: "@" } } }, fields: "userEnteredFormat.numberFormat" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 7, endRowIndex: rowCount, startColumnIndex: 0, endColumnIndex: 2 }, cell: { userEnteredFormat: { horizontalAlignment: "CENTER" } }, fields: "userEnteredFormat.horizontalAlignment" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 7, endRowIndex: rowCount, startColumnIndex: 2, endColumnIndex: 3 }, cell: { userEnteredFormat: { horizontalAlignment: "LEFT" } }, fields: "userEnteredFormat.horizontalAlignment" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 7, endRowIndex: rowCount, startColumnIndex: 3, endColumnIndex: 5 }, cell: { userEnteredFormat: { textFormat: { fontFamily: "Calibri", fontSize: 11, bold: false, foregroundColor: black }, horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } }, fields: "userEnteredFormat(textFormat,horizontalAlignment,verticalAlignment)" } },
-    { repeatCell: { range: { sheetId, startRowIndex: 7, endRowIndex: rowCount, startColumnIndex: 5, endColumnIndex: lastActiveColumn }, cell: { userEnteredFormat: { numberFormat: { type: "TEXT", pattern: "@" }, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: false, foregroundColor: black }, horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" } }, fields: "userEnteredFormat(numberFormat,textFormat,horizontalAlignment,verticalAlignment)" } },
-    { updateSheetProperties: { properties: { sheetId, gridProperties: { frozenRowCount: 7 } }, fields: "gridProperties.frozenRowCount" } },
-  );
-
-  const col = (a: number, b: number, px: number): sheets_v4.Schema$Request => ({ updateDimensionProperties: { range: { sheetId, dimension: "COLUMNS", startIndex: a, endIndex: b }, properties: { pixelSize: px }, fields: "pixelSize" } });
-  const row = (a: number, b: number, px: number): sheets_v4.Schema$Request => ({ updateDimensionProperties: { range: { sheetId, dimension: "ROWS", startIndex: a, endIndex: b }, properties: { pixelSize: px }, fields: "pixelSize" } });
-  requests.push(col(0, 1, 160), col(1, 2, 160), col(2, 3, 439), col(3, 4, 103), col(4, 5, 31));
-  if (lastActiveColumn > 5) requests.push(col(5, lastActiveColumn, 127));
-  requests.push(row(0, 1, 32), row(1, 5, 25), row(5, 6, 19), row(6, 7, 29), row(7, rowCount, 19));
-
-  await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests } });
+  return { products: plan.products, backupUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${backupId}`, operationId };
 }

@@ -11,6 +11,7 @@ import { GET as legacyGET, POST as legacyPOST } from "./route-legacy";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 300;
 export const GET = legacyGET;
 
 function extractSpreadsheetId(value: string) {
@@ -125,3 +126,4 @@ export async function POST(request: Request) {
 
   return response;
 }
+

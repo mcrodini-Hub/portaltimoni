@@ -303,11 +303,7 @@ export default function EstoqueRotativoClient() {
       await load();
       return;
     }
-    const resultSpreadsheetId = String(result.spreadsheetId || targetSpreadsheetId);
-    const resultSheetName = String(result.sheetName || standardizationSheetName);
-    const adjusted = await standardizationControl("ajustar_a1", resultSpreadsheetId, resultSheetName);
     setStandardizingSupplier(false);
-    if (!adjusted) return;
     setFeedback(`Planilha ${result.supplierName} pronta para conferência. Clique em Abrir aba para conferir e depois em Salvar padronização.`);
     if (result.spreadsheetId) {
       setSelectedStandardizationSupplierId(String(result.spreadsheetId));

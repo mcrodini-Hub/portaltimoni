@@ -151,6 +151,28 @@ function grossPrice(price: number | null, ipi: number | null) {
   return price * (1 + ipi / 100);
 }
 
+function priceConferenceLabel(
+  precoMcr: number | null,
+  precoFornecedor: number | null,
+  hasOtherDivergence: boolean,
+) {
+  if (
+    typeof precoMcr !== "number" ||
+    !Number.isFinite(precoMcr) ||
+    typeof precoFornecedor !== "number" ||
+    !Number.isFinite(precoFornecedor)
+  ) {
+    return hasOtherDivergence ? "OUTRA DIVERGÊNCIA" : "SEM DADOS";
+  }
+
+  const pedidoCentavos = Math.round(precoMcr * 100);
+  const fornecedorCentavos = Math.round(precoFornecedor * 100);
+
+  if (fornecedorCentavos === pedidoCentavos) return "PREÇOS OK";
+  if (fornecedorCentavos < pedidoCentavos) return "PREÇO ABAIXOU";
+  return "PREÇO AUMENTOU";
+}
+
 function buildSheet(result: ConferenciaResult) {
   const rows: string[] = [], merges: string[] = [];
   const supplier = normalizeText(result.fornecedor_curto || result.fornecedor_nome);
@@ -182,6 +204,7 @@ function buildSheet(result: ConferenciaResult) {
     const d=new Set(item.divergencias||[]), price=d.has("preco"), other=[...d].some(x=>x!=="preco"), orange=["item_faltante","item_extra","pareamento_incerto","outra"].some(x=>d.has(x as Divergencia));
     const grossM=item.preco_bruto_mcr??grossPrice(item.preco_mcr,item.ipi_mcr), grossF=item.preco_bruto_fornecedor??grossPrice(item.preco_fornecedor,item.ipi_fornecedor);
     const ts=orange?6:21, qs=orange||d.has("quantidade")?8:7, ips=orange||d.has("ipi")?8:7, ps=price?26:4;
+    const conferencia=priceConferenceLabel(item.preco_mcr,item.preco_fornecedor,other);
     add(row,[
       textCell(`A${row}`,normalizeText(item.pl),ts),textCell(`B${row}`,normalizeText(item.codigo_mcr),ts),
       textCell(`C${row}`,normalizeText(item.codigo_fornecedor_pedido_mcr),orange||d.has("codigo")?6:21),
@@ -191,7 +214,7 @@ function buildSheet(result: ConferenciaResult) {
       numberCell(`H${row}`,item.preco_mcr,ps,"SEM DADOS"),numberCell(`I${row}`,item.preco_fornecedor,ps,"SEM DADOS"),
       numberCell(`J${row}`,item.ipi_mcr,ips,"SEM DADOS"),numberCell(`K${row}`,item.ipi_fornecedor,ips,"SEM DADOS"),
       numberCell(`L${row}`,grossM,ps,"SEM DADOS"),numberCell(`M${row}`,grossF,ps,"SEM DADOS"),
-      textCell(`N${row}`,price?"PREÇO DIVERGENTE":other?"OUTRA DIVERGÊNCIA":"OK",price||other?24:25)
+      textCell(`N${row}`,conferencia,conferencia==="PREÇOS OK"?25:24)
     ],rowHeightForText(item.descricao,28,48));row++;
   }
   row++;

@@ -38,6 +38,50 @@ const solidBorders = {
   right: { style: "SOLID" },
 };
 
+type LegacyColumnMap = {
+  // pares [coluna de origem, coluna de destino no modelo oficial], em ordem crescente de destino
+  moves: Array<[number, number]>;
+  historyStart: number;
+  historyEnd: number;
+};
+
+// Converte o layout antigo (ex.: ITEM, CODIGO, DESCRICAO, min, max, ESTOQUE, UNIDADE, históricos...)
+// para as posições oficiais A=VENDA, B=COMPRA, C=DESCRIÇÃO, D=ESTOQUE, E=UN, F+=históricos.
+// Colunas sem destino (ITEM, min, max) não são carregadas para a aba principal; seguem no backup.
+// Tudo é movido da esquerda para a direita e só para a esquerda, então nenhum destino apaga uma origem pendente.
+function mapLegacyColumns(headerRow: unknown[]): LegacyColumnMap {
+  const names = headerRow.map(norm);
+  const find = (...options: string[]) => names.findIndex((name) => options.includes(name));
+  const venda = [find("venda", "cod venda", "codigo venda"), find("codigo", "cod")].find((i) => i >= 0) ?? -1;
+  const compra = find("compra", "cod compra", "codigo compra");
+  const desc = names.findIndex((name) => name.startsWith("descricao"));
+  const estoque = find("estoque");
+  const un = find("unidade", "un", "und");
+
+  const missing = [
+    venda < 0 ? "código de venda" : "",
+    desc < 0 ? "descrição" : "",
+    estoque < 0 ? "estoque" : "",
+  ].filter(Boolean);
+  if (missing.length) {
+    throw new Error(`Layout antigo não reconhecido: faltam as colunas ${missing.join(", ")}. A planilha não foi alterada.`);
+  }
+
+  const moves: Array<[number, number]> = [[venda, 0]];
+  if (compra >= 0) moves.push([compra, 1]);
+  moves.push([desc, 2], [estoque, 3]);
+  if (un >= 0) moves.push([un, 4]);
+  const used = moves.map(([source]) => source);
+  if (new Set(used).size !== used.length || moves.some(([source, target]) => source < target)) {
+    throw new Error("Layout antigo com colunas fora da ordem esperada. A planilha não foi alterada.");
+  }
+
+  const historyStart = Math.max(estoque, un, desc, venda, compra) + 1;
+  let historyEnd = historyStart - 1;
+  names.forEach((name, index) => { if (index >= historyStart && name !== "") historyEnd = index; });
+  return { moves, historyStart, historyEnd };
+}
+
 export async function applyOfficialRotativoModel(
   sheets: sheets_v4.Sheets,
   spreadsheetId: string,
@@ -51,7 +95,7 @@ export async function applyOfficialRotativoModel(
   const sheetId = sheet?.properties?.sheetId;
   if (sheetId === undefined || sheetId === null) throw new Error("A aba selecionada não foi encontrada.");
 
-  const rowCount = Math.max(1000, sheet?.properties?.gridProperties?.rowCount || 1000);
+  let rowCount = Math.max(1000, sheet?.properties?.gridProperties?.rowCount || 1000);
   const columnCount = Math.max(10, sheet?.properties?.gridProperties?.columnCount || 10);
   const q = `'${sheetName.replace(/'/g, "''")}'`;
 
@@ -111,6 +155,17 @@ export async function applyOfficialRotativoModel(
     ? previousRotativoUpdate.replace(/^Estoque\s+Rotativo atualizado em/i, "Rotativo atualizado em")
     : "";
 
+  // Mapeia as colunas ANTES de qualquer escrita: se o layout não for reconhecido, a planilha fica intacta.
+  let legacyMap: LegacyColumnMap | null = null;
+  if (!originalWasOfficial) {
+    const headerRead = await sheets.spreadsheets.values.get({
+      spreadsheetId,
+      range: `${q}!A${headerIndex + 1}:${colLetter(columnCount - 1)}${headerIndex + 1}`,
+      valueRenderOption: "FORMATTED_VALUE",
+    });
+    legacyMap = mapLegacyColumns(headerRead.data.values?.[0] || []);
+  }
+
   if (headerIndex < 6) {
     await sheets.spreadsheets.batchUpdate({
       spreadsheetId,
@@ -123,8 +178,31 @@ export async function applyOfficialRotativoModel(
         }],
       },
     });
+    // A inserção aumenta a grade; contar essas linhas mantém a 2ª execução idêntica à 1ª.
+    rowCount += 6 - headerIndex;
   }
 
+  if (legacyMap) {
+    // cutPaste move valores e fórmulas sem reescrevê-los; o cabeçalho (linha 7) vai junto, preservando os nomes originais dos históricos.
+    const targets: Array<[number, number]> = [...legacyMap.moves];
+    for (let source = legacyMap.historyStart; source <= legacyMap.historyEnd; source += 1) {
+      targets.push([source, 5 + (source - legacyMap.historyStart)]);
+    }
+    const moveRequests: sheets_v4.Schema$Request[] = targets
+      .filter(([source, target]) => source !== target)
+      .map(([source, target]) => ({
+        cutPaste: {
+          source: { sheetId, startRowIndex: 6, endRowIndex: rowCount, startColumnIndex: source, endColumnIndex: source + 1 },
+          destination: { sheetId, rowIndex: 6, columnIndex: target },
+          pasteType: "PASTE_NORMAL",
+        },
+      }));
+    if (moveRequests.length) {
+      await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests: moveRequests } });
+    }
+  }
+
+  // Leitura única, já na estrutura final: cabeçalho, históricos e última linha de produto saem daqui.
   read = await sheets.spreadsheets.values.get({
     spreadsheetId,
     range: `${q}!A1:${colLetter(columnCount - 1)}${rowCount}`,
@@ -132,21 +210,6 @@ export async function applyOfficialRotativoModel(
   });
   values = read.data.values || [];
   const header = values[6] || [];
-
-  if (!originalWasOfficial) {
-    await sheets.spreadsheets.batchUpdate({
-      spreadsheetId,
-      requestBody: {
-        requests: [{
-          cutPaste: {
-            source: { sheetId, startRowIndex: 7, endRowIndex: rowCount, startColumnIndex: 1, endColumnIndex: 2 },
-            destination: { sheetId, rowIndex: 7, columnIndex: 0 },
-            pasteType: "PASTE_NORMAL",
-          },
-        }],
-      },
-    });
-  }
 
   await sheets.spreadsheets.values.batchClear({
     spreadsheetId,
@@ -175,13 +238,11 @@ export async function applyOfficialRotativoModel(
     .map(({ index }) => index);
   const lastActiveColumn = Math.max(5, historyColumns.length ? Math.max(...historyColumns) + 1 : 5);
 
-  // Última linha de produto (índice exclusivo). Usa só colunas-chave: o ITEM do layout antigo
-  // (coluna A) deixa números soltos em linhas vazias e não pode contar como produto.
+  // Última linha de produto (índice exclusivo), pelas colunas VENDA, COMPRA e DESCRIÇÃO.
   // Sem produtos, só o cabeçalho (linha 7) recebe borda.
-  const productKeyColumns = originalWasOfficial ? [0, 1, 2] : [1, 2];
   let lastProductRow = 7;
   for (let r = 7; r < values.length; r += 1) {
-    if (productKeyColumns.some((c) => String(values[r]?.[c] ?? "").trim() !== "")) lastProductRow = r + 1;
+    if ([0, 1, 2].some((c) => String(values[r]?.[c] ?? "").trim() !== "")) lastProductRow = r + 1;
   }
 
   const data: Array<{ range: string; values: unknown[][] }> = [
@@ -194,7 +255,7 @@ export async function applyOfficialRotativoModel(
   ];
   for (const c of historyColumns) {
     const letter = colLetter(c);
-    data.push({ range: `${q}!${letter}6`, values: [[`=COUNTA(${letter}8:${letter}${rowCount})`]] });
+    data.push({ range: `${q}!${letter}6`, values: [[`=COUNTA(${letter}8:${letter})`]] });
   }
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId,

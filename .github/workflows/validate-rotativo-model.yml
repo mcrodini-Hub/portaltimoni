@@ -1,0 +1,34 @@
+name: Validar padronização do Rotativo
+
+on:
+  pull_request:
+    paths:
+      - "timoni-portal/lib/rotativo-official-model.ts"
+      - "timoni-portal/tests/rotativo-model.test.mjs"
+      - "timoni-portal/scripts/validate-rotativo.mjs"
+      - ".github/workflows/validate-rotativo-model.yml"
+  push:
+    branches: [main]
+    paths:
+      - "timoni-portal/lib/rotativo-official-model.ts"
+      - "timoni-portal/tests/rotativo-model.test.mjs"
+      - "timoni-portal/scripts/validate-rotativo.mjs"
+      - ".github/workflows/validate-rotativo-model.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Testar o planejador
+        working-directory: timoni-portal
+        run: node --experimental-strip-types --test tests/rotativo-model.test.mjs
+      - name: Validar snapshots de fixture
+        working-directory: timoni-portal
+        run: node scripts/validate-rotativo.mjs --fixtures

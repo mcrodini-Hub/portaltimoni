@@ -200,8 +200,13 @@ export function CalendarView({
   );
 
   useEffect(() => {
-    document.title = urgentCount > 0 ? `(${urgentCount}) Portal Timoni` : "Portal Timoni";
-  }, [urgentCount]);
+    const previousTitle = document.title;
+    const alertLabel = urgentCount === 1 ? "1 compromisso em alerta" : `${urgentCount} compromissos em alerta`;
+    document.title = urgentCount > 0
+      ? `${alertLabel} — ${title} | Portal Timoni`
+      : `${title} | Portal Timoni`;
+    return () => { document.title = previousTitle; };
+  }, [urgentCount, title]);
 
   const todayParts = saoPauloParts(new Date(now));
   const todayKey = dateKey(todayParts.year, todayParts.month, todayParts.day);

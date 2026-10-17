@@ -2,9 +2,10 @@
 
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import PortalIcon, { type PortalIconName } from "@/components/portal-icon";
 import ChatButton from "@/components/chat-button";
+import PortalNotifications from "@/components/portal-notifications";
 import type { UpdateModule } from "@/lib/module-updates";
 import { useModuleUpdates } from "@/components/module-updates-store";
 
@@ -23,7 +24,6 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, show
     return () => { document.body.style.overflow = previousOverflow; window.removeEventListener("keydown", onKey); };
   }, [open]);
 
-  const total = useMemo(() => Object.values(updates).reduce((sum, item) => sum + item.count, 0), [updates]);
 
   async function openItem(item: MobileNavItem) {
     setOpen(false);
@@ -46,10 +46,7 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, show
       </Link>
       <div className="flex items-center justify-end gap-0.5">
         {showChat ? <ChatButton mobileHeader /> : null}
-        <button type="button" onClick={() => setOpen(true)} className="relative flex h-9 w-9 items-center justify-center rounded-lg" aria-label={total ? `${total} atualizações` : "Abrir notificações"}>
-          <PortalIcon name="bell" className="h-5 w-5" />
-          {total > 0 ? <span className="absolute -right-0.5 -top-0.5 min-w-4 rounded-full bg-red-500 px-1 text-center text-[.62rem] font-bold leading-4 text-white">{total > 99 ? "99+" : total}</span> : null}
-        </button>
+        <PortalNotifications items={items} showUpdates={showUpdates} />
         <span className="flex h-8 w-8 items-center justify-center rounded-full bg-white/15 text-[11px] font-bold ring-1 ring-white/20" aria-label={`Usuário ${initials}`}>{initials}</span>
       </div>
     </div>

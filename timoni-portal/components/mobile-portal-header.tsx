@@ -2,7 +2,6 @@
 
 import { createPortal } from "react-dom";
 import Link from "next/link";
-import { signOut } from "next-auth/react";
 import { useEffect, useMemo, useState } from "react";
 import PortalIcon, { type PortalIconName } from "@/components/portal-icon";
 import ChatButton from "@/components/chat-button";
@@ -74,7 +73,7 @@ export default function MobilePortalHeader({ items, showUpdates, showGuide, show
             </Link>;
           })}
           {showGuide ? <Link href="/configuracoes#guia" onClick={() => setOpen(false)} className="mt-1 flex min-h-7 items-center border-t border-slate-200 px-2 pt-1 text-[11px] font-normal text-slate-800"><span className="flex-1">Guia de uso</span></Link> : null}
-          <button type="button" onClick={() => void signOut({ callbackUrl: "/login" })} className="mt-1 flex min-h-7 w-full items-center border-t border-slate-200 px-2 pt-1 text-left text-[11px] font-normal text-slate-800"><span>Sair</span></button>
+          <Link href="/login" prefetch={false} onClick={() => setOpen(false)} title="Sair da tela mantendo a sessão" className="mt-1 flex min-h-7 w-full items-center border-t border-slate-200 px-2 pt-1 text-left text-[11px] font-normal text-slate-800"><span>Sair</span></Link>
         </nav>
       </aside>
     </div>, document.body) : null}

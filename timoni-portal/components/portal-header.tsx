@@ -1,4 +1,3 @@
-import { signOut } from "@/lib/auth";
 import { getPortalSession as auth } from "@/lib/portal-session";
 import { hasModuleAccess, type PortalModule, type PortalUser } from "@/lib/access-control";
 import Link from "next/link";
@@ -72,20 +71,12 @@ export default async function PortalHeader({ email, portalUser }: { email: strin
 
         {canUseChat ? <ChatButton /> : null}
 
-        <form
-          action={async () => {
-            "use server";
-            await signOut({ redirectTo: "/login" });
-          }}
-          className="order-2 flex min-h-12 shrink-0 items-center sm:order-none"
-        >
-          <button
-            type="submit"
-            className="inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm text-white/70 transition hover:bg-white/10 hover:text-white"
-          >
+        <div className="order-2 flex min-h-12 shrink-0 items-center sm:order-none">
+          <Link href="/login" prefetch={false} title="Sair da tela mantendo a sessão"
+            className="inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm text-white/70 transition hover:bg-white/10 hover:text-white">
             Sair
-          </button>
-        </form>
+          </Link>
+        </div>
       </div>
     </header>
     <div aria-hidden="true" className="h-16 sm:h-12" />

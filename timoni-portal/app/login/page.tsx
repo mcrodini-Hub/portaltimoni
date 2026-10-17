@@ -1,4 +1,5 @@
-import { signIn } from "@/lib/auth";
+import { auth, signIn, signOut } from "@/lib/auth";
+import Link from "next/link";
 
 const ERROR_MESSAGES: Record<string, string> = {
   AccessDenied: "Essa conta Google não tem acesso ao Portal Timoni.",
@@ -9,7 +10,8 @@ export default async function LoginPage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const { error } = await searchParams;
+  const [{ error }, session] = await Promise.all([searchParams, auth()]);
+  const canResume = Boolean(session?.user?.email && session.portalUser && session.portalUser.active !== false && session.error !== "RefreshAccessTokenError");
   const errorMessage = error ? ERROR_MESSAGES[error] ?? "Não foi possível entrar." : null;
 
   return (
@@ -17,7 +19,7 @@ export default async function LoginPage({
       <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-sm">
         <h1 className="text-xl font-semibold">Portal Timoni</h1>
         <p className="mt-2 text-sm text-slate-500">
-          Entre com a conta Google autorizada para ver e gerenciar sua agenda.
+          {canResume ? "Seu acesso continua conectado." : "Entre com a conta Google autorizada para ver e gerenciar sua agenda."}
         </p>
 
         {errorMessage && (
@@ -26,6 +28,20 @@ export default async function LoginPage({
           </p>
         )}
 
+        {canResume ? (
+          <>
+            <p className="mt-3 break-all text-sm text-slate-600">{session?.user?.email}</p>
+            <Link href="/dashboard" prefetch={false} className="mt-6 block w-full rounded-lg bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-800">
+              Entrar no Portal
+            </Link>
+            <form action={async () => {
+              "use server";
+              await signOut({ redirectTo: "/login" });
+            }}>
+              <button type="submit" className="mt-3 text-sm text-slate-500 hover:text-slate-800">Trocar conta</button>
+            </form>
+          </>
+        ) : (
         <form
           action={async () => {
             "use server";
@@ -39,6 +55,7 @@ export default async function LoginPage({
             Entrar com Google
           </button>
         </form>
+        )}
       </div>
     </main>
   );

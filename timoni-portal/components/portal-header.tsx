@@ -4,6 +4,7 @@ import Link from "next/link";
 import ModuleUpdatesNav from "@/components/module-updates-nav";
 import MobilePortalHeader from "@/components/mobile-portal-header";
 import ChatButton from "@/components/chat-button";
+import PortalNotifications from "@/components/portal-notifications";
 import type { UpdateModule } from "@/lib/module-updates";
 import type { PortalIconName } from "@/components/portal-icon";
 import { getEffectivePortalUser } from "@/lib/portal-config";
@@ -69,6 +70,7 @@ export default async function PortalHeader({ email, portalUser }: { email: strin
 
         {isManagement ? <Link href="/configuracoes" className={linkClass}>Configurações</Link> : null}
 
+        <PortalNotifications items={desktopItems} showUpdates={canViewUpdates} />
         {canUseChat ? <ChatButton /> : null}
 
         <div className="order-2 flex min-h-12 shrink-0 items-center sm:order-none">

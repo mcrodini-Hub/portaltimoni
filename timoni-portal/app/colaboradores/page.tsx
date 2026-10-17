@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { auth } from "@/lib/auth";
 import { listEventsInRange } from "@/lib/google-calendar";
 import type { CalendarEventDTO } from "@/lib/types";
@@ -64,23 +65,44 @@ function AnnouncementCard({store,isAdmin,canConfirmRead,collaborators}:{store:St
 function MeetingSummaryCard({title,list}:{title:string;list:FixedMeeting[]}){const frequency=list[0]?.frequency;return <article className="h-full min-w-0 rounded-3xl border border-blue-200 bg-blue-50 p-5 shadow-sm"><div className="flex items-start justify-between gap-3"><div><p className="text-sm font-semibold uppercase tracking-wider text-slate-500">PRÓXIMAS REUNIÕES</p><h3 className="mt-1 text-xl font-semibold text-slate-950">{title}</h3></div>{frequency&&<span className="rounded-full bg-white px-3 py-1 text-sm font-semibold text-slate-700">{frequency}</span>}</div><div className="mt-5 grid gap-3 sm:grid-cols-2">{["PRÓXIMA","SEGUINTE"].map((label,index)=>{const meeting=list[index];return <div key={label} className="min-w-0 rounded-2xl bg-white/80 p-4"><p className="text-sm font-semibold uppercase tracking-wider text-slate-500">{label}</p>{meeting?<><p className="mt-2 text-lg font-semibold text-slate-900">{formatMeeting(meeting)}</p>{meeting.time&&<p className="mt-1 text-base text-slate-500">{meeting.time}</p>}</>:<p className="mt-2 text-base text-slate-500">A definir</p>}</div>})}</div></article>}
 function EventCard({title,tone,events}:{title:string;tone:"pink"|"amber";events:PanelDateItem[]}){const cls=tone==="pink"?"border-pink-200 bg-pink-50":"border-amber-200 bg-amber-50";return <article className={`h-full min-w-0 rounded-3xl border p-5 shadow-sm ${cls}`}><p className="text-xs font-semibold uppercase tracking-wider text-slate-700">{title}</p>{events.length?<ul className="mt-3 space-y-2">{events.map(e=><li key={e.id} className="rounded-xl bg-white/70 p-3"><p className="font-semibold text-slate-900">{cleanSummary(e.summary)}</p><p className="mt-1 text-sm text-slate-600">{title==="Férias"&&e.end?`${formatDate(e.start)} a ${formatDate(e.end)}`:formatDate(e.start)}</p></li>)}</ul>:<p className="mt-3 text-sm text-slate-500">Nenhum registro informado.</p>}</article>}
 
-export default async function ColaboradoresPage(){
+async function PanelContent(){
  const session=await auth();const email=session?.user?.email??"";const normalized=email.trim().toLowerCase();const now=new Date();const eventWindow=getPanelDateWindow(now);
- const [panelData,events,meetingItems]=await Promise.all([
-  getEffectivePanelData(session?.accessToken,normalized),
-  session?.accessToken&&session.error!=="RefreshAccessTokenError"
-   ?listEventsInRange(session.accessToken,{timeMin:eventWindow.timeMin,timeMax:eventWindow.timeMax,maxResults:500},["timoni"]).catch(()=>[] as CalendarEventDTO[])
-   :Promise.resolve([] as CalendarEventDTO[]),
-  session?.accessToken&&session.error!=="RefreshAccessTokenError"
-   ?listMeetings(session.accessToken).catch(()=>[] as Meeting[])
-   :Promise.resolve([] as Meeting[])
- ]);
+ const panelDataPromise=getEffectivePanelData(session?.accessToken,normalized);
+ const eventsPromise=session?.accessToken&&session.error!=="RefreshAccessTokenError"
+  ?listEventsInRange(session.accessToken,{timeMin:eventWindow.timeMin,timeMax:eventWindow.timeMax,maxResults:500},["timoni"]).catch(()=>[] as CalendarEventDTO[])
+  :Promise.resolve([] as CalendarEventDTO[]);
+ const meetingsPromise=session?.accessToken&&session.error!=="RefreshAccessTokenError"
+  ?listMeetings(session.accessToken).catch(()=>[] as Meeting[])
+  :Promise.resolve([] as Meeting[]);
+ const panelData=await panelDataPromise;
  const effectiveUser=panelData.user;const collaborators=panelData.collaborators;const panelStore=getPanelStore(email,effectiveUser??session?.portalUser);const isCica=normalized==="mcrodini@gmail.com";const isManagement=["mcrodini@gmail.com","mrodini@gmail.com"].includes(normalized);const canConfirmRead=!isManagement&&Boolean(effectiveUser?.noticeRequired);
- const araras=meetings(meetingItems,now,"araras"),rioClaro=meetings(meetingItems,now,"rio claro");
- const birthdays=unique(events.filter(e=>isBirthday(e)&&eventStartsInPanelWindow(e,eventWindow)).map(panelItem));
- const vacations=unique(events.filter(e=>isVacation(e)&&eventOverlapsPanelWindow(e,eventWindow)).map(panelItem));
- return <div className="pb-10"><header className="mb-6"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Comunicação interna</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Painel Timoni</h1></header>
+ return <>
  {isManagement&&<ModuleArrivalSummary module="avisos"/>}
- {panelStore==="geral"?<section className="grid portal-comms-grid grid-cols-2 items-stretch gap-2 sm:gap-4 lg:grid-cols-2"><AnnouncementCard store="rio claro" isAdmin={isCica} canConfirmRead={canConfirmRead} collaborators={collaborators}/><AnnouncementCard store="araras" isAdmin={isCica} canConfirmRead={canConfirmRead} collaborators={collaborators}/><MeetingSummaryCard title="Rio Claro" list={rioClaro}/><MeetingSummaryCard title="Araras" list={araras}/><EventCard title="Aniversários" tone="pink" events={birthdays}/><EventCard title="Férias" tone="amber" events={vacations}/></section>:<section className="grid portal-comms-grid grid-cols-2 items-stretch gap-2 sm:gap-4 lg:grid-cols-2"><AnnouncementCard store={panelStore} isAdmin={isCica} canConfirmRead={canConfirmRead} collaborators={collaborators}/><MeetingSummaryCard title={panelStore==="araras"?"Araras":"Rio Claro"} list={panelStore==="araras"?araras:rioClaro}/><EventCard title="Aniversários" tone="pink" events={birthdays}/><EventCard title="Férias" tone="amber" events={vacations}/></section>}
- {isCica&&<ComunicadosAdmin/>}</div>
+ {panelStore==="geral"?<section className="grid portal-comms-grid grid-cols-2 items-stretch gap-2 sm:gap-4 lg:grid-cols-2"><AnnouncementCard store="rio claro" isAdmin={isCica} canConfirmRead={canConfirmRead} collaborators={collaborators}/><AnnouncementCard store="araras" isAdmin={isCica} canConfirmRead={canConfirmRead} collaborators={collaborators}/><Suspense fallback={<><CardSkeleton title="Próximas reuniões — Rio Claro"/><CardSkeleton title="Próximas reuniões — Araras"/></>}><PanelMeetings items={meetingsPromise} now={now} store="geral"/></Suspense><Suspense fallback={<><CardSkeleton title="Aniversários" tone="pink"/><CardSkeleton title="Férias" tone="amber"/></>}><PanelEvents items={eventsPromise} window={eventWindow}/></Suspense></section>:<section className="grid portal-comms-grid grid-cols-2 items-stretch gap-2 sm:gap-4 lg:grid-cols-2"><AnnouncementCard store={panelStore} isAdmin={isCica} canConfirmRead={canConfirmRead} collaborators={collaborators}/><Suspense fallback={<CardSkeleton title="Próximas reuniões"/>}><PanelMeetings items={meetingsPromise} now={now} store={panelStore}/></Suspense><Suspense fallback={<><CardSkeleton title="Aniversários" tone="pink"/><CardSkeleton title="Férias" tone="amber"/></>}><PanelEvents items={eventsPromise} window={eventWindow}/></Suspense></section>}
+ {isCica&&<ComunicadosAdmin/>}</>
+}
+
+function CardSkeleton({title,tone="blue"}:{title:string;tone?:"blue"|"pink"|"amber"}){
+ const cls=tone==="pink"?"border-pink-200 bg-pink-50":tone==="amber"?"border-amber-200 bg-amber-50":"border-blue-200 bg-blue-50";
+ return <article aria-busy="true" aria-label={`Carregando ${title}`} className={`h-full min-h-48 min-w-0 rounded-3xl border p-5 shadow-sm ${cls}`}><p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{title}</p><div aria-hidden="true" className="mt-5 h-24 rounded-2xl bg-white/80 motion-safe:animate-pulse"/></article>;
+}
+
+function PanelSkeleton(){
+ return <section className="grid portal-comms-grid grid-cols-2 items-stretch gap-2 sm:gap-4 lg:grid-cols-2"><CardSkeleton title="Avisos"/><CardSkeleton title="Próximas reuniões"/><CardSkeleton title="Aniversários" tone="pink"/><CardSkeleton title="Férias" tone="amber"/></section>;
+}
+
+async function PanelMeetings({items,now,store}:{items:Promise<Meeting[]>;now:Date;store:PanelStore}){
+ const meetingItems=await items;
+ return <>{(store==="geral"?["rio claro","araras"] as const:[store]).map(unit=><MeetingSummaryCard key={unit} title={unit==="araras"?"Araras":"Rio Claro"} list={meetings(meetingItems,now,unit)}/>)}</>;
+}
+
+async function PanelEvents({items,window}:{items:Promise<CalendarEventDTO[]>;window:PanelDateWindow}){
+ const events=await items;
+ const birthdays=unique(events.filter(e=>isBirthday(e)&&eventStartsInPanelWindow(e,window)).map(panelItem));
+ const vacations=unique(events.filter(e=>isVacation(e)&&eventOverlapsPanelWindow(e,window)).map(panelItem));
+ return <><EventCard title="Aniversários" tone="pink" events={birthdays}/><EventCard title="Férias" tone="amber" events={vacations}/></>;
+}
+
+export default function ColaboradoresPage(){
+ return <div className="pb-10"><header className="mb-6"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-blue-700">Comunicação interna</p><h1 className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">Painel Timoni</h1></header><Suspense fallback={<PanelSkeleton/>}><PanelContent/></Suspense></div>;
 }

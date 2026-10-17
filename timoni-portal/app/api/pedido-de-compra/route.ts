@@ -2,13 +2,12 @@ import { auth } from "@/lib/auth";
 import { getEffectivePortalUser } from "@/lib/portal-config";
 import { hasModuleAccess } from "@/lib/access-control";
 import { normalizeTrelloText, trelloFetch, TRELLO_BOARD_SHORT_LINK } from "@/lib/trello";
-import { google, type sheets_v4 } from "googleapis";
+import { google } from "googleapis";
 import { NextResponse } from "next/server";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 const SPREADSHEET_ID = "1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo";
 const SENT_ORDERS_CACHE_RANGE = "Necessidades!Q:W";
-const SENT_ORDERS_CACHE_HEADER = ["id", "nome", "enviadoEm", "previsaoEntrega", "recebidoEm", "unidade", "situacao"];
 
 type SentOrder = {
   id: string;
@@ -129,28 +128,6 @@ async function readSentOrders(): Promise<SentOrder[]> {
   ]);
 }
 
-async function writeSentOrdersCache(sheets: sheets_v4.Sheets, orders: SentOrder[]) {
-  const values = [
-    SENT_ORDERS_CACHE_HEADER,
-    ...orders.map((order) => [
-      order.id,
-      order.nome,
-      order.enviadoEm,
-      order.previsaoEntrega,
-      order.recebidoEm,
-      order.unidade,
-      order.situacao,
-    ]),
-  ];
-  await sheets.spreadsheets.values.clear({ spreadsheetId: SPREADSHEET_ID, range: SENT_ORDERS_CACHE_RANGE });
-  await sheets.spreadsheets.values.update({
-    spreadsheetId: SPREADSHEET_ID,
-    range: "Necessidades!Q1",
-    valueInputOption: "RAW",
-    requestBody: { values },
-  });
-}
-
 export async function GET() {
   const session = await auth();
   if (!session?.user?.email) return NextResponse.json({ ok: false, error: "Sessão expirada. Entre novamente no Portal." }, { status: 401 });
@@ -160,12 +137,7 @@ export async function GET() {
     let pedidosEnviados: SentOrder[];
     try {
       pedidosEnviados = await readSentOrders();
-      // Preserve the existing fallback without requiring Sheets for a successful Trello read.
-      if (session.accessToken && session.error !== "RefreshAccessTokenError") {
-        const oauth = new google.auth.OAuth2();
-        oauth.setCredentials({ access_token: session.accessToken });
-        try { await writeSentOrdersCache(google.sheets({ version: "v4", auth: oauth }), pedidosEnviados); } catch { /* Live Trello data remains authoritative. */ }
-      }
+      // O painel apenas lê; a manutenção do cache pertence ao processo em background.
     } catch (error) {
       if (!session.accessToken || session.error === "RefreshAccessTokenError") throw error;
       const oauth = new google.auth.OAuth2();

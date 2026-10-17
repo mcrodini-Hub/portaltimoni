@@ -1,4 +1,5 @@
-import { auth, signOut } from "@/lib/auth";
+import { signOut } from "@/lib/auth";
+import { getPortalSession as auth } from "@/lib/portal-session";
 import { hasModuleAccess, type PortalModule, type PortalUser } from "@/lib/access-control";
 import Link from "next/link";
 import ModuleUpdatesNav from "@/components/module-updates-nav";

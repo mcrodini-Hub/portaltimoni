@@ -48,22 +48,24 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
   useEffect(() => {
     if (!open || minimized) return;
 
+    const mobile = window.matchMedia("(max-width: 639px)");
     const handleOutsidePointerDown = (event: PointerEvent) => {
-      if (!window.matchMedia("(max-width: 639px)").matches) return;
+      if (!mobile.matches) return;
       if (event.target instanceof Node && panelRef.current && !panelRef.current.contains(event.target)) {
         onClose();
       }
     };
 
-    document.addEventListener("pointerdown", handleOutsidePointerDown, true);
+    document.addEventListener("pointerdown", handleOutsidePointerDown, { capture: true, passive: true });
     return () => document.removeEventListener("pointerdown", handleOutsidePointerDown, true);
   }, [open, minimized, onClose]);
 
-  const loadOverview = useCallback(async () => {
+  const loadOverview = useCallback(async (signal?: AbortSignal) => {
     const url = actorId ? `/api/internal-chat?actor=${encodeURIComponent(actorId)}` : "/api/internal-chat";
-    const response = await fetch(url, { cache: "no-store" });
+    const response = await fetch(url, { cache: "no-store", signal });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Não foi possível carregar o chat.");
+    if (signal?.aborted) return;
     const available = (data.identities || []) as Identity[];
     setIdentities(available);
     setIdentityLoaded(true);
@@ -100,25 +102,26 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
     });
   }, [actorId, onUnreadChange]);
 
-  const loadMessages = useCallback(async (peer: string, markRead: boolean) => {
+  const loadMessages = useCallback(async (peer: string, markRead: boolean, signal?: AbortSignal) => {
     if (!actorId) return;
-    const response = await fetch(`/api/internal-chat?actor=${encodeURIComponent(actorId)}&peer=${encodeURIComponent(peer)}`, { cache: "no-store" });
+    const response = await fetch(`/api/internal-chat?actor=${encodeURIComponent(actorId)}&peer=${encodeURIComponent(peer)}`, { cache: "no-store", signal });
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || "Não foi possível carregar esta conversa.");
+    if (signal?.aborted) return;
     setMessages(data.messages || []);
     setCurrentUserId(data.currentUserId || "");
     if (markRead) {
-      await fetch("/api/internal-chat", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actor: actorId, peer }) });
-      await loadOverview();
+      await fetch("/api/internal-chat", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ actor: actorId, peer }), signal });
+      if (!signal?.aborted) await loadOverview(signal);
     }
   }, [actorId, loadOverview]);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (signal?: AbortSignal) => {
     try {
-      await loadOverview();
-      if (selected) await loadMessages(selected, open);
+      await loadOverview(signal);
+      if (!signal?.aborted && selected) await loadMessages(selected, open, signal);
     } catch (cause) {
-      if (open) setError(cause instanceof Error ? cause.message : "Não foi possível atualizar o chat.");
+      if (open && !signal?.aborted) setError(cause instanceof Error ? cause.message : "Não foi possível atualizar o chat.");
     }
   }, [loadMessages, loadOverview, open, selected]);
 
@@ -131,17 +134,29 @@ export default function InternalChatPanel({ open, onClose, onUnreadChange }: { o
   }, [open]);
 
   useEffect(() => {
-    if (!open) return;
-    void refresh();
-    const interval = window.setInterval(() => void refresh(), 5_000);
-    return () => window.clearInterval(interval);
-  }, [open, refresh]);
+    if (!open || minimized) return;
+    let stopped = false;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const controller = new AbortController();
 
-  useEffect(() => {
-    if (!open || !actorId || !selected) return;
+    async function tick() {
+      try {
+        if (!stopped && document.visibilityState === "visible") {
+          await refresh(controller.signal);
+        }
+      } finally {
+        if (!stopped) timer = setTimeout(tick, 5_000);
+      }
+    }
+
     setError("");
-    void loadMessages(selected, true).catch(() => setError("Não foi possível carregar esta conversa."));
-  }, [open, actorId, selected, loadMessages]);
+    void tick();
+    return () => {
+      stopped = true;
+      controller.abort();
+      if (timer !== undefined) clearTimeout(timer);
+    };
+  }, [open, minimized, refresh]);
 
   useEffect(() => {
     if (open && !minimized) scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: "smooth" });

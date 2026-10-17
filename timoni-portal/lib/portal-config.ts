@@ -1,3 +1,4 @@
+import { cache } from "react";
 import {
   entersDirectlyInPainelTimoni,
   normalizeEmail,
@@ -192,9 +193,7 @@ const readUsersCached = unstable_cache(
   { revalidate: 30, tags: [PORTAL_CONFIG_CACHE_TAG] },
 );
 
-async function readUsers(accessToken: string) {
-  return readUsersCached(accessToken);
-}
+const readUsers = cache(async (accessToken: string) => readUsersCached(accessToken));
 
 export async function listConfiguredPortalUsers(accessToken: string) {
   return readUsers(accessToken);
@@ -221,9 +220,7 @@ const readCollaboratorsCached = unstable_cache(
   { revalidate: 30, tags: [PORTAL_CONFIG_CACHE_TAG] },
 );
 
-async function readCollaborators(accessToken: string) {
-  return readCollaboratorsCached(accessToken);
-}
+const readCollaborators = cache(async (accessToken: string) => readCollaboratorsCached(accessToken));
 
 async function readHistory(accessToken: string): Promise<PortalAuditEntry[]> {
   const response = await sheetsRequest<{ values?: string[][] }>(accessToken, sheetsUrl(`/values/${encodeURIComponent(`${HISTORY_SHEET}!A2:D500`)}`, { valueRenderOption: "FORMATTED_VALUE" }));

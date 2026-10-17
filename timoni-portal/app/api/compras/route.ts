@@ -1,6 +1,5 @@
 import { auth } from "@/lib/auth";
 import { hasModuleAccess } from "@/lib/access-control";
-import { syncPortalTrelloDocs } from "@/lib/portal-trello-docs";
 import {
   getStoredTrelloCredentials,
   normalizeTrelloText,
@@ -123,16 +122,8 @@ export async function GET(request: Request) {
   }
 
   const summaryOnly = new URL(request.url).searchParams.get("summary") === "1";
-  let portalDocsSync: Awaited<ReturnType<typeof syncPortalTrelloDocs>> | { error: string } | null = null;
-  if (!summaryOnly) {
-    try {
-      portalDocsSync = await syncPortalTrelloDocs(credentials);
-    } catch (error) {
-      portalDocsSync = {
-        error: error instanceof Error ? error.message : "Não foi possível sincronizar a documentação do Portal Timoni.",
-      };
-    }
-  }
+  // A leitura do painel não deve criar nem atualizar documentação no Trello.
+  const portalDocsSync = null;
 
   try {
     const board = await trelloFetch<TrelloBoard>(`/boards/${TRELLO_BOARD_SHORT_LINK}`, {

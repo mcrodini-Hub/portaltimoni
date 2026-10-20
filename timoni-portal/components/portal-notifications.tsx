@@ -50,6 +50,7 @@ export default function PortalNotifications({items}:{items:NoticeItem[];showUpda
 
   useEffect(()=>{
     if(!open) return;
+    const trigger=button.current;
     const previousOverflow=document.body.style.overflow;
     document.body.style.overflow="hidden";
     closeButton.current?.focus();
@@ -63,7 +64,7 @@ export default function PortalNotifications({items}:{items:NoticeItem[];showUpda
       else if(!event.shiftKey&&document.activeElement===last) {event.preventDefault();first.focus();}
     }
     document.addEventListener("keydown",onKeyDown);
-    return ()=>{document.body.style.overflow=previousOverflow;document.removeEventListener("keydown",onKeyDown);button.current?.focus();};
+    return ()=>{document.body.style.overflow=previousOverflow;document.removeEventListener("keydown",onKeyDown);trigger?.focus();};
   },[open]);
 
   const count=events?.length;

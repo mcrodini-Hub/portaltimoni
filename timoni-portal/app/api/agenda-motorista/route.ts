@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
   }
   const corpo = await request.text();
   const action = new URLSearchParams(corpo).get("action");
-  if (await acessoLeitura() && action !== "criar") {
+  if (await acessoLeitura() && action !== "criar" && action !== "atualizar") {
     return NextResponse.json({ ok: false, erro: "Acesso somente leitura." }, { status: 403 });
   }
 

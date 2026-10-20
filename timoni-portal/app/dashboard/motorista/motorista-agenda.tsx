@@ -428,7 +428,7 @@ function formatarCep(value: string) {
   return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
 }
 
-export default function MotoristaAgenda({ readOnly = false, canCreate = false }: { readOnly?: boolean; canCreate?: boolean }) {
+export default function MotoristaAgenda({ readOnly = false, canCreate = false, canEdit = false }: { readOnly?: boolean; canCreate?: boolean; canEdit?: boolean }) {
   const hoje = localDateString();
   const [modo, setModo] = useState<Modo>("dia");
   const [selecionado, setSelecionado] = useState(hoje);
@@ -866,7 +866,7 @@ export default function MotoristaAgenda({ readOnly = false, canCreate = false }:
                         <div className="mt-2 flex flex-wrap gap-2">
                           {lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-1.5 text-xs font-semibold text-emerald-800">Concluído</span> : <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-60">Concluir</button>}
                           <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-50">Editar</button><button type="button" onClick={() => duplicarViagem(v)} className="rounded-lg border border-slate-300 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50">Duplicar</button>
-                          <button type="button" disabled={saving} onClick={() => void excluirViagem(v)} className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">Excluir</button>
+                          {!readOnly && <button type="button" disabled={saving} onClick={() => void excluirViagem(v)} className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">Excluir</button>}
                         </div>
                         {lerConclusao(v.notasJson)?.observacaoConclusao && <p className="mt-2 text-xs text-emerald-800">Conclusão: {lerConclusao(v.notasJson)?.observacaoConclusao}</p>}
                       </article>
@@ -896,10 +896,10 @@ export default function MotoristaAgenda({ readOnly = false, canCreate = false }:
                     {v.info && <p className="mt-1 text-slate-600">Observação: <span className="whitespace-pre-line">{String(v.info).replace(/^[\r\n]+/, "")}</span></p>}
                     <p className="mt-1 font-[Arial] text-[10pt] text-slate-500"><strong>Preenchido por:</strong>{v.preenchidoPor ? ` ${v.preenchidoPor}` : ""} <span className="mx-1">|</span> <strong>Forma de pagamento:</strong>{pagamentoTexto(v.notasJson) ? ` ${pagamentoTexto(v.notasJson)}` : ""}</p>
                   </div>
-                  {!readOnly && <div className="flex flex-wrap gap-2">
+                  {(canEdit || !readOnly) && <div className="flex flex-wrap gap-2">
                     {lerConclusao(v.notasJson) ? <span className="rounded-lg bg-emerald-100 px-3 py-2 text-sm font-semibold text-emerald-800">Concluído</span> : <button type="button" disabled={saving} onClick={() => void concluirViagem(v)} className="rounded-lg bg-emerald-700 px-3 py-2 text-sm font-semibold text-white disabled:opacity-60">Concluir</button>}
                     <button type="button" onClick={() => abrirEditar(v)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm font-semibold text-blue-800 hover:bg-blue-50">Editar</button><button type="button" onClick={() => duplicarViagem(v)} className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50">Duplicar</button>
-                    <button type="button" disabled={saving} onClick={() => void excluirViagem(v)} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">Excluir</button>
+                    {!readOnly && <button type="button" disabled={saving} onClick={() => void excluirViagem(v)} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-sm font-semibold text-red-700 hover:bg-red-50 disabled:opacity-60">Excluir</button>}
                   </div>}
                 </div>
               </article>
@@ -923,7 +923,7 @@ export default function MotoristaAgenda({ readOnly = false, canCreate = false }:
         )}
       </section>
 
-      {modal && (!readOnly || (canCreate && !editandoId)) && (
+      {modal && (!readOnly || (editandoId ? canEdit : canCreate)) && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overflow-x-hidden bg-slate-950/50 p-3 sm:p-6">
           <form
             onSubmit={salvar}

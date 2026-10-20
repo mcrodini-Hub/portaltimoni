@@ -114,7 +114,6 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
   const [notice, setNotice] = useState("");
   const [unreadIds, setUnreadIds] = useState<Set<string>>(new Set());
   const stockRoot = useRef<HTMLDivElement>(null);
-  const readingIds = useRef(new Set<string>());
   const [needs, setNeeds] = useState<Need[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
@@ -209,47 +208,6 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("stock-notices-updated", {detail:{count:unreadIds.size}}));
   }, [unreadIds]);
-
-  useEffect(() => {
-    if (!unreadIds.size || !stockRoot.current) return;
-    const timers = new Map<Element, ReturnType<typeof setTimeout>>();
-    const visibleIds = new Set<string>();
-    let flushTimer: ReturnType<typeof setTimeout> | undefined;
-    async function flush() {
-      const ids = [...visibleIds].filter(id => !readingIds.current.has(id));
-      visibleIds.clear();
-      if (!ids.length || document.hidden) return;
-      ids.forEach(id => readingIds.current.add(id));
-      try {
-        const response = await fetch("/api/stock-notifications", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids})});
-        const result = await response.json();
-        if (!response.ok || !result.ok) throw new Error();
-        setUnreadIds(current => new Set([...current].filter(id => !ids.includes(id))));
-      } catch {
-        // Keep the notice unread if confirmation fails; the next refresh retries.
-      } finally {ids.forEach(id => readingIds.current.delete(id));}
-    }
-    const observer = new IntersectionObserver(entries => {
-      for (const entry of entries) {
-        const existing = timers.get(entry.target);
-        if (!entry.isIntersecting) {
-          if (existing) clearTimeout(existing);
-          timers.delete(entry.target);
-          continue;
-        }
-        if (existing) continue;
-        timers.set(entry.target, setTimeout(() => {
-          const id = entry.target.getAttribute("data-stock-new");
-          if (!id || document.hidden) return;
-          visibleIds.add(id);
-          if (flushTimer) clearTimeout(flushTimer);
-          flushTimer = setTimeout(() => void flush(), 150);
-        }, 1500));
-      }
-    }, {threshold:0.1});
-    stockRoot.current.querySelectorAll("[data-stock-new]").forEach(node => observer.observe(node));
-    return () => {observer.disconnect();timers.forEach(timer => clearTimeout(timer));if(flushTimer)clearTimeout(flushTimer);};
-  }, [unreadIds, unit, needs]);
 
   async function requestNotifications() {
     if (!canUseNotifications()) {
@@ -464,7 +422,7 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
     const draft = responseDrafts[need.id] ?? need.observacao ?? "";
 
     return (
-      <article data-stock-new={unreadIds.has(need.id) ? need.id : undefined} className={"rounded-2xl border bg-white p-4 shadow-sm " + (isNew ? "border-[#13038D] ring-2 ring-blue-100" : "border-slate-200")}>
+      <article className={"rounded-2xl border bg-white p-4 shadow-sm " + (isNew ? "border-[#13038D] ring-2 ring-blue-100" : "border-slate-200")}>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
             {isNew && <span className="mb-2 inline-block rounded-full bg-[#D40C0D] px-3 py-1 text-xs font-bold text-white">Novo</span>}

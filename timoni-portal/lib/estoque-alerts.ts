@@ -2,7 +2,7 @@ import { google } from "googleapis";
 import { getAccessTokenFromRefreshToken } from "@/lib/google-calendar";
 
 const SPREADSHEET_ID = "1cESMTRx98e6AbY5vxPCcT7VrqYAbgH0xGUk87ybqHUo";
-const SHEET_RANGE = "Necessidades!A2:O500";
+const SHEET_RANGE = "Necessidades!A2:O";
 
 export type StockAlert = {
   id: string;

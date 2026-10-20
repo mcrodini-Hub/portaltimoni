@@ -12,6 +12,7 @@ type Need = {
   descricao: string;
   status: string;
   criadoEm: string;
+  respondidoEm: string;
   numeroPedido: string;
   previsaoEntrega: string;
   observacao: string;
@@ -24,7 +25,7 @@ type Need = {
 };
 type Product = { codigo: string; descricao: string; unidade: string };
 type Seller = { nome: string; unidade: string };
-type Data = { ok: boolean; necessidades: Need[]; produtos: Product[]; vendedores: Seller[]; error?: string };
+type Data = { unreadIds?: string[] | null; ok: boolean; necessidades: Need[]; produtos: Product[]; vendedores: Seller[]; error?: string };
 
 type EstoqueClientProps = {
   isManager?: boolean;
@@ -111,6 +112,9 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [unreadIds, setUnreadIds] = useState<Set<string>>(new Set());
+  const stockRoot = useRef<HTMLDivElement>(null);
+  const readingIds = useRef(new Set<string>());
   const [needs, setNeeds] = useState<Need[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
   const [sellers, setSellers] = useState<Seller[]>([]);
@@ -157,6 +161,7 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
       const payload = (await response.json()) as Data;
       if (!response.ok || !payload.ok) throw new Error(payload.error || "Falha ao carregar");
       setNeeds(payload.necessidades);
+      if (Array.isArray(payload.unreadIds)) setUnreadIds(new Set(payload.unreadIds));
       setProducts(payload.produtos);
       setSellers(payload.vendedores);
     } catch (err) {
@@ -199,6 +204,52 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
       });
     }
   }, [isManager, needs]);
+
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent("stock-notices-updated", {detail:{count:unreadIds.size}}));
+  }, [unreadIds]);
+
+  useEffect(() => {
+    if (!unreadIds.size || !stockRoot.current) return;
+    const timers = new Map<Element, ReturnType<typeof setTimeout>>();
+    const visibleIds = new Set<string>();
+    let flushTimer: ReturnType<typeof setTimeout> | undefined;
+    async function flush() {
+      const ids = [...visibleIds].filter(id => !readingIds.current.has(id));
+      visibleIds.clear();
+      if (!ids.length || document.hidden) return;
+      ids.forEach(id => readingIds.current.add(id));
+      try {
+        const response = await fetch("/api/stock-notifications", {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ids})});
+        const result = await response.json();
+        if (!response.ok || !result.ok) throw new Error();
+        setUnreadIds(current => new Set([...current].filter(id => !ids.includes(id))));
+      } catch {
+        // Keep the notice unread if confirmation fails; the next refresh retries.
+      } finally {ids.forEach(id => readingIds.current.delete(id));}
+    }
+    const observer = new IntersectionObserver(entries => {
+      for (const entry of entries) {
+        const existing = timers.get(entry.target);
+        if (!entry.isIntersecting) {
+          if (existing) clearTimeout(existing);
+          timers.delete(entry.target);
+          continue;
+        }
+        if (existing) continue;
+        timers.set(entry.target, setTimeout(() => {
+          const id = entry.target.getAttribute("data-stock-new");
+          if (!id || document.hidden) return;
+          visibleIds.add(id);
+          if (flushTimer) clearTimeout(flushTimer);
+          flushTimer = setTimeout(() => void flush(), 150);
+        }, 1500));
+      }
+    }, {threshold:0.1});
+    stockRoot.current.querySelectorAll("[data-stock-new]").forEach(node => observer.observe(node));
+    return () => {observer.disconnect();timers.forEach(timer => clearTimeout(timer));if(flushTimer)clearTimeout(flushTimer);};
+  }, [unreadIds, unit, needs]);
 
   async function requestNotifications() {
     if (!canUseNotifications()) {
@@ -409,12 +460,14 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
 
   function NeedCard({ need }: { need: Need }) {
     const disabled = busy === need.id;
+    const isNew = need.status === "pendente" && !need.respondidoEm && !need.observacao;
     const draft = responseDrafts[need.id] ?? need.observacao ?? "";
 
     return (
-      <article className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <article data-stock-new={unreadIds.has(need.id) ? need.id : undefined} className={"rounded-2xl border bg-white p-4 shadow-sm " + (isNew ? "border-[#13038D] ring-2 ring-blue-100" : "border-slate-200")}>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div>
+            {isNew && <span className="mb-2 inline-block rounded-full bg-[#D40C0D] px-3 py-1 text-xs font-bold text-white">Novo</span>}
             <p className="font-semibold text-slate-950"><span className="text-blue-700">{need.codigo}</span> {need.descricao}</p>
             <p className="mt-1 text-xs text-slate-500">{unitLabel(need.unidade)} · {need.vendedor} · Qtd. {need.quantidade || "—"}</p>
           </div>
@@ -567,7 +620,7 @@ export default function EstoqueClient({ isManager = false, canDelete = false, ca
 
 
   return (
-    <div className="pb-10">
+    <div ref={stockRoot} className="pb-10">
       {isManager && (
         <section className="rounded-2xl border border-emerald-100 bg-white p-4 shadow-sm">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

@@ -1,3 +1,4 @@
+import { unreadStockIds } from "@/lib/stock-notice-reads";
 import { auth } from "@/lib/auth";
 import { hasModuleAccess } from "@/lib/access-control";
 import { google, type sheets_v4 } from "googleapis";
@@ -153,7 +154,12 @@ export async function GET() {
   try {
     const sheets = await getSheets();
     const data = await readAll(sheets);
+    const session = await auth();
+    let unreadIds: string[] | null = null;
+    try { unreadIds = await unreadStockIds(session?.user?.email || "", data.necessidades); }
+    catch (error) { console.error("[stock-notifications]", error); }
     return NextResponse.json({
+      unreadIds,
       ok: true,
       necessidades: data.necessidades,
       produtos: data.produtos,

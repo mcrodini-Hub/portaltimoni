@@ -71,11 +71,12 @@ export async function POST(request: NextRequest) {
   if (!(await autorizado())) {
     return NextResponse.json({ ok: false, erro: "Não autorizado." }, { status: 401 });
   }
-  if (await acessoLeitura()) {
+  const corpo = await request.text();
+  const action = new URLSearchParams(corpo).get("action");
+  if (await acessoLeitura() && action !== "criar") {
     return NextResponse.json({ ok: false, erro: "Acesso somente leitura." }, { status: 403 });
   }
 
-  const corpo = await request.text();
   const response = await encaminhar(WEBAPP_URL, {
     method: "POST",
     body: corpo,

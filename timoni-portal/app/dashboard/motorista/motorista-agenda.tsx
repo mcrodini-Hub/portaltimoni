@@ -428,7 +428,7 @@ function formatarCep(value: string) {
   return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits;
 }
 
-export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boolean }) {
+export default function MotoristaAgenda({ readOnly = false, canCreate = false }: { readOnly?: boolean; canCreate?: boolean }) {
   const hoje = localDateString();
   const [modo, setModo] = useState<Modo>("dia");
   const [selecionado, setSelecionado] = useState(hoje);
@@ -794,7 +794,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
       <section className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm sm:p-5">
         <div className="flex flex-col gap-3">
           <div className="flex flex-wrap items-center gap-2">
-            {!readOnly && <button type="button" onClick={() => abrirNova()} className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-900">Nova viagem</button>}
+            {(canCreate || !readOnly) && <button type="button" onClick={() => abrirNova()} className="rounded-lg bg-blue-800 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-900">Nova viagem</button>}
             <button type="button" onClick={imprimirDia} className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Imprimir dia</button>
             <button type="button" onClick={() => setModo("dia")} className={`rounded-lg px-3 py-2 text-sm font-medium ${modo === "dia" ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>Dia</button>
             <button type="button" onClick={() => setModo("semana")} className={`rounded-lg px-3 py-2 text-sm font-medium ${modo === "semana" ? "bg-slate-900 text-white" : "border border-slate-300 text-slate-700"}`}>Semana</button>
@@ -923,7 +923,7 @@ export default function MotoristaAgenda({ readOnly = false }: { readOnly?: boole
         )}
       </section>
 
-      {modal && !readOnly && (
+      {modal && (!readOnly || (canCreate && !editandoId)) && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto overflow-x-hidden bg-slate-950/50 p-3 sm:p-6">
           <form
             onSubmit={salvar}

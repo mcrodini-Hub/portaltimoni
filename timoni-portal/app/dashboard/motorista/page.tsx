@@ -22,7 +22,7 @@ export default async function MotoristaPage() {
         <p className="mt-1 text-sm text-slate-600">Entregas, retiradas e bloqueios de horário em uma agenda única.</p>
       </header>
       <div className="motorista-agenda-controle">
-        <MotoristaAgenda readOnly={readOnly} />
+        <MotoristaAgenda readOnly={readOnly} canCreate />
       </div>
       <style>{`
         .motorista-agenda-controle button.bg-emerald-700,

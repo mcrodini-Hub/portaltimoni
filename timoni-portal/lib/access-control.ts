@@ -170,7 +170,7 @@ export function getPortalUser(email?: string | null, configured?: PortalUser | n
   const fallback = portalUsers[normalized] ?? null;
   return fallback?.active === false ? null : fallback;
 }
-export function hasModuleAccess(email: string | null | undefined, module: PortalModule, configured?: PortalUser | null) { const user = getPortalUser(email, configured); return Boolean(user && ((module === "pedido-de-compra" && normalizeEmail(email) === CICA_EMAIL) || user.modules.includes(module))); }
+export function hasModuleAccess(email: string | null | undefined, module: PortalModule, configured?: PortalUser | null) { const user = getPortalUser(email, configured); return Boolean(user && (module === "pedido-de-compra" || user.modules.includes(module))); }
 export function isCicaAccess(email?: string | null) { return normalizeEmail(email) === CICA_EMAIL; }
 export function entersDirectlyInPainelTimoni(email?: string | null, configured?: PortalUser | null) {
   if (configured && normalizeEmail(configured.email) === normalizeEmail(email)) return configured.directPainel ?? false;

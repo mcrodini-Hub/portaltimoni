@@ -1,3 +1,4 @@
+import { savePurchaseOrdersSnapshot } from "@/lib/purchase-orders";
 import { auth } from "@/lib/auth";
 import { hasModuleAccess } from "@/lib/access-control";
 import {
@@ -43,6 +44,7 @@ function sentOrder(card: TrelloCard, unit: "rio_claro" | "araras") {
     enviadoEm: card.start || "",
     previsaoEntrega: card.due || "",
     unidade: unit,
+    activityAt: card.dateLastActivity,
   };
 }
 
@@ -126,6 +128,7 @@ export async function GET(request: Request) {
   const portalDocsSync = null;
 
   try {
+    const startedAt = new Date().toISOString();
     const board = await trelloFetch<TrelloBoard>(`/boards/${TRELLO_BOARD_SHORT_LINK}`, {
       params: {
         fields: "name",
@@ -165,6 +168,11 @@ export async function GET(request: Request) {
     const sentAraras = uniqueSentCards(sentArarasList
       ? cards.filter((card) => card.idList === sentArarasList.id)
       : []);
+
+    await savePurchaseOrdersSnapshot([
+      ...sentRioClaro.map((card) => sentOrder(card, "rio_claro")),
+      ...sentAraras.map((card) => sentOrder(card, "araras")),
+    ], startedAt);
 
     const suppliers = pendingCards
       .map((card) => {
@@ -206,10 +214,6 @@ export async function GET(request: Request) {
           enviadosAraras: sentAraras.length,
         },
         suppliers,
-        pedidosEnviados: {
-          rio_claro: sentRioClaro.map((card) => sentOrder(card, "rio_claro")),
-          araras: sentAraras.map((card) => sentOrder(card, "araras")),
-        },
         destinations: {
           rio_claro: sentRioClaroList?.id || null,
           araras: sentArarasList?.id || null,

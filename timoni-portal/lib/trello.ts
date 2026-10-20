@@ -169,7 +169,7 @@ function buildPublicReadUrl(
   return url;
 }
 
-function isStockSharedRead(
+function isPurchaseOrderSharedRead(
   path: string,
   method: "GET" | "POST" | "PUT" | "DELETE" | undefined,
   params?: Record<string, string | number | boolean | undefined>,
@@ -197,12 +197,12 @@ export async function trelloFetch<T>(
   } = {},
 ): Promise<T> {
   const credentials = options.credentials || (await getStoredTrelloCredentials());
-  const sharedStockRead = isStockSharedRead(path, options.method, options.params);
+  const sharedPurchaseOrderRead = isPurchaseOrderSharedRead(path, options.method, options.params);
 
   const response = await fetch(
     credentials
       ? buildUrl(path, credentials, options.params)
-      : sharedStockRead
+      : sharedPurchaseOrderRead
         ? buildPublicReadUrl(path, options.params)
         : (() => {
             throw new Error("Trello ainda não configurado no Portal.");

@@ -8,7 +8,7 @@ import PedidoCompraClient from "./pedido-compra-client";
 export const metadata: Metadata = { title: "Pedidos de Compra" };
 type RequestUnit = "rio_claro" | "araras";
 
-const ESTOQUE_GESTAO_EMAILS = new Set([
+const PURCHASE_OVERVIEW_EMAILS = new Set([
   "estoqueararascasatimoni@gmail.com",
   "estoquetimoni@gmail.com",
   "mcrodini@gmail.com",
@@ -53,7 +53,7 @@ export default async function PedidoCompraPage() {
   const email = session?.user?.email?.trim().toLowerCase() ?? "";
   const portalUser = await getEffectivePortalUser(session?.accessToken, email);
   if (!hasModuleAccess(email, "pedido-de-compra", portalUser)) redirect("/login?error=AccessDenied");
-  const isManager = ESTOQUE_GESTAO_EMAILS.has(email);
+  const isManager = PURCHASE_OVERVIEW_EMAILS.has(email);
   const allowedUnits = resolveAllowedUnits(email, isManager, portalUser);
   const visibleUnits: RequestUnit[] = isManager || allowedUnits.length > 1 ? ["rio_claro", "araras"] : allowedUnits;
   return <PedidoCompraClient visibleUnits={visibleUnits} />;

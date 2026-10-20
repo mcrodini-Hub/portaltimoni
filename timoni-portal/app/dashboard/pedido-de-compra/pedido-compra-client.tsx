@@ -6,7 +6,7 @@ type RequestUnit = "rio_claro" | "araras";
 type SentOrder = { id: string; nome: string; enviadoEm: string; previsaoEntrega: string; unidade: RequestUnit };
 function unitLabel(unit: RequestUnit) { return unit === "araras" ? "Araras" : "Rio Claro"; }
 function dateOnly(value: string) {
-  if (!value) return "—";
+  if (!value) return "Sem data";
   const d = new Date(value);
   return Number.isNaN(d.getTime())
     ? value
@@ -24,16 +24,17 @@ export default function PedidoCompraClient({ visibleUnits }: { visibleUnits: Req
   const [error, setError] = useState("");
   const [sentOrders, setSentOrders] = useState<SentOrder[]>([]);
   const inFlight = useRef(false);
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (force = false) => {
     if (inFlight.current) return;
     inFlight.current = true;
     setLoading(true);
     setError("");
     try {
-      const response = await fetch("/api/pedido-de-compra", { cache: "no-store" });
+      const response = await fetch(`/api/pedido-de-compra${force ? "?refresh=1" : ""}`, { cache: "no-store" });
       const payload = await response.json();
       if (!response.ok || !payload.ok) throw new Error(payload.error || "Falha ao carregar");
-      setSentOrders(payload.pedidosEnviados);
+      setSentOrders(payload.pedidosEnviados || []);
+      if (payload.stale) setError("Exibindo a última atualização. Não foi possível consultar o Trello agora.");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao carregar");
     } finally { inFlight.current = false; setLoading(false); }
@@ -42,8 +43,13 @@ export default function PedidoCompraClient({ visibleUnits }: { visibleUnits: Req
     void refresh();
     const timer = window.setInterval(() => { if (document.visibilityState === "visible") void refresh(); }, 60000);
     const onVisible = () => { if (document.visibilityState === "visible") void refresh(); };
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === "timoni_pedido_compra_updated" && document.visibilityState === "visible") void refresh();
+    };
+    window.addEventListener("storage", onStorage);
+    window.addEventListener("focus", onVisible);
     document.addEventListener("visibilitychange", onVisible);
-    return () => { window.clearInterval(timer); document.removeEventListener("visibilitychange", onVisible); };
+    return () => { window.clearInterval(timer); window.removeEventListener("storage", onStorage); window.removeEventListener("focus", onVisible); document.removeEventListener("visibilitychange", onVisible); };
   }, [refresh]);
   function SentOrdersSection() {
 
@@ -56,7 +62,7 @@ export default function PedidoCompraClient({ visibleUnits }: { visibleUnits: Req
           </div>
           <button
             type="button"
-            onClick={() => void refresh()}
+            onClick={() => void refresh(true)}
             disabled={loading}
             className="rounded-xl border border-slate-200 px-4 py-2 text-sm font-semibold text-blue-800 disabled:opacity-50"
           >

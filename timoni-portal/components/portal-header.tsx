@@ -29,7 +29,7 @@ export default async function PortalHeader({ email, portalUser }: { email: strin
   const isManagement = ["mcrodini@gmail.com", "mrodini@gmail.com"].includes(email.trim().toLowerCase());
   const canViewUpdates = isManagement;
   const canUseChat = hasModuleAccess(email, "chat", effectivePortalUser);
-  const mobileVisible = (module: PortalModule) => (module === "pedido-de-compra" && email.trim().toLowerCase() === "mcrodini@gmail.com") || effectivePortalUser?.mobileModules === undefined || effectivePortalUser.mobileModules.includes(module);
+  const mobileVisible = (module: PortalModule) => module === "pedido-de-compra" || effectivePortalUser?.mobileModules === undefined || effectivePortalUser.mobileModules.includes(module);
   const linkClass =
     "whitespace-nowrap rounded-lg px-2 py-2 text-[13px] font-medium text-white/90 transition hover:bg-white/10 hover:text-white";
   const allowedItems = navItems
@@ -85,4 +85,3 @@ export default async function PortalHeader({ email, portalUser }: { email: strin
     </>
   );
 }
-

@@ -22,6 +22,7 @@ function MessageBox({ item, index, canDelete }: { item: TeamMessage; index: numb
       className="rounded-2xl border border-blue-100 bg-white/80 p-4 shadow-sm"
     >
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold uppercase tracking-wider text-blue-700">
+        {item.id ? <span>Mensagem #{item.id}</span> : null}
         <span>{formatMessageDate(item.date)}</span>
       </div>
       <p className="mt-3 whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.message}</p>

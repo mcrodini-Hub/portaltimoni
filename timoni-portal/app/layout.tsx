@@ -3,6 +3,7 @@ import { Roboto } from "next/font/google";
 import "./globals.css";
 import MobileUiRules from "@/components/mobile-ui-rules";
 import PortalPermissionsSync from "@/components/portal-permissions-sync";
+import AvisosRequiredGate from "@/components/avisos-required-gate";
 
 const roboto = Roboto({
   subsets: ["latin"],
@@ -40,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="pt-BR">
       <body className={`${roboto.className} min-h-screen text-slate-900 antialiased`}>
+        <AvisosRequiredGate />
         {children}
         <PortalPermissionsSync />
         <MobileUiRules />

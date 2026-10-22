@@ -184,21 +184,22 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
         const isReadByEveryone = completedAvisoIds.includes(item.id);
         return (
         <article key={item.id} className="border-l-4 border-l-amber-400 border-t border-t-blue-200 pl-3 pt-3 first:border-t-0 first:pt-0">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              {isReadByEveryone && (
-                <span className="mb-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
-                  Lido
+          <details>
+            <summary className="cursor-pointer list-none [&::-webkit-details-marker]:hidden">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  {isReadByEveryone && (
+                    <span className="mb-1 inline-flex rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">
+                      Lido
+                    </span>
+                  )}
+                  <h3 className="text-base font-bold text-slate-950 sm:text-lg">{item.title}</h3>
+                </div>
+                <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">
+                  {formatDate(item.createdAt)}
                 </span>
-              )}
-              <h3 className="text-base font-bold text-slate-950 sm:text-lg">{item.title}</h3>
-            </div>
-            <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-slate-700 shadow-sm">
-              {formatDate(item.createdAt)}
-            </span>
-          </div>
-          <details className="mt-2">
-            <summary className="cursor-pointer text-sm font-semibold text-blue-800">Ver aviso completo →</summary>
+              </div>
+            </summary>
             <p className="mt-3 whitespace-pre-wrap border-t border-blue-100 pt-3 text-sm leading-6 text-slate-700">{item.message}</p>
           </details>
           {canConfirmRead && members.length > 0 && (

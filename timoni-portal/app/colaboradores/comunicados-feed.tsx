@@ -35,8 +35,6 @@ function isWithinDisplayEndDate(value: string, now = Date.now()) {
   const expiresAt = new Date(value);
   if (Number.isNaN(expiresAt.getTime())) return false;
 
-  // "Exibir até" é uma data inclusiva: o comunicado deve permanecer visível
-  // durante todo o dia informado, no horário de São Paulo.
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "America/Sao_Paulo",
     year: "numeric",
@@ -157,6 +155,7 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
       });
       setReadingId("");
       await load();
+      window.dispatchEvent(new Event("avisos:read-changed"));
     } catch (err) {
       setReadFeedback({ id: item.id, message: err instanceof Error ? err.message : "Não foi possível registrar a leitura.", success: false });
     } finally {

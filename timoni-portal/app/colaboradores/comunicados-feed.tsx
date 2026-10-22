@@ -14,6 +14,7 @@ type Comunicado = {
   updatedAt: string;
   startsAt: string;
   expiresAt: string;
+  imageDataUrl?: string;
   recipientEmails?: string[] | null;
 };
 type ReadFeedback = { id: string; message: string; success: boolean } | null;
@@ -199,7 +200,16 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
           </div>
           <details className="mt-2">
             <summary className="cursor-pointer text-sm font-semibold text-blue-800">Ver aviso completo →</summary>
-            <p className="mt-3 whitespace-pre-wrap border-t border-blue-100 pt-3 text-sm leading-6 text-slate-700">{item.message}</p>
+            <div className="mt-3 border-t border-blue-100 pt-3">
+              <p className="whitespace-pre-wrap text-sm leading-6 text-slate-700">{item.message}</p>
+              {item.imageDataUrl && (
+                <img
+                  src={item.imageDataUrl}
+                  alt={`Imagem do aviso ${item.title}`}
+                  className="mt-4 max-h-[520px] w-full rounded-xl border border-slate-200 object-contain bg-white"
+                />
+              )}
+            </div>
           </details>
           {canConfirmRead && members.length > 0 && (
             <div className="mt-3">

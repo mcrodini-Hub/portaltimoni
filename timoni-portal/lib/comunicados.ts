@@ -17,6 +17,7 @@ export type Comunicado = {
   updatedAt: string;
   startsAt: string;
   expiresAt: string;
+  imageDataUrl?: string;
   /** null keeps the existing unit-based audience; a list targets specific Portal logins. */
   recipientEmails?: string[] | null;
 };
@@ -39,6 +40,7 @@ type ComunicadoRow = {
   starts_at: Date | string;
   expires_at: Date | string | null;
   recipient_emails: string | null;
+  image_data_url: string | null;
 };
 
 const MIGRATION_KEY = "comunicados_google_v1";
@@ -96,6 +98,7 @@ async function ensureSchema() {
       `;
       await sql`CREATE INDEX IF NOT EXISTS portal_notices_created_at_idx ON portal_notices (created_at DESC)`;
       await sql`ALTER TABLE portal_notices ADD COLUMN IF NOT EXISTS recipient_emails TEXT`;
+      await sql`ALTER TABLE portal_notices ADD COLUMN IF NOT EXISTS image_data_url TEXT`;
       await sql`
         CREATE TABLE IF NOT EXISTS portal_data_migrations (
           key TEXT PRIMARY KEY,
@@ -139,15 +142,16 @@ async function upsertComunicado(item: Comunicado) {
   const sql = getDatabase();
   const recipientEmails = item.recipientEmails === null || item.recipientEmails === undefined ? null : JSON.stringify(item.recipientEmails);
   await sql`
-    INSERT INTO portal_notices (id, created_at, unit, title, message, status, updated_at, starts_at, expires_at, recipient_emails)
+    INSERT INTO portal_notices (id, created_at, unit, title, message, status, updated_at, starts_at, expires_at, recipient_emails, image_data_url)
     VALUES (
       ${item.id}, ${item.createdAt}, ${item.unit}, ${item.title}, ${item.message}, ${item.status},
-      ${item.updatedAt || item.createdAt}, ${item.startsAt || item.createdAt}, ${item.expiresAt || null}, ${recipientEmails}
+      ${item.updatedAt || item.createdAt}, ${item.startsAt || item.createdAt}, ${item.expiresAt || null}, ${recipientEmails}, ${item.imageDataUrl || null}
     )
     ON CONFLICT (id) DO UPDATE SET
       created_at = EXCLUDED.created_at, unit = EXCLUDED.unit, title = EXCLUDED.title,
       message = EXCLUDED.message, status = EXCLUDED.status, updated_at = EXCLUDED.updated_at,
-      starts_at = EXCLUDED.starts_at, expires_at = EXCLUDED.expires_at, recipient_emails = EXCLUDED.recipient_emails
+      starts_at = EXCLUDED.starts_at, expires_at = EXCLUDED.expires_at, recipient_emails = EXCLUDED.recipient_emails,
+      image_data_url = EXCLUDED.image_data_url
   `;
 }
 
@@ -177,6 +181,7 @@ function fromRow(row: ComunicadoRow): Comunicado {
     startsAt: new Date(row.starts_at).toISOString(),
     expiresAt: row.expires_at ? new Date(row.expires_at).toISOString() : "",
     recipientEmails: row.recipient_emails ? JSON.parse(row.recipient_emails) as string[] : null,
+    imageDataUrl: row.image_data_url || "",
   };
 }
 
@@ -185,7 +190,7 @@ export async function listComunicados(accessToken = "") {
   await importFromGoogleIfNeeded(accessToken);
   const sql = getDatabase();
   const rows = await sql`
-    SELECT id, created_at, unit, title, message, status, updated_at, starts_at, expires_at, recipient_emails
+    SELECT id, created_at, unit, title, message, status, updated_at, starts_at, expires_at, recipient_emails, image_data_url
     FROM portal_notices ORDER BY created_at DESC
   ` as ComunicadoRow[];
   const stored = rows.map(fromRow);
@@ -197,20 +202,20 @@ export async function listComunicados(accessToken = "") {
 
 export async function createComunicado(
   accessToken: string,
-  input: { unit: ComunicadoUnidade; title: string; message: string; startsAt?: string; expiresAt?: string; recipientEmails?: string[] | null },
+  input: { unit: ComunicadoUnidade; title: string; message: string; startsAt?: string; expiresAt?: string; recipientEmails?: string[] | null; imageDataUrl?: string },
 ) {
   await ensureSchema();
   await importFromGoogleIfNeeded(accessToken);
   const now = new Date().toISOString();
   const id = `com-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  await upsertComunicado({ id, createdAt: now, unit: input.unit, title: input.title, message: input.message, status: "ativo", updatedAt: now, startsAt: input.startsAt || now, expiresAt: input.expiresAt || "", recipientEmails: input.recipientEmails ?? null });
+  await upsertComunicado({ id, createdAt: now, unit: input.unit, title: input.title, message: input.message, status: "ativo", updatedAt: now, startsAt: input.startsAt || now, expiresAt: input.expiresAt || "", recipientEmails: input.recipientEmails ?? null, imageDataUrl: input.imageDataUrl || "" });
   return id;
 }
 
 export async function updateComunicado(
   accessToken: string,
   id: string,
-  input: Partial<Pick<Comunicado, "unit" | "title" | "message" | "status" | "startsAt" | "expiresAt" | "recipientEmails">>,
+  input: Partial<Pick<Comunicado, "unit" | "title" | "message" | "status" | "startsAt" | "expiresAt" | "recipientEmails" | "imageDataUrl">>,
 ) {
   const current = (await listComunicados(accessToken)).find((item) => item.id === id);
   if (!current) throw new Error("Comunicado não encontrado.");

@@ -22,9 +22,20 @@ const ARARAS_EMAILS = new Set([
   "reginaldo@casatimoni.com.br",
   "casatimoniararas@gmail.com",
 ]);
+const IMAGE_DATA_URL_PATTERN = /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/;
+const MAX_IMAGE_DATA_URL_LENGTH = 1_500_000;
 
 function normalizeEmail(value?: string | null) {
   return value?.trim().toLowerCase() ?? "";
+}
+
+function normalizeImageDataUrl(value: unknown) {
+  const imageDataUrl = typeof value === "string" ? value.trim() : "";
+  if (!imageDataUrl) return "";
+  if (imageDataUrl.length > MAX_IMAGE_DATA_URL_LENGTH || !IMAGE_DATA_URL_PATTERN.test(imageDataUrl)) {
+    throw new Error("Imagem inválida ou maior que 1 MB. Use JPG, PNG, WEBP ou GIF.");
+  }
+  return imageDataUrl;
 }
 
 function unitForEmail(email: string, portalUser?: PortalUser | null): ComunicadoUnidade {
@@ -134,13 +145,14 @@ export async function POST(request: Request) {
     const message = String(body?.message ?? "").trim();
     const startsAt = String(body?.startsAt ?? "").trim();
     const expiresAt = String(body?.expiresAt ?? "").trim();
+    const imageDataUrl = normalizeImageDataUrl(body?.imageDataUrl);
     if (expiresAt && Number.isNaN(Date.parse(expiresAt))) return NextResponse.json({ error: "Prazo final inválido." }, { status: 400 });
     if (startsAt && expiresAt && Date.parse(expiresAt) < Date.parse(startsAt)) return NextResponse.json({ error: "O prazo final deve ser posterior ao início." }, { status: 400 });
     if (!VALID_UNITS.has(unit) || title.length < 3 || message.length < 3) {
       return NextResponse.json({ error: "Preencha unidade, título e mensagem." }, { status: 400 });
     }
     const recipientEmails = await recipientSelection(body?.recipientEmails, context.accessToken);
-    const id = await createComunicado(context.accessToken, { unit, title, message, startsAt, expiresAt, recipientEmails });
+    const id = await createComunicado(context.accessToken, { unit, title, message, startsAt, expiresAt, recipientEmails, imageDataUrl });
     return NextResponse.json({ ok: true, id });
   } catch (error) {
     console.error("[comunicados][POST]", error);
@@ -170,13 +182,14 @@ export async function PATCH(request: Request) {
     const message = String(body?.message ?? "").trim();
     const startsAt = String(body?.startsAt ?? "").trim();
     const expiresAt = String(body?.expiresAt ?? "").trim();
+    const imageDataUrl = normalizeImageDataUrl(body?.imageDataUrl);
     if (expiresAt && Number.isNaN(Date.parse(expiresAt))) return NextResponse.json({ error: "Prazo final inválido." }, { status: 400 });
     if (startsAt && expiresAt && Date.parse(expiresAt) < Date.parse(startsAt)) return NextResponse.json({ error: "O prazo final deve ser posterior ao início." }, { status: 400 });
     if (!VALID_UNITS.has(unit) || title.length < 3 || message.length < 3) {
       return NextResponse.json({ error: "Preencha unidade, título e mensagem." }, { status: 400 });
     }
     const recipientEmails = await recipientSelection(body?.recipientEmails, context.accessToken);
-    await updateComunicado(context.accessToken, id, { unit, title, message, startsAt, expiresAt, recipientEmails });
+    await updateComunicado(context.accessToken, id, { unit, title, message, startsAt, expiresAt, recipientEmails, imageDataUrl });
     return NextResponse.json({ ok: true });
   } catch (error) {
     console.error("[comunicados][PATCH]", error);

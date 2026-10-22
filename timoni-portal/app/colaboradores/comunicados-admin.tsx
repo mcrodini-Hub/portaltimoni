@@ -13,6 +13,7 @@ type Comunicado = {
   updatedAt: string;
   startsAt: string;
   expiresAt: string;
+  imageDataUrl?: string;
   recipientEmails?: string[] | null;
 };
 
@@ -23,10 +24,13 @@ type FormState = {
   message: string;
   startsAt: string;
   expiresAt: string;
+  imageDataUrl: string;
   recipientEmails: string[] | null;
 };
 
-const EMPTY_FORM: FormState = { id: "", unit: "geral", title: "", message: "", startsAt: "", expiresAt: "", recipientEmails: null };
+const EMPTY_FORM: FormState = { id: "", unit: "geral", title: "", message: "", startsAt: "", expiresAt: "", imageDataUrl: "", recipientEmails: null };
+const MAX_IMAGE_BYTES = 1_000_000;
+const ALLOWED_IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 function toLocalInput(value: string) {
   if (!value) return "";
@@ -94,6 +98,26 @@ export default function ComunicadosAdmin() {
   const active = useMemo(() => items.filter((item) => item.status === "ativo"), [items]);
   const archived = useMemo(() => items.filter((item) => item.status === "arquivado"), [items]);
 
+  async function handleImageChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setError("");
+    if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+      setError("Use uma imagem JPG, PNG, WEBP ou GIF.");
+      event.target.value = "";
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setError("A imagem deve ter no máximo 1 MB.");
+      event.target.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => setForm((current) => ({ ...current, imageDataUrl: typeof reader.result === "string" ? reader.result : "" }));
+    reader.onerror = () => setError("Não foi possível ler a imagem selecionada.");
+    reader.readAsDataURL(file);
+  }
+
   async function submit(event: React.FormEvent) {
     event.preventDefault();
     setSaving(true);
@@ -110,6 +134,7 @@ export default function ComunicadosAdmin() {
           message: form.message,
           startsAt: form.startsAt ? new Date(form.startsAt).toISOString() : "",
           expiresAt: form.expiresAt ? new Date(form.expiresAt).toISOString() : "",
+          imageDataUrl: form.imageDataUrl,
         }),
       });
       const data = await response.json();
@@ -159,7 +184,7 @@ export default function ComunicadosAdmin() {
   }
 
   function edit(item: Comunicado) {
-    setForm({ id: item.id, unit: item.unit, title: item.title, message: item.message, startsAt: toLocalInput(item.startsAt), expiresAt: toLocalInput(item.expiresAt), recipientEmails: item.recipientEmails ?? null });
+    setForm({ id: item.id, unit: item.unit, title: item.title, message: item.message, startsAt: toLocalInput(item.startsAt), expiresAt: toLocalInput(item.expiresAt), imageDataUrl: item.imageDataUrl || "", recipientEmails: item.recipientEmails ?? null });
     window.setTimeout(() => document.getElementById("novo-comunicado")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
   }
 
@@ -259,6 +284,27 @@ export default function ComunicadosAdmin() {
           />
         </label>
 
+        <div className="lg:col-span-12">
+          <label className="text-sm font-medium text-slate-700">
+            Imagem do aviso <span className="font-normal text-slate-500">(opcional)</span>
+            <input
+              type="file"
+              accept="image/jpeg,image/png,image/webp,image/gif"
+              onChange={handleImageChange}
+              className="mt-1 block w-full rounded-xl border border-blue-200 bg-white px-3 py-2 text-sm text-slate-700 file:mr-3 file:rounded-lg file:border-0 file:bg-blue-100 file:px-3 file:py-2 file:font-semibold file:text-blue-800"
+            />
+          </label>
+          <p className="mt-1 text-xs text-slate-500">JPG, PNG, WEBP ou GIF · máximo 1 MB.</p>
+          {form.imageDataUrl && (
+            <div className="mt-3 rounded-xl border border-blue-200 bg-white p-3">
+              <img src={form.imageDataUrl} alt="Prévia da imagem do aviso" className="max-h-72 w-full rounded-lg object-contain" />
+              <button type="button" onClick={() => setForm((current) => ({ ...current, imageDataUrl: "" }))} className="mt-3 rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700">
+                Remover imagem
+              </button>
+            </div>
+          )}
+        </div>
+
         <div className="flex flex-wrap gap-2 lg:col-span-12 lg:justify-end">
           <button type="submit" disabled={saving || (form.recipientEmails !== null && (recipientOptionsError || form.recipientEmails.length === 0))} className="rounded-xl bg-blue-700 px-5 py-2.5 text-sm font-semibold text-white disabled:opacity-50">
             {saving ? "Salvando..." : form.id ? "Salvar edição" : "Registrar"}
@@ -283,6 +329,7 @@ export default function ComunicadosAdmin() {
               <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{unitLabel(item.unit)} · {formatDate(item.createdAt)}</p>
               <h3 className="mt-1 font-semibold text-slate-900">{item.title}</h3>
               <p className="mt-2 whitespace-pre-wrap text-sm leading-6 text-slate-600">{item.message}</p>
+              {item.imageDataUrl && <img src={item.imageDataUrl} alt={`Imagem do aviso ${item.title}`} className="mt-3 max-h-52 w-full rounded-lg border border-slate-200 bg-white object-contain" />}
               <div className="mt-3 flex flex-wrap gap-2">
                 <button type="button" onClick={() => edit(item)} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800">Editar</button>
                 <button type="button" onClick={() => toggleStatus(item)} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800">{item.status === "ativo" ? "Inativar" : "Ativar"}</button>

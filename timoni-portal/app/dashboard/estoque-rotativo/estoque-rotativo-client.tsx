@@ -138,6 +138,7 @@ export default function EstoqueRotativoClient() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [standardizingSupplier, setStandardizingSupplier] = useState(false);
   const [standardizationError, setStandardizationError] = useState("");
+  const [standardizationTestUrl, setStandardizationTestUrl] = useState("");
   const [selectedStandardizationSupplierId, setSelectedStandardizationSupplierId] = useState("");
   const [standardizationSheetNames, setStandardizationSheetNames] = useState<string[]>([]);
   const [standardizationSheetName, setStandardizationSheetName] = useState("");
@@ -246,6 +247,7 @@ export default function EstoqueRotativoClient() {
   }
 
   async function selectStandardizationSupplier(spreadsheetId: string) {
+    setStandardizationTestUrl("");
     const requestId = ++standardizationRequest.current;
     setStandardizationError("");
     setSelectedStandardizationSupplierId(spreadsheetId);
@@ -310,6 +312,19 @@ export default function EstoqueRotativoClient() {
       setStandardizationSheetName(String(result.sheetName || ""));
     }
     await load();
+  }
+
+  async function testStandardizationCopy() {
+    if (!selectedStandardizationSupplierId || !standardizationSheetName) return;
+    setStandardizingSupplier(true);
+    setStandardizationTestUrl("");
+    try {
+      const result = await standardizationControl("testar_em_copia", selectedStandardizationSupplierId, standardizationSheetName);
+      if (result?.spreadsheetUrl) {
+        setStandardizationTestUrl(String(result.spreadsheetUrl));
+        setFeedback(`Teste concluído em uma cópia: ${result.products} produtos. Abra a cópia para conferir.`);
+      }
+    } finally { setStandardizingSupplier(false); }
   }
 
   async function confirmSupplierSheet() {
@@ -1137,7 +1152,7 @@ export default function EstoqueRotativoClient() {
               </select>
             </label>
             <label className="min-w-0 text-sm font-semibold text-slate-800">Aba da planilha
-              <select value={standardizationSheetName} onChange={(event) => setStandardizationSheetName(event.target.value)} disabled={busy || standardizingSupplier || loadingStandardizationSheets || !selectedStandardizationSupplierId} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm disabled:bg-slate-100">
+              <select value={standardizationSheetName} onChange={(event) => { setStandardizationSheetName(event.target.value); setStandardizationTestUrl(""); }} disabled={busy || standardizingSupplier || loadingStandardizationSheets || !selectedStandardizationSupplierId} className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 text-sm disabled:bg-slate-100">
                 <option value="">{loadingStandardizationSheets ? "Carregando abas..." : "Selecione a aba..."}</option>
                 {standardizationSheetNames.map((name) => <option key={name} value={name}>{name}{data.supplierStandardizations.some((item) => item.spreadsheet_id === selectedStandardizationSupplierId && item.sheet_name === name && item.status === "atualizada") ? " — Padronizada ✓" : ""}</option>)}
               </select>
@@ -1145,6 +1160,8 @@ export default function EstoqueRotativoClient() {
           </div>
           {selectedStandardizationSupplier && standardizationSheetName ? (
             <div className="mt-3 flex flex-wrap items-center gap-2">
+              <button type="button" onClick={() => void testStandardizationCopy()} disabled={busy || standardizingSupplier} className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 disabled:opacity-50">{standardizingSupplier ? "Aguarde..." : "Testar em uma cópia"}</button>
+              {standardizationTestUrl && !standardizingSupplier ? <a href={standardizationTestUrl} target="_blank" rel="noreferrer" className="text-sm font-semibold text-[#13038D] underline">Abrir cópia para conferir</a> : null}
               {data.supplierStandardizations.some((item) => item.spreadsheet_id === selectedStandardizationSupplierId && item.sheet_name === standardizationSheetName && item.status === "atualizada") && !selectedPreparedSupplier ? (
                 <span className="text-sm font-semibold text-emerald-700">Padronizada ✓</span>
               ) : selectedPreparedSupplier ? (
@@ -1202,3 +1219,4 @@ export default function EstoqueRotativoClient() {
     </div>
   );
 }
+

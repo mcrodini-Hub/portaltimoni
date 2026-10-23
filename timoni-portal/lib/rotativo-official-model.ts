@@ -4,6 +4,7 @@ import type { sheets_v4 } from "googleapis";
 type Cell = sheets_v4.Schema$CellData;
 type Request = sheets_v4.Schema$Request;
 export const ROTATIVO_HEADERS = ["VENDA", "COMPRA", "DESCRIÇÃO", "ESTOQUE", "UN"];
+export const ROTATIVO_MODEL_SPREADSHEET_ID = "1pKUVJYgJJ7ankF5wxgUoS__R8TsWzFhri4693husW5k";
 const norm = (v: unknown) => String(v ?? "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
 const occupied = (c?: Cell) => Boolean(c?.userEnteredValue && Object.values(c.userEnteredValue).some(v => v !== "" && v != null));
 const label = (c?: Cell) => c?.formattedValue ?? c?.userEnteredValue?.stringValue ?? "";
@@ -27,7 +28,7 @@ const lightBlue = { red: 0.85882354, green: 0.9137255, blue: 0.96862745 };
 const yellow = { red: 1, green: 0.9019608, blue: 0.6 };
 
 // Pure planner. Native dimension moves retain typed values, formulas and number formats.
-export function planOfficialRotativoModel(sheet: sheets_v4.Schema$Sheet, title: string, now = new Date()) {
+export function planOfficialRotativoModel(sheet: sheets_v4.Schema$Sheet, title: string, now = new Date(), model?: sheets_v4.Schema$Sheet) {
   const sheetId = sheet.properties?.sheetId;
   if (sheetId == null) throw new Error("A aba selecionada não foi encontrada.");
   const rows = gridRows(sheet);
@@ -39,8 +40,9 @@ export function planOfficialRotativoModel(sheet: sheets_v4.Schema$Sheet, title: 
   ];
   const candidates = rows.map((row, index) => {
     const names = row.map(c => norm(label(c)));
-    const columns = aliases.map(allowed => {
-      const hits = names.map((n, i) => allowed.includes(n) ? i : -1).filter(i => i >= 0);
+    const columns = aliases.map((allowed, column) => {
+      const preferred = column === 0 && names.includes("venda") ? ["venda"] : allowed;
+      const hits = names.map((n, i) => preferred.includes(n) ? i : -1).filter(i => i >= 0);
       return hits.length === 1 ? hits[0] : -1;
     });
     return { index, columns, names };
@@ -51,7 +53,9 @@ export function planOfficialRotativoModel(sheet: sheets_v4.Schema$Sheet, title: 
   if (headerIndex > 6) throw new Error("Cabeçalho abaixo da linha 7. Revise a estrutura antes de padronizar.");
   const rowShift = 6 - headerIndex;
   let lastSourceRow = headerIndex;
-  rows.forEach((row, i) => { if (i > headerIndex && row.some(occupied)) lastSourceRow = i; });
+  // Auxiliary ITEM/min/max alone never define a product or extend the table.
+  const isProduct = (row: Cell[]) => columns.some(c => c >= 0 && occupied(row[c]));
+  rows.forEach((row, i) => { if (i > headerIndex && isProduct(row)) lastSourceRow = i; });
   if (lastSourceRow === headerIndex) throw new Error("Nenhum produto encontrado abaixo do cabeçalho.");
   const sourceWidth = Math.max(1, ...rows.slice(headerIndex).filter(Boolean).map(row => {
     let end = row.length;
@@ -65,7 +69,12 @@ export function planOfficialRotativoModel(sheet: sheets_v4.Schema$Sheet, title: 
     const cell = rows[r]?.[c], n = cell?.userEnteredValue?.numberValue;
     if (n != null && cell?.formattedValue != null && cell.formattedValue !== String(n)) throw new Error(`Código com formato especial em ${colLetter(c)}${r + 1}. A conversão para texto alteraria sua exibição.`);
   }
-  if (excluded.length && rows.slice(headerIndex + 1).some(row => row.some(c => c.userEnteredValue?.formulaValue))) throw new Error("Planilha com fórmulas e colunas auxiliares antigas: revise as referências antes da migração.");
+  // Literal arithmetic has no references for column deletion to invalidate.
+  // Keep rejecting reference-bearing/unknown formulas before any write.
+  if (excluded.length && rows.slice(headerIndex + 1).some(row => row.some(c => {
+    const formula = c.userEnteredValue?.formulaValue;
+    return formula && !/^=[\d\s.+\-*/%^()]+$/.test(formula);
+  }))) throw new Error("Planilha com fórmulas e colunas auxiliares antigas: revise as referências antes da migração.");
   const requests: Request[] = [];
   for (let i = (sheet.conditionalFormats || []).length - 1; i >= 0; i--) requests.push({ deleteConditionalFormatRule: { sheetId, index: i } });
   for (const m of sheet.merges || []) requests.push({ unmergeCells: { range: m } });
@@ -99,6 +108,10 @@ export function planOfficialRotativoModel(sheet: sheets_v4.Schema$Sheet, title: 
   };
   // Clear visual inheritance, never numberFormat. Blank surroundings lose old borders/alignment.
   fmt(0, rowCount, 0, columnCount, {}, "userEnteredFormat(backgroundColor,backgroundColorStyle,borders,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy,textDirection,padding,textRotation)");
+  // Outside the used rectangle there are no product/history values to format.
+  // Remove even inherited number formats from these blank surroundings.
+  fmt(lastRow, rowCount, 0, columnCount, {}, "userEnteredFormat");
+  fmt(0, lastRow, lastColumn, columnCount, {}, "userEnteredFormat");
   requests.push({ repeatCell: { range: range(0, rowCount, 0, columnCount), cell: {}, fields: "dataValidation" } });
   fmt(0, lastRow, 0, lastColumn, { backgroundColor: white, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: false, foregroundColor: black }, wrapStrategy: "OVERFLOW_CELL" }, "userEnteredFormat(backgroundColor,textFormat,wrapStrategy)");
   fmt(0, 6, 0, lastColumn, { horizontalAlignment: "LEFT", verticalAlignment: "MIDDLE" }, "userEnteredFormat(horizontalAlignment,verticalAlignment)");
@@ -109,8 +122,27 @@ export function planOfficialRotativoModel(sheet: sheets_v4.Schema$Sheet, title: 
   fmt(3, 5, 0, 1, { textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: red } }, "userEnteredFormat.textFormat");
   fmt(5, 6, 5, lastColumn, { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" }, "userEnteredFormat(horizontalAlignment,verticalAlignment)");
   fmt(6, lastRow, 0, lastColumn, { horizontalAlignment: "CENTER", verticalAlignment: "MIDDLE" }, "userEnteredFormat(horizontalAlignment,verticalAlignment)");
-  fmt(6, lastRow, 2, 3, { horizontalAlignment: "LEFT" }, "userEnteredFormat.horizontalAlignment");
+  fmt(7, lastRow, 2, 3, { horizontalAlignment: "LEFT" }, "userEnteredFormat.horizontalAlignment");
   fmt(6, 7, 0, lastColumn, { backgroundColor: blue, textFormat: { fontFamily: "Calibri", fontSize: 11, bold: true, foregroundColor: white } }, "userEnteredFormat(backgroundColor,textFormat)");
+  if (model) {
+    const reference = gridRows(model);
+    if (!ROTATIVO_HEADERS.every((h, i) => label(reference[6]?.[i]) === h)) throw new Error("A aba MODELO não contém o cabeçalho oficial na linha 7.");
+    // Read only the visual style. Never copy template values, date/number formats,
+    // borders outside the table, or its five placeholder history names.
+    const visual = (r: number, c: number): sheets_v4.Schema$CellFormat => {
+      const f = reference[r]?.[c]?.effectiveFormat || reference[r]?.[c]?.userEnteredFormat;
+      if (!f?.textFormat?.fontFamily) throw new Error("Formatação incompleta na aba MODELO.");
+      return { backgroundColor: f.backgroundColor || white, textFormat: { ...f.textFormat, foregroundColor: f.textFormat.foregroundColor || black }, wrapStrategy: f.wrapStrategy || "OVERFLOW_CELL" };
+    };
+    const mask = "userEnteredFormat(backgroundColor,textFormat,wrapStrategy)";
+    for (let r = 0; r < 5; r++) for (let c = 0; c < (r === 1 || r === 2 ? 2 : 1); c++) fmt(r, r + 1, c, c + 1, visual(r, c), mask);
+    for (let c = 0; c < 6; c++) {
+      const to = c === 5 ? lastColumn : c + 1;
+      fmt(6, 7, c, to, visual(6, c), mask);
+      fmt(7, lastRow, c, to, visual(7, c), mask);
+    }
+    fmt(5, 6, 5, lastColumn, visual(5, 5), mask);
+  }
   fmt(7, lastRow, 0, 2, { numberFormat: { type: "TEXT", pattern: "@" } }, "userEnteredFormat.numberFormat");
   for (let r = headerIndex + 1; r <= lastSourceRow; r++) {
     const nf = rows[r]?.[columns[3]]?.userEnteredFormat?.numberFormat;
@@ -124,7 +156,6 @@ export function planOfficialRotativoModel(sheet: sheets_v4.Schema$Sheet, title: 
   }
   const border = { style: "SOLID", color: black };
   requests.push({ updateBorders: { range: range(6, lastRow, 0, lastColumn), top: border, bottom: border, left: border, right: border, innerHorizontal: border, innerVertical: border } });
-  for (const [r, end, c, ce] of [[0, 1, 0, 1], [1, 2, 0, 2], [2, 3, 0, 1]]) requests.push({ updateBorders: { range: range(r, end, c, ce), top: border, bottom: border, left: border, right: border, innerVertical: border } });
   const write = (r: number, c: number, value: sheets_v4.Schema$ExtendedValue) => requests.push({ updateCells: { start: { sheetId, rowIndex: r, columnIndex: c }, rows: [{ values: [{ userEnteredValue: value }] }], fields: "userEnteredValue" } });
   const top = rows.slice(0, headerIndex).flat();
   const standardized = top.find(c => /^Padronizada em /i.test(label(c)));
@@ -156,8 +187,12 @@ export function planOfficialRotativoModel(sheet: sheets_v4.Schema$Sheet, title: 
   [160, 160, 439, 103, 31].forEach((px, i) => dim("COLUMNS", i, i + 1, px));
   dim("COLUMNS", 5, lastColumn, 127);
   dim("ROWS", 0, 1, 32); dim("ROWS", 1, 5, 25); dim("ROWS", 5, 6, 19); dim("ROWS", 6, 7, 29); dim("ROWS", 7, lastRow, 19);
+  if (model) for (const block of model.data || []) {
+    (block.columnMetadata || []).forEach((m, i) => { const c = i + (block.startColumn || 0); if (c < 6 && m.pixelSize) dim("COLUMNS", c, c === 5 ? lastColumn : c + 1, m.pixelSize); });
+    (block.rowMetadata || []).forEach((m, i) => { const r = i + (block.startRow || 0); if (r < 8 && m.pixelSize) dim("ROWS", r, r === 7 ? lastRow : r + 1, m.pixelSize); });
+  }
   if (Buffer.byteLength(JSON.stringify(requests)) > 1_800_000) throw new Error("Planilha excede o tamanho seguro de uma operação. Nenhuma alteração foi feita.");
-  return { requests, lastRow, lastColumn, headerIndex, rowShift, columns, histories, official, products: rows.slice(headerIndex + 1, lastSourceRow + 1).filter(r => r.some(occupied)).length };
+  return { requests, lastRow, lastColumn, headerIndex, rowShift, columns, histories, official, products: rows.slice(headerIndex + 1, lastSourceRow + 1).filter(isProduct).length };
 }
 
 export async function readRotativoSheet(sheets: sheets_v4.Sheets, spreadsheetId: string, sheetName: string) {
@@ -177,8 +212,14 @@ export async function readRotativoSheet(sheets: sheets_v4.Sheets, spreadsheetId:
 }
 
 export async function applyOfficialRotativoModel(sheets: sheets_v4.Sheets, spreadsheetId: string, sheetName: string) {
-  const snapshot = await readRotativoSheet(sheets, spreadsheetId, sheetName);
-  const plan = planOfficialRotativoModel(snapshot.sheet, snapshot.title);
+  if (spreadsheetId === ROTATIVO_MODEL_SPREADSHEET_ID) throw new Error("A planilha MODELO é somente referência e não pode ser padronizada.");
+  const [snapshot, reference] = await Promise.all([
+    readRotativoSheet(sheets, spreadsheetId, sheetName),
+    sheets.spreadsheets.get({ spreadsheetId: ROTATIVO_MODEL_SPREADSHEET_ID, ranges: ["'MODELO'!A1:F8"], fields: "sheets(properties,data(startRow,startColumn,rowMetadata(pixelSize),columnMetadata(pixelSize),rowData(values(userEnteredValue,formattedValue,userEnteredFormat,effectiveFormat))))" }),
+  ]);
+  const model = reference.data.sheets?.find(s => s.properties?.title === "MODELO");
+  if (!model) throw new Error("Não foi possível ler a aba MODELO. Nenhuma padronização foi executada.");
+  const plan = planOfficialRotativoModel(snapshot.sheet, snapshot.title, new Date(), model);
   const sheetId = snapshot.sheet.properties!.sheetId!;
   const operationId = randomUUID(), backupName = `BKP_EXEC_${operationId.slice(0, 8)}_${sheetName}`.slice(0, 100);
   const backups = await sheets.spreadsheets.batchUpdate({ spreadsheetId, requestBody: { requests: [{ duplicateSheet: { sourceSheetId: sheetId, newSheetName: backupName } }] } });
@@ -220,3 +261,4 @@ export async function applyOfficialRotativoModel(sheets: sheets_v4.Sheets, sprea
   }
   return { products: plan.products, backupUrl: `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${backupId}`, operationId };
 }
+

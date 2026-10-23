@@ -18,6 +18,7 @@ type Comunicado = {
   recipientEmails?: string[] | null;
 };
 type ReadFeedback = { id: string; message: string; success: boolean } | null;
+type NoticeReader = { employee: string; unit: string; readAt: string };
 
 function formatDate(value: string) {
   if (!value) return "";
@@ -26,6 +27,18 @@ function formatDate(value: string) {
     day: "2-digit",
     month: "2-digit",
     year: "numeric",
+  }).format(new Date(value));
+}
+
+function formatDateTime(value: string) {
+  if (!value) return "";
+  return new Intl.DateTimeFormat("pt-BR", {
+    timeZone: "America/Sao_Paulo",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(new Date(value));
 }
 
@@ -49,6 +62,7 @@ function isWithinDisplayEndDate(value: string, now = Date.now()) {
 export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead = false, members = [] }: { store: PanelStore; isAdmin?: boolean; canConfirmRead?: boolean; members?: TeamMember[] }) {
   const [items, setItems] = useState<Comunicado[]>([]);
   const [completedAvisoIds, setCompletedAvisoIds] = useState<string[]>([]);
+  const [readersByAviso, setReadersByAviso] = useState<Record<string, NoticeReader[]>>({});
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
   const [readingId, setReadingId] = useState("");
@@ -67,12 +81,15 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
       if (readsResponse?.ok) {
         const readsData = await readsResponse.json();
         setCompletedAvisoIds(Array.isArray(readsData.completedAvisoIds) ? readsData.completedAvisoIds : []);
+        setReadersByAviso(readsData.readersByAviso && typeof readsData.readersByAviso === "object" ? readsData.readersByAviso : {});
       } else {
         setCompletedAvisoIds([]);
+        setReadersByAviso({});
       }
     } catch {
       setItems([]);
       setCompletedAvisoIds([]);
+      setReadersByAviso({});
     }
   }, [canConfirmRead, isAdmin]);
 
@@ -162,6 +179,7 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
         {error && <p className="text-sm font-medium text-red-700">{error}</p>}
         {visible.map((item) => {
           const isReadByEveryone = completedAvisoIds.includes(item.id);
+          const readers = readersByAviso[item.id] || [];
           return (
             <article key={item.id} className="border-l-4 border-l-amber-400 border-t border-t-blue-200 pl-3 pt-3 first:border-t-0 first:pt-0">
               <div className="flex flex-wrap items-start justify-between gap-3">
@@ -201,11 +219,27 @@ export default function ComunicadosFeed({ store, isAdmin = false, canConfirmRead
                 </div>
               )}
               {isAdmin && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("comunicado:edit", { detail: item }))} disabled={busyId === item.id} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800 disabled:opacity-50">Editar</button>
-                  <button type="button" onClick={() => setActive(item.id, false)} disabled={busyId === item.id} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 disabled:opacity-50">Inativar</button>
-                  <button type="button" onClick={() => remove(item.id)} disabled={busyId === item.id} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 disabled:opacity-50">Excluir</button>
-                </div>
+                <>
+                  <div className="mt-3 rounded-xl border border-slate-200 bg-white p-3">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Quem leu</p>
+                    {readers.length ? (
+                      <ul className="mt-2 space-y-1.5">
+                        {readers.map((reader) => (
+                          <li key={`${item.id}-${reader.unit}-${reader.employee}`} className="text-sm text-slate-700">
+                            <span className="font-semibold text-slate-900">{reader.employee}</span> · {reader.unit} · {formatDateTime(reader.readAt)}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="mt-2 text-sm text-slate-500">Ninguém confirmou a leitura ainda.</p>
+                    )}
+                  </div>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("comunicado:edit", { detail: item }))} disabled={busyId === item.id} className="rounded-lg border border-blue-200 bg-white px-3 py-2 text-xs font-semibold text-blue-800 disabled:opacity-50">Editar</button>
+                    <button type="button" onClick={() => setActive(item.id, false)} disabled={busyId === item.id} className="rounded-lg border border-emerald-200 bg-white px-3 py-2 text-xs font-semibold text-emerald-800 disabled:opacity-50">Inativar</button>
+                    <button type="button" onClick={() => remove(item.id)} disabled={busyId === item.id} className="rounded-lg border border-red-200 bg-white px-3 py-2 text-xs font-semibold text-red-700 disabled:opacity-50">Excluir</button>
+                  </div>
+                </>
               )}
             </article>
           );

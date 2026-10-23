@@ -32,9 +32,6 @@ function readMemberKey(unit: string, name: string) {
 }
 
 function allowedUnit(email: string, portalUser?: PortalUser | null) {
-  // Ciça e Marcelo são sempre gestão geral. Essa regra vem antes da unidade
-  // salva na configuração para evitar que um valor antigo de sessão/planilha
-  // filtre as leituras já registradas de uma das lojas.
   if (MANAGEMENT_EMAILS.has(email)) return "geral";
   if (portalUser?.unit) return portalUser.unit;
   return ARARAS_EMAILS.has(email) ? "Araras" : "Rio Claro";
@@ -77,8 +74,6 @@ export async function GET() {
       const readMembers = new Set(noticeReads.map((read) => readMemberKey(read.unit, read.employee)));
       if (audience.every((member) => readMembers.has(readMemberKey(member.unit, member.name)))) return true;
 
-      // Se o nome de um colaborador foi atualizado depois da confirmação,
-      // reconhece o total registrado por unidade sem expor a lista de nomes.
       const audienceByUnit = new Map<string, Set<string>>();
       for (const member of audience) {
         const unitKey = normalizeReadIdentity(member.unit);
@@ -93,9 +88,19 @@ export async function GET() {
         names.add(normalizeReadIdentity(read.employee));
         readsByUnit.set(unitKey, names);
       }
-      return [...audienceByUnit].every(([unit, members]) => readsByUnit.get(unit)?.size === members.size);
+      return [...audienceByUnit].every(([audienceUnit, members]) => readsByUnit.get(audienceUnit)?.size === members.size);
     }).map((notice) => notice.id);
-    return NextResponse.json({ ok: true, completedAvisoIds });
+
+    const readersByAviso = MANAGEMENT_EMAILS.has(current.email)
+      ? Object.fromEntries(visibleNotices.map((notice) => [
+          notice.id,
+          reads
+            .filter((read) => read.avisoId === notice.id)
+            .map((read) => ({ employee: read.employee, unit: read.unit, readAt: read.readAt })),
+        ]))
+      : undefined;
+
+    return NextResponse.json({ ok: true, completedAvisoIds, ...(readersByAviso ? { readersByAviso } : {}) });
   } catch (error) {
     console.error("[avisos-leituras][GET]", error);
     return NextResponse.json({ error: "Não foi possível carregar as leituras." }, { status: 500 });

@@ -170,7 +170,7 @@ export function getPortalUser(email?: string | null, configured?: PortalUser | n
   const fallback = portalUsers[normalized] ?? null;
   return fallback?.active === false ? null : fallback;
 }
-export function hasModuleAccess(email: string | null | undefined, module: PortalModule, configured?: PortalUser | null) { const user = getPortalUser(email, configured); return Boolean(user && (module === "pedido-de-compra" || user.modules.includes(module))); }
+export function hasModuleAccess(email: string | null | undefined, module: PortalModule, configured?: PortalUser | null) { const user = getPortalUser(email, configured); return Boolean(user && (module === "pedido-de-compra" || module === "motorista" || user.modules.includes(module))); }
 export function isCicaAccess(email?: string | null) { return normalizeEmail(email) === CICA_EMAIL; }
 export function entersDirectlyInPainelTimoni(email?: string | null, configured?: PortalUser | null) {
   if (configured && normalizeEmail(configured.email) === normalizeEmail(email)) return configured.directPainel ?? false;
@@ -192,6 +192,7 @@ export function isBoxVisible(email: string | null | undefined, box: PortalBox, c
     if (!user.modules.includes("painel")) return false;
     return user.boxes?.includes("espaco-equipe") ?? false;
   }
+  if (box === "motorista") return true;
   if (!user.modules.includes(box)) return false;
   if (!user.boxes) return true;
   return user.boxes.includes(box);

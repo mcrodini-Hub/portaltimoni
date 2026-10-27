@@ -128,10 +128,9 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       if (current.accessToken) {
         const currentRevision = await getPortalConfigurationRevisionSafely();
         const changed = currentRevision !== null && currentRevision !== current.portalConfigRevision;
-        const revisionCheckUnavailable = currentRevision === null &&
-          (!current.portalConfigAt || Date.now() - current.portalConfigAt > PORTAL_CONFIG_REFRESH_MS);
+        const refreshDue = !current.portalConfigAt || Date.now() - current.portalConfigAt > PORTAL_CONFIG_REFRESH_MS;
 
-        if (changed || revisionCheckUnavailable) {
+        if (changed || refreshDue) {
           const portalUser = await getEffectivePortalUser(current.accessToken, current.email);
           current = {
             ...current,

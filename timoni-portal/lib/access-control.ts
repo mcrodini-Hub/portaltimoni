@@ -60,6 +60,9 @@ const MANAGEMENT_MOTORISTA_EMAILS = new Set([
   "margareth@casatimoni.com.br",
 ]);
 const COLLABORATOR_MOTORISTA_CONTROL_EMAILS = new Set([
+  "fotoscasatimoni@gmail.com",
+  "estoqueararascasatimoni@gmail.com",
+  "casatimoniararas@gmail.com",
   "caixarctimoni@gmail.com",
   "estoquetimoni@gmail.com",
   "marketplacerc.mcr@gmail.com",

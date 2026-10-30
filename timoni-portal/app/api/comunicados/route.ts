@@ -18,9 +18,6 @@ const MANAGEMENT_EMAILS = new Set([ADMIN_EMAIL, "mrodini@gmail.com"]);
 const ARARAS_EMAILS = new Set([
   "estoqueararascasatimoni@gmail.com",
   "comercialara@casatimoni.com.br",
-  "fotoscasatimoni@gmail.com",
-  "reginaldo@casatimoni.com.br",
-  "casatimoniararas@gmail.com",
 ]);
 const IMAGE_DATA_URL_PATTERN = /^data:image\/(jpeg|png|webp|gif);base64,[A-Za-z0-9+/=]+$/;
 const MAX_IMAGE_DATA_URL_LENGTH = 1_500_000;

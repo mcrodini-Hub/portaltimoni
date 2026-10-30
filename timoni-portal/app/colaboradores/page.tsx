@@ -18,7 +18,7 @@ type FixedMeeting = { date: string; time: string; label: string; frequency: stri
 type PanelDateItem = { id: string; summary: string; start: string; end?: string };
 
 function normalizeText(value:string){return value.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase()}
-function getPanelStore(email:string,portalUser?:PortalUser|null):PanelStore{const e=email.trim().toLowerCase();if(["mcrodini@gmail.com","mrodini@gmail.com"].includes(e))return "geral";if(portalUser?.unit==="Geral")return "geral";if(portalUser?.unit==="Araras")return "araras";if(portalUser?.unit==="Rio Claro")return "rio claro";if(["estoqueararascasatimoni@gmail.com","comercialara@casatimoni.com.br","fotoscasatimoni@gmail.com","reginaldo@casatimoni.com.br","casatimoniararas@gmail.com"].includes(e))return "araras";return "rio claro"}
+function getPanelStore(email:string,portalUser?:PortalUser|null):PanelStore{const e=email.trim().toLowerCase();if(["mcrodini@gmail.com","mrodini@gmail.com"].includes(e))return "geral";if(portalUser?.unit==="Geral")return "geral";if(portalUser?.unit==="Araras")return "araras";if(portalUser?.unit==="Rio Claro")return "rio claro";if(["estoqueararascasatimoni@gmail.com","comercialara@casatimoni.com.br"].includes(e))return "araras";return "rio claro"}
 function parseEventDate(value:string){return new Date(value.includes("T")?value:`${value}T12:00:00-03:00`)}
 const PANEL_TIME_ZONE="America/Sao_Paulo";
 const PANEL_UTC_OFFSET="-03:00";

@@ -49,6 +49,12 @@ const modulesWithoutCicaAgenda = allModules.filter((module) => module !== "agend
 const operationalModules: PortalModule[] = ["painel", "chat", "estoque", "motorista"];
 const CICA_EMAIL = "mcrodini@gmail.com";
 const MARCELO_EMAIL = "mrodini@gmail.com";
+const RETIRED_PORTAL_EMAILS = new Set([
+  "fotoscasatimoni@gmail.com",
+  "reginaldo@casatimoni.com.br",
+  "casatimoniararas@gmail.com",
+  "comercialtimoniararas@gmail.com",
+]);
 const ESTOQUE_TIMONI_EMAIL = "estoquetimoni@gmail.com";
 const DIRECT_PAINEL_TIMONI_EMAILS = new Set([
   "balcaotimoni@gmail.com",
@@ -60,16 +66,13 @@ const MANAGEMENT_MOTORISTA_EMAILS = new Set([
   "margareth@casatimoni.com.br",
 ]);
 const COLLABORATOR_MOTORISTA_CONTROL_EMAILS = new Set([
-  "fotoscasatimoni@gmail.com",
   "estoqueararascasatimoni@gmail.com",
-  "casatimoniararas@gmail.com",
   "caixarctimoni@gmail.com",
   "estoquetimoni@gmail.com",
   "marketplacerc.mcr@gmail.com",
   "comercialara@casatimoni.com.br",
   "carolina@casatimoni.com.br",
   "comercialrc@casatimoni.com.br",
-  "reginaldo@casatimoni.com.br",
 ]);
 const LEADS_COLLABORATOR_EMAILS = new Set([
   "marketplacerc.mcr@gmail.com",
@@ -83,9 +86,6 @@ const CHAT_COLLABORATOR_EMAILS = new Set([
 
 const LEADS_ARARAS_EMAILS = new Set([
   "comercialara@casatimoni.com.br",
-  "reginaldo@casatimoni.com.br",
-  "fotoscasatimoni@gmail.com",
-  "casatimoniararas@gmail.com",
   "estoqueararascasatimoni@gmail.com",
 ]);
 const LEADS_RIO_CLARO_EMAILS = new Set([
@@ -146,7 +146,6 @@ export const portalUsers: Record<string, PortalUser> = {
   "mcrodini@gmail.com": { name: "Ciça Rodini", email: "mcrodini@gmail.com", modules: [...allModules, "agenda-ct"], requiresPassword: true },
   "mrodini@gmail.com": { name: "Marcelo Rodini", email: "mrodini@gmail.com", modules: modulesWithoutCicaAgenda, requiresPassword: true },
   "margareth@casatimoni.com.br": { name: "Margareth", email: "margareth@casatimoni.com.br", modules: allModules, requiresPassword: true },
-  "fotoscasatimoni@gmail.com": operationalUser("Lucas e Vendedores - Araras", "fotoscasatimoni@gmail.com"),
   "balcaotimoni@gmail.com": operationalUser("Vendedores - Rio Claro", "balcaotimoni@gmail.com"),
   "caixarctimoni@gmail.com": { name: "Bruna - Rio Claro", email: "caixarctimoni@gmail.com", modules: ["painel", "chat", "motorista"], requiresPassword: false, readOnly: false, active: true },
   "estoquetimoni@gmail.com": operationalUser("Lucas - Estoque Rio Claro", "estoquetimoni@gmail.com"),
@@ -154,15 +153,14 @@ export const portalUsers: Record<string, PortalUser> = {
   "comercialara@casatimoni.com.br": operationalUser("Carolina - Vendas Araras", "comercialara@casatimoni.com.br"),
   "carolina@casatimoni.com.br": operationalUser("Carolina - Rio Claro", "carolina@casatimoni.com.br"),
   "comercialrc@casatimoni.com.br": operationalUser("Jeovana - Rio Claro", "comercialrc@casatimoni.com.br"),
-  "reginaldo@casatimoni.com.br": operationalUser("Reginaldo - Araras", "reginaldo@casatimoni.com.br"),
   "estoqueararascasatimoni@gmail.com": { name: "Estoque Araras", email: "estoqueararascasatimoni@gmail.com", modules: operationalModules, requiresPassword: true },
-  "casatimoniararas@gmail.com": { name: "Casa Timoni Araras", email: "casatimoniararas@gmail.com", modules: operationalModules, requiresPassword: false },
 };
 
 export function normalizeEmail(email?: string | null) { return email?.trim().toLowerCase() ?? ""; }
 export function isAuthorizedUser(email?: string | null, configured?: PortalUser | null) { return Boolean(getPortalUser(email, configured)); }
 export function getPortalUser(email?: string | null, configured?: PortalUser | null) {
   const normalized = normalizeEmail(email);
+  if (RETIRED_PORTAL_EMAILS.has(normalized)) return null;
   if (configured && normalizeEmail(configured.email) === normalized) {
     if (configured.active === false) return null;
     if (normalized === MARCELO_EMAIL) {

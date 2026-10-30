@@ -93,7 +93,7 @@ const EXISTING_ACCESS_LABELS: Record<string, string> = {
   "estoqueararascasatimoni@gmail.com": "Estoque Araras",
   "marketplacerc.mcr@gmail.com": "Marketplace Rio Claro",
   "comercialrc@casatimoni.com.br": "Comercial Rio Claro",
-  "comercialara@casatimoni.com.br": "Comercial Araras",
+  "comercialara@casatimoni.com.br": "Gestão",
   "carolina@casatimoni.com.br": "Vendas Rio Claro",
   "margareth@casatimoni.com.br": "Gestão",
 };

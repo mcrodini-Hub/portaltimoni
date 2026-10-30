@@ -20,9 +20,6 @@ const GESTAO_EMAILS = new Set(["mcrodini@gmail.com", "mrodini@gmail.com"]);
 const ARARAS_EMAILS = new Set([
   "estoqueararascasatimoni@gmail.com",
   "comercialara@casatimoni.com.br",
-  "fotoscasatimoni@gmail.com",
-  "reginaldo@casatimoni.com.br",
-  "casatimoniararas@gmail.com",
 ]);
 
 function normalizeEmail(email: string) {

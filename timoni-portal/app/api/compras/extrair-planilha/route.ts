@@ -147,12 +147,14 @@ export async function POST(request: Request) {
   try {
     const body = (await request.json()) as {
       url?: string;
+      aba?: string;
       codigo?: string;
       descricao?: string;
       quantidade?: string;
       linhaInicial?: string;
     };
     const url = body.url?.trim() || "";
+    const requestedSheet = body.aba?.trim() || "";
     const mapping = {
       codigo: body.codigo?.trim() || "",
       descricao: body.descricao?.trim() || "",
@@ -181,10 +183,20 @@ export async function POST(request: Request) {
     const availableSheets = (metadata.data.sheets || []).filter(
       (sheet) => !sheet.properties?.hidden,
     );
+    const requestedTarget = requestedSheet
+      ? availableSheets.find(
+          (sheet) => canonical(sheet.properties?.title) === canonical(requestedSheet),
+        )
+      : null;
+    if (requestedSheet && !requestedTarget) {
+      throw new Error(`A aba "${requestedSheet}" não foi encontrada na planilha.`);
+    }
     const target =
+      requestedTarget ||
       (gid !== null
         ? availableSheets.find((sheet) => sheet.properties?.sheetId === gid)
-        : null) || availableSheets[0];
+        : null) ||
+      availableSheets[0];
     const title = target?.properties?.title;
     if (!title) throw new Error("Não foi possível identificar a aba da planilha.");
 

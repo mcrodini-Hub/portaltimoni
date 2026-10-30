@@ -88,16 +88,13 @@ const EXISTING_ACCESS_LABELS: Record<string, string> = {
   "mcrodini@gmail.com": "Ciça",
   "mrodini@gmail.com": "Marcelo",
   "balcaotimoni@gmail.com": "Vendedores Rio Claro",
-  "fotoscasatimoni@gmail.com": "Vendedores Araras",
   "caixarctimoni@gmail.com": "Caixa Rio Claro",
   "estoquetimoni@gmail.com": "Estoque Rio Claro",
   "estoqueararascasatimoni@gmail.com": "Estoque Araras",
   "marketplacerc.mcr@gmail.com": "Marketplace Rio Claro",
   "comercialrc@casatimoni.com.br": "Comercial Rio Claro",
   "comercialara@casatimoni.com.br": "Comercial Araras",
-  "casatimoniararas@gmail.com": "Casa Timoni Araras",
   "carolina@casatimoni.com.br": "Vendas Rio Claro",
-  "reginaldo@casatimoni.com.br": "Vendas Araras",
   "margareth@casatimoni.com.br": "Gestão",
 };
 
@@ -111,9 +108,6 @@ function defaultUnit(email: string): PortalUser["unit"] {
   if ([
     "estoqueararascasatimoni@gmail.com",
     "comercialara@casatimoni.com.br",
-    "fotoscasatimoni@gmail.com",
-    "reginaldo@casatimoni.com.br",
-    "casatimoniararas@gmail.com",
   ].includes(normalized)) return "Araras";
   return "Rio Claro";
 }

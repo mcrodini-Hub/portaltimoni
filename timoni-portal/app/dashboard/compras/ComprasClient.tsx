@@ -55,6 +55,7 @@ export default function ComprasClient() {
   const [selectedId, setSelectedId] = useState("");
 
   const [sheetUrl, setSheetUrl] = useState("");
+  const [sheetTab, setSheetTab] = useState("");
   const [columnCode, setColumnCode] = useState("");
   const [columnDescription, setColumnDescription] = useState("");
   const [columnQuantity, setColumnQuantity] = useState("");
@@ -153,6 +154,7 @@ export default function ComprasClient() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           url: sheetUrl.trim(),
+          aba: sheetTab.trim(),
           codigo: columnCode.trim(),
           descricao: columnDescription.trim(),
           quantidade: columnQuantity.trim(),
@@ -380,6 +382,15 @@ export default function ComprasClient() {
               onChange={(event) => setSheetUrl(event.target.value)}
               placeholder="https://docs.google.com/spreadsheets/d/..."
               className="mt-2 min-h-12 w-full rounded-xl border border-slate-300 px-4 text-sm outline-none focus:border-blue-600"
+            />
+          </label>
+          <label className="mt-4 block text-sm font-semibold text-slate-800">
+            Aba
+            <input
+              value={sheetTab}
+              onChange={(event) => setSheetTab(event.target.value)}
+              placeholder="Preencha"
+              className="mt-2 min-h-11 w-full rounded-xl border border-slate-300 px-3 text-sm"
             />
           </label>
           <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">

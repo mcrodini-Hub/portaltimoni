@@ -68,7 +68,9 @@ function EventCard({title,tone,events}:{title:string;tone:"pink"|"amber";events:
 async function PanelContent(){
  const session=await auth();const email=session?.user?.email??"";const normalized=email.trim().toLowerCase();const now=new Date();const eventWindow=getPanelDateWindow(now);
  const eventsPromise=email
-  ?getAccessTokenFromRefreshToken().then((accessToken)=>listEventsInRange(accessToken,{timeMin:eventWindow.timeMin,timeMax:eventWindow.timeMax,maxResults:500},["timoni"])).catch(()=>[] as CalendarEventDTO[])
+  ?Promise.resolve(session?.accessToken&&session.error!=="RefreshAccessTokenError"?session.accessToken:getAccessTokenFromRefreshToken())
+    .then((accessToken)=>listEventsInRange(accessToken,{timeMin:eventWindow.timeMin,timeMax:eventWindow.timeMax,maxResults:500},["timoni"]))
+    .catch(()=>[] as CalendarEventDTO[])
   :Promise.resolve([] as CalendarEventDTO[]);
  const meetingsPromise=session?.accessToken&&session.error!=="RefreshAccessTokenError"
   ?listMeetings(session.accessToken).catch(()=>[] as Meeting[])
